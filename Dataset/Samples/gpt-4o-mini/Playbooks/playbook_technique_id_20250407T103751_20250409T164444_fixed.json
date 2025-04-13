@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4c0b647-7fd0-4b6f-a3ce-49a2f1209153",
+    "name": "Mitigation Playbook for Malicious Script Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to inject malicious scripts into the system, potentially compromising sensitive data.",
+    "created_by": "identity--303a508e-5552-4f48-899d-e9c25d958ff8",
+    "created": "2025-04-07T10:00:00Z",
+    "modified": "2025-04-07T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f83b1d0-3b0d-4c6e-b4b0-4d8e4ddcce60",
+    "workflow": {
+        "start--1f83b1d0-3b0d-4c6e-b4b0-4d8e4ddcce60": {
+            "on_completion": "action--5b6e4f91-48f9-4f53-86a6-d57804ca1caa",
+            "type": "start"
+        },
+        "action--5b6e4f91-48f9-4f53-86a6-d57804ca1caa": {
+            "name": "Terminate malicious scripts",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--c2c95e8a-49a9-4a46-bd81-1801e1bf4e44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "if-condition--c2c95e8a-49a9-4a46-bd81-1801e1bf4e44": {
+            "name": "Check for established connection to C2 server",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--79d4e5b2-4714-4fa3-a49b-ff01e9abbeb4",
+            "on_false": "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee"
+        },
+        "action--79d4e5b2-4714-4fa3-a49b-ff01e9abbeb4": {
+            "name": "Kill network connections to C2 server",
+            "description": "Block outbound connections to the command and control server.",
+            "on_completion": "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 12345 -j DROP"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee": {
+            "name": "Run endpoint security scan",
+            "description": "Perform a scan of the system to find other possible threats.",
+            "on_completion": "while-condition--5b6a3f7a-d2a9-4e84-a54b-90d98308fdb2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "while-condition--5b6a3f7a-d2a9-4e84-a54b-90d98308fdb2": {
+            "name": "Check if the scan is clean",
+            "description": "Repeat until the system scan returns clean.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee",
+            "on_false": "action--e3d51b98-4cd5-4d71-b7a6-2b0ef8e1b10e"
+        },
+        "action--e3d51b98-4cd5-4d71-b7a6-2b0ef8e1b10e": {
+            "name": "Review and analyze logs for other malicious activities",
+            "description": "Review the logs to uncover any additional malicious activities.",
+            "on_completion": "action--fb6944ea-2b37-4bba-96c0-beb200cbcb8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "action--fb6944ea-2b37-4bba-96c0-beb200cbcb8d": {
+            "name": "Update firewall rules to block the source IP",
+            "description": "Block any known malicious source IP addresses.",
+            "on_completion": "end--e4c0b647-7fd0-4b6f-a3ce-49a2f1209153",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s attacker_ip -j DROP"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a",
+            "targets": [
+                "individual--source_ip"
+            ]
+        },
+        "end--e4c0b647-7fd0-4b6f-a3ce-49a2f1209153": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9626eb17-1dd7-4c81-b7be-119f834c003d": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}

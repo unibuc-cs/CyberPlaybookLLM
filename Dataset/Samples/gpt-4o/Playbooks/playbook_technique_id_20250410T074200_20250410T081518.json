@@ -1,0 +1,147 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d290f1ee-6c54-4b01-90e6-d701748f0851",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of base64-encoded PowerShell commands, leading to unauthorized data access.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2023-03-25T14:23:45Z",
+    "modified": "2023-03-25T14:23:45Z",
+    "revoked": false,
+    "workflow_start": "start--5cf708c3-9954-46a5-92ea-d0bd44d4f3d8",
+    "workflow": {
+        "start--5cf708c3-9954-46a5-92ea-d0bd44d4f3d8": {
+            "on_completion": "parallel--2d7c1840-8e15-49ea-8292-ff7692b27264",
+            "type": "start"
+        },
+        "parallel--2d7c1840-8e15-49ea-8292-ff7692b27264": {
+            "name": "Execute Initial Mitigations in Parallel",
+            "description": "Terminate suspicious processes and quarantine files simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842",
+                "decision--91bf242c-43e7-4a47-8d27-225b5e9d4c58"
+            ]
+        },
+        "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842": {
+            "name": "Terminate Suspicious PowerShell Process",
+            "description": "Terminate processes running PowerShell scripts.",
+            "on_completion": "action--f429d671-c80d-439f-938e-09d7d2ffd108",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "decision--91bf242c-43e7-4a47-8d27-225b5e9d4c58": {
+            "name": "Check if Suspicious File Exists",
+            "description": "Determine if the suspicious file should be quarantined.",
+            "type": "if-condition",
+            "condition": "[ -f /path/to/suspicious/file ]",
+            "on_true": "action--c97d5976-b3f4-4a89-bd13-d47fa2bfea94",
+            "on_false": "action--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a"
+        },
+        "action--c97d5976-b3f4-4a89-bd13-d47fa2bfea94": {
+            "name": "Quarantine Impacted Files",
+            "description": "Move suspicious files to a quarantine location.",
+            "on_completion": "action--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/suspicious/file /quarantine/"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a": {
+            "name": "Run Antivirus Scan Until Clean",
+            "description": "Perform antivirus scan in a loop until the system is clean.",
+            "type": "while-condition",
+            "condition": "! antivirus-scan --check-clean",
+            "on_true": "action--76b8f6d2-6585-4c9f-ad21-849f1e27b236",
+            "next_steps": "action--76b8f6d2-6585-4c9f-ad21-849f1e27b236"
+        },
+        "action--76b8f6d2-6585-4c9f-ad21-849f1e27b236": {
+            "name": "Perform Antivirus Scan",
+            "description": "Perform antivirus scanning and cleaning.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --auto-clean"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--b5a3e6f2-5293-4c77-8f03-bba6e2029e20"
+        },
+        "action--f429d671-c80d-439f-938e-09d7d2ffd108": {
+            "name": "Update PowerShell Execution Policies",
+            "description": "Set PowerShell execution policy to RemoteSigned.",
+            "on_completion": "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587": {
+            "name": "Review and Enhance Firewall Rules",
+            "description": "Update firewall rules to reject connections from malicious IPs.",
+            "on_completion": "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=ipv4 source address=malicious-ip reject'"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806": {
+            "name": "Monitor Network Traffic for Anomalous Activity",
+            "description": "Monitor network activity for signs of further attacks.",
+            "on_completion": "end--b5a3e6f2-5293-4c77-8f03-bba6e2029e20",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --interface ${interface} --alert"
+                }
+            ],
+            "agent": "organization--ghi",
+            "step_variables": {
+                "interface": {
+                    "type": "string",
+                    "description": "Network interface to monitor",
+                    "value": "eth0",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b5a3e6f2-5293-4c77-8f03-bba6e2029e20": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganization PowerShell Team"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization Antivirus Team"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "ClientOrganization Firewall Team"
+        }
+    }
+}

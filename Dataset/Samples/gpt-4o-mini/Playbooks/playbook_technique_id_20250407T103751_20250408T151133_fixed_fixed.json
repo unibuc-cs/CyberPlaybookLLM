@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ab53ec08-c454-4bef-8b04-a68714690242",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker injected malicious scripts that compromised sensitive data.",
+    "created_by": "identity--3138aad7-92fe-42b6-aa81-8109c362ed9e",
+    "created": "2023-10-23T14:32:11Z",
+    "modified": "2023-10-23T14:32:11Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--5b6e4f91-48f9-4f53-86a6-d57804ca1caa",
+            "type": "start"
+        },
+        "action--5b6e4f91-48f9-4f53-86a6-d57804ca1caa": {
+            "name": "Terminate malicious scripts",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--79d4e5b2-4714-4fa3-a49b-ff01e9abbeb4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "action--79d4e5b2-4714-4fa3-a49b-ff01e9abbeb4": {
+            "name": "Kill network connections to C2 server",
+            "description": "Block outbound connections to the command and control server.",
+            "on_completion": "if-condition--de702846-d494-4023-bff1-8bad473dc087",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 12345 -j DROP"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee": {
+            "name": "Run endpoint security scan",
+            "description": "Perform a scan of the system to find other possible threats.",
+            "on_completion": "while-condition--3e0ba587-c23e-4a65-9bc7-aaac0815a597",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "action--e3d51b98-4cd5-4d71-b7a6-2b0ef8e1b10e": {
+            "name": "Review and analyze logs for other malicious activities",
+            "description": "Check for any references to malicious activity in the logs.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--109bb019-02a7-4104-8c3b-7c94a49c067a"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "if-condition--de702846-d494-4023-bff1-8bad473dc087": {
+            "name": "Check if connection is established to C2 server",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee",
+            "on_false": "action--e3d51b98-4cd5-4d71-b7a6-2b0ef8e1b10e"
+        },
+        "while-condition--3e0ba587-c23e-4a65-9bc7-aaac0815a597": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--e3d51b98-4cd5-4d71-b7a6-2b0ef8e1b10e",
+            "on_iteration": "action--bb9b2d40-e73b-4aad-80c3-b49c23a880ee"
+        }
+    },
+    "agent_definitions": {
+        "organization--9626eb17-1dd7-4c81-b7be-119f834c003d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "connection_established": {
+            "type": "boolean",
+            "description": "Flag indicating if a connection to the C2 server was established.",
+            "value": "true",
+            "constant": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the last security scan.",
+            "value": "dirty",
+            "constant": false
+        }
+    }
+}
