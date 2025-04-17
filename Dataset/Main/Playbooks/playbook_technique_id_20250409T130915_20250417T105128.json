@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2a834ec-4e8e-49e0-8d09-55c0061541a1",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook mitigates incidents of unauthorized script execution, focusing on PowerShell abuse and its effects.",
+    "created_by": "identity--abcd1234-def5-6789-abcd-ef1234567890",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b2a834ec-4e8e-49e0-8d09-55c0061541a1",
+    "workflow": {
+        "start--b2a834ec-4e8e-49e0-8d09-55c0061541a1": {
+            "on_completion": "if-condition--process-running-uuid",
+            "type": "start"
+        },
+        "if-condition--process-running-uuid": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "powerShellProcessCount > 0",
+            "on_true": "action--kill-powershell-process-uuid",
+            "on_false": "action--check-for-malicious-files-uuid"
+        },
+        "action--kill-powershell-process-uuid": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that may be running.",
+            "on_completion": "action--monitor-network-traffic-uuid",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--check-for-malicious-files-uuid": {
+            "name": "Check for dropped malicious files",
+            "on_completion": "while-condition--remove-malicious-files-uuid",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ls /temp/malicious_payload.exe || echo 'No files found.'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--remove-malicious-files-uuid": {
+            "name": "Remove malicious files loop",
+            "description": "Loop until no malicious files are found.",
+            "on_completion": "action--monitor-network-traffic-uuid",
+            "type": "while-condition",
+            "condition": "malicious_files_exist == true",
+            "on_true": "action--remove-dropped-malicious-files-uuid"
+        },
+        "action--remove-dropped-malicious-files-uuid": {
+            "name": "Remove dropped malicious files",
+            "description": "Permanently delete the malicious files from the system.",
+            "on_completion": "while-condition--remove-malicious-files-uuid",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /temp/malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--monitor-network-traffic-uuid": {
+            "name": "Monitor network traffic for unusual connections",
+            "description": "Monitor the network to detect any suspicious outgoing connections.",
+            "on_completion": "end--complete-uuid",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -n port not 22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--complete-uuid": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

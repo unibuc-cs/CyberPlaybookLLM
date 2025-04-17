@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d67a1376-5eda-4b67-a589-221d84ca93ab",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook addresses incidents involving PowerShell scripts used for data exfiltration.",
+    "created_by": "identity--abc12345-6b7e-4db6-b789-9876543210ab",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--e0828a54-236f-4fcd-9bf9-9eaed88167a2",
+            "type": "start"
+        },
+        "action--e0828a54-236f-4fcd-9bf9-9eaed88167a2": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process responsible for data exfiltration.",
+            "on_completion": "action--c086f78e-51f3-424e-bd47-c787d08e2f78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f pwsh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c086f78e-51f3-424e-bd47-c787d08e2f78": {
+            "name": "Disable external network access",
+            "description": "Block all outbound network traffic to prevent further data exfiltration.",
+            "on_completion": "parallel--fbc67223-eb3f-4fa9-a0b6-ae59c4bb4b47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--fbc67223-eb3f-4fa9-a0b6-ae59c4bb4b47": {
+            "name": "Conduct Further Investigations",
+            "description": "Scan for other infected hosts and collect logs for analysis.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d428eb41-ccf6-403b-96a9-f6edc5ac6e60",
+                "action--b35d5a6c-1c76-4b8d-b704-68090ba097f6"
+            ]
+        },
+        "action--d428eb41-ccf6-403b-96a9-f6edc5ac6e60": {
+            "name": "Scan for other infected hosts",
+            "description": "Iterate through each infected host to check for PowerShell processes.",
+            "on_completion": "action--f12a043b-1b60-4b64-93d8-9d73b2e9e2f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat infected_hosts.txt); do ssh $host 'ps aux | grep pwsh'; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b35d5a6c-1c76-4b8d-b704-68090ba097f6": {
+            "name": "Collect logs for further analysis",
+            "description": "Backup logs if they have not been backed up already.",
+            "on_completion": "action--f12a043b-1b60-4b64-93d8-9d73b2e9e2f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tar -czf logs_backup.tar.gz /var/log"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": [
+                {
+                    "condition": "logs_backed_up != true"
+                }
+            ]
+        },
+        "action--f12a043b-1b60-4b64-93d8-9d73b2e9e2f0": {
+            "name": "Implement monitoring on affected servers",
+            "description": "Ensure that monitoring is enabled on all servers involved.",
+            "on_completion": "end--e2f5e1a5-2fdc-4b28-a9b0-34d5f5620205",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl enable monitoring-service && systemctl start monitoring-service"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e2f5e1a5-2fdc-4b28-a9b0-34d5f5620205": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

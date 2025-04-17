@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9e8be94a-daa4-47e4-b3d2-4d820cd404f2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution through a vulnerable web application, leading to data exfiltration.",
+    "created_by": "identity--891c0bdf-23f5-4b5e-9447-5234c53667d5",
+    "created": "2025-10-15T10:00:00.000Z",
+    "modified": "2025-10-15T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1e8c6a1-2c11-48ab-88b9-b41169dc7b7f",
+    "workflow": {
+        "start--f1e8c6a1-2c11-48ab-88b9-b41169dc7b7f": {
+            "on_completion": "action--4a252f8c-1a2a-4dbf-b1bd-1c83e1f80d5f",
+            "type": "start"
+        },
+        "action--4a252f8c-1a2a-4dbf-b1bd-1c83e1f80d5f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--c9b2df54-e341-4dff-94d2-2bd0814b9f43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c9b2df54-e341-4dff-94d2-2bd0814b9f43": {
+            "name": "Check if malicious script exists",
+            "type": "if-condition",
+            "condition": "test -f /var/www/html/malicious_script.sh",
+            "on_true": "action--c9b2df54-e341-4dff-94d2-2bd0814b9f43",
+            "on_false": "action--e96cc8c8-b7e1-4697-94b4-db1b72b9eaf1"
+        },
+        "action--c9b2df54-e341-4dff-94d2-2bd0814b9f43": {
+            "name": "Quarantine affected files",
+            "description": "Move malicious script to a quarantine directory.",
+            "on_completion": "action--e96cc8c8-b7e1-4697-94b4-db1b72b9eaf1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /var/www/html/malicious_script.sh /var/www/html/quarantine/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e96cc8c8-b7e1-4697-94b4-db1b72b9eaf1": {
+            "name": "Run security scan",
+            "description": "Perform a recursive scan of the affected directory to find other potential threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/www/html"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--scan_until_clean"
+        },
+        "while-condition--scan_until_clean": {
+            "name": "Repeat scan until clean",
+            "description": "Continue running the security scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "grep -q 'Infected files: 0' clamscan.log",
+            "on_true": "end--743e99de-5cf2-4e99-bf48-623d1cb9f753",
+            "on_false": "action--e96cc8c8-b7e1-4697-94b4-db1b72b9eaf1"
+        },
+        "end--743e99de-5cf2-4e99-bf48-623d1cb9f753": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

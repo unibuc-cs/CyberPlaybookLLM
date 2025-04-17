@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2f46c68-7152-4b51-8918-8fda23f87d3a",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an internal developer workstation was compromised using a malicious script for exfiltrating sensitive source code. It includes actions to kill the malicious process, isolate the affected workstation, and run a malware scan until the system is clean.",
+    "created_by": "identity--dc9d8d6c-531e-4c2d-bc83-c611032e5aad",
+    "created": "2025-10-06T12:00:00Z",
+    "modified": "2025-10-06T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--1982eeff-34a6-44e3-9a96-1a1e224c85a1",
+    "workflow": {
+        "start--1982eeff-34a6-44e3-9a96-1a1e224c85a1": {
+            "on_completion": "action--1a0b8b30-9c41-4df8-9015-84d455e6e9c8",
+            "type": "start"
+        },
+        "action--1a0b8b30-9c41-4df8-9015-84d455e6e9c8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that has been executed.",
+            "on_completion": "action--d0c70a4b-edfe-4eda-9102-47dede4d4b3e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d0c70a4b-edfe-4eda-9102-47dede4d4b3e": {
+            "name": "Isolate affected workstation",
+            "description": "Isolate the host to prevent further data exfiltration.",
+            "on_completion": "while-condition--aa36279a-fc26-4c4b-b188-a165f40e90e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--aa36279a-fc26-4c4b-b188-a165f40e90e7": {
+            "name": "Run malware scan loop",
+            "description": "Run a malware scan and repeat until the scan is clean.",
+            "on_completion": "end--381cc432-3069-418e-81ac-a5b72ee8f22f",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--c12d1900-6af7-44de-b23b-40494bba98cb",
+            "on_false": "end--381cc432-3069-418e-81ac-a5b72ee8f22f"
+        },
+        "action--c12d1900-6af7-44de-b23b-40494bba98cb": {
+            "name": "Run malware scan",
+            "description": "Execute the malware scanner to check for threats.",
+            "on_completion": "if-condition--91a051ab-20f8-47b5-b0c1-ed8cad82b232",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scanner.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--91a051ab-20f8-47b5-b0c1-ed8cad82b232": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--381cc432-3069-418e-81ac-a5b72ee8f22f",
+            "on_false": "while-condition--aa36279a-fc26-4c4b-b188-a165f40e90e7"
+        },
+        "end--381cc432-3069-418e-81ac-a5b72ee8f22f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

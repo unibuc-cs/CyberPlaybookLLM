@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--eeb4f94a-2bdb-43cd-baa0-d5e1d9138725",
+    "name": "Playbook for Script Execution and Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to exfiltrate sensitive data after gaining unauthorized access to the internal network.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-23T15:45:00Z",
+    "modified": "2023-10-23T15:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--uuid-1",
+    "workflow": {
+        "start--uuid-1": {
+            "on_completion": "action--aa7acabc-5773-4b8a-888e-87c1d6abf390",
+            "type": "start"
+        },
+        "action--aa7acabc-5773-4b8a-888e-87c1d6abf390": {
+            "name": "Monitor outgoing traffic for anomalies",
+            "description": "Capture outgoing traffic to identify unusual behaviors indicative of data exfiltration.",
+            "on_completion": "decision--check-anomalies",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -nn -i eth0 -s0 -A 'tcp port 80 or tcp port 443'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--check-anomalies": {
+            "name": "Check for unusual traffic",
+            "type": "if-condition",
+            "condition": "unusual_traffic_detected",
+            "on_true": "action--8f83d6b0-f7f7-411a-901e-1c9a3dce3f4e",
+            "on_false": "loop--monitor-traffic"
+        },
+        "action--8f83d6b0-f7f7-411a-901e-1c9a3dce3f4e": {
+            "name": "Isolate compromised host from network",
+            "description": "Block the compromised host from further access to the network.",
+            "on_completion": "action--27e22607-4a3b-4c7b-bec5-e19d51ab6c44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -I INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--monitor-traffic": {
+            "name": "Repeat anomaly monitoring",
+            "description": "Continue monitoring outgoing traffic every 5 minutes until conditions are met.",
+            "on_completion": "action--aa7acabc-5773-4b8a-888e-87c1d6abf390",
+            "type": "while-condition",
+            "condition": "monitoring_required",
+            "on_true": "action--aa7acabc-5773-4b8a-888e-87c1d6abf390"
+        },
+        "action--27e22607-4a3b-4c7b-bec5-e19d51ab6c44": {
+            "name": "Analysis of command history for malicious entries",
+            "description": "Analyze command history to find any malicious commands executed during the intrusion.",
+            "on_completion": "end--uuid-2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "history | grep -i 'bash'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--uuid-2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,153 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c4b7e2b4-d6e3-4f32-8993-c95bc1b15c0b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook mitigates an attack that exploits a scripting engine vulnerability using unauthorized command executions on the server.",
+    "created_by": "identity--dfebd80e-5555-4338-8df1-7b7a326dadf1",
+    "created": "2025-04-12T08:30:00Z",
+    "modified": "2025-04-12T08:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--f7e23b90-8dd1-4c6b-bfbb-4e72ef5d0797",
+    "workflow": {
+        "start--f7e23b90-8dd1-4c6b-bfbb-4e72ef5d0797": {
+            "on_completion": "parallel--44e9e5bb-03f1-4bee-be20-43c7e5c7703d",
+            "type": "start"
+        },
+        "parallel--44e9e5bb-03f1-4bee-be20-43c7e5c7703d": {
+            "name": "Simultaneously address detected attack logs",
+            "description": "Initiates parallel actions for multiple mitigation strategies.",
+            "type": "parallel",
+            "next_steps": [
+                "decision--a8b133f5-86b8-4804-ae47-82cb50d0a3c6",
+                "while-condition--4f5b6b79-631a-40f3-9b8d-3f3e911c314b",
+                "action--fcb73259-3ea8-4e67-acbd-3c9ad1ece842"
+            ]
+        },
+        "decision--a8b133f5-86b8-4804-ae47-82cb50d0a3c6": {
+            "name": "Check for running malicious process",
+            "description": "Decides whether a malicious process is running and initiates its termination.",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--81eaf625-0b64-4a8d-8cb4-ff9515eaeef0",
+            "on_false": "action--4c158d1e-40d2-4f71-939d-a9dcca7e5823"
+        },
+        "action--81eaf625-0b64-4a8d-8cb4-ff9515eaeef0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--4c158d1e-40d2-4f71-939d-a9dcca7e5823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f '<malicious_process>'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4c158d1e-40d2-4f71-939d-a9dcca7e5823": {
+            "name": "Apply security patches",
+            "description": "Updates the system with the latest security patches.",
+            "on_completion": "end--172d5f3b-bad8-42e6-b3fe-7d1d0a6f49b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--4f5b6b79-631a-40f3-9b8d-3f3e911c314b": {
+            "name": "Continue scanning until clean",
+            "description": "Scans for malware until the system is confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--a729ea0f-6f5f-45cb-afc7-a6f6854f08c8",
+            "on_false": "action--5b1ed749-b5c0-44c9-82fb-b9a00f1bbf9a"
+        },
+        "action--a729ea0f-6f5f-45cb-afc7-a6f6854f08c8": {
+            "name": "Scan for malware",
+            "description": "Performs a recursive scan on the system to detect malware.",
+            "on_completion": "while-condition--4f5b6b79-631a-40f3-9b8d-3f3e911c314b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the malware scan",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--5b1ed749-b5c0-44c9-82fb-b9a00f1bbf9a": {
+            "name": "Reset admin credentials",
+            "description": "Resets the admin credentials to a new, secure password.",
+            "on_completion": "end--172d5f3b-bad8-42e6-b3fe-7d1d0a6f49b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo '<generated_secure_password>' | passwd --stdin admin"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fcb73259-3ea8-4e67-acbd-3c9ad1ece842": {
+            "name": "Isolate compromised host",
+            "description": "Isolates the host suspected to have executed unauthorized scripts.",
+            "on_completion": "action--33d1f374-5bd0-4c2e-8f67-0f8c56d8f830",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--33d1f374-5bd0-4c2e-8f67-0f8c56d8f830": {
+            "name": "Monitor network traffic",
+            "description": "Continuously monitors network traffic for 24 hours daily.",
+            "on_completion": "end--172d5f3b-bad8-42e6-b3fe-7d1d0a6f49b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "duration": {
+                    "type": "string",
+                    "description": "Duration of the network monitoring",
+                    "value": "24 hours",
+                    "constant": true,
+                    "external": false
+                }
+            }
+        },
+        "end--172d5f3b-bad8-42e6-b3fe-7d1d0a6f49b6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityTeamA"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "SecurityTeamB"
+        }
+    }
+}

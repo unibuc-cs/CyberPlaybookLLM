@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e49f2e6b-1c3e-4321-885d-7289067f455e",
+    "name": "Remediation Playbook for Remote Desktop Protocol Breach",
+    "description": "This playbook addresses a breach where an attacker exploited Remote Desktop Protocol to gain unauthorized access to a corporate server and deployed a keylogger.",
+    "created_by": "identity--d2c10731-0f9e-4e2e-a295-22976a537726",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ca0c4ec0-7af4-4efb-bc7a-0f7e024dfbe1",
+    "workflow": {
+        "start--ca0c4ec0-7af4-4efb-bc7a-0f7e024dfbe1": {
+            "on_completion": "action--e2f3985c-39f2-4ebb-81be-b9d9b682a238",
+            "type": "start"
+        },
+        "action--e2f3985c-39f2-4ebb-81be-b9d9b682a238": {
+            "name": "Enforce RDP restrictions",
+            "description": "Disable Remote Desktop Access on the affected host.",
+            "on_completion": "action--5d79c235-167e-4420-9bb6-bcf90b29bba1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh firewall set service type=remoteadmin mode=disable"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5d79c235-167e-4420-9bb6-bcf90b29bba1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the keylogger.",
+            "on_completion": "while-condition--c8b5cb74-39e0-450b-9c3e-896202d7e44a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f keylogger"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--c8b5cb74-39e0-450b-9c3e-896202d7e44a": {
+            "name": "Perform network scan until clean",
+            "description": "Repeat network scanning until no unknown devices are detected.",
+            "on_completion": "action--c8b5cb74-39e0-450b-9c3e-896202d7e44a",
+            "type": "while-condition",
+            "condition": "unknown_devices_detected == false",
+            "on_true": "end--a1bce85e-6a37-4f15-bede-8902bf0fe008",
+            "on_false": "action--c8b5cb74-39e0-450b-9c3e-896202d7e44a"
+        },
+        "action--c8b5cb74-39e0-450b-9c3e-896202d7e44a": {
+            "name": "Scan network for unknown devices",
+            "description": "Scan the network for any unauthorized devices after killing the keylogger.",
+            "on_completion": "increment-attempt",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "increment-attempt": {
+            "name": "Increment attempts for network scan",
+            "description": "Update attempt counter and check for maximum attempts.",
+            "on_completion": "check-max-attempts",
+            "type": "action",
+            "step_variables": {
+                "attempt": {
+                    "type": "integer",
+                    "description": "Current attempt count for network scanning",
+                    "value": 1,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "attempt=$((attempt + 1))"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "check-max-attempts": {
+            "name": "Check if maximum attempts reached",
+            "type": "if-condition",
+            "condition": "attempt < 3",
+            "on_true": "action--c8b5cb74-39e0-450b-9c3e-896202d7e44a",
+            "on_false": "end--a1bce85e-6a37-4f15-bede-8902bf0fe008"
+        },
+        "end--a1bce85e-6a37-4f15-bede-8902bf0fe008": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

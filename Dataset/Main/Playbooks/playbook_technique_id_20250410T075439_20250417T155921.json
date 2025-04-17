@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2b99e1e-9f2f-4e73-bd7c-0018aff45e2e",
+    "name": "Mitigation Playbook for Compromised Scripting Interpreter Incident",
+    "description": "This playbook details the steps to mitigate an incident where an attacker has compromised a scripting interpreter, leading to unauthorized command execution.",
+    "created_by": "identity--5823c1a8-95c5-445b-afae-9624be08122c",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a123e456-7890-12db-a456-426614174000",
+    "workflow": {
+        "start--a123e456-7890-12db-a456-426614174000": {
+            "on_completion": "action--d6a8d2b8-3a2b-4e3e-899f-29b58c2bf5f4",
+            "type": "start"
+        },
+        "action--d6a8d2b8-3a2b-4e3e-899f-29b58c2bf5f4": {
+            "name": "Kill Malicious Scripting Interpreter",
+            "description": "Terminate any instance of the compromised scripting interpreter.",
+            "on_completion": "if-condition--b8e456fd-0a67-4fd8-a42b-89f7cf68a644",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "if-condition--b8e456fd-0a67-4fd8-a42b-89f7cf68a644": {
+            "name": "Check if Process is Active",
+            "type": "if-condition",
+            "condition": "process_active",
+            "on_true": "action--c0c94a3d-e382-4ec2-9579-8fd003d3ee6f",
+            "on_false": "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2"
+        },
+        "action--c0c94a3d-e382-4ec2-9579-8fd003d3ee6f": {
+            "name": "Restore Configuration Files",
+            "on_completion": "while-condition--3d84d0d6-3bc3-4bc4-bf8f-44965d46a007",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backups/secure/config_backup /etc/config"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--3d84d0d6-3bc3-4bc4-bf8f-44965d46a007": {
+            "name": "Verify Configuration Integrity",
+            "type": "while-condition",
+            "condition": "config_checksum_mismatch",
+            "on_true": "action--c0c94a3d-e382-4ec2-9579-8fd003d3ee6f",
+            "on_false": "action--582b8c65-7f0e-42be-bf56-a1b2a7a9b57f"
+        },
+        "action--582b8c65-7f0e-42be-bf56-a1b2a7a9b57f": {
+            "name": "Reset User Privileges",
+            "description": "Revoke escalated privileges from the compromised user.",
+            "on_completion": "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "User who escalated privileges",
+                    "value": "user",
+                    "constant": false
+                }
+            }
+        },
+        "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2": {
+            "name": "Conduct Network Scan",
+            "description": "Scan the network for unauthorized scripts.",
+            "on_completion": "if-condition--b9a17249-4090-4028-b6d4-237383292a24",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "scan_interval": {
+                    "type": "string",
+                    "description": "Interval for network scanning",
+                    "value": "30m",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--b9a17249-4090-4028-b6d4-237383292a24": {
+            "name": "Repeat Network Scan Until Clean",
+            "type": "if-condition",
+            "condition": "scan_result == clean",
+            "on_true": "end--c2e38a7c-58f8-4c56-99ac-b6e4f7bc7aae",
+            "on_false": "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2"
+        },
+        "end--c2e38a7c-58f8-4c56-99ac-b6e4f7bc7aae": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganizationA"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganizationB"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganizationC"
+        }
+    }
+}

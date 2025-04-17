@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2c9de35-f120-47f8-b02f-8babc95fd1ec",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through the command line, downloaded payloads, and established remote connections.",
+    "created_by": "identity--d234fbc5-2fba-4df4-b8db-d68480f9912f",
+    "created": "2025-04-12T14:00:00Z",
+    "modified": "2025-04-12T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc12345-def6-7890-a123-bcde45678fgh",
+    "workflow": {
+        "start--abc12345-def6-7890-a123-bcde45678fgh": {
+            "on_completion": "action--a9c16d4e-789f-4228-a503-81785667d300",
+            "type": "start"
+        },
+        "action--a9c16d4e-789f-4228-a503-81785667d300": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--4b2e0c7e-bf12-4ea4-b80e-20f483f67a09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4b2e0c7e-bf12-4ea4-b80e-20f483f67a09": {
+            "name": "Scan for remaining malware",
+            "description": "Check /tmp directory for any remaining malicious executables.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while true; do for i in /tmp/*; do if [[ -x $i ]]; then echo 'Found executable: $i'; fi; done; sleep 10; done"
+                }
+            ],
+            "agent": "organization--abc",
+            "next_steps": "if-condition--condition-check-missing"
+        },
+        "if-condition--condition-check-missing": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "remaining_malware_found == false",
+            "on_true": "action--32d1923f-c4af-4d9f-99e6-e338c22eddc3",
+            "on_false": "continue--scanning"
+        },
+        "action--32d1923f-c4af-4d9f-99e6-e338c22eddc3": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Block connections to known malicious IPs.",
+            "on_completion": "end--end-success",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "continue--scanning": {
+            "description": "Continue scanning for malware",
+            "type": "loop",
+            "on_completion": "action--4b2e0c7e-bf12-4ea4-b80e-20f483f67a09",
+            "condition": "remaining_malware_found == true"
+        },
+        "end--end-success": {
+            "step_extensions": {
+                "": "extension-definition--9f1a7d3f-9773-47bf-95b3-11d7aef12379"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "FirewallManagement"
+        }
+    }
+}

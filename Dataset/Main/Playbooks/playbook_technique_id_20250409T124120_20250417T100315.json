@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5331fa16-1e0a-4199-9b2d-8f65e86ed83c",
+    "name": "Mitigation for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution detected on a critical server.",
+    "created_by": "identity--de793137-93b3-4adb-877f-b8a1dc9073d5",
+    "created": "2025-04-10T12:00:00.000Z",
+    "modified": "2025-04-10T12:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8e78bf43-94d0-4a09-bda5-534e5f29b822",
+    "workflow": {
+        "start--8e78bf43-94d0-4a09-bda5-534e5f29b822": {
+            "on_completion": "action--b9087c24-dcf1-40bc-80d5-8be1d5bc2483",
+            "type": "start"
+        },
+        "action--b9087c24-dcf1-40bc-80d5-8be1d5bc2483": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process identified as executing unauthorized scripts.",
+            "on_completion": "if-condition--12c7d9bf-23b5-4c5e-8bfd-f9aa63dc1349",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--12c7d9bf-23b5-4c5e-8bfd-f9aa63dc1349": {
+            "name": "Check if dropped file exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/suspicious_script.sh",
+            "on_true": "action--12c7d9bf-23b5-4c5e-8bfd-f9aa63dc1349",
+            "on_false": "loop--77b5e90d-fd59-42f2-a46b-b14ab494e04a"
+        },
+        "action--12c7d9bf-23b5-4c5e-8bfd-f9aa63dc1349": {
+            "name": "Remove dropped files",
+            "description": "Remove the suspicious script file dropped in the /tmp directory.",
+            "on_completion": "loop--77b5e90d-fd59-42f2-a46b-b14ab494e04a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--77b5e90d-fd59-42f2-a46b-b14ab494e04a": {
+            "name": "Scan server for malware",
+            "description": "Execute a full server scan to detect any remaining malware.",
+            "on_completion": "end--0e40b80c-de45-4665-b9fe-f4f3f62a3f69",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--77b5e90d-fd59-42f2-a46b-b14ab494e04a",
+            "on_false": "end--0e40b80c-de45-4665-b9fe-f4f3f62a3f69"
+        },
+        "action--77b5e90d-fd59-42f2-a46b-b14ab494e04a": {
+            "name": "Run malware scan",
+            "description": "Perform a recursive scan of the server to find malware.",
+            "on_completion": "set-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-scan-status": {
+            "type": "action",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the malware scan.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--77b5e90d-fd59-42f2-a46b-b14ab494e04a"
+        },
+        "end--0e40b80c-de45-4665-b9fe-f4f3f62a3f69": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

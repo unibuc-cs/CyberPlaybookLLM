@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fb78b276-f412-49a1-ab1b-1e0da962bd09",
+    "name": "Mitigation Playbook for Exploitation in PDF Reader Incident",
+    "description": "This playbook addresses an incident where an employee opened a malicious email attachment, leading to exploitation and establishing an attacker foothold.",
+    "created_by": "identity--b5d03e45-5fb5-4c1a-a4bf-4f6a5be5bee2",
+    "created": "2023-10-10T10:30:00.000Z",
+    "modified": "2023-10-10T10:40:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b22ea3c7-b778-4e5e-bc60-ec799a9a94cc",
+    "workflow": {
+        "start--b22ea3c7-b778-4e5e-bc60-ec799a9a94cc": {
+            "on_completion": "action--f60bf770-4c92-4844-b1ae-9c05e816e475",
+            "type": "start"
+        },
+        "action--f60bf770-4c92-4844-b1ae-9c05e816e475": {
+            "name": "Disconnect affected host from the network",
+            "description": "Immediately disconnect the affected host to prevent further exposure.",
+            "on_completion": "action--de5e5c1a-e6da-4a78-bf62-3a30be11b727",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--de5e5c1a-e6da-4a78-bf62-3a30be11b727": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that were initiated.",
+            "on_completion": "while-condition--4d7267d6-ffad-4569-b516-23ac2b47eb46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--4d7267d6-ffad-4569-b516-23ac2b47eb46": {
+            "name": "Scan for malware in loop",
+            "description": "Continue scanning the affected host for malware until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c56c82a5-6005-4eb7-9db3-bcfc0a30dabc",
+            "on_false": "end--ef0b3003-b10b-49a5-b6d9-5394f566c279"
+        },
+        "action--c56c82a5-6005-4eb7-9db3-bcfc0a30dabc": {
+            "name": "Scan the affected host for malware",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the malware scan.",
+                    "value": "pending",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "action--a490c842-9648-4a39-bf65-b585c8925043",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan --host host-5"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a490c842-9648-4a39-bf65-b585c8925043": {
+            "name": "Update scan status",
+            "description": "Update the scan_status variable based on the result of the scan.",
+            "on_completion": "while-condition--4d7267d6-ffad-4569-b516-23ac2b47eb46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_result && scan_status='clean' || scan_status='pending'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--ef0b3003-b10b-49a5-b6d9-5394f566c279": {
+            "step_extensions": {
+                "": "extension-definition--118aa14b-78a7-4178-8e00-78871954e1c5"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7d6f9ff-814c-4d85-b79c-7b669267143c",
+    "name": "Mitigation Playbook for Exploitation of Remote Services Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability in the company's remote access service, gaining unauthorized access and executing malware to exfiltrate sensitive data.",
+    "created_by": "identity--4e57c66a-7c5d-4499-802f-b5b5729e9fc1",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d7c045ee-cb8b-4974-9239-e4fd6d0aa8b8",
+    "workflow": {
+        "start--d7c045ee-cb8b-4974-9239-e4fd6d0aa8b8": {
+            "on_completion": "action--e6213221-0b65-4cd3-a3f6-5777de7b8b05",
+            "type": "start"
+        },
+        "action--e6213221-0b65-4cd3-a3f6-5777de7b8b05": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process executing the malicious binary.",
+            "on_completion": "if-condition--d1c5ac9b-4aba-48a6-neutral-99db68cb80ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_binary_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--d1c5ac9b-4aba-48a6-neutral-99db68cb80ee": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists(malicious_binary_name)",
+            "on_true": "action--d1c5ac9b-4aba-48a6-neutral-99db68cb80ee",
+            "on_false": "action--6db5f9e8-1a09-4188-ba9e-806ab148c1e7"
+        },
+        "action--d1c5ac9b-4aba-48a6-neutral-99db68cb80ee": {
+            "name": "Isolate infected host from the network",
+            "description": "Disconnect the infected host from the network.",
+            "on_completion": "action--6db5f9e8-1a09-4188-ba9e-806ab148c1e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-32 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--6db5f9e8-1a09-4188-ba9e-806ab148c1e7": {
+            "name": "Run a full system scan",
+            "description": "Perform a system scan to detect any remaining threats.",
+            "on_completion": "while-condition--b1ce9c34-1e0c-4c44-8ccd-08d60736272a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Starting system scan...' && clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--b1ce9c34-1e0c-4c44-8ccd-08d60736272a": {
+            "name": "System Scan Loop",
+            "description": "Repeat the system scan until the scan is clean.",
+            "on_true": "action--6db5f9e8-1a09-4188-ba9e-806ab148c1e7",
+            "condition": "scan_status == 'in_progress'",
+            "type": "while-condition",
+            "on_completion": "end--bdf9e114-7e94-42d4-841b-d0c9ada5624d"
+        },
+        "end--bdf9e114-7e94-42d4-841b-d0c9ada5624d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

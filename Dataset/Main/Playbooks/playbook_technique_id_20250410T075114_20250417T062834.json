@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b07384-d9f3-4c8c-9d1e-a35a88a5bb44",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized script executed on host-22, creating backdoor access and malicious files. This playbook includes termination of the unauthorized script, scanning for backdoors, blocking connections, reverting files, and notifying the IT security team.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a348a1f8-88d7-4b2e-b6a4-6b3135f93f9f",
+    "workflow": {
+        "start--a348a1f8-88d7-4b2e-b6a4-6b3135f93f9f": {
+            "on_completion": "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f",
+            "type": "start"
+        },
+        "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f": {
+            "name": "Terminate unauthorized script process",
+            "description": "Terminate the unauthorized script that is executed.",
+            "on_completion": "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02": {
+            "name": "Scan and quarantine detected backdoor",
+            "description": "Scan for the malicious backdoor and quarantine it.",
+            "on_completion": "decision--check-backdoor-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --move=/quarantine /system/directory/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--check-backdoor-scan": {
+            "name": "Check if backdoor was found",
+            "type": "if-condition",
+            "condition": "malware_found",
+            "on_true": "action--fb217749-5369-4f3e-a2e4-5a764c1099b5",
+            "on_false": "action--f0b7a464-c081-490a-982e-d5bf59576b0b"
+        },
+        "action--fb217749-5369-4f3e-a2e4-5a764c1099b5": {
+            "name": "Block suspicious outbound network connectivity",
+            "description": "Block suspicious outbound connections to prevent further exploitation.",
+            "on_completion": "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.remote.ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9": {
+            "name": "Revert system files from backup",
+            "description": "Restore system files from backup to ensure integrity.",
+            "on_completion": "action--c8bfa757-bcdd-4205-8966-af2aba3f738e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a --delete /backup/system_directory/ /system/directory/"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if file_integrity_check_failed"
+        },
+        "action--c8bfa757-bcdd-4205-8966-af2aba3f738e": {
+            "name": "Repeat virus scan until clean",
+            "description": "Continue scanning until no viruses are detected.",
+            "on_completion": "action--f0b7a464-c081-490a-982e-d5bf59576b0b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": "while virus_detected",
+            "step_variables": {
+                "virus_detected": {
+                    "type": "boolean",
+                    "description": "Variable to check if viruses are still detected",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--f0b7a464-c081-490a-982e-d5bf59576b0b": {
+            "name": "Inform IT Security Team",
+            "description": "Notify the IT Security Team of the security incident.",
+            "on_completion": "end--f9e4bde4-0a4a-452b-b8b0-48207fa6eb54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security incident detected on host-22' | mail -s 'Security Alert' it_sec_team@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f9e4bde4-0a4a-452b-b8b0-48207fa6eb54": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

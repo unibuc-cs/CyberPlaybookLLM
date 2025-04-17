@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b87328a-d9d1-41e5-bfd2-df45b71bbc36",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to extract sensitive information.",
+    "created_by": "identity--aa12343b-b8d1-4df8-8102-35ae622fc5b3",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a8a41b23-1661-4e96-b5c1-15c5f3aedd81",
+    "workflow": {
+        "start--a8a41b23-1661-4e96-b5c1-15c5f3aedd81": {
+            "on_completion": "if-condition--2e653a45-3010-4485-9b5a-8b321c2769cb",
+            "type": "start"
+        },
+        "if-condition--2e653a45-3010-4485-9b5a-8b321c2769cb": {
+            "name": "Check for PowerShell process",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--6d7f7606-ef26-4b64-b3ae-4381e7e51f01",
+            "on_false": "action--fc0b757f-4054-4d0e-9d7e-b4296f9e3b2c"
+        },
+        "action--6d7f7606-ef26-4b64-b3ae-4381e7e51f01": {
+            "name": "Kill malicious PowerShell process",
+            "on_completion": "action--fc0b757f-4054-4d0e-9d7e-b4296f9e3b2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "process_found": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--fc0b757f-4054-4d0e-9d7e-b4296f9e3b2c": {
+            "name": "Isolate affected host from the network",
+            "on_completion": "while-condition--e255f84a-245a-4630-aab8-076cf96e91e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e255f84a-245a-4630-aab8-076cf96e91e9": {
+            "name": "Run malware scan on host",
+            "description": "Perform a malware scan and continue until the scan is clean.",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--e255f84a-245a-4630-aab8-076cf96e91e9",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--e255f84a-245a-4630-aab8-076cf96e91e9": {
+            "name": "Execute Malware Scan",
+            "on_completion": "conditional-scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "conditional-scan-check": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_clean == true",
+            "on_true": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "on_false": "while-condition--e255f84a-245a-4630-aab8-076cf96e91e9"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

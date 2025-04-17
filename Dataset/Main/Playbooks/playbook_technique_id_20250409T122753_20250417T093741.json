@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c1028e1b-e2cb-4c99-b800-cd6c3e0dbde1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to create backdoors on several key servers.",
+    "created_by": "identity--a12df39c-a196-4f52-b676-703a6e9614d9",
+    "created": "2023-10-15T16:00:00Z",
+    "modified": "2023-10-15T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1e5c8ab-e64a-4c82-8fe4-fb1b694b86e5",
+    "workflow": {
+        "start--f1e5c8ab-e64a-4c82-8fe4-fb1b694b86e5": {
+            "on_completion": "action--39b771bd-a204-4ecb-a0cd-a39dcb1380ef",
+            "type": "start"
+        },
+        "action--39b771bd-a204-4ecb-a0cd-a39dcb1380ef": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "decision--1f9a79a4-ca4e-4e17-bf6f-1ec2c424760d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ebc56de3-3edf-4862-8e0f-64891271d52a": {
+            "name": "Scan for additional malicious files",
+            "description": "Perform a full system scan to find additional threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --remove=yes"
+                }
+            ],
+            "agent": "organization--abc",
+            "next_steps": "loop--scan-until-clean"
+        },
+        "loop--scan-until-clean": {
+            "name": "Repeat scan until clean",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--ebc56de3-3edf-4862-8e0f-64891271d52a",
+            "on_false": "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738"
+        },
+        "decision--1f9a79a4-ca4e-4e17-bf6f-1ec2c424760d": {
+            "name": "Review firewall logs",
+            "type": "if-condition",
+            "on_true": "action--alert-team",
+            "on_false": "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738",
+            "condition": "suspicious_activity_detected"
+        },
+        "action--alert-team": {
+            "name": "Alert Security Team",
+            "description": "Notify the security team about suspicious activities.",
+            "on_completion": "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Suspicious activity detected on host-01.' | mail -s 'Alert!' security@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738": {
+            "name": "Isolate affected machines",
+            "description": "Isolate host-01 to prevent further access.",
+            "on_completion": "action--a4b78f36-e89d-4a28-8c4f-f7f725f8ad06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-01 -j DROP; iptables -A OUTPUT -d host-01 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a4b78f36-e89d-4a28-8c4f-f7f725f8ad06": {
+            "name": "Update system and application patches",
+            "description": "Ensure all systems and applications are updated with the latest patches.",
+            "on_completion": "end--d38e004a-b14c-4e55-a3f2-efaecc7c4eb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d38e004a-b14c-4e55-a3f2-efaecc7c4eb5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

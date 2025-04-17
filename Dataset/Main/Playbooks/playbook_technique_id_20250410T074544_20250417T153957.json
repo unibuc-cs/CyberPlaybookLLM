@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a5d3e2fa-9bd7-4ee5-9f8f-3a9b6b6c3e9f",
+    "name": "Mitigation Playbook for Command Interpreter Vulnerability Incident",
+    "description": "This playbook addresses an incident where malicious actors exploited a command interpreter vulnerability on host-23 to execute unauthorized scripts.",
+    "created_by": "identity--example-organization",
+    "created": "2023-10-11T15:00:00Z",
+    "modified": "2023-10-11T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6": {
+            "on_completion": "action--ba1f8b70-7254-4f5f-9d72-57a6c76483a1",
+            "type": "start"
+        },
+        "action--ba1f8b70-7254-4f5f-9d72-57a6c76483a1": {
+            "name": "Terminate malicious script execution",
+            "description": "Terminate any ongoing malicious script execution.",
+            "on_completion": "if-condition--e7252077-b9ad-49e9-9f8f-7533eb8d5a40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e7252077-b9ad-49e9-9f8f-7533eb8d5a40": {
+            "name": "Check for persistent backdoor",
+            "type": "if-condition",
+            "condition": "file_exists('/etc/init.d/malicious_backdoor')",
+            "on_true": "action--e7252077-b9ad-49e9-9f8f-7533eb8d5a40",
+            "on_false": "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91"
+        },
+        "action--e7252077-b9ad-49e9-9f8f-7533eb8d5a40": {
+            "name": "Remove persistent backdoor",
+            "description": "Remove the malicious backdoor from the system.",
+            "on_completion": "action--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52": {
+            "name": "Scan and clean host for additional threats",
+            "description": "Perform a deep scan to identify and clean additional threats.",
+            "on_completion": "while-condition--scan-results-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-results-check": {
+            "name": "Repeat scan until clean",
+            "description": "Repeat the scanning process until no more threats are found.",
+            "type": "while-condition",
+            "condition": "scan_results != '0 infected files'",
+            "on_true": "action--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52",
+            "on_false": "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91"
+        },
+        "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91": {
+            "name": "Update all security patches",
+            "description": "Ensure the system is up to date with the latest security patches.",
+            "on_completion": "action--f3e5e8a4-a05e-4fad-9e41-614207cb36c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f3e5e8a4-a05e-4fad-9e41-614207cb36c5": {
+            "name": "Monitor host for unusual outbound network traffic",
+            "description": "Start monitoring the host for any abnormal network traffic.",
+            "on_completion": "end--a6f2d48e-abcd-4171-8e7d-b1234ab12ef3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iftop -i eth0"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "network_traffic_abnormalities_detected"
+        },
+        "end--a6f2d48e-abcd-4171-8e7d-b1234ab12ef3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Security Response Team"
+        }
+    }
+}

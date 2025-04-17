@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7a8399c-0abb-4c87-bb97-c97f2b20fcfa",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "Playbook to mitigate the impacts of an unauthorized script execution incident within the internal network.",
+    "created_by": "identity--3bcbf4e4-6f04-4c67-8e5e-b29520cdb110",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f12eb507-cf88-4b58-8b85-984f74aa1e23",
+    "workflow": {
+        "start--f12eb507-cf88-4b58-8b85-984f74aa1e23": {
+            "on_completion": "parallel--b10da32e-4962-4f68-a2c9-e9c95ae61099",
+            "type": "start"
+        },
+        "parallel--b10da32e-4962-4f68-a2c9-e9c95ae61099": {
+            "name": "Execute Mitigations",
+            "description": "Trigger multiple actions for incident mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8b120ad5-6654-4813-b2d7-0961b49b7227",
+                "action--7f59ff8c-8ffc-4f3b-a091-11d0a33e084e",
+                "loop--c29b07af-a98e-47e8-a792-b827707731f8"
+            ]
+        },
+        "action--8b120ad5-6654-4813-b2d7-0961b49b7227": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any executing unauthorized scripts.",
+            "on_completion": "action--7f59ff8c-8ffc-4f3b-a091-11d0a33e084e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7f59ff8c-8ffc-4f3b-a091-11d0a33e084e": {
+            "name": "Isolate affected host from network",
+            "description": "Block inbound and outbound traffic to the malicious source.",
+            "on_completion": "loop--c29b07af-a98e-47e8-a792-b827707731f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP; iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c29b07af-a98e-47e8-a792-b827707731f8": {
+            "name": "Audit Suspicious Scripts",
+            "description": "Continue auditing scripts executed over the last 24 hours.",
+            "on_completion": "end--c3e496ba-51a7-42c1-9e3b-d8aaf4949580",
+            "type": "while-condition",
+            "condition": "audit_complete == false",
+            "on_true": "action--.audit_scripts",
+            "on_false": "end--c3e496ba-51a7-42c1-9e3b-d8aaf4949580"
+        },
+        "action--audit_scripts": {
+            "name": "Audit all scripts executed in last 24 hours",
+            "description": "Search logs for suspicious scripts and document findings.",
+            "step_variables": {
+                "audit_complete": {
+                    "type": "boolean",
+                    "description": "Flag to indicate if the audit is complete.",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "end--c3e496ba-51a7-42c1-9e3b-d8aaf4949580",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'script' /var/log/syslog | grep 'Oct 01' > suspicious_scripts.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--c3e496ba-51a7-42c1-9e3b-d8aaf4949580": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

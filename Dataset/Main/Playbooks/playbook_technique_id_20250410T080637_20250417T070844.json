@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c5c1fc9f-5d91-4698-b26d-29cc77b44809",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized PowerShell script execution used to steal sensitive information.",
+    "created_by": "identity--b0fc3e5e-c9d1-4a79-9f69-ef08e06ba75e",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e7c1a62c-4820-4931-b1ee-53f4f121a13f",
+    "workflow": {
+        "start--e7c1a62c-4820-4931-b1ee-53f4f121a13f": {
+            "on_completion": "action--cb6880e7-65c8-4fc1-b9a1-ec56b7990875",
+            "type": "start"
+        },
+        "action--cb6880e7-65c8-4fc1-b9a1-ec56b7990875": {
+            "name": "Terminate PowerShell processes",
+            "description": "Terminate any ongoing PowerShell processes to halt any active malicious scripts.",
+            "on_completion": "action--d692dc4c-0ab1-4c7b-8fb8-c9d2f3d9e277",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d692dc4c-0ab1-4c7b-8fb8-c9d2f3d9e277": {
+            "name": "Scan for malicious scripts",
+            "description": "Run a full scan to detect and clean any malicious scripts present on the system.",
+            "on_completion": "if-condition--check-scan-results",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --path C:\\"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--check-scan-results": {
+            "name": "Check for scan results",
+            "type": "if-condition",
+            "condition": "scan_results == 'malicious'",
+            "on_true": "action--4a3ce296-21bd-42b2-b7e1-f4f61af234ea",
+            "on_false": "action--e2d7bfa4-540b-490d-a9ca-9c62db7d73e1"
+        },
+        "action--4a3ce296-21bd-42b2-b7e1-f4f61af234ea": {
+            "name": "Remove newly added users",
+            "description": "Remove any users added by the attacker during their access.",
+            "on_completion": "while-condition--repeat-until-no-new-users",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for /F %i in ('net user ^| findstr /R /C:\"^adduser\"') do net user %i /delete"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--repeat-until-no-new-users": {
+            "name": "Check for new users",
+            "description": "Repeat the action of removing users until there are no new additions.",
+            "on_true": "action--4a3ce296-21bd-42b2-b7e1-f4f61af234ea",
+            "condition": "new_users_found == true",
+            "on_completion": "action--e2d7bfa4-540b-490d-a9ca-9c62db7d73e1"
+        },
+        "action--e2d7bfa4-540b-490d-a9ca-9c62db7d73e1": {
+            "name": "Enable script block logging in PowerShell",
+            "description": "Check the PowerShell execution policy and set it to RemoteSigned for security.",
+            "on_completion": "action--8f21412b-d059-4fea-994b-c45f997cd583",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--8f21412b-d059-4fea-994b-c45f997cd583": {
+            "name": "Secure web application firewall",
+            "description": "Update the web application firewall to strengthen defenses against future attacks.",
+            "on_completion": "end--f4d39f03-e6ae-4c0e-9c8b-bdb3c8267e98",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-waf --settings '/path/to/settings.json'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f4d39f03-e6ae-4c0e-9c8b-bdb3c8267e98": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

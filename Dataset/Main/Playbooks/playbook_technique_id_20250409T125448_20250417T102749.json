@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d340a670-f2ab-4e76-b60a-d044cdf14653",
+    "name": "Mitigation Playbook for Malicious Script Execution Incidents",
+    "description": "This playbook addresses the incident of malicious script execution leading to data exfiltration and lateral movement across compromised hosts.",
+    "created_by": "identity--a1b2c3d4-e5f6-7b8c-9d0e-f0a1b2c3d4e5",
+    "created": "2023-10-18T08:00:00Z",
+    "modified": "2023-10-18T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--65efb423-43b1-4566-a0cf-8124aedffabcd",
+    "workflow": {
+        "start--65efb423-43b1-4566-a0cf-8124aedffabcd": {
+            "on_completion": "action--8efb4235-5b2c-48c5-8349-f00b7b5c9d77",
+            "type": "start"
+        },
+        "action--8efb4235-5b2c-48c5-8349-f00b7b5c9d77": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any instances of the malicious PowerShell script.",
+            "on_completion": "parallel--ec6d55f9-4a66-467f-a651-c0cbcd29d03a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--ec6d55f9-4a66-467f-a651-c0cbcd29d03a": {
+            "name": "Execute isolation and auditing",
+            "description": "Isolate suspicious hosts and audit user activities in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--a97b172c-5459-4f2a-a4e6-e967e48cd73e",
+                "if-condition--b73c9050-f06b-4f78-94d0-a59f96c4c181"
+            ]
+        },
+        "loop--a97b172c-5459-4f2a-a4e6-e967e48cd73e": {
+            "name": "Isolate compromised hosts",
+            "description": "Isolate each suspicious host iteratively.",
+            "on_completion": "end--f8e404bc-517e-4cd6-87d8-bb6e0108da5a",
+            "type": "loop",
+            "condition": "length(suspicious_hosts) > 0",
+            "on_true": "action--5bdecbe5-a987-4132-aee6-e2243f036b99",
+            "on_false": "end--f8e404bc-517e-4cd6-87d8-bb6e0108da5a",
+            "step_variables": {
+                "suspicious_hosts": {
+                    "type": "list",
+                    "description": "List of hosts suspected to be compromised.",
+                    "value": [
+                        "host-22",
+                        "host-25",
+                        "host-29"
+                    ],
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--5bdecbe5-a987-4132-aee6-e2243f036b99": {
+            "name": "Isolate compromised host",
+            "description": "Disable network interface of the suspicious host.",
+            "on_completion": "loop--a97b172c-5459-4f2a-a4e6-e967e48cd73e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig {suspicious_hosts[0]} down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b73c9050-f06b-4f78-94d0-a59f96c4c181": {
+            "name": "Audit user account activities",
+            "type": "if-condition",
+            "condition": "user_credentials_compromised",
+            "on_true": "action--324c67be-94ee-4239-a8d8-b9c83af5bc23",
+            "on_false": "end--f8e404bc-517e-4cd6-87d8-bb6e0108da5a"
+        },
+        "action--324c67be-94ee-4239-a8d8-b9c83af5bc23": {
+            "name": "Check user activity logs",
+            "description": "Review logs for user account activities indicative of compromise.",
+            "on_completion": "end--f8e404bc-517e-4cd6-87d8-bb6e0108da5a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'user_activity_logs' | less"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f8e404bc-517e-4cd6-87d8-bb6e0108da5a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

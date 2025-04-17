@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d91f5b04-438b-4d86-9dad-af11dc9c9251",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized scripts were executed to exfiltrate sensitive data across multiple hosts.",
+    "created_by": "identity--1234abcd-c6de-4fgh-ijkl-5678mnopqrst",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--f3e3ecdb-92a6-4f7e-bd0f-c40e1d229a72",
+            "type": "start"
+        },
+        "action--f3e3ecdb-92a6-4f7e-bd0f-c40e1d229a72": {
+            "name": "Kill malicious process on host-1",
+            "description": "Terminate the malicious script running on host-1.",
+            "on_completion": "action--37ba766f-493e-4ac4-9509-6d6cda69e9fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--37ba766f-493e-4ac4-9509-6d6cda69e9fb": {
+            "name": "Scan network for artifacts",
+            "description": "Scan each host in the network for potential malware artifacts.",
+            "on_completion": "loop--e8d2e2fa-6142-4a0b-a235-ffa60f5da5ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat hosts.txt); do ssh $host 'check_for_malware.sh'; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e8d2e2fa-6142-4a0b-a235-ffa60f5da5ab": {
+            "name": "Monitor outgoing connections",
+            "description": "Continuously monitor outgoing connections to identify malicious traffic.",
+            "type": "loop",
+            "condition": "outgoing_connection_exists",
+            "on_true": "action--e8d2e2fa-6142-4a0b-a235-ffa60f5da5ab",
+            "on_false": "end--c6da5e95-ad18-4b6c-b73d-9186b4f9674b"
+        },
+        "action--e8d2e2fa-6142-4a0b-a235-ffa60f5da5ab": {
+            "name": "Capture outgoing traffic",
+            "description": "Utilize tcpdump to capture any outgoing traffic to the external IP.",
+            "on_completion": "loop--e8d2e2fa-6142-4a0b-a235-ffa60f5da5ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -nn -s0 'dst host external-IP'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--c6da5e95-ad18-4b6c-b73d-9186b4f9674b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dee3bfa8-b25d-4c5e-8c51-c50d8767df91",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses incidents where an attacker executes malicious scripts to exfiltrate sensitive data by utilizing the Command and Scripting Interpreter technique.",
+    "created_by": "identity--3addf3ac-4f8c-4c03-bb77-bfb4468b75c9",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c3b9d12f-78bd-4f19-8f98-604a32aa3957",
+    "workflow": {
+        "start--c3b9d12f-78bd-4f19-8f98-604a32aa3957": {
+            "type": "start",
+            "on_completion": "if-condition--8395b8cf-bbc5-47de-9fff-e67303c7e0d7"
+        },
+        "if-condition--8395b8cf-bbc5-47de-9fff-e67303c7e0d7": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--f6e72f0f-4e02-4c3f-a599-427aeda6ea1d",
+            "on_false": "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033"
+        },
+        "action--f6e72f0f-4e02-4c3f-a599-427aeda6ea1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "on_completion": "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033"
+        },
+        "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Prevent any outbound connections to the identified suspicious IP address.",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "on_completion": "while-condition--0bca7f6f-2a9f-442e-b138-bccfd1152ce1"
+        },
+        "while-condition--0bca7f6f-2a9f-442e-b138-bccfd1152ce1": {
+            "name": "Initiate full malware scan",
+            "description": "Run a malware scan until a clean state is confirmed.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--cda4aabe-0563-497b-9734-4f63e3cf97f0",
+            "next_steps": [
+                "action--cda4aabe-0563-497b-9734-4f63e3cf97f0"
+            ]
+        },
+        "action--cda4aabe-0563-497b-9734-4f63e3cf97f0": {
+            "name": "Run full malware scan",
+            "description": "Perform a comprehensive scan to ensure the system is clean.",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "on_completion": "action--check-scan-results"
+        },
+        "action--check-scan-results": {
+            "name": "Check If Scan Result is Clean",
+            "description": "Determine if the scan results indicate a clean state.",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ scan_is_clean ]; then echo 'clean'; else scan_is_clean=false; fi"
+                }
+            ],
+            "on_completion": "while-condition--0bca7f6f-2a9f-442e-b138-bccfd1152ce1"
+        },
+        "end--d2fb6c9f-c249-4e2e-9358-46fd3c9aab1a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

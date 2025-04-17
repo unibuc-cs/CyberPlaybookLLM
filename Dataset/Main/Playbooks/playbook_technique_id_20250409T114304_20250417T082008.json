@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fa0aaf5b-8c54-4e5e-99d8-48a8d0e6943b",
+    "name": "Response to Unauthorized PowerShell Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed PowerShell commands on multiple servers to gain sensitive information.",
+    "created_by": "identity--5627e994-31b2-41fb-bf4e-a5bcd2081f9f",
+    "created": "2023-10-09T10:00:00.000Z",
+    "modified": "2023-10-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c3a3a45b-25cb-4bbb-9ee7-6ca85b68b145",
+    "workflow": {
+        "start--c3a3a45b-25cb-4bbb-9ee7-6ca85b68b145": {
+            "on_completion": "if-condition--4abe98fd-ab0d-4b6d-ace1-afd067098f98",
+            "type": "start"
+        },
+        "if-condition--4abe98fd-ab0d-4b6d-ace1-afd067098f98": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "$(pgrep -f powershell) != ''",
+            "on_true": "action--bff6a67a-6fb5-4ab3-b4a1-f80c1f654f1a",
+            "on_false": "action--50c1391b-eb79-4f51-aa0b-43d1c80ebeae"
+        },
+        "action--bff6a67a-6fb5-4ab3-b4a1-f80c1f654f1a": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes that are potentially malicious.",
+            "on_completion": "action--c69a57e9-4c2a-4ae1-a783-3d26c586b639",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "action--c69a57e9-4c2a-4ae1-a783-3d26c586b639": {
+            "name": "Isolate affected host",
+            "description": "Drop all incoming connections from the suspected attacker IP address.",
+            "on_completion": "action--50c1391b-eb79-4f51-aa0b-43d1c80ebeae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <IP_ADDRESS> -j DROP"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "action--50c1391b-eb79-4f51-aa0b-43d1c80ebeae": {
+            "name": "Monitor command line activity",
+            "description": "Continuously monitor auth logs for suspicious command line activity.",
+            "type": "action",
+            "loop": "repeat until no suspicious activity",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--123",
+            "on_completion": "decision--9f7d722d-9c45-4c27-8932-2aca2f1aabc4"
+        },
+        "decision--9f7d722d-9c45-4c27-8932-2aca2f1aabc4": {
+            "name": "End of Playbook",
+            "description": "Determine if further actions are necessary based on ongoing activity.",
+            "on_true": "end--8e7bbebc-81a2-4080-b722-883911f148b2",
+            "on_false": "end--8e7bbebc-81a2-4080-b722-883911f148b2",
+            "type": "decision"
+        },
+        "end--8e7bbebc-81a2-4080-b722-883911f148b2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--123": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

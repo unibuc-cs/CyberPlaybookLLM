@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7ea16fd3-eec7-472c-b6ff-3d0b1d63ace2",
+    "name": "Mitigation Playbook for Unauthorized Command Execution",
+    "description": "This playbook aims to address an incident where an attacker exploited a network command interpreter to run unauthorized scripts for data exfiltration.",
+    "created_by": "identity--example-created-id",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "parallel--001",
+            "type": "start"
+        },
+        "parallel--001": {
+            "name": "Conduct Immediate Mitigations",
+            "description": "Execute critical actions in parallel to mitigate the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b8217acf-b67b-4e5e-84d7-a6e3da2c8273",
+                "action--d3b48ce9-8b07-493f-8899-56c00728d405",
+                "action--e7e10247-028b-4f81-bbce-625b7f9f1a4c"
+            ]
+        },
+        "action--b8217acf-b67b-4e5e-84d7-a6e3da2c8273": {
+            "name": "Terminate unauthorized session",
+            "description": "Terminate any active sessions of the malicious user.",
+            "on_completion": "action--d3b48ce9-8b07-493f-8899-56c00728d405",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -u malicious_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d3b48ce9-8b07-493f-8899-56c00728d405": {
+            "name": "Quarantine affected host",
+            "description": "Quarantine the host showing abnormal behavior.",
+            "on_completion": "decision--check_host_status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpkill -i eth0 host host-18"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--check_host_status": {
+            "name": "Check if quarantine successful",
+            "type": "if-condition",
+            "condition": "if [ $(ping -c 1 host-18 | grep '1 received' | wc -l) -eq 1 ]; then",
+            "on_true": "action--c4f6d1e5-fc37-4bde-8d02-1bb8cfd3b376",
+            "on_false": "end--finish"
+        },
+        "action--c4f6d1e5-fc37-4bde-8d02-1bb8cfd3b376": {
+            "name": "Scan and clean the system",
+            "description": "Perform a scan to check for any remaining threats.",
+            "on_completion": "action--6fc1258b-727d-4699-9e97-b162cf0a8d2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --fix"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "infected": {
+                    "type": "string",
+                    "description": "Indicator of viruses found in system.",
+                    "value": "1",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--6fc1258b-727d-4699-9e97-b162cf0a8d2f": {
+            "name": "Disable PowerShell for non-administrative users",
+            "description": "Restrict PowerShell execution to prevent further misuse.",
+            "on_completion": "end--finish",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--e7e10247-028b-4f81-bbce-625b7f9f1a4c": {
+            "name": "Block outbound connections to untrusted IPs",
+            "description": "Prevent further data exfiltration by blocking outbound connections to suspicious IPs.",
+            "on_completion": "end--finish",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.45 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--finish": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Security Team XYZ"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "Endpoint Security Team ABC"
+        }
+    }
+}

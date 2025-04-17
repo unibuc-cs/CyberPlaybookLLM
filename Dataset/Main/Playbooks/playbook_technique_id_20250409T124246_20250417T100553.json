@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6a4463d-e0d3-4e27-bc6f-47bfac3021c0",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting language to execute commands on a compromised server.",
+    "created_by": "identity--a1f02ba1-7c2b-41c3-a741-840ab62d9b20",
+    "created": "2023-10-15T12:15:00Z",
+    "modified": "2023-10-15T12:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--e68a4f21-1a6e-4c30-9733-4a4a3f71bcc9",
+    "workflow": {
+        "start--e68a4f21-1a6e-4c30-9733-4a4a3f71bcc9": {
+            "on_completion": "parallel--f24b069d-0679-4b43-aa3b-adb289865654",
+            "type": "start"
+        },
+        "parallel--f24b069d-0679-4b43-aa3b-adb289865654": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Executing multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d1d1520b-db6e-40d0-bec4-df6e0c0dd498",
+                "action--cbc27c55-6911-4e6e-8c1b-8b6757b9162b",
+                "action--5f3b2baf-9f3a-4224-8edc-1902dd531b10"
+            ]
+        },
+        "action--d1d1520b-db6e-40d0-bec4-df6e0c0dd498": {
+            "name": "Kill malicious script process",
+            "on_completion": "action--cbc27c55-6911-4e6e-8c1b-8b6757b9162b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--cbc27c55-6911-4e6e-8c1b-8b6757b9162b": {
+            "name": "Investigate web application logs",
+            "on_completion": "action--5f3b2baf-9f3a-4224-8edc-1902dd531b10",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_script' /var/log/webapp/access.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--5f3b2baf-9f3a-4224-8edc-1902dd531b10": {
+            "name": "Run malware scan on affected host",
+            "on_completion": "if-condition--9926ab83-7191-4fbf-81e5-7f02d0786f6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --log=/var/log/malware_scan.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_report": {
+                    "type": "string",
+                    "description": "The report of clamscan execution",
+                    "value": "In Progress"
+                }
+            }
+        },
+        "if-condition--9926ab83-7191-4fbf-81e5-7f02d0786f6b": {
+            "name": "Check Malware Scan Result",
+            "type": "if-condition",
+            "condition": "scan_report == 'infected'",
+            "on_true": "while-condition--a1d06e2e-213a-4be8-9932-4aa6ccb09ae0",
+            "on_false": "end--e7c7ebed-6801-4fc1-b4b3-bb7298e90d1e"
+        },
+        "while-condition--a1d06e2e-213a-4be8-9932-4aa6ccb09ae0": {
+            "name": "Repeat Malware Scan Until Clean",
+            "on_completion": "if-condition--9926ab83-7191-4fbf-81e5-7f02d0786f6b",
+            "type": "while-condition",
+            "condition": "scan_report == 'infected'",
+            "on_true": "action--5f3b2baf-9f3a-4224-8edc-1902dd531b10"
+        },
+        "end--e7c7ebed-6801-4fc1-b4b3-bb7298e90d1e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

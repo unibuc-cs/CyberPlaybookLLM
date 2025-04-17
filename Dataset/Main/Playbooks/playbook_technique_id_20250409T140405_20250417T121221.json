@@ -1,0 +1,78 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f0d420b2-662c-4d15-8e08-212e8eae9b7b",
+    "name": "Mitigation Playbook for PowerShell Scripting Incident",
+    "description": "This playbook addresses an incident involving an attack that utilized a PowerShell script to exploit a server vulnerability and exfiltrate sensitive data.",
+    "created_by": "identity--12345678-abcd-ef00-1234-56789abcdefg",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e2e89ad0-b369-4e72-8ed0-d467836eef7f",
+    "workflow": {
+        "start--e2e89ad0-b369-4e72-8ed0-d467836eef7f": {
+            "on_completion": "action--a303df3c-369c-4a9f-bfd4-1a267e3e05ad",
+            "type": "start"
+        },
+        "action--a303df3c-369c-4a9f-bfd4-1a267e3e05ad": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be malicious.",
+            "on_completion": "while-condition--bfda8f55-b5de-4e2e-b332-4af6792da60a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process PowerShell | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--bfda8f55-b5de-4e2e-b332-4af6792da60a": {
+            "name": "Run anti-malware scan",
+            "description": "Perform a quick anti-malware scan and repeat until no threats are detected.",
+            "on_true": "action--1c921b44-e27f-4694-8709-ee127947d88c",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "next_steps": [
+                "action--bfda8f55-b5de-4e2e-b332-4af6792da60a"
+            ]
+        },
+        "action--bfda8f55-b5de-4e2e-b332-4af6792da60a": {
+            "name": "Perform anti-malware scan on host",
+            "description": "Run a quick anti-malware scan to check for existing threats.",
+            "on_completion": "while-condition--bfda8f55-b5de-4e2e-b332-4af6792da60a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType Quick"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1c921b44-e27f-4694-8709-ee127947d88c": {
+            "name": "Review unauthorized access logs",
+            "description": "Check security logs for any unauthorized access attempts.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-WinEvent -LogName Security | Where-Object { $_.Id -eq 4624 }"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if unauthorized access found"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

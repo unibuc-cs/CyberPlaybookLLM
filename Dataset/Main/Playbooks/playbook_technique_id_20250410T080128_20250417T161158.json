@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--db84f331-692c-4804-8fbb-431336536af4",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook addresses an incident where attackers gained access through phishing and executed malicious PowerShell scripts.",
+    "created_by": "identity--3b52c109-32e9-499f-bc07-cd29f1647583",
+    "created": "2025-04-10T08:23:00.000Z",
+    "modified": "2025-04-10T08:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-efgh-ijkl-9876543210ab",
+    "workflow": {
+        "start--12345678-abcd-efgh-ijkl-9876543210ab": {
+            "on_completion": "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321",
+            "type": "start"
+        },
+        "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes suspected of malicious activity.",
+            "on_completion": "decision--check-exfiltration",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--check-exfiltration": {
+            "name": "Check if data exfiltration is detected",
+            "type": "if-condition",
+            "condition": "data_exfiltration_detected == true",
+            "on_true": "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2",
+            "on_false": "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4"
+        },
+        "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2": {
+            "name": "Block IP address used for command and control",
+            "description": "Prevent connections from malicious IP addresses.",
+            "on_completion": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-IP> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc": {
+            "name": "Scan and quarantine all compromised files",
+            "description": "Scan the specified directory for threats and quarantine any found.",
+            "on_completion": "loop--scan-until-clear",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/log/ --move=/quarantine"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan-until-clear": {
+            "name": "Check if all threats have been detected",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc"
+        },
+        "action--e4d1f3b9-819a-45f5-8d3e-2b361a8e4950": {
+            "name": "Reset credentials for affected users",
+            "description": "Change passwords for users affected by the incident.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--abc",
+            "parallelizable": true,
+            "targets": [
+                "affected_users"
+            ]
+        },
+        "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4": {
+            "name": "Conduct full network audit",
+            "description": "Identify further vulnerabilities in the network.",
+            "on_completion": "end--abc12345-6789-def0-1234-5678abcdef01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -A -T4 -p 1-65535 <network-range>"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--abc12345-6789-def0-1234-5678abcdef01": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "data_exfiltration_detected": {
+            "type": "boolean",
+            "value": true,
+            "description": "Condition to check if data exfiltration has been detected."
+        },
+        "threats_detected": {
+            "type": "boolean",
+            "value": true,
+            "description": "Condition to check if threats are still present."
+        },
+        "affected_users": {
+            "type": "array",
+            "description": "List of affected users that need password reset.",
+            "value": [
+                "user1",
+                "user2"
+            ]
+        }
+    }
+}

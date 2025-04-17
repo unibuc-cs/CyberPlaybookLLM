@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f00c0e90-56cd-4fe3-9963-4c657fbe2341",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the server and executed malicious scripts to extract sensitive data.",
+    "created_by": "identity--81c93381-7f92-4f94-88e4-9e229a474ef2",
+    "created": "2025-04-10T08:50:00.000Z",
+    "modified": "2025-04-10T08:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f00c0e90-56cd-4fe3-9963-4c657fbe2342",
+    "workflow": {
+        "start--f00c0e90-56cd-4fe3-9963-4c657fbe2342": {
+            "on_completion": "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58",
+            "type": "start"
+        },
+        "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing suspicious scripts.",
+            "on_completion": "if-condition--cf4098fb-a3ee-4c38-b679-372cb8f609e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--cf4098fb-a3ee-4c38-b679-372cb8f609e2": {
+            "name": "Check for remaining processes",
+            "type": "if-condition",
+            "condition": "$(pgrep -f suspicious_script.py | wc -l) > 0",
+            "on_true": "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58",
+            "on_false": "action--442c154b-40dc-4dff-8f09-66e11b43c22f"
+        },
+        "action--442c154b-40dc-4dff-8f09-66e11b43c22f": {
+            "name": "Block malicious IP",
+            "description": "Add the attacker's IP to the block list.",
+            "on_completion": "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 198.51.100.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada": {
+            "name": "Patch system vulnerability",
+            "description": "Update the system to patch known vulnerabilities.",
+            "on_completion": "loop--b2f07e1a-810c-4af5-af87-9b498ab9f5f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y && reboot"
+                }
+            ],
+            "agent": "organization--yzx"
+        },
+        "loop--b2f07e1a-810c-4af5-af87-9b498ab9f5f0": {
+            "name": "Patch Loop",
+            "description": "Continue patching until all vulnerabilities are addressed.",
+            "type": "loop",
+            "condition": "patch_count > 0",
+            "on_true": "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada",
+            "on_false": "action--cf4098fb-a3ee-4c38-b679-372cb8f609e2"
+        },
+        "action--cf4098fb-a3ee-4c38-b679-372cb8f609e2": {
+            "name": "Perform full system scan",
+            "description": "Conduct a comprehensive scan of the system for residual malware.",
+            "on_completion": "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0": {
+            "name": "Restore from last known good backup",
+            "description": "Restore the system to its last known secure state if the compromise is confirmed.",
+            "on_completion": "end--d3c8dcab-3a99-4c69-b2fb-1d5e7087d8fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore-backup.sh -n last_good_backup"
+                }
+            ],
+            "agent": "organization--yzx",
+            "condition": "if system compromise confirmed"
+        },
+        "end--d3c8dcab-3a99-4c69-b2fb-1d5e7087d8fd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Malicious Process Handler"
+        },
+        "organization--yzx": {
+            "type": "organization",
+            "name": "System Updater"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Anti-Malware Scanner"
+        }
+    }
+}

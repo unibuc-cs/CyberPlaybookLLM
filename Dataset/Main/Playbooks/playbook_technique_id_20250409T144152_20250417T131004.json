@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0f2ef61-b03f-49ef-9e1b-606e0170e7d1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the system remotely using a compromised admin account and executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--unique-creator-id",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f0b2fec-b545-4c0f-bbf5-5a173db4e080",
+    "workflow": {
+        "start--1f0b2fec-b545-4c0f-bbf5-5a173db4e080": {
+            "on_completion": "parallel--2a3b6f2c-be2a-48ee-b466-4e9f4d4daf04",
+            "type": "start"
+        },
+        "parallel--2a3b6f2c-be2a-48ee-b466-4e9f4d4daf04": {
+            "name": "Initiate Mitigation Actions",
+            "description": "Perform necessary actions to mitigate the malicious scripts and associated risks.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a8cde197-5e14-43f8-9981-0444a18a1cdc",
+                "action--85f7ed93-3459-448e-a9ee-66a67e1026fc",
+                "action--d66b1a9b-3275-4cde-9358-b84b06224422"
+            ]
+        },
+        "action--a8cde197-5e14-43f8-9981-0444a18a1cdc": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "parallel--2a3b6f2c-be2a-48ee-b466-4e9f4d4daf04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--85f7ed93-3459-448e-a9ee-66a67e1026fc": {
+            "name": "Remove dropped DLL file",
+            "description": "Delete the suspicious DLL file that was dropped in the system32 directory.",
+            "on_completion": "parallel--2a3b6f2c-be2a-48ee-b466-4e9f4d4daf04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /Windows/system32/suspicious.dll"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "d66b1a9b-3275-4cde-9358-b84b06224422": {
+            "name": "Disable scheduled tasks",
+            "description": "Delete the scheduled tasks that execute the malicious script.",
+            "on_completion": "end--3f8b3b30-b14f-4ad7-bbc5-e3c2afcb716a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn maliciousTask /f"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "task_check": {
+                    "type": "string",
+                    "description": "Check if the malicious scheduled task exists.",
+                    "value": "schtasks /query /tn maliciousTask",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "while-condition--ee436c9b-13c4-4e5b-9047-1ab77b5456c3": {
+                "name": "Check for scheduled tasks",
+                "description": "Loop until no scheduled tasks matching the malicious task are found.",
+                "on_completion": "loop--d66b1a9b-3275-4cde-9358-b84b06224422",
+                "type": "while-condition",
+                "condition": "task_check contains maliciousTask",
+                "on_true": "action--d66b1a9b-3275-4cde-9358-b84b06224422"
+            }
+        },
+        "end--3f8b3b30-b14f-4ad7-bbc5-e3c2afcb716a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b480cce-0335-43c8-98c4-910d8298b1d8",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where unauthorized shell commands were executed, privileged escalated, and persistent access maintained.",
+    "created_by": "identity--0c9d55b0-454c-485f-aa89-ef2b86d9f4f4",
+    "created": "2023-10-22T13:00:00Z",
+    "modified": "2023-10-22T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e5cfd4d0-ef2e-4a6a-83c2-c0c0ad9d5e52",
+    "workflow": {
+        "start--e5cfd4d0-ef2e-4a6a-83c2-c0c0ad9d5e52": {
+            "on_completion": "parallel--b7f93ca6-c84d-4294-b345-918f3a3ef060",
+            "type": "start"
+        },
+        "parallel--b7f93ca6-c84d-4294-b345-918f3a3ef060": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Run multiple mitigation steps simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e",
+                "loop--6b92c330-b2a1-4034-b710-45902e6211b8",
+                "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de"
+            ]
+        },
+        "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious processes running on the system.",
+            "on_completion": "action--c8b033e8-049e-4d7c-b641-0669349eff32",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c8b033e8-049e-4d7c-b641-0669349eff32": {
+            "name": "Block Malicious IPs",
+            "description": "Block inbound connections from known malicious IP addresses.",
+            "on_completion": "decision--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                },
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 10.0.0.200 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--6b92c330-b2a1-4034-b710-45902e6211b8": {
+            "name": "Scan for Residual Scripts",
+            "description": "Find and remove any remaining malicious scripts.",
+            "type": "while-condition",
+            "condition": "infected_files_exist",
+            "on_true": "action--6b92c330-b2a1-4034-b710-45902e6211b8"
+        },
+        "action--6b92c330-b2a1-4034-b710-45902e6211b8": {
+            "name": "Remove Malicious Scripts",
+            "description": "Delete all detected malicious PowerShell scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--6f3c5b12-b64f-4c39-915f-32c5e2122c9c"
+        },
+        "decision--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b": {
+            "name": "Check Admin Privileges",
+            "description": "Verify if the identified user has admin privileges to manage them.",
+            "type": "if-condition",
+            "condition": "is_admin",
+            "on_true": "loop--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b",
+            "on_false": "end--d4113a8a-8f9a-419a-a3b1-7dd329da9f64"
+        },
+        "loop--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b": {
+            "name": "Reset Admin Privileges Loop",
+            "description": "Iterate through affected users to reset admin privileges.",
+            "type": "foreach",
+            "item": "affected_user",
+            "on_each": "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b",
+            "terminate_on_error": true
+        },
+        "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b": {
+            "name": "Reset User Privileges",
+            "description": "Demote the attacker user from admin privileges.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L -G '' attacker_user"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--d4113a8a-8f9a-419a-a3b1-7dd329da9f64"
+        },
+        "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de": {
+            "name": "Verify Core Security Services",
+            "description": "Ensure the core security services are operational.",
+            "on_completion": "end--6f3c5b12-b64f-4c39-915f-32c5e2122c9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl status firewalld && systemctl status auditd"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--6f3c5b12-b64f-4c39-915f-32c5e2122c9c": {
+            "type": "end"
+        },
+        "end--d4113a8a-8f9a-419a-a3b1-7dd329da9f64": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Organization ABC"
+        }
+    }
+}

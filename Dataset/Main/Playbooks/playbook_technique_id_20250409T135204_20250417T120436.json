@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ff9f7b2a-c3b4-4dba-85d5-b4c92fe87af1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to collect sensitive data and exfiltrate it to an external server.",
+    "created_by": "identity--0a05ad1b-5765-4ac4-bde3-e0cbfbe0031d",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--2e71f130-bdf9-46f2-8db5-cadc8f3a9f02",
+            "type": "start"
+        },
+        "parallel--2e71f130-bdf9-46f2-8db5-cadc8f3a9f02": {
+            "name": "Execute Mitigation Actions",
+            "description": "Initiate responses in parallel for the malicious script execution incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--11c1a76e-a02f-4e66-bbb1-bc68df1ec067",
+                "action--b6b92857-05d2-44ff-b91c-db2fd949ad0b",
+                "action--3c08e235-74fe-4c77-b0c8-526b487f4f2f",
+                "action--e3fa7e42-deb4-4e16-99eb-e28cae5fbb57",
+                "if-condition--c3b3b44d-1c5d-4588-90ad-62980c9c8c19"
+            ]
+        },
+        "action--11c1a76e-a02f-4e66-bbb1-bc68df1ec067": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts that are currently executing.",
+            "on_completion": "action--b6b92857-05d2-44ff-b91c-db2fd949ad0b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b6b92857-05d2-44ff-b91c-db2fd949ad0b": {
+            "name": "Isolate affected host from the network",
+            "description": "Remove the compromised host from the network to prevent further data exfiltration.",
+            "on_completion": "action--3c08e235-74fe-4c77-b0c8-526b487f4f2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--3c08e235-74fe-4c77-b0c8-526b487f4f2f": {
+            "name": "Perform a full system scan",
+            "description": "Scan the affected host for any remaining threats.",
+            "on_completion": "action--e3fa7e42-deb4-4e16-99eb-e28cae5fbb57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan --target host-22"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": "repeat until scan is clean"
+        },
+        "action--e3fa7e42-deb4-4e16-99eb-e28cae5fbb57": {
+            "name": "Review firewall rules for suspicious connections",
+            "description": "Check firewall configurations for any unauthorized connections that may have been established.",
+            "on_completion": "end--3a0fb6a1-e856-4124-94b3-2d366c9b85d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --list-all"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--c3b3b44d-1c5d-4588-90ad-62980c9c8c19": {
+            "name": "Check for compromised credentials",
+            "type": "if-condition",
+            "condition": "credentials_compromised == true",
+            "on_true": "action--c3b3b44d-1c5d-4588-90ad-62980c9c8c19",
+            "on_false": "action--e3fa7e42-deb4-4e16-99eb-e28cae5fbb57"
+        },
+        "action--c3b3b44d-1c5d-4588-90ad-62980c9c8c19": {
+            "name": "Change passwords for affected accounts",
+            "description": "Update passwords for accounts that may have been compromised during the breach.",
+            "on_completion": "end--3a0fb6a1-e856-4124-94b3-2d366c9b85d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user_account"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--3a0fb6a1-e856-4124-94b3-2d366c9b85d2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2fbc0a4-f32e-4bfb-931c-b99ed2ec0b5c",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook mitigates an incident involving unauthorized command execution of malicious scripts on the network. The workflow includes killing malicious processes, removing downloaded files, and running antivirus scans until the system is clean.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2023-10-12T08:30:00Z",
+    "modified": "2023-10-12T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--001",
+    "workflow": {
+        "start--001": {
+            "on_completion": "action--kill_malicious_process",
+            "type": "start"
+        },
+        "action--kill_malicious_process": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious processes that have been executed.",
+            "on_completion": "action--remove_downloaded_files",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--remove_downloaded_files": {
+            "name": "Remove Downloaded Files",
+            "description": "Delete any files associated with the malicious activity.",
+            "on_completion": "while-condition--run_antivirus_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_file.txt /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--run_antivirus_scan": {
+            "name": "Run Antivirus Scan Loop",
+            "description": "Run a quick antivirus scan until the system is clean.",
+            "on_completion": "action--check_scan_result",
+            "type": "while-condition",
+            "condition": "processKilled == true",
+            "on_true": "action--antivirus_scan",
+            "on_false": "end--done"
+        },
+        "action--antivirus_scan": {
+            "name": "Run Antivirus Scan",
+            "description": "Perform a quick antivirus scan on the host system.",
+            "on_completion": "while-condition--run_antivirus_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --quick"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "processKilled": {
+                    "type": "boolean",
+                    "description": "Indicates if the malicious process was successfully killed.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--done": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

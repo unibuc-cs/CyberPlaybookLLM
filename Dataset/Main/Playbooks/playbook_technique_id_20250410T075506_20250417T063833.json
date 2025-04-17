@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a91b5e6e-70c9-493a-ad9a-309e9e4091c1",
+    "name": "Mitigation Playbook for PowerShell-Based Attack",
+    "description": "This playbook addresses a cyber incident where adversaries executed a PowerShell script leading to unauthorized privilege escalation and network anomalies.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--8f44c16b-78b4-456d-8e7c-b8411555f786",
+    "workflow": {
+        "start--8f44c16b-78b4-456d-8e7c-b8411555f786": {
+            "on_completion": "action--e3ab18d6-a5ef-4e9c-8901-1e209817f24b",
+            "type": "start"
+        },
+        "action--e3ab18d6-a5ef-4e9c-8901-1e209817f24b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes currently running.",
+            "on_completion": "parallel--bc1fd178-bd96-4a3f-b5f8-c2d235ee34bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep -i powershell | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "parallel--bc1fd178-bd96-4a3f-b5f8-c2d235ee34bc": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f",
+                "action--28123e4a-0a45-414f-a894-31a921f8c104",
+                "action--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3",
+                "action--b749d6a8-6ed1-41d1-828c-bb589fd6921b"
+            ]
+        },
+        "action--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f": {
+            "name": "Block associated IP addresses",
+            "description": "Block all outbound traffic to malicious IP addresses.",
+            "on_completion": "loop--abc12345-6789-4321-a1b2-c3d4e5f67890",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "loop--abc12345-6789-4321-a1b2-c3d4e5f67890": {
+            "name": "Block IP Address Loop",
+            "description": "Loop through the list of malicious IP addresses and block each.",
+            "on_completion": "action--28123e4a-0a45-414f-a894-31a921f8c104",
+            "type": "loop",
+            "condition": "malicious-ip-list",
+            "body": "iptables -A OUTPUT -d {ip} -j DROP"
+        },
+        "action--28123e4a-0a45-414f-a894-31a921f8c104": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete any unauthorized user accounts identified in the system.",
+            "on_completion": "action--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(grep 'suspicious-user' /etc/passwd) ]; then deluser suspicious-user; fi"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "action--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3": {
+            "name": "Scan for residual malware",
+            "description": "Conduct a thorough scan for any remaining malware on the system.",
+            "on_completion": "end--xyz98765-4321-cba9-fghj-67890ijk1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --all --report"
+                }
+            ],
+            "agent": "organization--jkl",
+            "loop": "until [ -z $(malware-scan --all --quiet) ]; do sleep 10; done"
+        },
+        "action--b749d6a8-6ed1-41d1-828c-bb589fd6921b": {
+            "name": "Validate system integrity",
+            "description": "Ensure the integrity of the system using rootkit detection tools.",
+            "on_completion": "end--xyz98765-4321-cba9-fghj-67890ijk1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit && rkhunter --check"
+                }
+            ],
+            "agent": "organization--mno"
+        },
+        "end--xyz98765-4321-cba9-fghj-67890ijk1234": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganizationDef"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "ClientOrganizationGhi"
+        },
+        "organization--jkl": {
+            "type": "organization",
+            "name": "ClientOrganizationJkl"
+        },
+        "organization--mno": {
+            "type": "organization",
+            "name": "ClientOrganizationMno"
+        }
+    }
+}

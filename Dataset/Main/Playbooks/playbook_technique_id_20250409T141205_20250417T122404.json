@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a89fcd5c-65d9-42a8-8587-89b47d5a8e39",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts and installed backdoors.",
+    "created_by": "identity--xyz123",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--inc-001",
+    "workflow": {
+        "start--inc-001": {
+            "on_completion": "parallel--parallel-exec-001",
+            "type": "start"
+        },
+        "action--kill-123e4567-e89b-12d3-a456-426614174000": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--delete-123e4567-e89b-12d3-a456-426614174001",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--delete-123e4567-e89b-12d3-a456-426614174001": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious script files from the temporary directory.",
+            "on_completion": "action--check-service-123e4567-e89b-12d3-a456-426614174003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--check-scan-001": {
+            "name": "Run Full System Scan",
+            "description": "Continuously run the scan until it is clean.",
+            "on_completion": "action--check-service-123e4567-e89b-12d3-a456-426614174003",
+            "type": "while-condition",
+            "condition": "scan_success == false",
+            "on_true": "action--run-scan-123e4567-e89b-12d3-a456-426614174002"
+        },
+        "action--run-scan-123e4567-e89b-12d3-a456-426614174002": {
+            "name": "Execute System Scan",
+            "description": "Run a full system scan to ensure no malicious components persist.",
+            "on_completion": "if-condition--scan-result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_success": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan was successful and clean.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--scan-result": {
+            "name": "Check Scan Result",
+            "type": "if-condition",
+            "condition": "scan_report_clean == true",
+            "on_true": "end--finalize",
+            "on_false": "while-condition--check-scan-001"
+        },
+        "action--check-service-123e4567-e89b-12d3-a456-426614174003": {
+            "name": "Check for service persistence",
+            "description": "Verify if any malicious services exist.",
+            "on_completion": "end--finalize",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl list-units --type=service | grep malicious_service"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--finalize": {
+            "type": "end",
+            "description": "All steps completed; mitigation is finalized."
+        },
+        "parallel--parallel-exec-001": {
+            "name": "Parallel Execution of Critical Actions",
+            "description": "Execute critical mitigation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--kill-123e4567-e89b-12d3-a456-426614174000",
+                "while-condition--check-scan-001"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

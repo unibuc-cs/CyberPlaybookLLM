@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d755243e-a856-4de1-9c0d-0fa900e6f881",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a host, indicating potential data exfiltration attempts.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b3a6224f-7d97-4588-92a0-fc6f3d3fca11",
+            "type": "start"
+        },
+        "action--b3a6224f-7d97-4588-92a0-fc6f3d3fca11": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--d0a0a236-f3a4-4e67-9dbc-92279f1b6156",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d0a0a236-f3a4-4e67-9dbc-92279f1b6156": {
+            "name": "Isolate affected host",
+            "description": "Isolate the compromised host from the network to prevent further exfiltration.",
+            "on_completion": "parallel--a8b4a3a4-a964-4857-9421-f496ee5bada4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--a8b4a3a4-a964-4857-9421-f496ee5bada4": {
+            "name": "Parallel actions for incident response",
+            "description": "Notify security team and perform system scan and review logs concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c39f80e7-3f2f-4fc4-b1bb-d742c4a438e9",
+                "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e",
+                "action--f3db1edf-5f41-421f-85f1-1cd3546aa2a5"
+            ]
+        },
+        "action--c39f80e7-3f2f-4fc4-b1bb-d742c4a438e9": {
+            "name": "Notify security team",
+            "description": "Send notification to the security team about the incident detection.",
+            "on_completion": "end--d5dd3d80-7b61-48e5-9781-576f359bfc09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --to security_team --message 'Incident detected on host-22'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e": {
+            "name": "Review system logs",
+            "description": "Check system logs for any suspicious activity.",
+            "on_completion": "end--d5dd3d80-7b61-48e5-9781-576f359bfc09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep host-22"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": {
+                "if_logs_contains_suspicious_activity": {
+                    "name": "Check if logs contain suspicious activity",
+                    "on_true": "end--d5dd3d80-7b61-48e5-9781-576f359bfc09",
+                    "on_false": null
+                }
+            }
+        },
+        "action--f3db1edf-5f41-421f-85f1-1cd3546aa2a5": {
+            "name": "Perform full system scan",
+            "description": "Conduct a full system scan to identify any remaining threats.",
+            "on_completion": "while-condition--63d605de-e20f-4ed4-89cb-70c1097876ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --scan / --output=scan_report.txt"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--63d605de-e20f-4ed4-89cb-70c1097876ea": {
+            "name": "Repeat scan until no threats detected",
+            "description": "Repeat the system scan until no threats are detected.",
+            "on_completion": "end--d5dd3d80-7b61-48e5-9781-576f359bfc09",
+            "type": "while-condition",
+            "condition": "check_threats() == false",
+            "on_true": "action--f3db1edf-5f41-421f-85f1-1cd3546aa2a5"
+        },
+        "end--d5dd3d80-7b61-48e5-9781-576f359bfc09": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

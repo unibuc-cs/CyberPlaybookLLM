@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3de45f1-31b9-464e-b53b-d6f58e8f1a3f",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Command Execution",
+    "description": "This playbook mitigates an incident where an attacker executed a series of PowerShell commands to extract credentials and exfiltrate sensitive data.",
+    "created_by": "identity--c7de5c0f-a10c-4a1c-a258-77b772f504e5",
+    "created": "2023-10-10T14:32:15Z",
+    "modified": "2023-10-10T14:32:15Z",
+    "revoked": false,
+    "workflow_start": "start--e8b3205e-d557-4b0c-81a1-8e469627ed83",
+    "workflow": {
+        "start--e8b3205e-d557-4b0c-81a1-8e469627ed83": {
+            "on_completion": "action--c27e841c-3cc8-4f45-8dc7-f845282f8a98",
+            "type": "start"
+        },
+        "action--c27e841c-3cc8-4f45-8dc7-f845282f8a98": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--df86fe3b-2de9-404e-836c-b2624fa375e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--df86fe3b-2de9-404e-836c-b2624fa375e2": {
+            "name": "Isolate affected host from the network",
+            "description": "Block any network traffic from the affected host to prevent further exfiltration.",
+            "on_completion": "loop--ef6b9462-4fd7-4dac-bb23-001d9aa0262f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.22 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--ef6b9462-4fd7-4dac-bb23-001d9aa0262f": {
+            "name": "Run security scan on the host",
+            "description": "Perform a security scan on the affected host to detect threats and malware.",
+            "on_completion": "if-condition--scan_malware_result",
+            "type": "loop",
+            "condition": "scan_result != 'no threats detected'",
+            "on_true": "action--ef6b9462-4fd7-4dac-bb23-001d9aa0262f",
+            "on_false": "end--f945e5f3-3c3d-4cfa-b01f-bc3cf7dc765f"
+        },
+        "if-condition--scan_malware_result": {
+            "name": "Check scan result",
+            "description": "Determine if any threats were found by the security scan.",
+            "condition": "scan_result = 'malware found'",
+            "on_true": "action--ef6b9462-4fd7-4dac-bb23-001d9aa0262f",
+            "on_false": "end--f945e5f3-3c3d-4cfa-b01f-bc3cf7dc765f",
+            "type": "if-condition"
+        },
+        "action--ef6b9462-4fd7-4dac-bb23-001d9aa0262f": {
+            "name": "Run security scan command",
+            "description": "Execute a security scan to identify and remove any detected malware.",
+            "on_completion": "set-scan-result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "set-scan-result": {
+            "name": "Set scan result variable",
+            "description": "Store the result of the scan to check for threats.",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the security scan to check for threats",
+                    "value": "malware found",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--ef6b9462-4fd7-4dac-bb23-001d9aa0262f"
+        },
+        "end--f945e5f3-3c3d-4cfa-b01f-bc3cf7dc765f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2e8f454-2e05-4f74-b8ff-4d680804aa42",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker utilized a command-line interface to execute malicious commands targeting sensitive files.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e8a0d8cf-739d-4ebb-b1cc-d23f7100ff02",
+    "workflow": {
+        "start--e8a0d8cf-739d-4ebb-b1cc-d23f7100ff02": {
+            "on_completion": "action--b9e8dd85-26ed-4e9b-a33e-095ddf1e0aa0",
+            "type": "start"
+        },
+        "action--b9e8dd85-26ed-4e9b-a33e-095ddf1e0aa0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious scripts on the server.",
+            "on_completion": "action--8f9ba1f0-4b7f-4e4f-80e8-12a79c4ecf65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8f9ba1f0-4b7f-4e4f-80e8-12a79c4ecf65": {
+            "name": "Delete dropped files",
+            "description": "Remove any dropped malicious script files from the server.",
+            "on_completion": "parallel--3c2b8c3f-b2e2-4d77-9ec9-29e4051c5dc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--3c2b8c3f-b2e2-4d77-9ec9-29e4051c5dc2": {
+            "name": "Monitor Network and Proceed",
+            "description": "Monitor network connections to the malicious IP and perform subsequent actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fcb63d9c-e8fa-49e9-9d68-1d90fdee9a33"
+            ]
+        },
+        "action--fcb63d9c-e8fa-49e9-9d68-1d90fdee9a33": {
+            "name": "Monitor network connections",
+            "description": "Monitor ongoing connections to determine if malicious interactions persist.",
+            "on_completion": "while-condition--c3f8e625-96a1-4b53-b547-3ff9f9960f65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n host 192.168.1.100"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--c3f8e625-96a1-4b53-b547-3ff9f9960f65": {
+            "name": "Check for ongoing connections",
+            "description": "Repeat the monitoring step until no connections to the malicious IP are detected.",
+            "type": "while-condition",
+            "condition": "connections_still_present == true",
+            "on_true": "action--fcb63d9c-e8fa-49e9-9d68-1d90fdee9a33",
+            "on_false": "end--afebd27c-f158-4566-a92f-be98ddf4f733"
+        },
+        "end--afebd27c-f158-4566-a92f-be98ddf4f733": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

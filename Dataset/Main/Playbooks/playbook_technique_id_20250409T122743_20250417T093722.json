@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8a9d10b-6f2b-4f09-a61d-75e65336caca",
+    "name": "Playbook for Handling Suspicious Script Execution Incident",
+    "description": "This playbook outlines the mitigations for an incident where suspicious scripts were executed on a compromised server, leading to unauthorized access.",
+    "created_by": "identity--abcdef12-3456-7890-abcd-ef1234567890",
+    "created": "2023-10-23T15:00:00Z",
+    "modified": "2023-10-23T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-ef12-3456-7890abcdef01",
+    "workflow": {
+        "start--12345678-abcd-ef12-3456-7890abcdef01": {
+            "on_completion": "action--f4bc1f80-bf4d-43a5-bc66-6b72c2eee77e",
+            "type": "start"
+        },
+        "action--f4bc1f80-bf4d-43a5-bc66-6b72c2eee77e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that was executed.",
+            "on_completion": "action--a241535b-4f9e-4f6f-b5dd-c50a8a53edc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a241535b-4f9e-4f6f-b5dd-c50a8a53edc4": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host from the network to prevent further damage.",
+            "on_completion": "if-condition--check-external-connection",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set dev eth0 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--check-external-connection": {
+            "name": "Check for external connections",
+            "type": "if-condition",
+            "condition": "external_IP_connection_found == true",
+            "on_true": "action--f298db1b-6e91-478d-ab8b-b19082e71915",
+            "on_false": "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5"
+        },
+        "action--f298db1b-6e91-478d-ab8b-b19082e71915": {
+            "name": "Update firewall rules",
+            "description": "Block outgoing connections to the external IP suspected of being a command and control server.",
+            "on_completion": "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5": {
+            "name": "Perform forensic analysis",
+            "description": "Conduct a forensic scan of the compromised host to identify further issues.",
+            "type": "action",
+            "on_completion": "loop--forensic-analysis-loop",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forensic_tool --scan /path/to/host-22 --output=results.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--forensic-analysis-loop": {
+            "name": "Repeat forensic analysis",
+            "description": "Continue forensic analysis until the scan is clean.",
+            "on_true": "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5",
+            "on_false": "action--bf8a0fa2-d8c1-42f6-a286-295f392411d5",
+            "type": "while-condition",
+            "condition": "results.log indicates clean"
+        },
+        "action--bf8a0fa2-d8c1-42f6-a286-295f392411d5": {
+            "name": "Notify security team",
+            "description": "Inform the security team of the suspicious activity detected.",
+            "on_completion": "end--final-step",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Suspicious activity detected on host-22' | mail -s 'Incident Alert' security@organization.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--final-step": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

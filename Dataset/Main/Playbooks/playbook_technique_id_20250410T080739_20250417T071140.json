@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f0125f3f-85e6-4f55-8f5b-084db7c13567",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to the network using valid accounts due to leaked credentials from a phishing attack.",
+    "created_by": "identity--923babcdef-68a8-47d1-8e26-45d7cd9f42d8",
+    "created": "2025-04-10T08:07:39Z",
+    "modified": "2025-04-10T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--d077c14c-5b71-4b70-9868-910fd2f21ac9",
+    "workflow": {
+        "start--d077c14c-5b71-4b70-9868-910fd2f21ac9": {
+            "on_completion": "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b",
+            "type": "start"
+        },
+        "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b": {
+            "name": "Revoke Compromised Credentials",
+            "description": "Revoke access for the compromised user account.",
+            "on_completion": "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L suspicious_user"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb": {
+            "name": "Conduct Network-Wide Scan",
+            "description": "Scan the network for unauthorized access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -Pn 192.168.0.0/24"
+                }
+            ],
+            "agent": "organization--123",
+            "on_completion": "while-condition--scan-check--12345678-abcd-4abc-9876-abcdef012345"
+        },
+        "while-condition--scan-check--12345678-abcd-4abc-9876-abcdef012345": {
+            "name": "Check Scan Results",
+            "description": "Continue scanning until clean results are found.",
+            "on_completion": "action--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb"
+        },
+        "action--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1": {
+            "name": "Monitor Network for Irregular Activity",
+            "description": "Set up monitoring for irregular network activities.",
+            "on_completion": "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any 'port 22'"
+                }
+            ],
+            "agent": "organization--123",
+            "on_condition": {
+                "condition": "total_connections > threshold",
+                "alert": "alert_admin"
+            }
+        },
+        "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129": {
+            "name": "Update Firewall Rules",
+            "description": "Block known suspicious IP addresses.",
+            "on_completion": "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 203.0.113.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "blocked_ip": {
+                    "type": "string",
+                    "description": "Suspicious IP to be blocked",
+                    "value": "203.0.113.1",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2": {
+            "name": "Check All Servers for Backdoors",
+            "description": "Run checks on all servers to find potential backdoors.",
+            "on_completion": "end--b381fc07-b8e9-4ba4-9e0d-8f43e7c35dde",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --checkall"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b381fc07-b8e9-4ba4-9e0d-8f43e7c35dde": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--123": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityOperationsCenter"
+        }
+    }
+}

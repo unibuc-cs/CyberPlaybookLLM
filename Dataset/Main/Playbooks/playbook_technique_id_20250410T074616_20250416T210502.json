@@ -1,0 +1,157 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6f8f23b-4a9e-43b4-8c7e-12d1c3f2f55f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable script interpreter to execute unauthorized commands and deploy a malicious payload.",
+    "created_by": "identity--generated",
+    "created": "2023-10-11T09:00:00Z",
+    "modified": "2023-10-11T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1d2c3b5-e4e6-4975-a674-4c2b5a9dda68",
+    "workflow": {
+        "start--f1d2c3b5-e4e6-4975-a674-4c2b5a9dda68": {
+            "on_completion": "parallel--b7a349c4-82c4-4e0f-aafe-d31da90fdda2",
+            "type": "start"
+        },
+        "parallel--b7a349c4-82c4-4e0f-aafe-d31da90fdda2": {
+            "name": "Simultaneous Mitigation Actions",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c1f8e3a8-56f5-487c-b8b9-7d9c93c6f21a",
+                "if-condition--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf",
+                "loop--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2",
+                "action--2e8dcb95-62b0-411b-8eb9-f63c5c8eeb29",
+                "if-condition--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc"
+            ]
+        },
+        "action--c1f8e3a8-56f5-487c-b8b9-7d9c93c6f21a": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate processes running the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep malprocess)"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "if-condition--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf": {
+            "name": "Check and Block Suspicious IP",
+            "description": "Conditionally block a suspicious IP if not already blocked.",
+            "type": "if-condition",
+            "condition": "if [ $(iptables -L | grep -c '192.168.0.75') -eq 0 ]",
+            "on_true": "action--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf",
+            "on_false": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "action--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf": {
+            "name": "Block Suspicious IP",
+            "description": "Block the specified suspicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.0.75 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "loop--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2": {
+            "name": "Scan and Clean Infected Hosts",
+            "description": "Scan and keep cleaning hosts until no infections remain.",
+            "type": "while-condition",
+            "condition": "until [ $(clamscan -i / | grep 'Infected files: 0') ]",
+            "on_true": "action--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2"
+        },
+        "action--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2": {
+            "name": "Execute Host Scan and Clean",
+            "description": "Execute a comprehensive scan and clean action on infected hosts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_report": {
+                    "type": "string",
+                    "value": "/var/log/clamav_scan.log",
+                    "description": "Stores the report of the scan result"
+                }
+            },
+            "on_completion": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "action--2e8dcb95-62b0-411b-8eb9-f63c5c8eeb29": {
+            "name": "Apply Security Patches",
+            "description": "Update the system to apply the latest security patches.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "upgrade_log": {
+                    "type": "string",
+                    "value": "/var/log/apt/upgrade.log",
+                    "description": "Stores the log of the upgrade process"
+                }
+            },
+            "on_completion": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "if-condition--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc": {
+            "name": "Conditional Account Password Change",
+            "description": "Change the password for compromised accounts if detected.",
+            "type": "if-condition",
+            "condition": "if [ $(grep 'compromised' /etc/passwd) ]",
+            "on_true": "action--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc",
+            "on_false": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "action--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc": {
+            "name": "Change Compromised Account Passwords",
+            "description": "Change passwords for accounts detected as compromised.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo S3creT!123 | passwd --stdin user"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "value": "user",
+                    "description": "Stores the username for which the password will be changed"
+                },
+                "new_password": {
+                    "type": "string",
+                    "value": "S3creT!123",
+                    "description": "New password for the compromised account"
+                }
+            },
+            "on_completion": "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1"
+        },
+        "end--a4d5e6d7-f8a9-4b6a-927e-e3f0f5c9c1d1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "Organization DEF"
+        }
+    }
+}

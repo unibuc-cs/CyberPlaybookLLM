@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5e429b4-2c1d-4e89-85f5-99227691ca68",
+    "name": "Mitigation Playbook for Malware Distribution Incident",
+    "description": "This playbook outlines the actions necessary to mitigate a malware distribution incident executed via a compromised remote management interface.",
+    "created_by": "identity--d88cda28-e5d6-4e30-bc7c-b0f3d9719e72",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--90d9f1ed-f944-4d42-bb8a-26dbf1cba31c",
+    "workflow": {
+        "start--90d9f1ed-f944-4d42-bb8a-26dbf1cba31c": {
+            "on_completion": "action--f58d70b2-5d38-4a36-9a83-5c46780221d7",
+            "type": "start"
+        },
+        "action--f58d70b2-5d38-4a36-9a83-5c46780221d7": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that were spawned.",
+            "on_completion": "action--8decb0ee-58cd-4abc-ab1b-b4e0bbf62ec7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8decb0ee-58cd-4abc-ab1b-b4e0bbf62ec7": {
+            "name": "Remove downloaded files",
+            "description": "Remove any malicious files downloaded during the attack, if they exist.",
+            "step_variables": {
+                "file_exists": {
+                    "type": "boolean",
+                    "description": "Check if the malicious file exists",
+                    "value": "$(test -e /tmp/malicious_file.exe && echo true || echo false)",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "if-condition--f5d46aed-6345-4a66-b1cc-8458c913a107",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_file.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--f5d46aed-6345-4a66-b1cc-8458c913a107": {
+            "name": "Check if file exists before removing",
+            "type": "if-condition",
+            "condition": "file_exists == true",
+            "on_true": "action--a1b4c33f-0a1d-4c0b-81d2-7386931a361e",
+            "on_false": "action--bd92cd89-b728-4847-8f72-5f5df60ae4a2"
+        },
+        "action--a1b4c33f-0a1d-4c0b-81d2-7386931a361e": {
+            "name": "Scan for persistence mechanisms",
+            "description": "Continuously scan until all persistence mechanisms are clear.",
+            "on_completion": "action--bd92cd89-b728-4847-8f72-5f5df60ae4a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! (scan_is_clean); do scan; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bd92cd89-b728-4847-8f72-5f5df60ae4a2": {
+            "name": "Notify security team",
+            "description": "Alert the security team about the detected malware.",
+            "on_completion": "end--b545ad73-ba09-42e0-a295-dc652d65cc39",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Alert: Malware detected on host-01' | mail -s 'Security Alert' security_team@company.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b545ad73-ba09-42e0-a295-dc652d65cc39": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

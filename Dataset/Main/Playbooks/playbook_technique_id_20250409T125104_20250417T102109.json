@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2c6f739-b014-4d3f-a0a0-5e9f72999ae1",
+    "name": "Playbook for Handling Unauthorized Script Execution Incident",
+    "description": "This playbook addresses incidents involving the execution of unauthorized scripts, including the extraction of sensitive data, network connections, and potential system integrity violations.",
+    "created_by": "identity--abc12345-def6-7890-ghij-klmnopqrstuv",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--8cbf56c2-93e9-4d73-ade8-d6ab8c9b55a2",
+    "workflow": {
+        "start--8cbf56c2-93e9-4d73-ade8-d6ab8c9b55a2": {
+            "on_completion": "action--a4f492c6-3f9c-4714-befc-837bdb89b0ef",
+            "type": "start"
+        },
+        "action--a4f492c6-3f9c-4714-befc-837bdb89b0ef": {
+            "name": "Kill malicious process",
+            "description": "Terminate the execution of the suspicious PowerShell script.",
+            "on_completion": "action--6223a4a4-8a9e-4e78-bfbc-3af441ce6f4c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--6223a4a4-8a9e-4e78-bfbc-3af441ce6f4c": {
+            "name": "Block outbound connection",
+            "description": "Block any outbound connections to the suspicious IP address.",
+            "on_completion": "loop--d8bc2678-8842-4b15-bb59-6c8adf4a2f7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--d8bc2678-8842-4b15-bb59-6c8adf4a2f7b": {
+            "name": "Scan system for remaining threats",
+            "description": "Perform a system scan to detect any remaining threats.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d8bc2678-8842-4b15-bb59-6c8adf4a2f7b",
+            "on_false": "end--4e64f668-22e6-4e92-90e3-53865837fa1b"
+        },
+        "action--d8bc2678-8842-4b15-bb59-6c8adf4a2f7b": {
+            "name": "Execute system scan",
+            "description": "Run a recursive scan of the system to identify any malicious files.",
+            "on_completion": "loop--d8bc2678-8842-4b15-bb59-6c8adf4a2f7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan, indicating if any threats remain.",
+                    "value": "clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--4e64f668-22e6-4e92-90e3-53865837fa1b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

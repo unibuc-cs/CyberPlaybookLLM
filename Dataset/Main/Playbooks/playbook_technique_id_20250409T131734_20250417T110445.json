@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5bce3eb-ff45-4e94-b073-a57b700b4e63",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts using the command line interface.",
+    "created_by": "identity--f0049b2d-b56d-4c8e-8f0e-4032ebc6c346",
+    "created": "2023-10-12T08:15:30Z",
+    "modified": "2023-10-12T08:15:30Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-4321-efgh-56789abcdef0",
+    "workflow": {
+        "start--12345678-abcd-4321-efgh-56789abcdef0": {
+            "on_completion": "action--fa81c7a3-da28-4f83-ad0d-54c596f70533",
+            "type": "start"
+        },
+        "action--fa81c7a3-da28-4f83-ad0d-54c596f70533": {
+            "name": "Terminate malicious process",
+            "description": "Terminate any suspicious processes that were executed by the attacker.",
+            "on_completion": "action--ab23f0f0-0358-4f1f-9874-a6b70dc07766",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f suspicious-script.sh)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ab23f0f0-0358-4f1f-9874-a6b70dc07766": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block any outbound connections to the malicious IP address.",
+            "on_completion": "loop--bd819531-7633-4873-9e21-889055563b85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--bd819531-7633-4873-9e21-889055563b85": {
+            "name": "Run full system scan",
+            "description": "Perform a full scan of the system to detect any remaining threats.",
+            "on_completion": "if-condition--scan-clean",
+            "type": "loop",
+            "condition": "scan_status != 'clean'",
+            "next_steps": "action--bd819531-7633-4873-9e21-889055563b85",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the full system scan",
+                    "value": "running",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o && scan_status='clean' || scan_status='running'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--scan-clean": {
+            "name": "Check if system scan is clean",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--f5bce3eb-ff45-4e94-b073-a57b700b4e63",
+            "on_false": "loop--bd819531-7633-4873-9e21-889055563b85"
+        },
+        "end--f5bce3eb-ff45-4e94-b073-a57b700b4e63": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2632b58-1e69-4c66-bc6a-650255037f62",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook mitigates the incident where a PowerShell script was executed to gain unauthorized access to sensitive data.",
+    "created_by": "identity--abc12345-bc8e-4d41-bc72-3ab8e43f0ae5",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcd1234-5678-9abc-def0-123456789abc",
+    "workflow": {
+        "start--abcd1234-5678-9abc-def0-123456789abc": {
+            "on_completion": "action--ecf6cfe9-84fd-4556-85f9-93bae8274e1d",
+            "type": "start"
+        },
+        "action--ecf6cfe9-84fd-4556-85f9-93bae8274e1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any PowerShell processes that may be executing malicious commands.",
+            "on_completion": "action--e1d874f7-7311-4b8a-94a4-01c171d92c7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e1d874f7-7311-4b8a-94a4-01c171d92c7a": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent further unauthorized access.",
+            "on_completion": "while-condition--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75": {
+            "name": "Perform scan until clean",
+            "description": "Run a full system scan and repeat until the system returns clean.",
+            "on_completion": "end--def01234-5678-9abc-def0-123456789abc",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75",
+            "on_false": "end--def01234-5678-9abc-def0-123456789abc"
+        },
+        "action--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to check for any remaining threats.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan indicating if it is clean.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "update_scan_status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "update_scan_status": {
+            "type": "action",
+            "description": "Update the scan status based on results.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(check_scan_result) == 'clean' ]; then scan_status='clean'; else scan_status='not_clean'; fi"
+                }
+            ],
+            "on_completion": "while-condition--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75",
+            "agent": "organization--abc"
+        },
+        "end--def01234-5678-9abc-def0-123456789abc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fa5399c2-060e-4fb5-b948-576fc3cabc98",
+    "name": "Playbook for C2 Server HTTP Communication Incident",
+    "description": "This playbook addresses an incident where an attacker established a command and control channel using HTTP requests.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6": {
+            "on_completion": "if-condition--b3a2c1d0-e4f5-51g6-7h8j-0k1l2m3n4",
+            "type": "start"
+        },
+        "if-condition--b3a2c1d0-e4f5-51g6-7h8j-0k1l2m3n4": {
+            "name": "Check if suspicious process is running",
+            "type": "if-condition",
+            "condition": "suspicious_process_is_running == true",
+            "on_true": "action--1eb3de4e-6b9e-4ad7-b867-2d49d94deb22",
+            "on_false": "action--2e909338-02a1-43b3-aeb7-bf42f5e6b02b"
+        },
+        "action--1eb3de4e-6b9e-4ad7-b867-2d49d94deb22": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process running on the host.",
+            "on_completion": "action--2e909338-02a1-43b3-aeb7-bf42f5e6b02b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2e909338-02a1-43b3-aeb7-bf42f5e6b02b": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Prevent any outbound traffic to the known C2 server.",
+            "on_completion": "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d known_c2_server -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f": {
+            "name": "Scan system for other malware",
+            "description": "Repeat scanning process until the system is clean.",
+            "on_completion": "end--afc7f8e1-4f0a-4bcc-b5e9-6fbac1dabede",
+            "type": "while-condition",
+            "condition": "is_clean == false",
+            "on_true": "action--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "on_false": null
+        },
+        "action--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f": {
+            "name": "Scan system for malware",
+            "description": "Perform a scan to check the system for other potential malware.",
+            "on_completion": "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_system"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--afc7f8e1-4f0a-4bcc-b5e9-6fbac1dabede": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    },
+    "step_variables": {
+        "suspicious_process_is_running": {
+            "type": "boolean",
+            "description": "Indicates if the suspicious process is currently running.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "is_clean": {
+            "type": "boolean",
+            "description": "Indicates if the system is clean from malware.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

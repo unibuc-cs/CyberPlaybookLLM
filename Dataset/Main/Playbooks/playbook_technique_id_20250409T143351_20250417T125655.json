@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2f4c2b2-1d33-4f62-872e-66d95534e0be",
+    "name": "Mitigation Playbook for Unauthorized Shell Command Execution",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized shell commands, modified system files, and established outbound connections.",
+    "created_by": "identity--abcde123-4567-8910-bcde-f123ghijk456",
+    "created": "2025-04-10T08:50:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b3b64c61-f7a9-4b84-909b-23e2e819ca1e",
+    "workflow": {
+        "start--b3b64c61-f7a9-4b84-909b-23e2e819ca1e": {
+            "on_completion": "parallel--9c56a291-0b9e-4b98-9490-9b2bc9a78ef5",
+            "type": "start"
+        },
+        "parallel--9c56a291-0b9e-4b98-9490-9b2bc9a78ef5": {
+            "name": "Concurrent Mitigation Actions",
+            "description": "Execute multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2c5f4a60-0f1b-4f8b-8f70-fbd5e6ed3b7e",
+                "loop--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5",
+                "action--7f4514a8-2c29-499c-b1d7-5e5c5fc6451a"
+            ]
+        },
+        "action--2c5f4a60-0f1b-4f8b-8f70-fbd5e6ed3b7e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are running the malicious script.",
+            "on_completion": "loop--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5": {
+            "name": "Restore Modified Files Loop",
+            "description": "Restore modified files from backup if they have not been restored recently.",
+            "type": "while-condition",
+            "condition": "find /etc/critical_files/ -mtime +30 | grep -q .",
+            "on_true": "action--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5",
+            "on_false": "action--7f4514a8-2c29-499c-b1d7-5e5c5fc6451a"
+        },
+        "action--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5": {
+            "name": "Restore Modified Files from Backup",
+            "description": "Synchronize critical files from backup to the active directory.",
+            "on_completion": "loop--fb2e6c37-39bb-4c36-b99b-8235b75cb9c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup/critical_files/ /etc/critical_files/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7f4514a8-2c29-499c-b1d7-5e5c5fc6451a": {
+            "name": "Analyze Network Logs",
+            "description": "Examine network logs for patterns related to the unauthorized access.",
+            "on_completion": "end--b4c9f1da-464f-4ab1-b888-d784f5c1e060",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_ip' /var/log/network.log | sort | uniq -c"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b4c9f1da-464f-4ab1-b888-d784f5c1e060": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

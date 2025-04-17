@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8a67f452-ab0b-4146-9141-d82c68afc802",
+    "name": "Mitigation Playbook for Indicator Removal on Host",
+    "description": "This playbook addresses an incident where an attacker attempted to delete log files and mask their indicators on a host.",
+    "created_by": "identity--c0bc8f90-64a7-495a-a2b0-9cbd280a61e1",
+    "created": "2025-04-09T08:40:00.000Z",
+    "modified": "2025-04-09T08:40:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--2e62c3dc-3c45-4cdf-bc1c-b55802c55e64",
+            "type": "start"
+        },
+        "parallel--2e62c3dc-3c45-4cdf-bc1c-b55802c55e64": {
+            "name": "Mitigation Steps",
+            "description": "Execute all necessary mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a7c29d41-cb68-4f55-94ff-4f5ed89f8cc8",
+                "action--b595c5ec-8129-4926-8c44-961ae1e84932",
+                "action--c8b4e2f4-f275-4ff6-81ee-9c77f659c018"
+            ]
+        },
+        "action--a7c29d41-cb68-4f55-94ff-4f5ed89f8cc8": {
+            "name": "Restore deleted logs from backup",
+            "description": "Restore missing logs from the backup to ensure visibility.",
+            "on_completion": "action--b595c5ec-8129-4926-8c44-961ae1e84932",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/logs/* /var/logs/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--c95f3119-68e5-4cf9-ae13-b69c504f78ff": {
+            "name": "Integrity Check Loop",
+            "description": "Perform an integrity check on system files repeatedly until no issues are found.",
+            "on_completion": "action--c8b4e2f4-f275-4ff6-81ee-9c77f659c018",
+            "type": "while-condition",
+            "condition": "integrity_check_passed == false",
+            "on_true": "action--b595c5ec-8129-4926-8c44-961ae1e84932"
+        },
+        "action--b595c5ec-8129-4926-8c44-961ae1e84932": {
+            "name": "Run integrity check on system files",
+            "description": "Verify the integrity of system files against known hashes.",
+            "on_completion": "while-condition--c95f3119-68e5-4cf9-ae13-b69c504f78ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "md5sum -c /etc/integrity_hashes.txt"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "integrity_check_passed": {
+                    "type": "boolean",
+                    "description": "Indicates if the integrity check has passed.",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "action--c8b4e2f4-f275-4ff6-81ee-9c77f659c018": {
+            "name": "Monitor for further unauthorized access attempts",
+            "description": "Continuously monitor the authentication logs for unauthorized access attempts.",
+            "on_completion": "end--f196209c-c62e-4e2c-bf37-619967dfdf94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -F /var/log/auth.log | grep 'failed login'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The log file where unauthorized access attempts are monitored.",
+                    "value": "/var/log/auth.log",
+                    "constant": true
+                }
+            }
+        },
+        "end--f196209c-c62e-4e2c-bf37-619967dfdf94": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

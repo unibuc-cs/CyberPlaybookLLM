@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9e6a1f8-c6f9-4b5f-bca5-8ab51f3385f2",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious PowerShell script execution allowed an attacker to establish a remote shell on a compromised host.",
+    "created_by": "identity--12345678-abcd-ef01-2345-6789abcdef12",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d9876543-abc3-ef12-3456-789abcdef012",
+    "workflow": {
+        "start--d9876543-abc3-ef12-3456-789abcdef012": {
+            "on_completion": "action--24676e61-e8d9-4e43-b5d7-009e6aaec79f",
+            "type": "start"
+        },
+        "action--24676e61-e8d9-4e43-b5d7-009e6aaec79f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that could be executing the script.",
+            "on_completion": "action--c528e1de-9573-40ba-a134-c74adef2996a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c528e1de-9573-40ba-a134-c74adef2996a": {
+            "name": "Block outbound traffic to attacker's IP",
+            "description": "Block any outbound network traffic to the attacker's IP address to prevent further communication.",
+            "on_completion": "loop--fe4054fc-1131-4d1c-a8a3-2a3616be999f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--fe4054fc-1131-4d1c-a8a3-2a3616be999f": {
+            "name": "Scan for other compromised hosts",
+            "description": "Continuously scan the network to find any other hosts that may be compromised until no new threats are detected.",
+            "on_completion": "end--f00b0a7d-19b0-45f0-ad77-a0d04c1240ea",
+            "type": "while-condition",
+            "condition": "found_no_compromised_hosts == false",
+            "on_true": "action--fe4054fc-1131-4d1c-a8a3-2a3616be999f",
+            "variables": {
+                "found_no_compromised_hosts": {
+                    "type": "boolean",
+                    "description": "Indicates if any compromised hosts have been found.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--fe4054fc-1131-4d1c-a8a3-2a3616be999f": {
+            "name": "Scan for other compromised hosts",
+            "description": "Scan the subnet for any additional compromised hosts.",
+            "on_completion": "set-found-no-compromised-hosts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sT 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-found-no-compromised-hosts": {
+            "name": "Set found_no_compromised_hosts variable",
+            "description": "Set the variable to true if no compromised hosts are detected.",
+            "on_completion": "loop--fe4054fc-1131-4d1c-a8a3-2a3616be999f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_for_compromised_hosts"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f00b0a7d-19b0-45f0-ad77-a0d04c1240ea": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

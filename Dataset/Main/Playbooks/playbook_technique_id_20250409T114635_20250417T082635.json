@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f9bc99bc-5b4c-4b74-b1b1-ae4546a48cd3",
+    "name": "Mitigation Playbook for Application Layer Protocol Abuse Incident",
+    "description": "This playbook addresses an incident where an attacker exploited application layer protocols (HTTP/DNS) for data exfiltration.",
+    "created_by": "identity--abc12345-6789-0def-ghij-klmnopqrstu",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d550c7f6-1e58-4ad9-884c-bd9fd5e7cb79",
+    "workflow": {
+        "start--d550c7f6-1e58-4ad9-884c-bd9fd5e7cb79": {
+            "on_completion": "action--dfe75a0e-8d3a-4d68-8ffd-6c179923a8c2",
+            "type": "start"
+        },
+        "action--dfe75a0e-8d3a-4d68-8ffd-6c179923a8c2": {
+            "name": "Block outbound traffic to suspicious external IP",
+            "description": "Block all outbound connections to the suspicious IP detected in the exfiltration attempt.",
+            "on_completion": "if-condition--1a8ef644-8c5b-4dab-a2e9-84e7e6baf709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--1a8ef644-8c5b-4dab-a2e9-84e7e6baf709": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--1a8ef644-8c5b-4dab-a2e9-84e7e6baf709",
+            "on_false": "action--546c3be8-8397-4a97-96a5-b5c4d7760caa"
+        },
+        "action--1a8ef644-8c5b-4dab-a2e9-84e7e6baf709": {
+            "name": "Kill malicious process if found communicating",
+            "description": "Terminate any processes communicating with the suspicious IP.",
+            "on_completion": "action--546c3be8-8397-4a97-96a5-b5c4d7760caa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--546c3be8-8397-4a97-96a5-b5c4d7760caa": {
+            "name": "Scan the system for signs of compromise",
+            "description": "Perform a scan of the system to identify any other potential compromises.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /path/to/directory"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan Loop",
+            "description": "Repeat the scan until the system is determined to be clean.",
+            "on_true": "action--546c3be8-8397-4a97-96a5-b5c4d7760caa",
+            "condition": "scan_clean == false",
+            "type": "while-condition"
+        },
+        "end--f8aa5182-67c3-4d51-a9b1-e778d478e800": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

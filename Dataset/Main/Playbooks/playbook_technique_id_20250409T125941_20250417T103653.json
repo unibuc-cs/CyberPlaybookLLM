@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e01d5e1a-4f87-40be-bbac-b4c01aa28275",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook automates the response to a malicious script execution incident, including killing processes, isolating hosts, and scanning for integrity.",
+    "created_by": "identity--d3a5e231-d9e8-41b3-a891-0dfe620e602e",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5be3a521-2484-4c92-8f4f-8fd266391b21",
+    "workflow": {
+        "start--5be3a521-2484-4c92-8f4f-8fd266391b21": {
+            "on_completion": "action--ab3ab3b9-dc7e-45e4-a1c1-5b9037e2be6a",
+            "type": "start"
+        },
+        "action--ab3ab3b9-dc7e-45e4-a1c1-5b9037e2be6a": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script that was executed on the host.",
+            "on_completion": "action--c5d4e775-b68c-489e-b890-f3b47b3f76ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c5d4e775-b68c-489e-b890-f3b47b3f76ed": {
+            "name": "Isolate affected host from network",
+            "description": "Take the affected host offline to prevent further data exfiltration.",
+            "on_completion": "loop--e1c7fb32-0dd4-4c18-8d69-a4be143b903f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--e1c7fb32-0dd4-4c18-8d69-a4be143b903f": {
+            "name": "Check system integrity",
+            "description": "Perform a system integrity check and refine the scan based on memory usage.",
+            "type": "loop",
+            "next_steps": [
+                "action--d7c4e81b-2aa4-4378-9b8c-1a11111da793"
+            ],
+            "condition": "scan_running == true",
+            "variables": {
+                "scan_running": {
+                    "type": "boolean",
+                    "value": true
+                },
+                "scan_mode": {
+                    "type": "string",
+                    "value": "standard"
+                }
+            }
+        },
+        "action--d7c4e81b-2aa4-4378-9b8c-1a11111da793": {
+            "name": "Run system integrity scan",
+            "description": "Scan the entirety of the file system for threats.",
+            "on_completion": "decision--f5bc3e1f-8aae-4761-add6-1d9a0e00789f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--f5bc3e1f-8aae-4761-add6-1d9a0e00789f": {
+            "name": "Evaluate scan results",
+            "description": "Determine if any threats were found during the scan.",
+            "type": "if-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--cleanup--threats",
+            "on_false": "set-scan_mode--rigorous"
+        },
+        "set-scan_mode--rigorous": {
+            "name": "Set scan mode to rigorous",
+            "description": "Increase scan sensitivity due to potential threats detected.",
+            "on_completion": "loop--e1c7fb32-0dd4-4c18-8d69-a4be143b903f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "set scan_mode = rigorous"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--cleanup--threats": {
+            "name": "Cleanup detected threats",
+            "description": "Remediate found threats on the system.",
+            "on_completion": "end--e2dffac1-0638-4e0b-8b67-6d1b4e7bfdc6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "remove_threats"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e2dffac1-0638-4e0b-8b67-6d1b4e7bfdc6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

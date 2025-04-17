@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7a95e15b-6da6-47e4-b006-5a27b224d68d",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script on a compromised host, leading to data exfiltration.",
+    "created_by": "identity--9bca0eb2-d1f5-4e3b-bab4-b5b642fbf547",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f6b81b28-3c7f-4ff5-a7c6-ba8b7de68df7",
+    "workflow": {
+        "start--f6b81b28-3c7f-4ff5-a7c6-ba8b7de68df7": {
+            "on_completion": "action--e273f299-6854-4a61-93bd-20b1e4929651",
+            "type": "start"
+        },
+        "action--e273f299-6854-4a61-93bd-20b1e4929651": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process executing on the compromised host.",
+            "on_completion": "if-condition--beabc571-172f-48c7-9191-7a249d3c62e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--beabc571-172f-48c7-9191-7a249d3c62e2": {
+            "name": "Check for suspicious IP",
+            "type": "if-condition",
+            "condition": "suspicious_IP_detected == true",
+            "on_true": "action--beabc571-172f-48c7-9191-7a249d3c62e2",
+            "on_false": "loop--ab1123e1-79b8-422e-b6f4-123df51b01b4"
+        },
+        "action--beabc571-172f-48c7-9191-7a249d3c62e2": {
+            "name": "Block outbound traffic to the suspicious IP",
+            "description": "Block any traffic to the detected suspicious IP address.",
+            "on_completion": "loop--ab1123e1-79b8-422e-b6f4-123df51b01b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--ab1123e1-79b8-422e-b6f4-123df51b01b4": {
+            "name": "Run a full system scan",
+            "description": "Perform a full system scan and repeat until the system is clean.",
+            "type": "loop",
+            "next_steps": "action--ab1123e1-79b8-422e-b6f4-123df51b01b4",
+            "condition": "scan_status == 'clean'"
+        },
+        "action--ab1123e1-79b8-422e-b6f4-123df51b01b4": {
+            "name": "System scan command execution",
+            "on_completion": "loop--ab1123e1-79b8-422e-b6f4-123df51b01b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_full_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--3b4a9d54-b294-4e98-aada-1f5448012513": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

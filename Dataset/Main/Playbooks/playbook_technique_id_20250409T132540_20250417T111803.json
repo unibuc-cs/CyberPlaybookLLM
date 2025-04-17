@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--45d7d53a-3d36-4853-980c-395d8fc6147c",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to enumerate system information and exfiltrate sensitive data.",
+    "created_by": "identity--c0e354e5-9001-4f15-8fcb-cd5836e155a4",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--732b9704-980d-49d6-805f-67f5f3b69ea2",
+    "workflow": {
+        "start--732b9704-980d-49d6-805f-67f5f3b69ea2": {
+            "on_completion": "action--c04a6945-8ead-4e84-b7e3-c3f29d80b057",
+            "type": "start"
+        },
+        "action--c04a6945-8ead-4e84-b7e3-c3f29d80b057": {
+            "name": "Monitor network traffic for unusual connections",
+            "description": "Monitor for suspicious connections to identify potential exfiltration.",
+            "on_completion": "decision--c8f75425-f55a-45bc-8ef4-da7d92fa86a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn host suspicious.ip.address"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--c8f75425-f55a-45bc-8ef4-da7d92fa86a9": {
+            "name": "Check for suspicious traffic activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected",
+            "on_true": "loop--b1d6bf77-69f0-4d8c-88f2-dc4baa289f72",
+            "on_false": "action--e187fe5a-e141-4c53-b57f-f865c2b644a7"
+        },
+        "loop--b1d6bf77-69f0-4d8c-88f2-dc4baa289f72": {
+            "name": "Repeat monitoring until traffic is normal",
+            "on_completion": "action--c04a6945-8ead-4e84-b7e3-c3f29d80b057",
+            "type": "while-condition",
+            "condition": "traffic_is_normal == false",
+            "on_true": "action--c04a6945-8ead-4e84-b7e3-c3f29d80b057"
+        },
+        "action--e187fe5a-e141-4c53-b57f-f865c2b644a7": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes associated with the attack.",
+            "on_completion": "action--3e9fb72e-f29e-4aca-8c00-d8e2e8c564cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3e9fb72e-f29e-4aca-8c00-d8e2e8c564cb": {
+            "name": "Initiate full system scan with antivirus",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "on_completion": "loop--0992a841-13fa-49bf-9aa7-6d7d9c2c96ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan result",
+                    "value": "initial",
+                    "constant": false
+                }
+            }
+        },
+        "loop--0992a841-13fa-49bf-9aa7-6d7d9c2c96ee": {
+            "name": "Repeat scan until no threats detected",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--3e9fb72e-f29e-4aca-8c00-d8e2e8c564cb"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

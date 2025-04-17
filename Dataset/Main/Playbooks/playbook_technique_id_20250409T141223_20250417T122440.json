@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e51e965b-ec87-4cc1-94bb-5e2167d13cc8",
+    "name": "Playbook for HTTP-based Data Exfiltration Incident",
+    "description": "This playbook addresses a data exfiltration incident where an attacker utilized HTTP requests to exfiltrate sensitive data.",
+    "created_by": "identity--ad4f8eca-7497-49c8-925c-d433f3eaae63",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1f50b231-4b23-47b2-be71-2a7f9e421dc5",
+    "workflow": {
+        "start--1f50b231-4b23-47b2-be71-2a7f9e421dc5": {
+            "on_completion": "action--a5f22a7b-3aec-4e0f-b2c3-3a7cd8c50654",
+            "type": "start"
+        },
+        "action--a5f22a7b-3aec-4e0f-b2c3-3a7cd8c50654": {
+            "name": "Block outbound HTTP traffic to suspicious IPs",
+            "description": "Block traffic to the suspicious IP to prevent further data exfiltration.",
+            "on_completion": "parallel--d3e480a7-54e0-4042-b8c4-1e2d05725668",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c09b9fad-2b19-4d10-8357-42a1a1b7c1f8": {
+            "name": "Monitor outbound traffic",
+            "description": "Monitor traffic to check for any further anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host 192.168.1.10"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--847b045c-5cc6-4c07-beaf-07b261df5e15": {
+            "name": "Investigate logs for similar patterns",
+            "description": "Search the logs for any instances of suspicious activity.",
+            "on_completion": "end--d8925104-c8d4-4c8c-862e-6dflli3ec32e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/http.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--d3e480a7-54e0-4042-b8c4-1e2d05725668": {
+            "name": "Ongoing Monitoring and Investigation",
+            "description": "Conduct monitoring and investigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c09b9fad-2b19-4d10-8357-42a1a1b7c1f8",
+                "action--847b045c-5cc6-4c07-beaf-07b261df5e15"
+            ]
+        },
+        "while-condition--f37d6750-1cda-4b5d-bc3c-109867b1a678": {
+            "name": "Check for anomalies",
+            "description": "Repeat monitoring until no anomalies are detected.",
+            "on_completion": "end--d8925104-c8d4-4c8c-862e-6dflli3ec32e",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--c09b9fad-2b19-4d10-8357-42a1a1b7c1f8"
+        },
+        "end--d8925104-c8d4-4c8c-862e-6dflli3ec32e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

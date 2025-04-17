@@ -1,0 +1,150 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b8f56b-f4c7-4f91-9a3f-5c3b4c6e3b16",
+    "name": "Mitigation Playbook for PowerShell Script Compromise Incident",
+    "description": "This playbook addresses a security incident where an attacker compromised 'host-18' through a malicious PowerShell script, executing commands and attempting to download additional payloads.",
+    "created_by": "identity--xyz-1234-5678-9012-abcde1234567",
+    "created": "2023-10-16T09:00:00Z",
+    "modified": "2023-10-16T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a23b456-c78f-4c5b-b88f-b5a084f0f5c6",
+    "workflow": {
+        "start--1a23b456-c78f-4c5b-b88f-b5a084f0f5c6": {
+            "on_completion": "parallel--b8e8b7e3-736f-4c1e-ae6f-4f052f0b3cd0",
+            "type": "start"
+        },
+        "parallel--b8e8b7e3-736f-4c1e-ae6f-4f052f0b3cd0": {
+            "name": "Mitigate PowerShell Threat",
+            "description": "Execute actions to mitigate the threat from the compromised PowerShell script.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b20d4d27-4a83-4b89-a939-df094b4d9d1e",
+                "action--1e5e11d8-9d9a-4b30-82c5-e8aa7a821748",
+                "action--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed",
+                "action--772bca76-3391-4207-8b51-9d7b02e8c01e",
+                "action--df7d2f90-543e-40f5-8732-5eae2b8f430c"
+            ]
+        },
+        "action--b20d4d27-4a83-4b89-a939-df094b4d9d1e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell processes running on the host.",
+            "on_completion": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1e5e11d8-9d9a-4b30-82c5-e8aa7a821748": {
+            "name": "Revoke unnecessary administrative privileges",
+            "description": "Remove unnecessary administrative privileges from the affected user.",
+            "on_completion": "action--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L username"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "The username of the affected user.",
+                    "value": "Extracted from affected user account details",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c": {
+            "name": "Scan and clean affected system",
+            "description": "Perform an antivirus scan to clean the affected system.",
+            "on_completion": "end--b39018d9-65e4-4ffc-9493-6148bcfb153a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --clean"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "type": "while",
+                "condition": "scan_status != 'clean'",
+                "next_steps": [
+                    {
+                        "type": "action",
+                        "commands": [
+                            {
+                                "type": "bash",
+                                "command": "antivirus_scan --clean"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "action--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed": {
+            "name": "Update network firewall rules",
+            "description": "Block outbound traffic to the known threat source IP.",
+            "on_completion": "end--b39018d9-65e4-4ffc-9493-6148bcfb153a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to 203.0.113.5"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditional": {
+                "if": "threat_source_IP == '203.0.113.5'",
+                "on_true": "end--b39018d9-65e4-4ffc-9493-6148bcfb153a"
+            }
+        },
+        "action--772bca76-3391-4207-8b51-9d7b02e8c01e": {
+            "name": "Perform inventory of running scripts for anomalies",
+            "description": "Check running scripts for any anomalies.",
+            "on_completion": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps aux | grep '.ps1'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "parallel_with": "action--df7d2f90-543e-40f5-8732-5eae2b8f430c"
+        },
+        "action--df7d2f90-543e-40f5-8732-5eae2b8f430c": {
+            "name": "Update PowerShell profiles to prevent script execution",
+            "description": "Set PowerShell execution policy to restrict script execution.",
+            "on_completion": "end--b39018d9-65e4-4ffc-9493-6148bcfb153a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b39018d9-65e4-4ffc-9493-6148bcfb153a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ABC Security Solutions"
+        }
+    }
+}

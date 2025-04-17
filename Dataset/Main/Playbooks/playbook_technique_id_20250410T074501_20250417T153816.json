@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8b7619c-fa04-4c5c-b2b1-fd2f13702476",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents where attackers leveraged a scripting interpreter to run malicious scripts, leading to unauthorized data extraction.",
+    "created_by": "identity--b7a0e79a-3c4e-4de0-b3f8-2fe80ec91c44",
+    "created": "2025-10-10T10:30:00.000Z",
+    "modified": "2025-10-10T10:35:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b42d6dae-d590-4dc0-b0aa-9198496d63b1",
+    "workflow": {
+        "start--b42d6dae-d590-4dc0-b0aa-9198496d63b1": {
+            "on_completion": "action--f9a3a8b4-7634-4e16-baaa-535657edc693",
+            "type": "start"
+        },
+        "action--f1c779ae-cb85-4a5c-a6d6-159d1ac4be56": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate the PowerShell process associated with the malicious script execution.",
+            "on_completion": "action--cbef0235-edf2-4007-92e8-bc9c1f0c6f5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--cbef0235-edf2-4007-92e8-bc9c1f0c6f5b": {
+            "name": "Delete Temporary Script Files",
+            "description": "Remove any temporary script files created by the attacker.",
+            "on_completion": "action--5041d4f8-cf83-4ce1-b786-2d9cbdbdf860",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del /F /Q C:\\Windows\\System32\\temp_script.ps1"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "action--f9a3a8b4-7634-4e16-baaa-535657edc693": {
+            "name": "Scan and Isolate Affected Systems",
+            "description": "Perform a quick scan to identify any potential threats in the affected systems.",
+            "on_completion": "action--eab429f8-5e60-4904-b3a1-e1b7ad5e9f4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-MpScan -ScanType QuickScan"
+                }
+            ],
+            "agent": "organization--ghi",
+            "loop": "repeat until scanResult is clean"
+        },
+        "action--5041d4f8-cf83-4ce1-b786-2d9cbdbdf860": {
+            "name": "Block Outbound Connections to Suspicious IPs",
+            "description": "Create a firewall rule to block any outbound connections to suspicious IP addresses.",
+            "on_completion": "end--bcd1234abea-4512-4be9-a41d-d5a73f312ab1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Malicious IP' -Direction Outbound -RemoteAddress 192.168.1.100 -Action Block"
+                }
+            ],
+            "agent": "organization--jkl"
+        },
+        "action--eab429f8-5e60-4904-b3a1-e1b7ad5e9f4b": {
+            "name": "Deploy Enhanced Monitoring",
+            "description": "Set up enhanced monitoring on critical hosts to monitor command execution.",
+            "on_completion": "end--bcd1234abea-4512-4be9-a41d-d5a73f312ab1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-SecurityMonitoring -Enable true -Target host-22 host-34"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "monitoredHosts": {
+                    "type": "array",
+                    "value": [
+                        "host-22",
+                        "host-34"
+                    ]
+                }
+            }
+        },
+        "end--bcd1234abea-4512-4be9-a41d-d5a73f312ab1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "Security Team Organization"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "Incident Response Organization"
+        },
+        "organization--jkl": {
+            "type": "organization",
+            "name": "Infrastructure Organization"
+        }
+    }
+}

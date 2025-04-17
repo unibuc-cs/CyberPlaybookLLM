@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d42b5b12-2db3-4bae-a3f6-13356eb8e687",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where unauthorized user executed commands leading to data exfiltration.",
+    "created_by": "identity--a2e3e586-3ebf-41f6-9192-bd8d9166548d",
+    "created": "2025-04-09T14:01:00Z",
+    "modified": "2025-04-09T14:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--f4743c0f-52e9-4e91-9539-4626e33d02fb",
+    "workflow": {
+        "start--f4743c0f-52e9-4e91-9539-4626e33d02fb": {
+            "on_completion": "action--8b83d38c-bff5-4857-ade8-b78a7e6c6141",
+            "type": "start"
+        },
+        "action--8b83d38c-bff5-4857-ade8-b78a7e6c6141": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that's executing.",
+            "on_completion": "action--b231ffc2-af51-4a70-882c-c7f292d8c263",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b231ffc2-af51-4a70-882c-c7f292d8c263": {
+            "name": "Block outbound connection",
+            "description": "Prevent any further outbound connections on port 443.",
+            "on_completion": "loop--8efd6309-df35-40b8-a30e-ad84f422e111",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 443 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--8efd6309-df35-40b8-a30e-ad84f422e111": {
+            "name": "Conduct malware scan loop",
+            "description": "Repeat the malware scan until no threats are detected.",
+            "on_completion": "end--a2e60720-6ced-49f8-8a0a-eb722aec6445",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--c823e893-bce2-43c5-a204-cb5ce0017332",
+            "on_false": "end--a2e60720-6ced-49f8-8a0a-eb722aec6445"
+        },
+        "action--c823e893-bce2-43c5-a204-cb5ce0017332": {
+            "name": "Conduct a malware scan",
+            "description": "Scan the specified directory for malware threats.",
+            "on_completion": "loop--8efd6309-df35-40b8-a30e-ad84f422e111",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan /path/to/directory"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "threats_detected": {
+                    "type": "boolean",
+                    "description": "Indicates if threats were found during the scan",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--a2e60720-6ced-49f8-8a0a-eb722aec6445": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

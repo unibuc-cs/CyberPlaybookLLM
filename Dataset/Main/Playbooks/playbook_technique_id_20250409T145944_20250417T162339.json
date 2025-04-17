@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--30e67939-b82d-4423-b5b1-2af78e108b63",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident involving unauthorized access and execution of malicious scripts on a compromised host.",
+    "created_by": "identity--6e2932e8-3b98-4b4f-ae0d-e16e02f2ef64",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c845f5c6-d6e3-4b4e-b769-c2f8cac0625e",
+    "workflow": {
+        "start--c845f5c6-d6e3-4b4e-b769-c2f8cac0625e": {
+            "on_completion": "if-condition--156f8e14-9c13-481d-b8a7-37be1274f5c6",
+            "type": "start"
+        },
+        "if-condition--156f8e14-9c13-481d-b8a7-37be1274f5c6": {
+            "name": "Check for suspicious processes",
+            "type": "if-condition",
+            "condition": "suspicious_process_detected == true",
+            "on_true": "action--e19c3f20-3f3e-4b9e-9bb7-a260f2fbafb2",
+            "on_false": "action--fdc354ea-b4fb-4825-9f35-938373e35a61"
+        },
+        "action--e19c3f20-3f3e-4b9e-9bb7-a260f2fbafb2": {
+            "name": "Terminate suspicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes to stop any ongoing malicious activities.",
+            "on_completion": "action--fdc354ea-b4fb-4825-9f35-938373e35a61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fdc354ea-b4fb-4825-9f35-938373e35a61": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Block any outbound connections to known malicious IP addresses.",
+            "on_completion": "while-condition--18f580c0-b9a5-4f6e-bb4e-0efad4deb325",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--18f580c0-b9a5-4f6e-bb4e-0efad4deb325": {
+            "name": "Run a full malware scan",
+            "description": "Perform a malware scan until no threats are found.",
+            "on_completion": "end--a519b8df-4505-4626-b60d-899b77118bc5",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--ee15e1fe-66ec-42e2-a7b1-fec431e5cb1f",
+            "on_false": "end--a519b8df-4505-4626-b60d-899b77118bc5"
+        },
+        "action--ee15e1fe-66ec-42e2-a7b1-fec431e5cb1f": {
+            "name": "Run a full malware scan on the host",
+            "description": "Perform a detailed malware scan to identify any remnants of the attack.",
+            "on_completion": "while-condition--18f580c0-b9a5-4f6e-bb4e-0efad4deb325",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_malware_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a519b8df-4505-4626-b60d-899b77118bc5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

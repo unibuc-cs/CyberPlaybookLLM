@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4c13e9f-efb0-4c73-84f8-fb8cb9bad1d7",
+    "name": "Mitigation Playbook for Malicious Scheduled Task",
+    "description": "This playbook addresses an incident where an attacker created a scheduled task to execute a malicious script leading to data exfiltration.",
+    "created_by": "identity--xyz",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1f1a23b-e2c0-4c56-9ffa-1e81c0095850",
+    "workflow": {
+        "start--e1f1a23b-e2c0-4c56-9ffa-1e81c0095850": {
+            "on_completion": "action--98ffcb57-0fb8-4619-8356-81f55e0c6267",
+            "type": "start"
+        },
+        "action--98ffcb57-0fb8-4619-8356-81f55e0c6267": {
+            "name": "Delete malicious scheduled task",
+            "description": "Remove the scheduled task created by the attacker to stop further execution.",
+            "on_completion": "action--15517e2c-ff1d-4b4e-8ef2-c2d894c63c2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn 'malicious_task' /f"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--15517e2c-ff1d-4b4e-8ef2-c2d894c63c2e": {
+            "name": "Monitor for new scheduled tasks",
+            "description": "Continuously check for the existence of the malicious scheduled task.",
+            "on_completion": "if-condition--check-found-task-branch",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while true; do schtasks /query /fo LIST | grep 'malicious_task' && exit 1; sleep 60; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--check-found-task-branch": {
+            "name": "Did we find the malicious task?",
+            "type": "if-condition",
+            "condition": "task_found == true",
+            "on_true": "action--alert-administrator",
+            "on_false": "action--4b51dabb-92cb-4a83-947f-d8dd5f4c6b2f"
+        },
+        "action--alert-administrator": {
+            "name": "Alert Administrator",
+            "description": "Notify the administrator about the malicious task still existing.",
+            "on_completion": "end--finish-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious task still found. Please investigate!' | mail -s 'Alert: Scheduled Task Detected' admin@example.com"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4b51dabb-92cb-4a83-947f-d8dd5f4c6b2f": {
+            "name": "Check for other indicators of compromise",
+            "description": "Search the system for additional signs of compromise.",
+            "on_completion": "end--finish-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -r 'suspicious_file' /path/to/logs"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--finish-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Corp"
+        }
+    }
+}

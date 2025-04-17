@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d11b4d38-0f88-4c2d-9b13-c5a4f7c8e48a",
+    "name": "Mitigation Playbook for Malicious Scripting Incident",
+    "description": "This playbook addresses an incident involving malicious scripts being executed to exfiltrate sensitive data from the internal network.",
+    "created_by": "identity--xyz-2023-10-11",
+    "created": "2023-10-11T15:00:00Z",
+    "modified": "2023-10-11T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-efgh-ijkl-9876543210ab",
+    "workflow": {
+        "start--12345678-abcd-efgh-ijkl-9876543210ab": {
+            "on_completion": "action--e6f3e1b4-f5f9-4ac8-8c05-8146ed8c3f2d",
+            "type": "start"
+        },
+        "action--e6f3e1b4-f5f9-4ac8-8c05-8146ed8c3f2d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious scripts.",
+            "on_completion": "parallel--execution-parallel",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--execution-parallel": {
+            "name": "Execute Mitigations",
+            "description": "Execute simultaneous actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f3c587e6-dfbc-45d3-89bd-c60eac57d1f5",
+                "action--12a34567-89ab-cdef-0123-456789abcdef",
+                "action--c0a4b731-f8be-4b91-a5cd-0b624ccd3b8d",
+                "action--abd12345-c678-ef90-gh12-ijklmnopqrstu"
+            ]
+        },
+        "action--f3c587e6-dfbc-45d3-89bd-c60eac57d1f5": {
+            "name": "Quarantine suspicious files",
+            "description": "Move suspicious files to a quarantine directory until verified.",
+            "on_completion": "loop--file-deletion-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /tmp/suspicious_file.txt /quarantine/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--file-deletion-check": {
+            "name": "Check if suspicious file is deleted",
+            "description": "Repeat quaratine file process until the file is no longer present.",
+            "on_true": "action--f3c587e6-dfbc-45d3-89bd-c60eac57d1f5",
+            "on_false": "action--12a34567-89ab-cdef-0123-456789abcdef",
+            "type": "while-condition",
+            "condition": "test -f /tmp/suspicious_file.txt"
+        },
+        "action--12a34567-89ab-cdef-0123-456789abcdef": {
+            "name": "Block outbound connections to Command and Control",
+            "description": "Prevent outbound connections to known malicious domains.",
+            "on_completion": "action--c0a4b731-f8be-4b91-a5cd-0b624ccd3b8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d bad.domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c0a4b731-f8be-4b91-a5cd-0b624ccd3b8d": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Scan the system for additional threats.",
+            "on_completion": "loop--threat-detection",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--threat-detection": {
+            "name": "Check for threats",
+            "description": "Repeat malware scan until no threats are detected.",
+            "on_true": "action--c0a4b731-f8be-4b91-a5cd-0b624ccd3b8d",
+            "on_false": "end--complete-playbook",
+            "type": "while-condition",
+            "condition": "grep -q 'Found' /var/log/clamav.log"
+        },
+        "action--abd12345-c678-ef90-gh12-ijklmnopqrstu": {
+            "name": "Review user access logs for anomalies",
+            "description": "Investigate user access logs for any suspicious activity.",
+            "on_completion": "end--complete-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'user_activity.log' | less"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--complete-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

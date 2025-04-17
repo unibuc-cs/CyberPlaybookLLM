@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1e8e9a6-966f-4e30-af1f-33b03772f6fe",
+    "name": "Mitigation Playbook for Regsvr32 Exploitation Incident",
+    "description": "This playbook addresses the incident where an attacker leveraged Regsvr32 to execute a malicious DLL on Workstation-12, aiming to mitigate any potential damage and secure the environment.",
+    "created_by": "identity--f743dc40-14f0-408d-b56d-85e2a5b72b22",
+    "created": "2023-10-16T09:00:00Z",
+    "modified": "2023-10-16T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1e8a5b9-4f23-4a2a-b537-e7159bf79550",
+    "workflow": {
+        "start--a1e8a5b9-4f23-4a2a-b537-e7159bf79550": {
+            "on_completion": "parallel--cc1867a1-d468-4a80-9bcf-36dc29d3e6f4",
+            "type": "start"
+        },
+        "parallel--cc1867a1-d468-4a80-9bcf-36dc29d3e6f4": {
+            "name": "Execute Mitigations",
+            "description": "Execute all necessary mitigations for the Regsvr32 exploitation incident in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--312fb737-aafa-4b21-a90e-d6c3f73b78bf",
+                "action--54b1c459-f698-434d-963b-c3b0edc5698f",
+                "action--d5fbf486-f7d9-4944-a0be-4444b54932e6",
+                "action--bfe9bd0f-b238-4f01-bafa-6a0f3812da81",
+                "action--7e8a70cd-c05b-41f0-b175-828214b64eea"
+            ]
+        },
+        "action--312fb737-aafa-4b21-a90e-d6c3f73b78bf": {
+            "name": "Inspect and Delete Malicious File",
+            "description": "Inspect Server-1 and delete the disguised svchost.exe file located in C:\\Windows\\System32.",
+            "on_completion": "end--e4ec40eb-1587-4b40-b279-df7064b74b19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "if (Test-Path 'C:\\Windows\\System32\\svchost.exe') { Remove-Item 'C:\\Windows\\System32\\svchost.exe' -Force }"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--54b1c459-f698-434d-963b-c3b0edc5698f": {
+            "name": "Establish File Integrity Monitoring",
+            "description": "Enable file integrity monitoring on Server-1 to detect unauthorized changes or renaming of critical executables.",
+            "on_completion": "end--e4ec40eb-1587-4b40-b279-df7064b74b19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "auditpol /set /subcategory:\"File System\" /success:enable /failure:enable"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--d5fbf486-f7d9-4944-a0be-4444b54932e6": {
+            "name": "Update Process Execution Policies",
+            "description": "Review and update execution policies on Server-1 to prevent unauthorized binary executions.",
+            "on_completion": "end--e4ec40eb-1587-4b40-b279-df7064b74b19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy AllSigned -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--bfe9bd0f-b238-4f01-bafa-6a0f3812da81": {
+            "name": "Revoke Database Access for Server-1",
+            "description": "Revoke access to Workstation-12 databases for processes originating from Server-1 until further investigation.",
+            "on_completion": "end--e4ec40eb-1587-4b40-b279-df7064b74b19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sqlcmd -S Workstation-12 -Q \"REVOKE CONNECT ON DATABASE::Workstation12DB FROM [Server-1$];\""
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7e8a70cd-c05b-41f0-b175-828214b64eea": {
+            "name": "Check Logs and Improve Security Policies",
+            "description": "Check Server-1's and Workstation-12's logs for unauthorized access patterns and improve authentication mechanisms.",
+            "on_completion": "end--e4ec40eb-1587-4b40-b279-df7064b74b19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-Command -ComputerName Server-1,Workstation-12 -ScriptBlock { Get-EventLog -LogName Security -EntryType FailureAudit }; Set-ADDefaultDomainPasswordPolicy -LockoutThreshold 5 -LockoutDuration 00:30:00"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "end--e4ec40eb-1587-4b40-b279-df7064b74b19": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganizationDefender"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganizationDatabaseAdmin"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "ClientOrganizationSecurityOps"
+        }
+    }
+}

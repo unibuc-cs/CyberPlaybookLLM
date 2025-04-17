@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f091c90c-4568-4b45-ab7f-58e042bfd28f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook aims to address a remote code execution incident, disabling the vulnerable script interpreter and removing the malicious components.",
+    "created_by": "identity--5a2ff0b7-e4d0-4c10-bf74-d3e1f8e1b157",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--af03f59a-2b93-4c71-85eb-6ea6752c02a6",
+    "workflow": {
+        "start--af03f59a-2b93-4c71-85eb-6ea6752c02a6": {
+            "on_completion": "parallel--c4b5c397-5f02-46e0-b39f-09e1449d774e",
+            "type": "start"
+        },
+        "action--c2cd4fc5-7e60-4619-8956-146b98c073e1": {
+            "name": "Scan and remove backdoor script",
+            "description": "Continuously search for backdoor scripts and remove them.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/ -name 'backdoor.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--1234",
+            "next_steps": "loop--e3a2c8f6-9208-4e9f-bc8c-e1d8466a8e97"
+        },
+        "action--e1a3be60-75ab-45f1-a5b8-d1a9f4865bb2": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes related to the backdoor.",
+            "on_completion": "action--ba6e5036-9909-47f8-88ec-2299d4df441e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--ba6e5036-9909-47f8-88ec-2299d4df441e": {
+            "name": "Block outbound connection to suspicious IP",
+            "description": "Prevent connections to known malicious IPs.",
+            "on_completion": "action--382f17cb-3adf-4c1d-8e62-447bdde344e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.101 -j REJECT"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--382f17cb-3adf-4c1d-8e62-447bdde344e5": {
+            "name": "Disable the vulnerable script interpreter",
+            "description": "Stop the interpreter to prevent further exploitation.",
+            "on_completion": "action--ed2d8dcf-aa3d-4c38-a2ad-0f26677e5b2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service interpreter stop"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--ed2d8dcf-aa3d-4c38-a2ad-0f26677e5b2b": {
+            "name": "Implement script interpreter usage monitoring",
+            "description": "Monitor script interpreter usage to detect unauthorized access.",
+            "on_completion": "condition-check--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/interpreter -p x"
+                }
+            ],
+            "agent": "organization--5678"
+        },
+        "condition-check--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53": {
+            "name": "Check Access Permissions",
+            "type": "if-condition",
+            "condition": "checking unauthorized users access",
+            "on_true": "action--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53",
+            "on_false": "end--f0ec0208-b1f5-45be-bdd7-c8ef0b11e1a7"
+        },
+        "loop--e3a2c8f6-9208-4e9f-bc8c-e1d8466a8e97": {
+            "name": "Remove Backdoor Loop",
+            "description": "Repeat the scanning and removal of backdoor scripts until none are found.",
+            "type": "while-condition",
+            "condition": "backdoor_scripts_found",
+            "on_true": "action--c2cd4fc5-7e60-4619-8956-146b98c073e1",
+            "on_false": "end--f0ec0208-b1f5-45be-bdd7-c8ef0b11e1a7"
+        },
+        "end--f0ec0208-b1f5-45be-bdd7-c8ef0b11e1a7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1234": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--5678": {
+            "type": "organization",
+            "name": "ClientMonitoringService"
+        }
+    }
+}

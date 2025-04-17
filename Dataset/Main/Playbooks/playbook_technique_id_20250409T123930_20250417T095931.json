@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d740b8f3-3e2b-41a3-b940-98e5cf217d24",
+    "name": "Response Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on compromised hosts to exfiltrate sensitive data.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:06:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--5a5d9f76-34db-4c45-bb45-b2c3bf2f2b78",
+            "type": "start"
+        },
+        "action--5a5d9f76-34db-4c45-bb45-b2c3bf2f2b78": {
+            "name": "Terminate Malicious PowerShell Processes",
+            "description": "Identify and terminate the malicious PowerShell processes running in the system.",
+            "on_completion": "action--dbe416ec-a9b3-4f19-ab8e-1faf6249e989",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object {$_.Path -like '*powershell.exe'} | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dbe416ec-a9b3-4f19-ab8e-1faf6249e989": {
+            "name": "Quarantine Affected Hosts",
+            "description": "Quarantine hosts to prevent further spread of the attack.",
+            "on_completion": "if-condition--a74b1b23-2560-451e-abc7-c15fe39670c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-NetIPInterface -InterfaceAlias 'host-22' -Dhcp Disabled"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a74b1b23-2560-451e-abc7-c15fe39670c6": {
+            "name": "Check for Malicious Tasks",
+            "type": "if-condition",
+            "condition": "malicious_tasks_found",
+            "on_true": "action--d4e075d5-2266-40bc-825e-347d3aa4bcb9",
+            "on_false": "action--dcbc8ac0-bb0f-496b-b1b7-15d02b8f4a51"
+        },
+        "action--d4e075d5-2266-40bc-825e-347d3aa4bcb9": {
+            "name": "Remove Persistence Mechanisms",
+            "description": "Investigate and remove persistence mechanisms found during analysis.",
+            "on_completion": "action--dcbc8ac0-bb0f-496b-b1b7-15d02b8f4a51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-WmiObject -Query 'SELECT * FROM Win32_ScheduledTask' | Remove-ScheduledTask -Confirm:$false"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dcbc8ac0-bb0f-496b-b1b7-15d02b8f4a51": {
+            "name": "Full Malware Scan",
+            "description": "Perform a full malware scan on all hosts to ensure the environment is clean.",
+            "on_completion": "while-condition--e89bf84f-2158-436e-9b0b-f27fc434129f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e89bf84f-2158-436e-9b0b-f27fc434129f": {
+            "name": "Verify Malware Scan Status",
+            "description": "Repeat the scan until no threats are found.",
+            "on_completion": "action--679e6e53-4309-4898-a2d6-c616c8b4fb79",
+            "type": "while-condition",
+            "condition": "scan_status_reclean",
+            "on_true": "action--dcbc8ac0-bb0f-496b-b1b7-15d02b8f4a51"
+        },
+        "action--679e6e53-4309-4898-a2d6-c616c8b4fb79": {
+            "name": "Update Firewall Rules",
+            "description": "Update firewall rules to block suspicious IP addresses suspected of data exfiltration.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Suspicious IP' -Direction Outbound -RemoteAddress '1.2.3.4' -Action Block"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

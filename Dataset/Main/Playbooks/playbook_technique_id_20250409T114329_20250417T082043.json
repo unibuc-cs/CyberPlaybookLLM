@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cbe2e894-8bd8-4dc6-ab6e-b26fbc4f17cb",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute arbitrary commands on the server.",
+    "created_by": "identity--b3f72441-ab89-4fcd-9519-876c93fefc3e",
+    "created": "2023-10-15T15:10:00Z",
+    "modified": "2023-10-15T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--eaef909f-d1c6-4c44-ae0f-2b5a8705fc39",
+    "workflow": {
+        "start--eaef909f-d1c6-4c44-ae0f-2b5a8705fc39": {
+            "on_completion": "action--d839c1ed-d7cb-45f4-9137-b99aba12d312",
+            "type": "start"
+        },
+        "action--d839c1ed-d7cb-45f4-9137-b99aba12d312": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that is executed by the attacker.",
+            "on_completion": "parallel--193dff82-cc0c-4e02-bf87-e4c3429e52ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--193dff82-cc0c-4e02-bf87-e4c3429e52ff": {
+            "name": "Isolate Host and Scan",
+            "description": "Perform host isolation if the host is compromised and initiate a vulnerability scan.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--c3e0ad2a-fb1f-48af-aedc-165ff4e82b23",
+                "action--b97f08c4-b6d1-4c6e-81f3-a8075c8b9251"
+            ]
+        },
+        "if-condition--c3e0ad2a-fb1f-48af-aedc-165ff4e82b23": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "hostname == 'host-22'",
+            "on_true": "action--c824b192-78f1-4aa0-a39c-24dfa6e01eeb",
+            "on_false": "action--b97f08c4-b6d1-4c6e-81f3-a8075c8b9251"
+        },
+        "action--c824b192-78f1-4aa0-a39c-24dfa6e01eeb": {
+            "name": "Isolate affected host",
+            "description": "Isolate the affected host from the network.",
+            "on_completion": "action--b97f08c4-b6d1-4c6e-81f3-a8075c8b9251",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b97f08c4-b6d1-4c6e-81f3-a8075c8b9251": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Run a vulnerability scan until no more vulnerabilities are found.",
+            "type": "action",
+            "on_completion": "end--ea509bc6-e243-432f-a804-bb4b38c82405",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan has returned clean results",
+                    "value": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan"
+                },
+                {
+                    "type": "bash",
+                    "command": "if [ scan_result == 'clean' ]; then scan_clean=true; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--f123e7a6-6c29-4cb1-8361-57af00a4d689": {
+            "name": "Vulnerability Scanning Loop",
+            "description": "Continue scanning for vulnerabilities until the scan is clean.",
+            "on_completion": "end--ea509bc6-e243-432f-a804-bb4b38c82405",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--b97f08c4-b6d1-4c6e-81f3-a8075c8b9251"
+        },
+        "end--ea509bc6-e243-432f-a804-bb4b38c82405": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

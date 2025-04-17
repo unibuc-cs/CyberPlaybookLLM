@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f47d1989-9d32-4c06-b16f-89ac9a8074f2",
+    "name": "Mitigation Playbook for Remote Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts remotely through a vulnerable application, leading to data exfiltration.",
+    "created_by": "identity--xyz-abcdef01-1234-5678-90ab-cdef12345678",
+    "created": "2025-04-10T09:01:00Z",
+    "modified": "2025-04-10T09:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--a4a4f5dd-c7f4-4894-839c-098d8f0ddf25",
+    "workflow": {
+        "start--a4a4f5dd-c7f4-4894-839c-098d8f0ddf25": {
+            "on_completion": "parallel--4b92e2fc-8b91-4387-8331-f96d75ee1f23",
+            "type": "start"
+        },
+        "parallel--4b92e2fc-8b91-4387-8331-f96d75ee1f23": {
+            "name": "Execute Mitigations",
+            "description": "Execute necessary mitigations in parallel to address the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b3b8f7d5-85ed-4748-bf7b-6bfaef53f0a8",
+                "action--ca4b7d19-944f-44b2-93b6-d9bd1a8fdf4e",
+                "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d",
+                "action--7ea08d16-7f07-4e3f-8ea8-a4dda23606e1",
+                "action--c161257f-c9e1-4672-96e6-7b0bada5d602",
+                "action--f51d0ef3-b324-4e3c-a731-ce0192497043"
+            ]
+        },
+        "action--b3b8f7d5-85ed-4748-bf7b-6bfaef53f0a8": {
+            "name": "Identify and kill malicious PowerShell processes",
+            "description": "Kill any PowerShell processes identified as malicious.",
+            "on_completion": "action--ca4b7d19-944f-44b2-93b6-d9bd1a8fdf4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps aux | grep powershell | awk '{print $2}' | xargs kill -9"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ca4b7d19-944f-44b2-93b6-d9bd1a8fdf4e": {
+            "name": "Revoke network access for compromised hosts",
+            "description": "Block network access for known compromised IPs.",
+            "on_completion": "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d": {
+            "name": "Scan system for residual malicious scripts",
+            "description": "Perform a comprehensive scan to find and remove any remaining malicious scripts.",
+            "on_completion": "if-condition--56f3afec-e106-4920-84a6-b9756074d872",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--56f3afec-e106-4920-84a6-b9756074d872": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--7ea08d16-7f07-4e3f-8ea8-a4dda23606e1",
+            "on_false": "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d"
+        },
+        "action--7ea08d16-7f07-4e3f-8ea8-a4dda23606e1": {
+            "name": "Update firewall rules to prevent similar attacks",
+            "description": "Modify firewall rules to prevent attacks from the malicious address range.",
+            "on_completion": "action--c161257f-c9e1-4672-96e6-7b0bada5d602",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny 192.0.2.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c161257f-c9e1-4672-96e6-7b0bada5d602": {
+            "name": "Restore system configuration files from backups",
+            "description": "Restore important system configurations if critical files were affected.",
+            "on_completion": "action--f51d0ef3-b324-4e3c-a731-ce0192497043",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tar -xzf /backups/config-backup.tar.gz -C /etc/"
+                }
+            ],
+            "agent": "organization--xyz",
+            "conditions": [
+                {
+                    "condition": "if hash clamscan 2>/dev/null; then restore; fi"
+                }
+            ]
+        },
+        "action--f51d0ef3-b324-4e3c-a731-ce0192497043": {
+            "name": "Initiate security training for IT team",
+            "description": "Send training invitations to the IT team to educate them on identifying suspicious activity.",
+            "on_completion": "end--bd7d73b8-4d50-45b2-bf02-1f54f837829b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sendmail -v training@organization.com < /path/to/training/invitation.txt"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--bd7d73b8-4d50-45b2-bf02-1f54f837829b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

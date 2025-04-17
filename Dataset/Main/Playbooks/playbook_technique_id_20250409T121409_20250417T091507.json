@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2f92e8f-5c24-4ebe-b03e-bd0e2f2a2d0f",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized attacker executed PowerShell scripts on the internal network to retrieve sensitive information.",
+    "created_by": "identity--dbef9a1e-4c5f-4e6d-84ec-dbe02a2a2d0f",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T13:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f84cba25-1c2b-4c20-a2a3-7ef6c47743e4",
+    "workflow": {
+        "start--f84cba25-1c2b-4c20-a2a3-7ef6c47743e4": {
+            "on_completion": "action--b12d5697-063d-4b7b-8784-fc6b189f3440",
+            "type": "start"
+        },
+        "action--b12d5697-063d-4b7b-8784-fc6b189f3440": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes to stop unauthorized script execution.",
+            "on_completion": "decision--c5781fd9-84ed-4da0-91e9-11eb38ed0ab2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--c5781fd9-84ed-4da0-91e9-11eb38ed0ab2": {
+            "name": "Check if any malicious processes still exist",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--3752b931-a7ec-4598-ae04-82bedd29f22d",
+            "on_false": "action--b99d7981-fb52-4a4f-9d6e-70e7be125d34"
+        },
+        "action--3752b931-a7ec-4598-ae04-82bedd29f22d": {
+            "name": "Scan for remaining threats",
+            "description": "Perform a scan of the system to identify any remaining threats after killing processes.",
+            "on_completion": "decision--1e9d7f89-604e-43c7-bef9-f6e8fd5157aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--1e9d7f89-604e-43c7-bef9-f6e8fd5157aa": {
+            "name": "Check if threats were found",
+            "type": "if-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--3752b931-a7ec-4598-ae04-82bedd29f22d",
+            "on_false": "action--b99d7981-fb52-4a4f-9d6e-70e7be125d34"
+        },
+        "action--b99d7981-fb52-4a4f-9d6e-70e7be125d34": {
+            "name": "Increase firewall rules",
+            "description": "Add firewall rules to block known malicious IP addresses.",
+            "on_completion": "end--f8aed006-9c91-4876-bbdd-343ad2be82b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f8aed006-9c91-4876-bbdd-343ad2be82b3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c91d3f7e-b74e-4e5e-b5a5-58c9fda7613b",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious actor executed PowerShell scripts to extract sensitive data from the organization's servers.",
+    "created_by": "identity--b62c113e-93a0-4f87-84ef-8fef6e794151",
+    "created": "2023-10-13T10:00:00Z",
+    "modified": "2023-10-13T10:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--fae453d3-ec91-4fca-b0f1-118cae2a51f2",
+    "workflow": {
+        "start--fae453d3-ec91-4fca-b0f1-118cae2a51f2": {
+            "on_completion": "action--1f004d72-78b1-48e6-a394-f5ab79c230f4",
+            "type": "start"
+        },
+        "action--1f004d72-78b1-48e6-a394-f5ab79c230f4": {
+            "name": "Set PowerShell Execution Policy",
+            "description": "Monitor and restrict PowerShell execution policy to prevent further script execution.",
+            "on_completion": "decision--a11e9abc-839f-4f4b-aa0e-b1b9cba98c5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--a11e9abc-839f-4f4b-aa0e-b1b9cba98c5b": {
+            "name": "Check for Malicious Scheduled Tasks",
+            "type": "if-condition",
+            "condition": "Get-ScheduledTask | Where-Object {$_.TaskName -like '*malicious*'}",
+            "on_true": "action--a11e9abc-839f-4f4b-aa0e-b1b9cba98c5b",
+            "on_false": "action--d28f6225-e0a0-4e33-bd8b-5e7e234e179e"
+        },
+        "action--a11e9abc-839f-4f4b-aa0e-b1b9cba98c5b": {
+            "name": "Terminate Malicious Scheduled Tasks",
+            "description": "Terminate scheduled tasks associated with malicious scripts.",
+            "on_completion": "action--d28f6225-e0a0-4e33-bd8b-5e7e234e179e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-ScheduledTask | Where-Object {$_.TaskName -like '*malicious*'} | Unregister-ScheduledTask -Confirm:$false"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d28f6225-e0a0-4e33-bd8b-5e7e234e179e": {
+            "name": "Run Malware Scans",
+            "description": "Run malware scans in a loop until no threats are found.",
+            "on_completion": "end--b10b67c0-48fd-4e5a-aba0-d49b3bb60143",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "do { Start-MpScan -ScanType Full } while ((Get-MpThreat).Count -gt 0)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b10b67c0-48fd-4e5a-aba0-d49b3bb60143": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

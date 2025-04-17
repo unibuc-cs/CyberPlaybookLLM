@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b35d8c2b-35d2-4a89-aab0-15d784bcb0ea",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute arbitrary commands and gained persistent access to the server.",
+    "created_by": "identity--xyz-entity",
+    "created": "2023-10-18T15:00:00Z",
+    "modified": "2023-10-18T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-5678-90ab-cdef-1234567890ab",
+    "workflow": {
+        "start--a1b2c3d4-5678-90ab-cdef-1234567890ab": {
+            "on_completion": "action--147c2b5f-d255-4b4c-b321-a0d97ad5f9f4",
+            "type": "start"
+        },
+        "action--147c2b5f-d255-4b4c-b321-a0d97ad5f9f4": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious web shell process.",
+            "on_completion": "action--617bcbfa-afe6-4d5e-bdeb-afb35ef6b67e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f webshell.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--617bcbfa-afe6-4d5e-bdeb-afb35ef6b67e": {
+            "name": "Remove malicious files",
+            "description": "Remove any malicious files if the web shell process is not running.",
+            "on_completion": "if-condition--process_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/webshell.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--process_check": {
+            "name": "Check if process is running",
+            "type": "if-condition",
+            "condition": "process_running('webshell.sh')",
+            "on_true": "loop--scan_until_clean",
+            "on_false": "action--26bbc76d-8db8-4c43-833e-4abcd2c10ab"
+        },
+        "loop--scan_until_clean": {
+            "name": "Perform system scan",
+            "description": "Continue scanning the system until it is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--26bbc76d-8db8-4c43-833e-4abcd2c10ab",
+            "next_steps": [
+                "action--26bbc76d-8db8-4c43-833e-4abcd2c10ab"
+            ]
+        },
+        "action--26bbc76d-8db8-4c43-833e-4abcd2c10ab": {
+            "name": "Perform system scan",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "if-condition--check_scan_result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--check_scan_result": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_detected()",
+            "on_true": "loop--scan_until_clean",
+            "on_false": "end--completed_mitigation"
+        },
+        "end--completed_mitigation": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

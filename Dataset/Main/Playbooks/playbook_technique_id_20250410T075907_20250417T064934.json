@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b0f7d01c-4e91-4e54-8f23-8c802ed10c85",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script to exfiltrate sensitive data.",
+    "created_by": "identity--00abc754-d319-4a6a-aec2-24a664ee41ec",
+    "created": "2023-10-27T08:00:00.000Z",
+    "modified": "2023-10-27T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a8546d21-416e-41ef-bcfa-4701efbfb2ab",
+    "workflow": {
+        "start--a8546d21-416e-41ef-bcfa-4701efbfb2ab": {
+            "on_completion": "action--0a7f959b-5a6e-4a60-9397-f175c6dcbef3",
+            "type": "start"
+        },
+        "action--0a7f959b-5a6e-4a60-9397-f175c6dcbef3": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes to stop further actions.",
+            "on_completion": "if-condition--5e7b2d5a-cf8f-4fd9-9248-918d8756d401",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--5e7b2d5a-cf8f-4fd9-9248-918d8756d401": {
+            "name": "Check if external connection was detected",
+            "type": "if-condition",
+            "condition": "external_connection_detected == true",
+            "on_true": "action--3a8b7496-3dd2-4a9f-8e70-426453470f0e",
+            "on_false": "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0"
+        },
+        "action--3a8b7496-3dd2-4a9f-8e70-426453470f0e": {
+            "name": "Isolate the affected host from network",
+            "description": "Disable network access for the compromised host to prevent further data exfiltration.",
+            "on_completion": "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh interface set interface \"Ethernet\" admin=DISABLED"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0": {
+            "name": "Scan and remove malicious scripts",
+            "description": "Recursively search for and remove any malicious PowerShell scripts.",
+            "on_completion": "while-condition--f91de8b6-1bd0-47bc-bc10-02bac66185ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "powershell.exe -Command \"Get-ChildItem -Path C:\\ -Recurse -Include *.ps1 | ForEach-Object { Remove-Item $_.FullName -Force }\""
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--f91de8b6-1bd0-47bc-bc10-02bac66185ac": {
+            "name": "Verify no malicious files are detected",
+            "type": "while-condition",
+            "condition": "no_malicious_files_detected == false",
+            "on_true": "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0",
+            "on_false": "action--d2cf62f8-5e72-4cf3-9b7e-7982c2b9afa4"
+        },
+        "action--d2cf62f8-5e72-4cf3-9b7e-7982c2b9afa4": {
+            "name": "Reset compromised credentials",
+            "description": "Change the passwords of any compromised user accounts.",
+            "on_completion": "action--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-Password -User compromisedUser -Length 15"
+                }
+            ],
+            "agent": "organization--pqr"
+        },
+        "action--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356": {
+            "name": "Update firewall rules to prevent recurrence",
+            "description": "Block outbound connections to known malicious IP addresses to prevent future incidents.",
+            "on_completion": "end--fa759934-9e17-4c5d-bb6b-cccf96dc25b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName \"Block Malicious IP\" -Direction Outbound -Action Block -LocalPort Any -RemoteAddress 203.0.113.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--fa759934-9e17-4c5d-bb6b-cccf96dc25b3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--pqr": {
+            "type": "organization",
+            "name": "PQR Security Team"
+        }
+    }
+}

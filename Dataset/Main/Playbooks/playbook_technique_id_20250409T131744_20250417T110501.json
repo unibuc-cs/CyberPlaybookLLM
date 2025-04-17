@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9c4a1ff-d7cb-4bbc-9f42-2e7e897daca0",
+    "name": "Response Playbook for Unauthorized Command Execution",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized commands via a compromised user account, leading to malware deployment across multiple hosts.",
+    "created_by": "identity--4e62a814-c6c7-4d80-8c11-12344d515e1c",
+    "created": "2023-10-01T09:00:00.000Z",
+    "modified": "2023-10-01T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1e712b44-f007-4a4f-8d46-df9c19686538",
+    "workflow": {
+        "start--1e712b44-f007-4a4f-8d46-df9c19686538": {
+            "on_completion": "action--bfb99830-df62-4181-bc4f-63fea5de7614",
+            "type": "start"
+        },
+        "action--bfb99830-df62-4181-bc4f-63fea5de7614": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "if-condition--e3020b69-df35-4f41-8c26-1953fbb9b29c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--e3020b69-df35-4f41-8c26-1953fbb9b29c": {
+            "name": "Check for malicious files",
+            "type": "if-condition",
+            "condition": "file_exists('/path/to/dropped/malware')",
+            "on_true": "loop--c3a229d5-1743-4f7a-b42c-68bbdf349e3b",
+            "on_false": "action--a4bda2b8-84fa-4790-bf75-9f5fa61cd5f7"
+        },
+        "loop--c3a229d5-1743-4f7a-b42c-68bbdf349e3b": {
+            "name": "Delete malicious files until removed",
+            "description": "Delete the dropped malware file repeatedly until it is confirmed removed.",
+            "on_completion": "if-condition--e3020b69-df35-4f41-8c26-1953fbb9b29c",
+            "type": "loop",
+            "condition": "file_exists('/path/to/dropped/malware')",
+            "next_steps": [
+                {
+                    "name": "Remove malware file",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "rm /path/to/dropped/malware"
+                        }
+                    ],
+                    "agent": "organization--abc"
+                }
+            ]
+        },
+        "action--a4bda2b8-84fa-4790-bf75-9f5fa61cd5f7": {
+            "name": "Scan for additional malware",
+            "description": "Perform a malware scan on the affected hosts.",
+            "on_completion": "end--84f23ec2-bd1a-4cf1-93d4-0b00d493e579",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-malware-scan --hosts='host-56,host-78' --duration='30m'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--84f23ec2-bd1a-4cf1-93d4-0b00d493e579": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Security Incident Response Team"
+        }
+    }
+}

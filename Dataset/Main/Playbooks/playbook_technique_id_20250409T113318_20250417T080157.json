@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d94f1d1c-1682-4eaf-b1e3-7af95fcbf999",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook mitigates unauthorized access due to PowerShell command execution leading to data exfiltration.",
+    "created_by": "identity--abc12345-6789-def0-1234-56789abcdef0",
+    "created": "2023-10-01T14:30:00Z",
+    "modified": "2023-10-01T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcdef01-1234-5678-90ab-cdefabcdef01",
+    "workflow": {
+        "start--abcdef01-1234-5678-90ab-cdefabcdef01": {
+            "on_completion": "if-condition--12345678-abcd-ef01-2345-67890abcdef0",
+            "type": "start"
+        },
+        "if-condition--12345678-abcd-ef01-2345-67890abcdef0": {
+            "name": "Check if PowerShell Process is Running",
+            "type": "if-condition",
+            "condition": "powerShell_process_running == true",
+            "on_true": "action--f13a4361-444f-45d0-9822-a4c4e7e20371",
+            "on_false": "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96"
+        },
+        "action--f13a4361-444f-45d0-9822-a4c4e7e20371": {
+            "name": "Terminate PowerShell Process",
+            "description": "Terminate the running PowerShell process immediately.",
+            "on_completion": "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96": {
+            "name": "Block Outgoing Traffic",
+            "description": "Block outgoing traffic to the identified external server.",
+            "on_completion": "while-condition--e8b3e5cd-a879-4638-b42c-ed683aa4b65e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_server_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e8b3e5cd-a879-4638-b42c-ed683aa4b65e": {
+            "name": "Continuous Malware Scan",
+            "description": "Run malware detection scan on the affected host continuously until clean.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--e8b3e5cd-a879-4638-b42c-ed683aa4b65e",
+            "on_false": "end--abcdef01-1234-5678-90ab-cdefabcdef01"
+        },
+        "action--e8b3e5cd-a879-4638-b42c-ed683aa4b65e": {
+            "name": "Run Malware Scanner",
+            "on_completion": "while-condition--e8b3e5cd-a879-4638-b42c-ed683aa4b65e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scanner"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--abcdef01-1234-5678-90ab-cdefabcdef01": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "powerShell_process_running": {
+            "type": "boolean",
+            "value": true,
+            "external": true
+        },
+        "scan_is_clean": {
+            "type": "boolean",
+            "value": false,
+            "external": true
+        }
+    }
+}

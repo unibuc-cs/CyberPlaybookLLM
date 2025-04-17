@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8e9f55d-90a8-4be2-8a42-e07f303c8549",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "A playbook addressing the malicious execution of scripts on an internal server, employing various mitigation strategies based on observed attack logs.",
+    "created_by": "identity--0f3f0c3e-cf88-4baf-b084-0da182c1c645",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--01a23b45-6789-4b12-a345-6789abcdef12",
+    "workflow": {
+        "start--01a23b45-6789-4b12-a345-6789abcdef12": {
+            "on_completion": "action--3faaa2b2-4e4d-11ec-81d3-0242ac130003",
+            "type": "start"
+        },
+        "action--3faaa2b2-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious processes identified on the affected host.",
+            "on_completion": "if-condition--6ed171c4-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ]
+        },
+        "if-condition--6ed171c4-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Check for network anomalies",
+            "type": "if-condition",
+            "condition": "network_anomaly_detected == true",
+            "on_true": "action--4fc33b9a-4e4d-11ec-81d3-0242ac130003",
+            "on_false": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003"
+        },
+        "action--4fc33b9a-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Isolate affected host from network",
+            "description": "Implement measures to prevent the compromised host from communicating with the network.",
+            "on_completion": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ]
+        },
+        "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Scan for and remove malicious scripts",
+            "description": "Continuously scan the system until no malicious scripts remain.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--5d6e7bfa-4e4d-11ec-81d3-0242ac130003",
+            "on_false": "action--64f110a4-4e4d-11ec-81d3-0242ac130003"
+        },
+        "action--5d6e7bfa-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Scan and remove malicious scripts",
+            "description": "Perform a full system scan and remove any detected malicious scripts.",
+            "on_completion": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --remove"
+                }
+            ]
+        },
+        "action--64f110a4-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Restart affected services",
+            "description": "Restart services to ensure they are running correctly after mitigation.",
+            "on_completion": "action--6f34b6e4-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart $service_name"
+                }
+            ],
+            "step_variables": {
+                "service_name": {
+                    "type": "string",
+                    "description": "Name of the service to restart",
+                    "value": "apache2",
+                    "constant": false
+                }
+            }
+        },
+        "action--6f34b6e4-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Update threat intelligence database",
+            "description": "Revise the threat intelligence database based on findings during the incident.",
+            "on_completion": "end--99999999-9999-9999-9999-999999999999",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "python update_intel.py"
+                }
+            ],
+            "condition": "threat_ioc_found == true"
+        },
+        "end--99999999-9999-9999-9999-999999999999": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

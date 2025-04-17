@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3eec6053-6c0f-42f0-92c7-9b98b8ed287f",
+    "name": "Incident Response Playbook for Exploitation via Malicious Email Attachment",
+    "description": "This playbook addresses an incident where an employee opened a malicious email attachment leading to malware installation and data exfiltration.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-15T14:35:22Z",
+    "modified": "2023-10-15T14:35:22Z",
+    "revoked": false,
+    "workflow_start": "start--f71e2a07-e6b5-4e5d-afed-234251d935cf",
+    "workflow": {
+        "start--f71e2a07-e6b5-4e5d-afed-234251d935cf": {
+            "on_completion": "parallel--process_compromise",
+            "type": "start"
+        },
+        "parallel--process_compromise": {
+            "name": "Process Compromise",
+            "description": "Initiate immediate actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--kill_malicious_process",
+                "action--isolate_host"
+            ]
+        },
+        "action--isolate_host": {
+            "name": "Isolate Compromised Host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "action--notify_users",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--kill_malicious_process": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing the malicious executable.",
+            "on_completion": "action--run_full_system_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_executable"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--run_full_system_scan": {
+            "name": "Run Full System Scan",
+            "description": "Perform a full scan of the system to find other possible threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "on_completion": "if-condition--scan_clean",
+            "agent": "organization--xyz"
+        },
+        "if-condition--scan_clean": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "action--change_user_credentials",
+            "on_false": "action--run_full_system_scan_again"
+        },
+        "action--change_user_credentials": {
+            "name": "Change User Credentials",
+            "description": "Change user credentials if the user is identified as compromised.",
+            "on_completion": "end--incident_completed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--run_full_system_scan_again": {
+            "name": "Repeat Full System Scan",
+            "description": "Repeat the full system scan until the system is clean.",
+            "on_completion": "if-condition--scan_clean",
+            "type": "loop",
+            "loop_condition": "repeat until scan is clean",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--notify_users": {
+            "name": "Notify All Users of Incident",
+            "description": "Inform all users about the security incident.",
+            "on_completion": "end--incident_completed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --users 'all' --message 'Security Incident Detected'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--incident_completed": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

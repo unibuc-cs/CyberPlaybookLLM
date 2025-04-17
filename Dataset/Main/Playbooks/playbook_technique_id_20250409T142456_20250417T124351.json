@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1a5eac29-407a-4750-9f2e-b6d32c659a8f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to gather sensitive information.",
+    "created_by": "identity--c3e17bb7-dd5c-4438-af8d-a9f99b78282f",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d15b7e38-b69e-429e-9331-e4f69ad4853b",
+    "workflow": {
+        "start--d15b7e38-b69e-429e-9331-e4f69ad4853b": {
+            "on_completion": "if-condition--9cc6f88f-5c58-4bd6-88b8-e390077f963f",
+            "type": "start"
+        },
+        "if-condition--9cc6f88f-5c58-4bd6-88b8-e390077f963f": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--e5a37135-34c7-4bdd-b10e-d6c7c1caa689",
+            "on_false": "action--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93"
+        },
+        "action--e5a37135-34c7-4bdd-b10e-d6c7c1caa689": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes used by the attacker.",
+            "on_completion": "loop--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93": {
+            "name": "Delete the suspicious downloaded executable",
+            "on_completion": "if-condition--f1e1b56b-e9be-4040-a32b-d872b3fea88b",
+            "type": "while-condition",
+            "condition": "suspicious_file_deleted == false",
+            "on_true": "action--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93",
+            "on_false": "action--515cd63b-3465-45f9-b5d0-cee6b6208fc2"
+        },
+        "action--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93": {
+            "name": "Attempt to delete the downloaded executable",
+            "description": "Delete the suspicious executable from the temp directory.",
+            "on_completion": "loop--11c56b6f-f1fc-4ba7-ad54-f4b405a28c93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file.exe || return 1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--f1e1b56b-e9be-4040-a32b-d872b3fea88b": {
+            "name": "Check if malicious processes were found",
+            "type": "if-condition",
+            "condition": "no_malicious_processes_found == true",
+            "on_true": "action--515cd63b-3465-45f9-b5d0-cee6b6208fc2",
+            "on_false": "end--f6eb4223-fd8e-45a8-a97f-53d840d32a80"
+        },
+        "action--515cd63b-3465-45f9-b5d0-cee6b6208fc2": {
+            "name": "Run endpoint detection scan",
+            "description": "Execute an endpoint detection scan to find other threats.",
+            "on_completion": "end--f6eb4223-fd8e-45a8-a97f-53d840d32a80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --quick"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f6eb4223-fd8e-45a8-a97f-53d840d32a80": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

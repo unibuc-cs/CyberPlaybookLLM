@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1d4d563-2f2b-4f4b-a292-ff9f326701b2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook mitigates an incident where an attacker executed malicious scripts on a server to maintain persistence and exfiltrate sensitive data.",
+    "created_by": "identity--abc",
+    "created": "2025-10-01T09:00:00.000Z",
+    "modified": "2025-10-01T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1d4d563-2f2b-4f4b-a292-ff9f326701b2",
+    "workflow": {
+        "start--b1d4d563-2f2b-4f4b-a292-ff9f326701b2": {
+            "on_completion": "if-condition--check-process",
+            "type": "start"
+        },
+        "if-condition--check-process": {
+            "name": "Check for malicious processes",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--kill-malicious-process",
+            "on_false": "action--block-c2-server"
+        },
+        "action--kill-malicious-process": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes on the system.",
+            "on_completion": "action--scan-system-for-threats",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--scan-system-for-threats": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan of the system to detect any additional threats.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan loop",
+            "description": "Continue scanning until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--scan-system-for-threats",
+            "on_false": "action--block-c2-server"
+        },
+        "action--block-c2-server": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Prevent the server from communicating with the known command and control server.",
+            "on_completion": "end--incident-resolution",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--incident-resolution": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "process_found": {
+            "type": "boolean",
+            "description": "Indicates if the malicious process was found and terminated.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the scan.",
+            "value": "running",
+            "constant": false,
+            "external": true
+        }
+    }
+}

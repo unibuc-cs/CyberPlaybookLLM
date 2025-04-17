@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f52547ad-4f3b-469f-88a0-ecfe6c4c689e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a command-line interface to execute malicious scripts and access confidential files.",
+    "created_by": "identity--feab0c43-13a4-442c-adb3-76820ffd580c",
+    "created": "2023-10-02T08:00:00.000Z",
+    "modified": "2023-10-02T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9f6c1e64-466f-4d0e-9fbd-5f79d07b531f",
+    "workflow": {
+        "start--9f6c1e64-466f-4d0e-9fbd-5f79d07b531f": {
+            "on_completion": "decision--6b906247-1dd7-4874-b754-bd84cdd48a73",
+            "type": "start"
+        },
+        "decision--6b906247-1dd7-4874-b754-bd84cdd48a73": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_process)",
+            "on_true": "action--d215b891-b237-4f97-a030-9f115c751da5",
+            "on_false": "action--a9b65d35-4cd6-4c1d-a5e0-43dbb0740bfc"
+        },
+        "action--d215b891-b237-4f97-a030-9f115c751da5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the identified suspicious process.",
+            "on_completion": "parallel--2cdd5ebe-60bd-442a-a272-f15c10203299",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a9b65d35-4cd6-4c1d-a5e0-43dbb0740bfc": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-22 to prevent further unauthorized access.",
+            "on_completion": "parallel--2cdd5ebe-60bd-442a-a272-f15c10203299",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--2cdd5ebe-60bd-442a-a272-f15c10203299": {
+            "name": "Run concurrent mitigations",
+            "description": "Execute malware scan concurrently after killing processes and isolating the host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--88f7d1c6-1bc8-4c13-a9c5-127d4bbdf4c2"
+            ]
+        },
+        "action--88f7d1c6-1bc8-4c13-a9c5-127d4bbdf4c2": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the affected host.",
+            "on_completion": "if-condition--5f3c3e44-86c8-47c8-9d9d-f4e513f2a318",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --recursive"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--5f3c3e44-86c8-47c8-9d9d-f4e513f2a318": {
+            "name": "Check if scan is clean",
+            "type": "while-condition",
+            "condition": "scan_is_clean()",
+            "on_true": "end--a5e8cb71-2260-4bde-bf7c-74ee229dbc18",
+            "on_false": "action--88f7d1c6-1bc8-4c13-a9c5-127d4bbdf4c2"
+        },
+        "end--a5e8cb71-2260-4bde-bf7c-74ee229dbc18": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

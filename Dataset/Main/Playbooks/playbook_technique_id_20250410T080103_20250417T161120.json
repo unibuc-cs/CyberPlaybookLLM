@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e76b6350-47a0-4bb0-8271-05cf1b554b29",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited an application vulnerability to execute unauthorized commands, resulting in data exfiltration.",
+    "created_by": "identity--12abc781-a123-4abc-9cde-12345678abcd",
+    "created": "2025-04-10T08:51:00.000Z",
+    "modified": "2025-04-10T08:51:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--49b1ff50-8f7b-49e9-b2f4-1aa14ed06661",
+    "workflow": {
+        "start--49b1ff50-8f7b-49e9-b2f4-1aa14ed06661": {
+            "on_completion": "parallel--a1b2c3d4-e5f6-47da-8f7e-9ef345678909",
+            "type": "start"
+        },
+        "parallel--a1b2c3d4-e5f6-47da-8f7e-9ef345678909": {
+            "name": "Immediate Mitigations",
+            "description": "Execute actions to mitigate the incident immediately.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4f817d66-2d9c-4cce-b16c-d69cb29dc12e",
+                "action--721f6bdc-2459-43c4-ace5-145267adev7e",
+                "action--37a97de5-f704-425c-aefc-fdfb692dc59f"
+            ]
+        },
+        "action--4f817d66-2d9c-4cce-b16c-d69cb29dc12e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that has been executed.",
+            "on_completion": "action--721f6bdc-2459-43c4-ace5-145267adev7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--721f6bdc-2459-43c4-ace5-145267adev7e": {
+            "name": "Restrict script execution",
+            "description": "Enforce script execution policies to prevent further malicious script execution.",
+            "on_completion": "action--be912819-25fb-429c-b7bf-9e6c6edacd65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "if (Get-ExecutionPolicy) -ne 'Restricted' { Set-ExecutionPolicy Restricted }"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--be912819-25fb-429c-b7bf-9e6c6edacd65": {
+            "name": "Scan for other threats",
+            "description": "Perform a thorough scan of the system to identify additional threats.",
+            "on_completion": "loop--compromiseScanLoop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the threat scan.",
+                    "value": "not_checked",
+                    "constant": false
+                }
+            }
+        },
+        "loop--compromiseScanLoop": {
+            "name": "Threat Scan Loop",
+            "description": "Continue scanning until the system is confirmed clean.",
+            "on_true": "action--be912819-25fb-429c-b7bf-9e6c6edacd65",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_completion": "action--67f23b78-3bf9-495e-9187-09c9df111ea6"
+        },
+        "action--67f23b78-3bf9-495e-9187-09c9df111ea6": {
+            "name": "Reset compromised user accounts",
+            "description": "Disable access for compromised user accounts.",
+            "on_completion": "end--e4f33a2a-abc5-411a-8ca7-5c9fbff48991",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat compromised_users.txt); do passwd -l $user; done"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "compromised_users_file": {
+                    "type": "string",
+                    "description": "File containing the list of compromised user accounts.",
+                    "value": "compromised_users.txt",
+                    "constant": false
+                }
+            }
+        },
+        "action--37a97de5-f704-425c-aefc-fdfb692dc59f": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Prevent data exfiltration by blocking outbound traffic to the suspicious IP.",
+            "on_completion": "end--e4f33a2a-abc5-411a-8ca7-5c9fbff48991",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.50 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e4f33a2a-abc5-411a-8ca7-5c9fbff48991": {
+            "step_extensions": {
+                "": "extension-definition--abcd5678-12df-34ef-abc6-12345567e89a"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

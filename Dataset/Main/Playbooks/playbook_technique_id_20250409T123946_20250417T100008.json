@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8cbbdf0-e6f3-4b3c-b1a7-cb15bfa02f5a",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "Mitigates a security incident where an attacker executed PowerShell commands to download and persist malware on a machine.",
+    "created_by": "identity--a3f15686-c26e-4b05-9b8b-376fb3f5d609",
+    "created": "2025-04-09T08:30:00Z",
+    "modified": "2025-04-09T08:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a4eb3f1-dc41-4e96-b647-374e2cf75c8f",
+    "workflow": {
+        "start--1a4eb3f1-dc41-4e96-b647-374e2cf75c8f": {
+            "on_completion": "action--b2e3d200-3f90-4bdf-a3d0-5cf7ddf48ff1",
+            "type": "start"
+        },
+        "action--b2e3d200-3f90-4bdf-a3d0-5cf7ddf48ff1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process executing the malware.",
+            "on_completion": "decision--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b": {
+            "name": "Check if dropped files exist",
+            "type": "if-condition",
+            "condition": "test -f /tmp/malware_file",
+            "on_true": "action--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b",
+            "on_false": "action--4ff622eb-e945-469f-b45e-725a6c67efc9"
+        },
+        "action--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b": {
+            "name": "Remove dropped files",
+            "description": "Delete the malware files dropped in the temp directory.",
+            "on_completion": "action--4ff622eb-e945-469f-b45e-725a6c67efc9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware_file"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4ff622eb-e945-469f-b45e-725a6c67efc9": {
+            "name": "Run endpoint detection scan",
+            "description": "Monitor and scan for any remaining threats on the system.",
+            "on_completion": "loop--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--scan-loop": {
+            "name": "Check scan results",
+            "description": "Repeat scanning until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_results != clean",
+            "on_true": "action--4ff622eb-e945-469f-b45e-725a6c67efc9",
+            "on_false": "end--termination-success"
+        },
+        "end--termination-success": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

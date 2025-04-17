@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1d6a7c6-5f2c-4dc2-b3c4-28bb379d4c06",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to establish persistence, download payloads, and gather sensitive information.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789012",
+    "created": "2023-10-16T08:00:00.000Z",
+    "modified": "2023-10-16T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e9d1f905-26a0-4e9d-92b5-f8b0e93b67f0",
+    "workflow": {
+        "start--e9d1f905-26a0-4e9d-92b5-f8b0e93b67f0": {
+            "on_completion": "action--ec3b82e4-2f0b-493e-91c7-1b96dfe8e241",
+            "type": "start"
+        },
+        "action--ec3b82e4-2f0b-493e-91c7-1b96dfe8e241": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script process.",
+            "on_completion": "action--4b16b793-bfb2-4065-b9f8-bbfbf569c8bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4b16b793-bfb2-4065-b9f8-bbfbf569c8bd": {
+            "name": "Scan affected hosts for malware",
+            "description": "Perform a malware scan on affected hosts recursively until a clean state is achieved.",
+            "on_completion": "if-condition--malware_detected",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --bell -i /home/user/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--malware_detected": {
+            "name": "Check for malware detection",
+            "type": "if-condition",
+            "condition": "malware_detected == true",
+            "on_true": "loop--cleaning_scan",
+            "on_false": "action--a2e96485-ffa2-4ee5-a7ef-f46bf0d7fdc1"
+        },
+        "loop--cleaning_scan": {
+            "name": "Repeat scanning if malware detected",
+            "description": "Continue scanning affected hosts until the system is clean.",
+            "on_true": "action--4b16b793-bfb2-4065-b9f8-bbfbf569c8bd",
+            "condition": "malware_detected == true",
+            "type": "while-condition"
+        },
+        "action--a2e96485-ffa2-4ee5-a7ef-f46bf0d7fdc1": {
+            "name": "Change user passwords and reset sessions",
+            "description": "Reset passwords for affected users to mitigate further unauthorized access.",
+            "on_completion": "end--f09a1c2b-2f3f-4c94-b4e7-451ad6c8740f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_secure_password' | passwd affected_username"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "affected_username": {
+                    "type": "string",
+                    "description": "The username of the affected account",
+                    "value": "user_to_reset",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--f09a1c2b-2f3f-4c94-b4e7-451ad6c8740f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "OrgABC"
+        }
+    }
+}

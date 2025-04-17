@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e24bff9b-cb9e-49c4-af8c-1ee5f1812c8b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of a malicious script that compromised a system and established a persistent connection.",
+    "created_by": "identity--b24e8d81-e9c6-4d68-b712-66d772c3db53",
+    "created": "2023-10-17T15:00:00Z",
+    "modified": "2023-10-17T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d7ac2fa8-995a-4fc4-8dd4-996b1456e568",
+    "workflow": {
+        "start--d7ac2fa8-995a-4fc4-8dd4-996b1456e568": {
+            "on_completion": "if-condition--a1d293c3-823b-4b13-a9aa-11034591fcf2",
+            "type": "start"
+        },
+        "if-condition--a1d293c3-823b-4b13-a9aa-11034591fcf2": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_script')",
+            "on_true": "action--e6c42ef6-5120-4c85-a8bb-63304aab7e7d",
+            "on_false": "action--a0bb207a-832c-4a3f-9e3f-1544530b330f"
+        },
+        "action--e6c42ef6-5120-4c85-a8bb-63304aab7e7d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "action--a0bb207a-832c-4a3f-9e3f-1544530b330f"
+        },
+        "action--a0bb207a-832c-4a3f-9e3f-1544530b330f": {
+            "name": "Remove dropped file",
+            "description": "Remove the suspicious payload file from the /tmp directory.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--7efa0e5c-fe87-45fb-a3cd-ef18d171e24e"
+        },
+        "while-condition--7efa0e5c-fe87-45fb-a3cd-ef18d171e24e": {
+            "name": "Check for suspicious file existence",
+            "description": "Loop until the suspicious payload no longer exists.",
+            "type": "while-condition",
+            "condition": "test -f /tmp/suspicious_payload",
+            "on_true": "action--a0bb207a-832c-4a3f-9e3f-1544530b330f",
+            "on_false": "action--1db8b3ad-693d-4c43-8025-0c00fac37c38"
+        },
+        "action--1db8b3ad-693d-4c43-8025-0c00fac37c38": {
+            "name": "Run endpoint scan",
+            "description": "Perform a security scan on the affected host to ensure there are no remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --host host-22"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Store the results of the endpoint scan.",
+                    "value": "scan.log",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "end--e9707437-7198-4e8e-834d-264264cd5d96"
+        },
+        "end--e9707437-7198-4e8e-834d-264264cd5d96": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Client Organization ABC"
+        }
+    }
+}

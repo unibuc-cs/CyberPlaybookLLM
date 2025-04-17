@@ -1,0 +1,135 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f43e589e-59d4-4d8a-b5db-752e826cf8bc",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data after gaining access via a phishing email.",
+    "created_by": "identity--abc12345-7ed7-4334-8146-04fca1531215",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--abcde1234-f10b-4e8f-8990-abc123456789",
+    "workflow": {
+        "start--abcde1234-f10b-4e8f-8990-abc123456789": {
+            "on_completion": "parallel--exec_mitigation",
+            "type": "start"
+        },
+        "parallel--exec_mitigation": {
+            "name": "Execute Mitigation Steps in Parallel",
+            "description": "Run multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--kill_script_process",
+                "action--isolate_affected_hosts",
+                "action--perform_network_scan",
+                "action--review_logs",
+                "action--change_passwords"
+            ]
+        },
+        "action--kill_script_process": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--isolate_affected_hosts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--isolate_affected_hosts": {
+            "name": "Isolate affected hosts",
+            "description": "Bring down the network interface for the affected host.",
+            "on_completion": "action--perform_network_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-21 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--perform_network_scan": {
+            "name": "Perform network scan for unauthorized outbound connections",
+            "description": "Scan the network to identify any unauthorized outbound connections.",
+            "on_completion": "end--finalize_actions",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the network scan.",
+                    "value": "scan_in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--review_logs": {
+            "name": "Review logs for further indicators of compromise",
+            "description": "Check system logs for any indications of further malicious activity.",
+            "on_completion": "action--change_passwords",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'malicious' > suspicious_activity.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": {
+                "type": "if-condition",
+                "condition": "suspicious_activity.log exists",
+                "on_true": "action--change_passwords",
+                "on_false": "end--finalize_actions"
+            }
+        },
+        "action--change_passwords": {
+            "name": "Change passwords for affected accounts",
+            "description": "Update passwords for user accounts that may have been compromised.",
+            "on_completion": "end--finalize_actions",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user123"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "The username that needs a password change.",
+                    "value": "user123",
+                    "constant": false,
+                    "external": false
+                },
+                "new_password": {
+                    "type": "string",
+                    "description": "The new password for the affected account.",
+                    "value": "SecureRandomPassword",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--finalize_actions": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

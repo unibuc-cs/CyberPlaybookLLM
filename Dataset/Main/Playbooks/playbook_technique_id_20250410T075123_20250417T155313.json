@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2e0743a0-a6b6-4e05-9e01-37033a5449ef",
+    "name": "Playbook for Handling Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses incidents that involve unauthorized script execution using command and scripting interpreters on compromised hosts.",
+    "created_by": "identity--1fa22369-7c72-4d91-9c69-0bbb8f69a501",
+    "created": "2023-10-25T14:22:30Z",
+    "modified": "2023-10-25T14:22:30Z",
+    "revoked": false,
+    "workflow_start": "start--1c256134-b8cd-4c78-8505-72ec540236fb",
+    "workflow": {
+        "start--1c256134-b8cd-4c78-8505-72ec540236fb": {
+            "on_completion": "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d",
+            "type": "start"
+        },
+        "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious scripts currently running on the system.",
+            "on_completion": "if-condition--fc153e6b-2938-450d-9a6e-155d1dbb7d80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f [malicious-script-name]"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--fc153e6b-2938-450d-9a6e-155d1dbb7d80": {
+            "name": "Check for unauthorized access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80",
+            "on_false": "action--b1427707-f447-4daf-a073-f3ad72b5fe54"
+        },
+        "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80": {
+            "name": "Disable Remote Shell Access Temporarily",
+            "description": "Stop SSH services temporarily to prevent further unauthorized access.",
+            "on_completion": "action--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service ssh stop; sleep 3600; service ssh start"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b1427707-f447-4daf-a073-f3ad72b5fe54": {
+            "name": "Scan and clean infected hosts",
+            "description": "Run a clean scan on all infected hosts until there are no threats detected.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan until clean",
+            "description": "Repeat the scan until the system reports clean.",
+            "on_true": "action--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "condition": "scan_status == 'dirty'",
+            "on_completion": "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7",
+            "type": "while-condition"
+        },
+        "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7": {
+            "name": "Deploy updates to address vulnerabilities",
+            "description": "Apply updates to all systems to patch vulnerabilities.",
+            "on_completion": "action--73781372-607a-49cf-9356-14645de79879",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--73781372-607a-49cf-9356-14645de79879": {
+            "name": "Audit and change all compromised passwords",
+            "description": "Require a password change for all affected accounts.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Require password change' > /var/log/sec-changes.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

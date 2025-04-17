@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b51743-3aef-4a5e-94ee-c3eec54c3f24",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to exfiltrate sensitive data.",
+    "created_by": "identity--e2162c49-a2b1-4c12-9142-6035bc6fba8b",
+    "created": "2025-04-10T09:15:30.000Z",
+    "modified": "2025-04-10T09:20:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d558df90-3271-4410-abc5-06cddc698529",
+    "workflow": {
+        "start--d558df90-3271-4410-abc5-06cddc698529": {
+            "on_completion": "action--b0b9b8af-f2f5-4c68-9d10-d2346e576e2c",
+            "type": "start"
+        },
+        "action--b0b9b8af-f2f5-4c68-9d10-d2346e576e2c": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any PowerShell processes that are currently running.",
+            "on_completion": "if-condition--f8a723c0-9f97-4d5b-bc8d-46aa8e07e5ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--f8a723c0-9f97-4d5b-bc8d-46aa8e07e5ae": {
+            "name": "Check if PowerShell processes exist",
+            "type": "if-condition",
+            "condition": "pgrep -f powershell",
+            "on_true": "action--e7b73bc9-b3c5-4b06-8522-442d2d082c8a",
+            "on_false": "action--403e8ca8-4e4a-4df0-aea5-5b08ef5a14fa"
+        },
+        "action--e7b73bc9-b3c5-4b06-8522-442d2d082c8a": {
+            "name": "Scan for known malicious scripts",
+            "description": "Search for known malicious strings in PowerShell script logs.",
+            "on_completion": "if-condition--d0c5c108-a77c-4f1e-b050-8cc593195b0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_string' /var/log/script_logs.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--d0c5c108-a77c-4f1e-b050-8cc593195b0c": {
+            "name": "Check for more malicious matches",
+            "type": "if-condition",
+            "condition": "grep -q 'malicious_string' /var/log/script_logs.log",
+            "on_true": "action--e7b73bc9-b3c5-4b06-8522-442d2d082c8a",
+            "on_false": "action--403e8ca8-4e4a-4df0-aea5-5b08ef5a14fa"
+        },
+        "action--403e8ca8-4e4a-4df0-aea5-5b08ef5a14fa": {
+            "name": "Restrict outbound traffic to known IPs",
+            "description": "Configure firewall to restrict outbound traffic to known IP address.",
+            "on_completion": "end--28e9272b-85f7-4be9-9ad2-dcb9c5e4eb87",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d ! $known_ip -j REJECT"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "known_ip": {
+                    "type": "string",
+                    "description": "This variable holds the known trusted IP address.",
+                    "value": "192.168.1.100",
+                    "constant": true
+                }
+            }
+        },
+        "end--28e9272b-85f7-4be9-9ad2-dcb9c5e4eb87": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b79f1573-0dea-4ea7-b86a-bc2c8dcc7a28",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Access Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a PowerShell script, implemented a reverse shell, and exfiltrated sensitive data.",
+    "created_by": "identity--c41d33a5-295b-4416-834d-4a2b09ed18e0",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--f01c6f64-b23e-4b68-bc89-15da3b61af16",
+    "workflow": {
+        "start--f01c6f64-b23e-4b68-bc89-15da3b61af16": {
+            "on_completion": "if-condition--633b5cce-e514-4a93-a058-06a68d1b4e3c",
+            "type": "start"
+        },
+        "if-condition--633b5cce-e514-4a93-a058-06a68d1b4e3c": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running",
+            "on_true": "action--3c0e4c7e-b043-4dac-a7c4-2aa86dc123cc",
+            "on_false": "action--4434b695-f7a0-4f84-bf1a-9be6a6c5d5ff"
+        },
+        "action--3c0e4c7e-b043-4dac-a7c4-2aa86dc123cc": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell scripts that may be running.",
+            "on_completion": "action--4434b695-f7a0-4f84-bf1a-9be6a6c5d5ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4434b695-f7a0-4f84-bf1a-9be6a6c5d5ff": {
+            "name": "Isolate affected host from network",
+            "description": "Block the affected host from outbound network communication.",
+            "on_completion": "while-condition--fa31bda1-4336-4526-9473-db8d16be837b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s 192.168.1.12 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--fa31bda1-4336-4526-9473-db8d16be837b": {
+            "name": "Perform malware scan until clean",
+            "description": "Continuously perform a malware scan until the scan shows no threats.",
+            "type": "while-condition",
+            "condition": "scan_completed == false",
+            "on_true": "action--ae1a2438-928b-46b8-9b41-6b9ffc73d2fd",
+            "on_false": "end--de7bf8f7-d7de-4d51-b3bc-4e4489c3a724"
+        },
+        "action--ae1a2438-928b-46b8-9b41-6b9ffc73d2fd": {
+            "name": "Perform a full malware scan",
+            "description": "Execute a malware scan to detect and remove possible threats.",
+            "on_completion": "if-condition--2cde412b-4bd0-45f6-a76e-0bc0e030dfc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_completed": {
+                    "type": "boolean",
+                    "description": "Indicates whether the malware scan has completed successfully.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--2cde412b-4bd0-45f6-a76e-0bc0e030dfc2": {
+            "name": "Check if malware scan found threats",
+            "type": "if-condition",
+            "condition": "malware_threats_found",
+            "on_true": "action--ae1a2438-928b-46b8-9b41-6b9ffc73d2fd",
+            "on_false": "while-condition--fa31bda1-4336-4526-9473-db8d16be837b"
+        },
+        "end--de7bf8f7-d7de-4d51-b3bc-4e4489c3a724": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

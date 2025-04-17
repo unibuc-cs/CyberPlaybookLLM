@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f301b1e6-2347-4b7e-b2e8-f16d8d33b43a",
+    "name": "Mitigation Playbook for Compromised Workstation through Malicious Script Execution",
+    "description": "This playbook addresses the incident regarding compromised workstation due to execution of scripts from a malicious email attachment.",
+    "created_by": "identity--9a8fc6f2-4ace-4c9b-bc7b-d2805e8fb4f3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--4a7f4cb5-90c6-4c1e-b7c8-f5aa6f382a87",
+    "workflow": {
+        "start--4a7f4cb5-90c6-4c1e-b7c8-f5aa6f382a87": {
+            "on_completion": "parallel--ae9922f2-ef8c-4e52-913b-3c759f5b6f9c",
+            "type": "start"
+        },
+        "parallel--ae9922f2-ef8c-4e52-913b-3c759f5b6f9c": {
+            "name": "Execute Mitigation Steps",
+            "description": "Run mitigations in parallel to address the compromised workstation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b",
+                "action--53c581a1-4322-4f5d-baf7-7fdbdc493769",
+                "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2"
+            ]
+        },
+        "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the cryptominer process if it exists.",
+            "on_completion": "if-condition--b838f62a-4982-47bc-91dc-0ff8e4640e3e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f cryptominer"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--53c581a1-4322-4f5d-baf7-7fdbdc493769": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Block outbound connections to the known malicious IP.",
+            "on_completion": "end--c2b0cb23-9dc1-4a95-bdb6-efb6ef0586f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2": {
+            "name": "Update security policies",
+            "description": "Update security policies to block scripts by default.",
+            "on_completion": "action--7e279eda-2a4f-4d55-a48d-645c02d79345",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Block scripts by default' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7e279eda-2a4f-4d55-a48d-645c02d79345": {
+            "name": "Remove dropped files",
+            "description": "Repeat until no residual files found in the system.",
+            "on_completion": "while-condition--3f7f60d0-e85c-4694-b009-7456f8d7b6b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/cryptominer"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--3f7f60d0-e85c-4694-b009-7456f8d7b6b5": {
+            "name": "Check for residual files",
+            "description": "Loop until no residual files related to the cryptominer are found.",
+            "on_true": "action--7e279eda-2a4f-4d55-a48d-645c02d79345",
+            "on_false": "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854",
+            "type": "while-condition",
+            "condition": "$(ls /path/to/cryptominer | wc -l) -gt 0"
+        },
+        "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854": {
+            "name": "Scan system for malware",
+            "description": "Perform a recursive scan of the system for malware.",
+            "on_completion": "end--c2b0cb23-9dc1-4a95-bdb6-efb6ef0586f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The variable contains the result of the malware scan",
+                    "value": "scan result",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--c2b0cb23-9dc1-4a95-bdb6-efb6ef0586f8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

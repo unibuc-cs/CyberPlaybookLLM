@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--12f45ee1-3e7b-45a7-b1ef-c8453c508e80",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to exfiltrate sensitive data from the network.",
+    "created_by": "identity--xyz-identity-id",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c539417a-9efa-4e57-b8e4-bd86d4c392f5",
+    "workflow": {
+        "start--c539417a-9efa-4e57-b8e4-bd86d4c392f5": {
+            "on_completion": "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68",
+            "type": "start"
+        },
+        "if-condition--process-check-c5a317c0-56b2-4a8e-bd52-b5f21c64a3fb": {
+            "name": "Check if PowerShell is running",
+            "description": "Determine if the PowerShell process is still running to kill it.",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--c539417a-9efa-4e57-b8e4-bd86d4c392f5",
+            "on_false": "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587"
+        },
+        "action--c539417a-9efa-4e57-b8e4-bd86d4c392f5": {
+            "name": "Kill malicious process",
+            "description": "Kill any running PowerShell processes to stop the data exfiltration.",
+            "on_completion": "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587": {
+            "name": "Remove suspicious files",
+            "description": "Delete any suspicious scripts related to the attack.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz",
+            "next_steps": [
+                "loop--remove-suspicious-files"
+            ]
+        },
+        "loop--remove-suspicious-files": {
+            "name": "Check for remaining suspicious files",
+            "description": "Repeat removal of suspicious files until none exist.",
+            "type": "while-condition",
+            "condition": "ls /tmp/suspicious_script.ps1",
+            "on_true": "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587",
+            "on_false": "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68"
+        },
+        "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block any outbound traffic to the identified malicious IP to prevent further data exfiltration.",
+            "on_completion": "if-condition--scan-check-4ba9c7d8-6c76-4bc4-a412-36263adbb143",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--scan-check-4ba9c7d8-6c76-4bc4-a412-36263adbb143": {
+            "name": "Run security scan and check results",
+            "description": "Run a security scan on the affected system to detect any other vulnerabilities.",
+            "type": "if-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "loop--run-security-scan",
+            "on_false": "end--finalize-incident-921f43cd-32eb-4711-9732-b3dbc3f7e8f0"
+        },
+        "loop--run-security-scan": {
+            "name": "Run security scan",
+            "description": "Repeat the security scan until the system confirms it's clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--dc1e4f30-6d1e-4d02-8d8e-5686f318ae6c",
+            "on_false": "end--finalize-incident-921f43cd-32eb-4711-9732-b3dbc3f7e8f0"
+        },
+        "action--dc1e4f30-6d1e-4d02-8d8e-5686f318ae6c": {
+            "name": "Run security scan",
+            "description": "Perform a security analysis on the current system to find any remaining threats.",
+            "on_completion": "if-condition--scan-check-4ba9c7d8-6c76-4bc4-a412-36263adbb143",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_tool"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--finalize-incident-921f43cd-32eb-4711-9732-b3dbc3f7e8f0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

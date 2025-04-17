@@ -1,0 +1,156 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5e3b631-c57d-4399-87e7-353a9f009c49",
+    "name": "Playbook for Command and Scripting Interpreter Misuse Incident",
+    "description": "This playbook addresses incidents where unauthorized scripts were executed leading to potential data exfiltration.",
+    "created_by": "identity--bcd008df-0ea8-4674-87b5-ff7939bc8533",
+    "created": "2025-04-10T07:43:00Z",
+    "modified": "2025-04-10T07:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1ae34ec9-763e-4a57-a601-0bb8bb422c2c",
+    "workflow": {
+        "start--1ae34ec9-763e-4a57-a601-0bb8bb422c2c": {
+            "on_completion": "if-condition--17ca25a4-5867-4dca-8408-b6e219aaac28",
+            "type": "start"
+        },
+        "if-condition--17ca25a4-5867-4dca-8408-b6e219aaac28": {
+            "name": "Check network status",
+            "type": "if-condition",
+            "condition": "network_status == 'compromised'",
+            "on_true": "action--b6481f32-fe72-4af7-8e98-089b1a46964f",
+            "on_false": "action--a4b573dc-74f2-4425-b632-bb72f7270369"
+        },
+        "action--b6481f32-fe72-4af7-8e98-089b1a46964f": {
+            "name": "Isolate affected system from the network",
+            "description": "Isolating the compromised system to prevent further unauthorized data exfiltration.",
+            "on_completion": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifdown eth0"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a4b573dc-74f2-4425-b632-bb72f7270369": {
+            "name": "Proceed without isolation",
+            "on_completion": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8",
+            "type": "action",
+            "commands": [],
+            "agent": "organization--abc"
+        },
+        "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that was executed.",
+            "on_completion": "while-condition--d688c7ef-ade4-4a5e-949f-7a9b6cb6f650",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--d688c7ef-ade4-4a5e-949f-7a9b6cb6f650": {
+            "name": "Check if process is running",
+            "description": "Loop until the suspicious script is no longer running.",
+            "on_completion": "action--f0123456-7b8c-491c-b9c1-d8eabcde9098",
+            "type": "while-condition",
+            "condition": "process_not_running",
+            "on_true": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8"
+        },
+        "action--f0123456-7b8c-491c-b9c1-d8eabcde9098": {
+            "name": "Enable enhanced logging",
+            "description": "Restart logging service to ensure logs are captured post-incident.",
+            "on_completion": "action--d55c9cab-8b7b-4733-b094-a82e9829f28a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo service rsyslog restart"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": {
+                "if": "logging_status == 'disabled'",
+                "then": "enable_logging"
+            }
+        },
+        "action--d55c9cab-8b7b-4733-b094-a82e9829f28a": {
+            "name": "Deploy antivirus scan across all hosts",
+            "description": "Scan all hosts to ensure no threats remain.",
+            "on_completion": "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat hosts.txt); do ssh $host 'run_antivirus_scan'; done"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "hosts_file": {
+                    "type": "string",
+                    "description": "List of hostnames to perform antivirus scan on",
+                    "value": "hosts.txt",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f": {
+            "name": "Block malicious IP address",
+            "description": "Block known malicious IP to prevent further issues.",
+            "on_completion": "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.11 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da": {
+            "name": "Restore affected files from backup",
+            "description": "Restore any affected files using backup data.",
+            "on_completion": "end--8b5cd1f1-833c-4d63-a1e1-0e07ffb749b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --progress /backup/ /restore/"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "backup_path": {
+                    "type": "string",
+                    "description": "Path to backup files",
+                    "value": "/backup/",
+                    "constant": false,
+                    "external": true
+                },
+                "restore_path": {
+                    "type": "string",
+                    "description": "Path to restore files",
+                    "value": "/restore/",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--8b5cd1f1-833c-4d63-a1e1-0e07ffb749b6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

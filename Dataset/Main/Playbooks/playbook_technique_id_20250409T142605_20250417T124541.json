@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--27e98b5d-5e72-4f91-9df7-97a5394630b9",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Incident",
+    "description": "This playbook addresses an incident where an attacker used a malicious PowerShell script to gain unauthorized access and exfiltrate data.",
+    "created_by": "identity--c0009f25-4034-42b2-98ae-3a0ddd1c058f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c7d7bfea-bb54-4e88-9c05-40742c43c030",
+    "workflow": {
+        "start--c7d7bfea-bb54-4e88-9c05-40742c43c030": {
+            "on_completion": "if-condition--9e5248b0-bbd0-4725-80dd-9058bc0a047c",
+            "type": "start"
+        },
+        "if-condition--9e5248b0-bbd0-4725-80dd-9058bc0a047c": {
+            "name": "Check if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f powershell)",
+            "on_true": "action--ef8f7e44-7205-4c7b-a68f-30e745c3b22c",
+            "on_false": "action--e0b5c0de-df8d-45ed-aa61-134b34ff1f83"
+        },
+        "action--ef8f7e44-7205-4c7b-a68f-30e745c3b22c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--e0b5c0de-df8d-45ed-aa61-134b34ff1f83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e0b5c0de-df8d-45ed-aa61-134b34ff1f83": {
+            "name": "Delete dropped malicious script file",
+            "description": "Remove the malicious PowerShell script from the system.",
+            "on_completion": "while-condition--b28de4f2-0a0a-4df6-9939-ee9aac141688",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--b28de4f2-0a0a-4df6-9939-ee9aac141688": {
+            "name": "Monitor for further data exfiltration attempts",
+            "description": "Keep monitoring logs for any further data exfiltration attempts.",
+            "type": "while-condition",
+            "on_true": "action--0ad01c84-472e-4ab3-9c36-7b32af987e4f",
+            "condition": "true",
+            "on_completion": "end--7f8bcedb-b560-4e36-a1f4-bf0b73731aa6"
+        },
+        "action--0ad01c84-472e-4ab3-9c36-7b32af987e4f": {
+            "name": "Tail syslog for data exfiltration attempts",
+            "description": "Continuously monitor syslog for any data exfiltration attempts.",
+            "on_completion": "while-condition--b28de4f2-0a0a-4df6-9939-ee9aac141688",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'data exfiltration'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--7f8bcedb-b560-4e36-a1f4-bf0b73731aa6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

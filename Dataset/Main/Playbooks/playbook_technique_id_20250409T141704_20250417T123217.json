@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3c1e761-ff95-467a-aa79-9e28c6450b02",
+    "name": "Mitigation Playbook for Native API Escalation Incident",
+    "description": "This playbook addresses an incident where an attacker used native API calls to escalate privileges and manipulate system processes.",
+    "created_by": "identity--6c7e4ddc-f7de-4b12-9a0f-91d13aee8d53",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--aefb1294-d488-45b9-b0f4-8f39e6fce7b1",
+    "workflow": {
+        "start--aefb1294-d488-45b9-b0f4-8f39e6fce7b1": {
+            "on_completion": "if-condition--ae7308c0-537d-41e6-9f92-86dc6a4b9279",
+            "type": "start"
+        },
+        "if-condition--ae7308c0-537d-41e6-9f92-86dc6a4b9279": {
+            "name": "Check if suspicious process is running",
+            "type": "if-condition",
+            "condition": "process_is_running",
+            "on_true": "action--b724e469-1747-4e71-88f7-0b217d9e897c",
+            "on_false": "action--73dc0e6a-4b4b-4d0f-8e8e-d0ad87f67845"
+        },
+        "action--b724e469-1747-4e71-88f7-0b217d9e897c": {
+            "name": "Terminate unauthorized process",
+            "description": "Terminate any unauthorized process to mitigate risk.",
+            "on_completion": "action--fd0c2f4c-2382-470c-bf9b-7c6e36110829",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--73dc0e6a-4b4b-4d0f-8e8e-d0ad87f67845": {
+            "name": "Restore system file from backup",
+            "description": "Updating the system configuration file from a secure backup.",
+            "on_completion": "action--fd0c2f4c-2382-470c-bf9b-7c6e36110829",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/system_config /etc/system_config"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fd0c2f4c-2382-470c-bf9b-7c6e36110829": {
+            "name": "Scan system for malware",
+            "description": "Scan the entire system for any malicious files or processes.",
+            "on_completion": "if-condition--f9b78988-5435-4320-b2b8-de0121dacb25",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / -r"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The output of the clamscan command.",
+                    "value": "Pending",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--f9b78988-5435-4320-b2b8-de0121dacb25": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_result != 'no threats found'",
+            "on_true": "action--fd0c2f4c-2382-470c-bf9b-7c6e36110829",
+            "on_false": "end--c51ace6e-a157-4f1f-89ea-8a4342076eaf"
+        },
+        "end--c51ace6e-a157-4f1f-89ea-8a4342076eaf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f78b57c9-a365-4a47-8d82-6900ad5ae460",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the incident of malicious PowerShell scripts execution that led to data exfiltration. It includes mitigation actions like killing the malicious process, blocking the external IP, and performing a malware scan.",
+    "created_by": "identity--1a9a22b5-f5a9-4236-bc63-abc7c4062781",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d1abd39f-eb28-42b2-a431-73511a00ae56",
+    "workflow": {
+        "start--d1abd39f-eb28-42b2-a431-73511a00ae56": {
+            "on_completion": "if-condition--ef613c37-35eb-48dd-bbfb-190396b05f0c",
+            "type": "start"
+        },
+        "if-condition--ef613c37-35eb-48dd-bbfb-190396b05f0c": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running == true",
+            "on_true": "action--c19e8497-2ac0-4f94-9f18-57e942ae5c70",
+            "on_false": "action--645ad063-5f9f-4e3c-8fb1-5474f2e7699b"
+        },
+        "action--c19e8497-2ac0-4f94-9f18-57e942ae5c70": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that could be executing malicious scripts.",
+            "on_completion": "action--645ad063-5f9f-4e3c-8fb1-5474f2e7699b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--645ad063-5f9f-4e3c-8fb1-5474f2e7699b": {
+            "name": "Block external IP address",
+            "description": "Prevent any further communication with the external IP address used for data transfer.",
+            "on_completion": "loop--afa71d85-2e76-4018-94f0-a6fbbc4bfe65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--afa71d85-2e76-4018-94f0-a6fbbc4bfe65": {
+            "name": "Initiate full malware scan",
+            "description": "Perform a complete malware scan on the system until the scan is clean.",
+            "on_true": "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65",
+            "on_false": "end--d3ea2277-5e06-4470-85ca-d83a99dc6516",
+            "condition": "scan_status != clean",
+            "type": "while-condition"
+        },
+        "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65": {
+            "name": "Run malware scan",
+            "on_completion": "loop--afa71d85-2e76-4018-94f0-a6fbbc4bfe65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the malware scan.",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--d3ea2277-5e06-4470-85ca-d83a99dc6516": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

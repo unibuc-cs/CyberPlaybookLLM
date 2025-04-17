@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f36fddf6-6a39-4f53-872d-1183b99474b3",
+    "name": "CACAO Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook handles an incident where an attacker used PowerShell to download and exfiltrate sensitive data through a phishing email.",
+    "created_by": "identity--abcd1234-56ef-78gh-90ij-klmnopqrstu",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a0b3381d-f6b9-440a-922f-d18c3c2d23ea",
+    "workflow": {
+        "start--a0b3381d-f6b9-440a-922f-d18c3c2d23ea": {
+            "on_completion": "parallel--ef2f3072-4b82-49b2-b73e-ba003ec1c489",
+            "type": "start"
+        },
+        "parallel--ef2f3072-4b82-49b2-b73e-ba003ec1c489": {
+            "name": "Mitigation Steps",
+            "description": "Execute multiple mitigation actions to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7c7c9fbd-d3f3-4dab-905f-df702d9e2a91",
+                "action--c489e0f6-7f3a-4f68-bf23-404bde6c3f42",
+                "action--a6c8e2ce-8f85-409f-8e3f-b149e2fd26c2",
+                "loop--b0d1b914-e38f-476e-a29b-18e9d13e43c4"
+            ]
+        },
+        "action--7c7c9fbd-d3f3-4dab-905f-df702d9e2a91": {
+            "name": "Terminate PowerShell sessions",
+            "description": "Stop all running PowerShell processes to prevent further execution.",
+            "on_completion": "action--c489e0f6-7f3a-4f68-bf23-404bde6c3f42",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                },
+                {
+                    "type": "powershell",
+                    "command": "while (Get-Process -Name powershell) { Stop-Process -Name powershell -Force }"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c489e0f6-7f3a-4f68-bf23-404bde6c3f42": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host that has been compromised to prevent further data exfiltration.",
+            "on_completion": "action--a6c8e2ce-8f85-409f-8e3f-b149e2fd26c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "netsh interface set interface 'Ethernet' admin=disable"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if compromised_host_detected"
+        },
+        "action--a6c8e2ce-8f85-409f-8e3f-b149e2fd26c2": {
+            "name": "Update firewall rules",
+            "description": "Update firewall to block the external IP used for data exfiltration.",
+            "on_completion": "loop--b0d1b914-e38f-476e-a29b-18e9d13e43c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.0.2.124"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "external_ip": {
+                    "type": "string",
+                    "value": "192.0.2.124",
+                    "constant": true
+                }
+            }
+        },
+        "loop--b0d1b914-e38f-476e-a29b-18e9d13e43c4": {
+            "name": "Scan for additional threats",
+            "description": "Perform a full system scan to identify any remaining threats.",
+            "on_completion": "action--5f058a88-a230-4dda-add8-14c5c020845b",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--b0d1b914-e38f-476e-a29b-18e9d13e43c4",
+            "on_false": "action--5f058a88-a230-4dda-add8-14c5c020845b"
+        },
+        "action--b0d1b914-e38f-476e-a29b-18e9d13e43c4": {
+            "name": "Threat Scan",
+            "on_completion": "loop--b0d1b914-e38f-476e-a29b-18e9d13e43c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--5f058a88-a230-4dda-add8-14c5c020845b": {
+            "name": "Restore affected systems from backup",
+            "description": "Restore systems from a clean backup if no malware is detected.",
+            "on_completion": "end--fe314e01-2aa7-4d80-b608-b6680838e48d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup /live_system"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if scan_showed_no_malware"
+        },
+        "end--fe314e01-2aa7-4d80-b608-b6680838e48d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        }
+    }
+}

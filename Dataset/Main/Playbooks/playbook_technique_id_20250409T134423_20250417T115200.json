@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e68cb3b4-668b-44fb-ae91-639845cd8419",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook mitigates an incident involving unauthorized PowerShell execution on a critical server, including killing malicious processes, blocking outbound traffic, and running antivirus scans.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-05T14:32:01Z",
+    "modified": "2023-10-05T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc123",
+    "workflow": {
+        "start--abc123": {
+            "on_completion": "action--929f43c1-b9cf-4e42-abf5-4be6b1ad42d1",
+            "type": "start"
+        },
+        "action--929f43c1-b9cf-4e42-abf5-4be6b1ad42d1": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any malicious PowerShell process found running on the server.",
+            "on_completion": "if-condition--checkMaliciousProcess",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--checkMaliciousProcess": {
+            "name": "Check if malicious processes were found",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--174b5a91-fc59-4769-bfd5-71f7ce39b78c",
+            "on_false": "loop--run-antivirus-scan"
+        },
+        "action--174b5a91-fc59-4769-bfd5-71f7ce39b78c": {
+            "name": "Block outbound traffic to known malicious domain",
+            "description": "Prevent any outbound traffic to the known malicious domain.",
+            "on_completion": "loop--run-antivirus-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d bad-domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--run-antivirus-scan": {
+            "name": "Run Antivirus Scan",
+            "description": "Perform an antivirus scan on the affected host and repeat until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--2a2f5eb3-8e9f-4a6f-bff8-4d0839c77f3c",
+            "on_false": "end--finalize"
+        },
+        "action--2a2f5eb3-8e9f-4a6f-bff8-4d0839c77f3c": {
+            "name": "Run antivirus scan on affected host",
+            "description": "Execute antivirus scan on the affected server to detect any remaining threats.",
+            "on_completion": "loop--run-antivirus-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-antivirus --host host-45"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--finalize": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

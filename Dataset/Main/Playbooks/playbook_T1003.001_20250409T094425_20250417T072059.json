@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8d3355c3-5474-4b7e-8c4f-1dec401ba303",
+    "name": "Credential Dumping Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker dumped credentials from the LSASS process and escalated privileges.",
+    "created_by": "identity--e2a435bc-a292-4f08-8f7b-e89defe6b99f",
+    "created": "2025-04-09T09:44:25.498Z",
+    "modified": "2025-04-09T09:45:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d7e594f8-e8b6-4a8e-aa01-f465d470b4e3",
+    "workflow": {
+        "start--d7e594f8-e8b6-4a8e-aa01-f465d470b4e3": {
+            "on_completion": "action--b0dd6705-f4ed-4e4d-b2a7-6d73e5fb75fc",
+            "type": "start"
+        },
+        "action--b0dd6705-f4ed-4e4d-b2a7-6d73e5fb75fc": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious LSASS process to stop further credential dumping.",
+            "on_completion": "if-condition--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'lsass.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb": {
+            "name": "Check Network Connection Status",
+            "type": "if-condition",
+            "condition": "network_connection_flagged == true",
+            "on_true": "action--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb",
+            "on_false": "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e"
+        },
+        "action--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb": {
+            "name": "Scan for rootkits and credential dumping tools",
+            "description": "Perform a scan for rootkits and any credential dumping tools.",
+            "on_completion": "end--4c02c103-b31c-4d72-b095-69069d5c0c16",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "runav -scan --rootkit --detection"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e": {
+            "name": "Monitor for suspicious processes",
+            "description": "Loop to continuously check for suspicious processes.",
+            "type": "action",
+            "loop": "repeat until attack_signature_clear",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while :; do check_processes; sleep 10; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--4c02c103-b31c-4d72-b095-69069d5c0c16": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "network_connection_flagged": {
+            "type": "boolean",
+            "description": "Flag to indicate if a network connection was established after credential dumping.",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "attack_signature_clear": {
+            "type": "boolean",
+            "description": "Flag to indicate if the attack signature is no longer present.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

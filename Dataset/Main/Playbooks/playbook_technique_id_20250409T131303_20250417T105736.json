@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cafe4061-b48b-4db8-ac8e-dbe7f7ade9c1",
+    "name": "Mitigation Playbook for PowerShell Script Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell scripts to extract sensitive data from the organization's network.",
+    "created_by": "identity--abc12345-6789-def0-1111-222233344455",
+    "created": "2023-10-11T10:00:00Z",
+    "modified": "2023-10-11T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--00112233-4455-6677-8899-aabbccddeeff",
+    "workflow": {
+        "start--00112233-4455-6677-8899-aabbccddeeff": {
+            "on_completion": "action--d89d3536-6e4f-4f1b-af88-70ce65b89c58",
+            "type": "start"
+        },
+        "action--d89d3536-6e4f-4f1b-af88-70ce65b89c58": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate all running PowerShell processes to stop potential malicious activity.",
+            "on_completion": "action--7b5e5566-5c49-4698-b241-e741fc00ce77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7b5e5566-5c49-4698-b241-e741fc00ce77": {
+            "name": "Isolate affected host from the network",
+            "description": "Take the affected host offline to prevent further data exfiltration.",
+            "on_completion": "action--2b68e6ce-b690-4baa-bcef-c4de5a7d78bf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-01 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--9a1cd804-3b53-41cd-baaf-61945d15977b": {
+            "name": "Run malware scan until no threats found",
+            "description": "Iterate the malware scan until no threats are detected.",
+            "condition": "threats_found == true",
+            "on_true": "action--9a1cd804-3b53-41cd-baaf-61945d15977b",
+            "on_completion": "action--c8882e37-b3a7-4fbb-9c0a-8de83233cbf0",
+            "type": "while-condition"
+        },
+        "action--9a1cd804-3b53-41cd-baaf-61945d15977b": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive scan of the system to identify potential threats.",
+            "on_completion": "while-condition--9a1cd804-3b53-41cd-baaf-61945d15977b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any threats were found during the scan.",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "action--2b68e6ce-b690-4baa-bcef-c4de5a7d78bf": {
+            "name": "Implement firewall rule to block suspicious IP",
+            "description": "Add a firewall rule to prevent further communication with the identified suspicious IP address.",
+            "on_completion": "action--c8882e37-b3a7-4fbb-9c0a-8de83233cbf0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "malicious_IP_detected": {
+                    "type": "boolean",
+                    "description": "Flag indicating whether a malicious IP was detected.",
+                    "value": "true",
+                    "constant": false,
+                    "condition": "if detected malicious IP"
+                }
+            }
+        },
+        "action--c8882e37-b3a7-4fbb-9c0a-8de83233cbf0": {
+            "name": "Notify incident response team",
+            "description": "Send an alert to the incident response team regarding the incident.",
+            "on_completion": "end--faaab1b2-caa1-4a35-bb93-3748e2fafe1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-01' | mail -s 'Urgent: Security Incident' ir-team@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--faaab1b2-caa1-4a35-bb93-3748e2fafe1d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

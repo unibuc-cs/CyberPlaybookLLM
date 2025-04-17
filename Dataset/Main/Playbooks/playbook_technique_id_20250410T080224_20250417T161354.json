@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8496609-c3a1-4b07-b763-be43f20b8c14",
+    "name": "Playbook for Mitigating Phishing Attack and Command Execution",
+    "description": "This playbook outlines steps to mitigate an incident of phishing that led to unauthorized execution of a PowerShell script and possible compromise of a host.",
+    "created_by": "identity--abc12345-fc74-4080-b0c4-51cb1c3c3051",
+    "created": "2023-10-20T15:00:00Z",
+    "modified": "2023-10-20T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--c535d0a5-89b9-4e4b-a67b-9205b892b0bd",
+    "workflow": {
+        "start--c535d0a5-89b9-4e4b-a67b-9205b892b0bd": {
+            "on_completion": "action--d3b7890c-7c7a-4e6f-8b0a-6513a2b37e0e",
+            "type": "start"
+        },
+        "action--d3b7890c-7c7a-4e6f-8b0a-6513a2b37e0e": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the running PowerShell script process.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "if-condition--2d85da19-7b23-450c-8b36-0ab663b03525"
+        },
+        "if-condition--2d85da19-7b23-450c-8b36-0ab663b03525": {
+            "name": "Check for persistent malware",
+            "type": "if-condition",
+            "condition": "malware_persistent == true",
+            "on_true": "action--f604fea1-25ad-42e1-a2e0-2d8b7fb7040c",
+            "on_false": "action--c269e716-ae6d-41e4-b0e8-7c5e4350d89f"
+        },
+        "action--f604fea1-25ad-42e1-a2e0-2d8b7fb7040c": {
+            "name": "Isolate the affected host",
+            "description": "Disconnect the host from the network to prevent further exploitation.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh interface set interface \"Ethernet\" admin=disable"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--c269e716-ae6d-41e4-b0e8-7c5e4350d89f"
+        },
+        "action--c269e716-ae6d-41e4-b0e8-7c5e4350d89f": {
+            "name": "Scan the system for additional malware",
+            "description": "Perform a complete scan for any additional malware that may be present on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "while-condition--23bcb54d-d2f7-4da8-bb79-ae3ac54cb63e"
+        },
+        "while-condition--23bcb54d-d2f7-4da8-bb79-ae3ac54cb63e": {
+            "name": "Check scan results",
+            "description": "Continue scanning the system until no malware is detected.",
+            "type": "while-condition",
+            "condition": "malware_detected == true",
+            "on_true": "action--c269e716-ae6d-41e4-b0e8-7c5e4350d89f",
+            "on_false": "action--b621a818-8c22-41ea-8c57-9b22e7386c6d"
+        },
+        "action--b621a818-8c22-41ea-8c57-9b22e7386c6d": {
+            "name": "Patch all outdated software",
+            "description": "Ensure that the system is updated with the latest security patches.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-WindowsUpdate -Install"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--e47f8cfb-f527-46d3-a7b0-7e725833b7f3"
+        },
+        "action--e47f8cfb-f527-46d3-a7b0-7e725833b7f3": {
+            "name": "Reset all user credentials",
+            "description": "Reset user credentials on affected systems to prevent unauthorized access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-ResetUserCredentials -Users $users_list"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--0bb7d8e1-35c1-4926-b9c6-abd7cc9073dd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_persistent": {
+            "type": "boolean",
+            "description": "Whether malware has established persistence.",
+            "value": true,
+            "constant": false
+        },
+        "users_list": {
+            "type": "string",
+            "description": "List of compromised users requiring credential resets.",
+            "value": "compromised_users",
+            "constant": false
+        },
+        "malware_detected": {
+            "type": "boolean",
+            "description": "Indicates if malware has been detected during the scan.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

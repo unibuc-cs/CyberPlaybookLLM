@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b337aae3-45a4-4a56-b630-42fb5d996148",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to deliver a malicious payload.",
+    "created_by": "identity--8e38ffde-376b-4f3e-914b-3f402ef4f7a3",
+    "created": "2023-10-18T14:00:00Z",
+    "modified": "2023-10-18T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e0edc553-bc50-4bcc-bc63-26d204c5d63d",
+    "workflow": {
+        "start--e0edc553-bc50-4bcc-bc63-26d204c5d63d": {
+            "on_completion": "parallel--3bdcea2f-0478-4e58-9b28-eb63fe8d4325",
+            "type": "start"
+        },
+        "parallel--3bdcea2f-0478-4e58-9b28-eb63fe8d4325": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--975f32e6-f8ff-4189-a6d8-b78160f06c80",
+                "action--d36e76a7-8f9c-4c30-905c-d8a692cb4b8c",
+                "action--b74317ca-6727-4655-8b5e-5df2cb17a6ed"
+            ]
+        },
+        "if-condition--975f32e6-f8ff-4189-a6d8-b78160f06c80": {
+            "name": "Terminate Malicious PowerShell Processes",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--e13bf876-46f7-4e71-93d6-c6b4509b01ed",
+            "on_false": "while-condition--2e572b8a-47bd-4bbf-ba9b-782fd4453c2c"
+        },
+        "action--e13bf876-46f7-4e71-93d6-c6b4509b01ed": {
+            "name": "Stop PowerShell Scripts",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "on_completion": "while-condition--2e572b8a-47bd-4bbf-ba9b-782fd4453c2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--2e572b8a-47bd-4bbf-ba9b-782fd4453c2c": {
+            "name": "Scan and Remove Payloads",
+            "description": "Scan and remove downloaded malicious payloads.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--d279d27d-5edb-4e38-bec8-172a4f18f799"
+        },
+        "action--d279d27d-5edb-4e38-bec8-172a4f18f799": {
+            "name": "Scan for Malicious Payloads",
+            "description": "Execute a clamscan to find and remove malicious payloads.",
+            "on_completion": "end--935d45f8-7d64-4af1-a6e0-2e10b6d3289b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /suspected_path"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d36e76a7-8f9c-4c30-905c-d8a692cb4b8c": {
+            "name": "Block Outgoing Connections",
+            "description": "Block outgoing connections to known malicious IPs.",
+            "on_completion": "end--935d45f8-7d64-4af1-a6e0-2e10b6d3289b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b74317ca-6727-4655-8b5e-5df2cb17a6ed": {
+            "name": "Revert Account Changes",
+            "description": "Revert any actions made by the compromised account.",
+            "on_completion": "action--a7cb5e03-0f0e-4f33-95da-c4b8988f8f44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -RFv /home/compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a7cb5e03-0f0e-4f33-95da-c4b8988f8f44": {
+            "name": "Update Firewall Rules",
+            "description": "Update firewall rules to restrict unauthorized activity.",
+            "on_completion": "end--935d45f8-7d64-4af1-a6e0-2e10b6d3289b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--935d45f8-7d64-4af1-a6e0-2e10b6d3289b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZOrganization"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ABCOrganization"
+        }
+    }
+}

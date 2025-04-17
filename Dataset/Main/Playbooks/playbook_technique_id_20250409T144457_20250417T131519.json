@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7666a72-01b1-470d-b831-dc283c23224e",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through the command line, downloading payloads and attempting privilege escalation.",
+    "created_by": "identity--abc12345-abc1-abc1-abc1-abc123456789",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1d617bb-c53d-42c5-98a0-151ad5b98ad2",
+    "workflow": {
+        "start--b1d617bb-c53d-42c5-98a0-151ad5b98ad2": {
+            "on_completion": "action--b1d9cd39-1235-4b45-b37d-10abcd123456",
+            "type": "start"
+        },
+        "action--b1d9cd39-1235-4b45-b37d-10abcd123456": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--d5553e77-6c23-4c5d-a0af-fbc81859f026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d5553e77-6c23-4c5d-a0af-fbc81859f026": {
+            "name": "Check if payload exists",
+            "type": "if-condition",
+            "condition": "test -e /tmp/suspicious_payload",
+            "on_true": "action--d7ee8dcd-61da-456d-83ab-145bcb5edf3d",
+            "on_false": "loop--e0e46ca7-db8e-47d7-b18c-0e36056b72a1"
+        },
+        "action--d7ee8dcd-61da-456d-83ab-145bcb5edf3d": {
+            "name": "Delete downloaded payload",
+            "description": "Remove the malicious payload from the system.",
+            "on_completion": "loop--e0e46ca7-db8e-47d7-b18c-0e36056b72a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e0e46ca7-db8e-47d7-b18c-0e36056b72a1": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to detect any remaining threats. Loop until the system is clean.",
+            "on_completion": "end--d6baa176-8e65-4c2a-b0e5-a6ee206c6c27",
+            "type": "loop",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e0e46ca7-db8e-47d7-b18c-0e36056b72a1",
+            "on_false": "end--d6baa176-8e65-4c2a-b0e5-a6ee206c6c27"
+        },
+        "action--e0e46ca7-db8e-47d7-b18c-0e36056b72a1": {
+            "name": "Execute system scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove=yes --recursive /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan indicating if the system is clean.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--d6baa176-8e65-4c2a-b0e5-a6ee206c6c27": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

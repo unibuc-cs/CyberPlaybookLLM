@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7d36b5e3-bf45-4a43-9180-f6e9039520f8",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user exploited a remote script interpreter to execute commands and gain access to sensitive data.",
+    "created_by": "identity--87a092ef-e17d-4ff9-8921-9b7b5fcf6ded",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--19c84e03-bdfa-4a02-b1d8-d44bfe8e8c3f",
+    "workflow": {
+        "start--19c84e03-bdfa-4a02-b1d8-d44bfe8e8c3f": {
+            "on_completion": "action--e4bdec9c-f9a4-4be9-8f3f-6f0178cfe5b4",
+            "type": "start"
+        },
+        "action--e4bdec9c-f9a4-4be9-8f3f-6f0178cfe5b4": {
+            "name": "Terminate unauthorized process",
+            "description": "Terminate any unauthorized processes that may still be running.",
+            "on_completion": "if-condition--7c45b13c-9f88-4cee-aa50-fe1c519c16bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--7c45b13c-9f88-4cee-aa50-fe1c519c16bc": {
+            "name": "Check for running unauthorized process",
+            "type": "if-condition",
+            "condition": "unauthorized_process_running == true",
+            "on_true": "action--0bebdbe3-e5b0-4a96-a0d5-060bde06eaaa",
+            "on_false": "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9"
+        },
+        "action--0bebdbe3-e5b0-4a96-a0d5-060bde06eaaa": {
+            "name": "Quarantine affected host",
+            "description": "Block any incoming traffic from the affected host.",
+            "on_completion": "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9": {
+            "name": "Scan host for rootkits",
+            "description": "Scan the host for rootkits until the system is clean.",
+            "on_completion": "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": "until system_status == clean",
+            "step_variables": {
+                "system_status": {
+                    "type": "string",
+                    "description": "The current status of the system after the scan",
+                    "value": "initial_scan_status",
+                    "constant": false
+                }
+            }
+        },
+        "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b": {
+            "name": "Update system access controls",
+            "description": "Update access controls on sensitive data to prevent unauthorized access.",
+            "on_completion": "parallel--daf64e87-bb37-4e7d-aa69-83ac5aafbe77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /restricted/data"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if attack_logs contains Data Access Attempt"
+        },
+        "parallel--daf64e87-bb37-4e7d-aa69-83ac5aafbe77": {
+            "name": "Apply firewall rules and additional mitigations",
+            "description": "Parallel execution of firewall rules update and additional security measures.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d",
+                "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b"
+            ]
+        },
+        "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d": {
+            "name": "Review and apply strict firewall rules",
+            "description": "Implement strict firewall rules to tighten security.",
+            "on_completion": "end--b3e049d6-9340-4c69-a204-5146f9670d00",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_firewall_rules.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b3e049d6-9340-4c69-a204-5146f9670d00": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--841a6429-cf95-4504-86b4-09bd5f09ac71",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to exfiltrate sensitive data using disguised HTTPS traffic.",
+    "created_by": "identity--fcedd10f-78a0-499c-9120-cad5d80026b7",
+    "created": "2023-10-15T14:32:21Z",
+    "modified": "2023-10-15T14:32:21Z",
+    "revoked": false,
+    "workflow_start": "start--a237d22b-ce08-4e39-88f7-ebf5a52ecea1",
+    "workflow": {
+        "start--a237d22b-ce08-4e39-88f7-ebf5a52ecea1": {
+            "on_completion": "parallel--17d5e403-54ff-4b9c-8726-e75f09c3c6d0",
+            "type": "start"
+        },
+        "parallel--17d5e403-54ff-4b9c-8726-e75f09c3c6d0": {
+            "name": "Mitigate and Analyze Threat",
+            "description": "Handle the incident by blocking suspicious activities and analyzing logs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c5e4c75d-5c56-4ab5-8b35-3a1c67f77e56",
+                "action--efb837fd-1b67-47a5-b29c-3fe943e0aa4e",
+                "action--b0c22f9d-a433-4b4b-9c6c-acb317f39ef3",
+                "decision--ab11c8e6-51d7-4851-92cf-7f5c9fc4f50f"
+            ]
+        },
+        "action--c5e4c75d-5c56-4ab5-8b35-3a1c67f77e56": {
+            "name": "Analyze outbound traffic logs",
+            "description": "Analyze network logs for suspicious outbound connections.",
+            "on_completion": "decision--ab11c8e6-51d7-4851-92cf-7f5c9fc4f50f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep '192.0.2.0' /var/log/network.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--efb837fd-1b67-47a5-b29c-3fe943e0aa4e": {
+            "name": "Block suspicious IP",
+            "description": "Block traffic to the suspicious IP address.",
+            "on_completion": "decision--ab11c8e6-51d7-4851-92cf-7f5c9fc4f50f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b0c22f9d-a433-4b4b-9c6c-acb317f39ef3": {
+            "name": "Review application security configuration",
+            "description": "Audit current application security settings.",
+            "on_completion": "decision--ab11c8e6-51d7-4851-92cf-7f5c9fc4f50f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -l"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--ab11c8e6-51d7-4851-92cf-7f5c9fc4f50f": {
+            "name": "Check for Malicious Processes",
+            "type": "if-condition",
+            "condition": "pgrep -f malicious_app.py",
+            "on_true": "action--abeb107d-4a80-4775-ad26-d969bc003bc7",
+            "on_false": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9"
+        },
+        "action--abeb107d-4a80-4775-ad26-d969bc003bc7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious application process if it is running.",
+            "on_completion": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_app.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9": {
+            "name": "Initiate full system scan",
+            "description": "Perform a comprehensive scan of the system for threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -l /var/log/clamav/scan.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--4a87a9bb-3d12-44c0-bb85-97ba1f7dc291"
+        },
+        "while-condition--4a87a9bb-3d12-44c0-bb85-97ba1f7dc291": {
+            "name": "Threat Scan Loop",
+            "description": "Repeat scans until no additional threats are found.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9",
+            "on_false": "end--f4b8df3e-dc8c-421f-8d5a-bbc8f5769b30"
+        },
+        "end--f4b8df3e-dc8c-421f-8d5a-bbc8f5769b30": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    },
+    "step_variables": {
+        "threats_found": {
+            "type": "boolean",
+            "description": "Indicates if any threats were found during the scan.",
+            "value": "true",
+            "constant": false
+        }
+    }
+}

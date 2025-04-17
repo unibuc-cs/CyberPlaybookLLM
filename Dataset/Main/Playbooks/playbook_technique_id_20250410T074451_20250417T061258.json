@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f31aebc7-ef5a-49e3-af80-2ec67ef2d642",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution",
+    "description": "This playbook addresses the incident where an attacker exploited a PowerShell script for persistence after gaining network access via phishing.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1fe70c20-1b7b-4b7a-b1d4-b36ef5308492",
+    "workflow": {
+        "start--1fe70c20-1b7b-4b7a-b1d4-b36ef5308492": {
+            "on_completion": "action--9b2a567b-df13-45e6-a234-89417fe3b7da",
+            "type": "start"
+        },
+        "action--9b2a567b-df13-45e6-a234-89417fe3b7da": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that were executed.",
+            "on_completion": "action--7e3c4a65-c812-49f9-bc91-def2a759f99f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7e3c4a65-c812-49f9-bc91-def2a759f99f": {
+            "name": "Isolate compromised host from the network",
+            "description": "Disconnect the compromised host from the network to prevent further data exfiltration.",
+            "on_completion": "action--5c8e9a21-d216-4e14-8746-02d234a79e33",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev disconnect wlp3s0"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5c8e9a21-d216-4e14-8746-02d234a79e33": {
+            "name": "Scan and remove downloaded payloads",
+            "description": "Scan the system for any downloaded payloads and remove them if found.",
+            "on_completion": "action--37e29d8c-1dd2-4c93-ace5-8f7e9e1430fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--37e29d8c-1dd2-4c93-ace5-8f7e9e1430fa": {
+            "name": "Delete newly created malicious service",
+            "description": "Disable and stop any malicious services that were created.",
+            "on_completion": "action--4f2a7d1b-2345-49c8-bb99-a7d7a9e47fd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl disable --now malicious.service"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4f2a7d1b-2345-49c8-bb99-a7d7a9e47fd1": {
+            "name": "Verify all known scripts are legitimate",
+            "description": "Cross-reference scripts with a whitelist of legitimate scripts.",
+            "on_completion": "if-condition--b4f2a7d1-2345-49c8-bb99-a7d7a9e47fd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec sha256sum {} +"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--b4f2a7d1-2345-49c8-bb99-a7d7a9e47fd1": {
+            "type": "if-condition",
+            "name": "Check legitimacy of scripts",
+            "condition": "are scripts legitimate",
+            "on_true": "action--ae64b237-71da-4d2d-bbb2-ad012ef26c95",
+            "on_false": "end--5c7ca79c-e286-43dd-bcc7-a08f8c94662c"
+        },
+        "action--ae64b237-71da-4d2d-bbb2-ad012ef26c95": {
+            "name": "Restore network connectivity post-remediation",
+            "description": "Reconnect the isolated host to the network if all scans are clean.",
+            "on_completion": "end--5c7ca79c-e286-43dd-bcc7-a08f8c94662c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev connect wlp3s0"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--5c7ca79c-e286-43dd-bcc7-a08f8c94662c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

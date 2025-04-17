@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6fdc6b3-8d4c-4fb0-ab56-8db9e53cd5d1",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, leading to the execution of arbitrary commands and installation of a backdoor.",
+    "created_by": "identity--f19f6263-a838-4e53-985d-f4cdeac9c3f7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c1de09a1-04cc-45c2-85ee-f3f6c5ede263",
+    "workflow": {
+        "start--c1de09a1-04cc-45c2-85ee-f3f6c5ede263": {
+            "on_completion": "action--a1a6b3c2-2983-4cb5-bc60-222c0c321b5c",
+            "type": "start"
+        },
+        "action--a1a6b3c2-2983-4cb5-bc60-222c0c321b5c": {
+            "name": "Kill malicious process",
+            "description": "Terminate the backdoor process to prevent further actions.",
+            "on_completion": "if-condition--b7e16c85-3db5-4dfb-a824-8658380f51aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--b7e16c85-3db5-4dfb-a824-8658380f51aa": {
+            "name": "Check if process killed",
+            "type": "if-condition",
+            "condition": "process_killed == true",
+            "on_true": "action--b1b7e3e5-c7ac-48b2-8794-537cf488986e",
+            "on_false": "end--d5e1e3de-9c9f-4006-bd1f-ef9fecf1f7e1",
+            "step_variables": {
+                "process_killed": {
+                    "type": "boolean",
+                    "description": "Indicates whether the backdoor process has been killed.",
+                    "value": true,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--b1b7e3e5-c7ac-48b2-8794-537cf488986e": {
+            "name": "Remove the backdoor script",
+            "description": "Remove the backdoor script from the server.",
+            "on_completion": "while-condition--c2c810ab-b3e3-4b4c-a6a6-df8f029b4e6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--c2c810ab-b3e3-4b4c-a6a6-df8f029b4e6f": {
+            "name": "Scan the server for additional threats",
+            "description": "Keep scanning until the server is confirmed clean.",
+            "on_completion": "end--d5e1e3de-9c9f-4006-bd1f-ef9fecf1f7e1",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c2c810ab-b3e3-4b4c-a6a6-df8f029b4e6f",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan result.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--c2c810ab-b3e3-4b4c-a6a6-df8f029b4e6f": {
+            "name": "Run security scan",
+            "description": "Perform a deep scan on the server for additional threats.",
+            "on_completion": "if-condition--b14e2d1e-d890-4fdd-89ae-7bde35fd80fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--b14e2d1e-d890-4fdd-89ae-7bde35fd80fb": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results_clean == true",
+            "on_true": "end--d5e1e3de-9c9f-4006-bd1f-ef9fecf1f7e1",
+            "on_false": "while-condition--c2c810ab-b3e3-4b4c-a6a6-df8f029b4e6f",
+            "step_variables": {
+                "scan_results_clean": {
+                    "type": "boolean",
+                    "description": "Indicates whether the scan results show a clean system.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--d5e1e3de-9c9f-4006-bd1f-ef9fecf1f7e1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

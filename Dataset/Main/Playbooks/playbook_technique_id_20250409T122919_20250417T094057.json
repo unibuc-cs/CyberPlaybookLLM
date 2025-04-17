@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5ab6c8c8-2984-4b20-93f5-2b9e3a60c1ee",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents where attackers execute scripts to gather sensitive information after gaining unauthorized access.",
+    "created_by": "identity--1960c38f-23b8-4d87-9784-de11611d4065",
+    "created": "2023-10-06T08:00:00.000Z",
+    "modified": "2023-10-06T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d7a6eabe-5c03-4042-98f7-d0d93b4b0571",
+    "workflow": {
+        "start--d7a6eabe-5c03-4042-98f7-d0d93b4b0571": {
+            "on_completion": "action--fc432c67-2eee-4580-8ee8-d0368f842214",
+            "type": "start"
+        },
+        "action--fc432c67-2eee-4580-8ee8-d0368f842214": {
+            "name": "Identify and block outbound connections to the malicious IP",
+            "description": "Block any outgoing connections to the identified malicious IP address.",
+            "on_completion": "if-condition--bcd132b5-4c61-4720-bbab-bf816b9941c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--bcd132b5-4c61-4720-bbab-bf816b9941c3": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "$(pgrep PowerShell) != ''",
+            "on_true": "action--bcd132b5-4c61-4720-bbab-bf816b9941c3",
+            "on_false": "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4"
+        },
+        "action--bcd132b5-4c61-4720-bbab-bf816b9941c3": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process used to execute the malicious scripts.",
+            "on_completion": "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4": {
+            "name": "Remove dropped script files",
+            "description": "Repeat the removal of malicious script files until none are found.",
+            "condition": "$(ls /home/user/scripts/malicious_script.ps1) != ''",
+            "on_true": "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "next_steps": "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4"
+        },
+        "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4": {
+            "name": "Remove dropped script file",
+            "on_completion": "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /home/user/scripts/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--cd5e3409-82cd-41d0-868a-bc8e36c5f911": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ac57d132-294f-4d48-b332-9260e0c90e80",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious actor exploited a vulnerability in the web server, executing scripting commands to siphon data and installing malware.",
+    "created_by": "identity--abc12345-6789-9876-5432-1abcdef12345",
+    "created": "2023-10-01T14:30:00Z",
+    "modified": "2023-10-01T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1f23455-e3f1-42c1-acfd-5d9a1e9b23f4",
+    "workflow": {
+        "start--d1f23455-e3f1-42c1-acfd-5d9a1e9b23f4": {
+            "on_completion": "action--d4b57a85-5d3a-4b1f-8f6b-1d9dc091e073",
+            "type": "start"
+        },
+        "action--d4b57a85-5d3a-4b1f-8f6b-1d9dc091e073": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes identified as malicious.",
+            "on_completion": "action--c2f987aa-daa3-4e42-b92b-0c253c8975bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(ps aux | grep malicious_process | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c2f987aa-daa3-4e42-b92b-0c253c8975bc": {
+            "name": "Remove dropped file",
+            "description": "Delete the malicious script dropped on the system.",
+            "on_completion": "while-condition--f2ee2e21-b9b0-412a-94a8-b8ff84158743",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /tmp/malicious_script.sh ]; then rm -f /tmp/malicious_script.sh; fi"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "file_path": {
+                    "type": "string",
+                    "description": "Path of the malicious file to be removed",
+                    "value": "/tmp/malicious_script.sh",
+                    "constant": true
+                }
+            }
+        },
+        "while-condition--f2ee2e21-b9b0-412a-94a8-b8ff84158743": {
+            "name": "Run antivirus scan",
+            "description": "Perform a scan of the system until a clean status is achieved.",
+            "on_true": "action--f2ee2e21-b9b0-412a-94a8-b8ff84158743",
+            "type": "while-condition",
+            "condition": "antivirus_scan_status != clean",
+            "next_steps": [
+                "action--f2ee2e21-b9b0-412a-94a8-b8ff84158743"
+            ]
+        },
+        "action--f2ee2e21-b9b0-412a-94a8-b8ff84158743": {
+            "name": "Execute antivirus scan",
+            "description": "Initiate the antivirus scan to check for malware.",
+            "on_completion": "while-condition--f2ee2e21-b9b0-412a-94a8-b8ff84158743",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan / -r"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d4cbb8a6-5f36-41bb-8c37-30ae1cb1c125": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e89f74a1-fb14-4db9-86d5-206c03cb6384",
+    "name": "Mitigation Playbook for PowerShell Unauthorized Access Incident",
+    "description": "This playbook mitigates an incident where an attacker used PowerShell scripts to exfiltrate sensitive data.",
+    "created_by": "identity--cd87e97b-12e6-46b8-8fcf-db648c89b078",
+    "created": "2025-04-10T10:15:00.000Z",
+    "modified": "2025-04-10T10:20:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d1f69ba4-4d85-4b71-89be-b880e20bde52",
+    "workflow": {
+        "start--d1f69ba4-4d85-4b71-89be-b880e20bde52": {
+            "on_completion": "if-condition--e1a12bd7-c634-41c0-bc98-e706e20e1f62",
+            "type": "start"
+        },
+        "if-condition--e1a12bd7-c634-41c0-bc98-e706e20e1f62": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "ps -ef | grep 'powershell.exe' | grep -v grep | wc -l > 0",
+            "on_true": "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56",
+            "on_false": "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7"
+        },
+        "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be used by the attacker.",
+            "on_completion": "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7": {
+            "name": "Block external IP address",
+            "description": "Block the external IP address from which data was exfiltrated.",
+            "on_completion": "while-condition--b012e682-db71-41c9-9b8c-f0bc93cbd013",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <external-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--b012e682-db71-41c9-9b8c-f0bc93cbd013": {
+            "name": "Scan system for malware repeatedly",
+            "description": "Continuously scan the system until it is free of malware.",
+            "on_completion": "end--80a14cbe-86fb-4401-be67-783c517496a4",
+            "type": "while-condition",
+            "condition": "grep -q 'Infected' scan_results.txt",
+            "on_true": "action--b012e682-db71-41c9-9b8c-f0bc93cbd013",
+            "on_false": "end--80a14cbe-86fb-4401-be67-783c517496a4",
+            "next_steps": [
+                "action--b012e682-db71-41c9-9b8c-f0bc93cbd013"
+            ]
+        },
+        "action--b012e682-db71-41c9-9b8c-f0bc93cbd013": {
+            "name": "Scan system for malware",
+            "description": "Perform a full scan of the system for malware.",
+            "on_completion": "while-condition--b012e682-db71-41c9-9b8c-f0bc93cbd013",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav-scan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--80a14cbe-86fb-4401-be67-783c517496a4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

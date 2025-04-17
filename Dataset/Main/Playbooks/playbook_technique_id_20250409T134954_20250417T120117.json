@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6a1d19e-489c-4e6b-9c10-ebe3f7d09797",
+    "name": "Playbook for Application Layer Protocol Exfiltration Incident",
+    "description": "This playbook handles incidents involving exploitation of application layer protocols for exfiltrating sensitive data.",
+    "created_by": "identity--79188afe-1c1c-4c44-8144-3d385e579cd7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d744dbed-5e7e-4f67-8aef-5de0fb863329",
+    "workflow": {
+        "start--d744dbed-5e7e-4f67-8aef-5de0fb863329": {
+            "on_completion": "action--a7020edc-30c8-44b4-a8a2-85f56e3bc4b9",
+            "type": "start"
+        },
+        "action--a7020edc-30c8-44b4-a8a2-85f56e3bc4b9": {
+            "name": "Monitor outgoing traffic for abnormal patterns",
+            "description": "Monitor network traffic to detect any abnormal data patterns possibly indicating exfiltration attempts.",
+            "on_completion": "while-condition--3ac066c1-8712-42a3-b277-a06ba3ca26c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -s 0 -A 'tcp port 443'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--3ac066c1-8712-42a3-b277-a06ba3ca26c1": {
+            "name": "Traffic Monitoring Loop",
+            "description": "Repeat monitoring every 10 minutes.",
+            "on_completion": "if-condition--0e1cf80f-dbed-473c-b59f-82a273f597c5",
+            "type": "while-condition",
+            "condition": "data_exceeds_normal_thresholds",
+            "on_true": "action--a7020edc-30c8-44b4-a8a2-85f56e3bc4b9",
+            "on_false": "action--8b01f57a-5a9c-4d9f-93a2-12b32d50fc27"
+        },
+        "if-condition--0e1cf80f-dbed-473c-b59f-82a273f597c5": {
+            "name": "Evaluate Traffic Against Threat Intelligence",
+            "type": "if-condition",
+            "condition": "connection_matches_threat_intelligence",
+            "on_true": "action--c00b2633-fb25-487e-8581-d9dac7e4500b",
+            "on_false": "action--8b01f57a-5a9c-4d9f-93a2-12b32d50fc27"
+        },
+        "action--c00b2633-fb25-487e-8581-d9dac7e4500b": {
+            "name": "Block outbound connections to known malicious IPs",
+            "description": "Block all outbound connections that match known malicious IPs based on threat intelligence.",
+            "on_completion": "action--8b01f57a-5a9c-4d9f-93a2-12b32d50fc27",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8b01f57a-5a9c-4d9f-93a2-12b32d50fc27": {
+            "name": "Run full system scan to identify malicious software",
+            "description": "Run a full system scan to identify any potential malware that could have been deployed.",
+            "on_completion": "end--13c3f755-c40e-4137-b814-bf53b461d9e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav --full-scan /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_finished": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan has completed.",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "end--13c3f755-c40e-4137-b814-bf53b461d9e1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

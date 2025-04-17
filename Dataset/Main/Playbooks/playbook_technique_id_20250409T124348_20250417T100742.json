@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bc00b220-ed2d-41f3-bc5f-0c8c8d297860",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses incidents where a PowerShell script was executed that executed further malicious payloads.",
+    "created_by": "identity--f8a9b3e3-32a0-4d78-8d08-cf7332aa1508",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:12:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--3eee9ab0-59fc-4b4a-8da3-0db4fc1d7fca",
+    "workflow": {
+        "start--3eee9ab0-59fc-4b4a-8da3-0db4fc1d7fca": {
+            "on_completion": "parallel--c0d39a83-9a34-428e-bf3e-51e8d1ed396d",
+            "type": "start"
+        },
+        "parallel--c0d39a83-9a34-428e-bf3e-51e8d1ed396d": {
+            "name": "Execute Mitigations",
+            "description": "Run multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cdd9ba52-f741-4f07-8b3e-9fbc891bfedd",
+                "action--7f020b78-f831-4f05-bb91-ab149c8a7fb6",
+                "action--69c5a64c-0cf4-4f54-a259-1cb1c1cffd8f"
+            ]
+        },
+        "action--cdd9ba52-f741-4f07-8b3e-9fbc891bfedd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the backdoor process that was executed.",
+            "on_completion": "action--69c5a64c-0cf4-4f54-a259-1cb1c1cffd8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7f020b78-f831-4f05-bb91-ab149c8a7fb6": {
+            "name": "Remove downloaded files",
+            "description": "Delete any malicious payloads downloaded to the system.",
+            "on_completion": "action--69c5a64c-0cf4-4f54-a259-1cb1c1cffd8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload*"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--69c5a64c-0cf4-4f54-a259-1cb1c1cffd8f": {
+            "name": "Run antivirus scan",
+            "description": "Perform a full system scan to ensure no other threats remain.",
+            "type": "action",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the antivirus scan",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "if-condition--bca91d6b-23be-4d8b-9911-837a25b63dc5"
+        },
+        "if-condition--bca91d6b-23be-4d8b-9911-837a25b63dc5": {
+            "name": "Check antivirus scan result",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--1f4d8e8c-0c0e-4e7f-97c5-fe8b74f657a5",
+            "on_false": "action--69c5a64c-0cf4-4f54-a259-1cb1c1cffd8f"
+        },
+        "end--1f4d8e8c-0c0e-4e7f-97c5-fe8b74f657a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

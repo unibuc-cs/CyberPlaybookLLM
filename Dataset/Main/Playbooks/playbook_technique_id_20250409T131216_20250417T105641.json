@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--13f0b100-f4c6-4b1e-baf0-6e16b7bf1bdd",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts through phishing. The playbook mitigates the threat by killing the malicious process, deleting the dropped malware, and disabling network access.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c3d2e0cf-225c-4675-9c8e-d5d56d8e1f93",
+    "workflow": {
+        "start--c3d2e0cf-225c-4675-9c8e-d5d56d8e1f93": {
+            "on_completion": "parallel--3gi3a045-574f-4871-8523-b21fbf39cbe1",
+            "type": "start"
+        },
+        "parallel--3gi3a045-574f-4871-8523-b21fbf39cbe1": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d22fceaf-5e2b-4a4d-974f-116631583fe4",
+                "action--f736bd6e-d69c-4b03-adfb-e260cbe502eb",
+                "action--1df1b6f0-043f-4a9b-9624-a928f8c297de"
+            ]
+        },
+        "action--d22fceaf-5e2b-4a4d-974f-116631583fe4": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes associated with the attack.",
+            "on_completion": "end--14e6f3d5-b241-4ba8-b4cc-7250fcde541b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f736bd6e-d69c-4b03-adfb-e260cbe502eb": {
+            "name": "Delete dropped malware file",
+            "description": "Remove the malware file from the system.",
+            "on_completion": "action--1df1b6f0-043f-4a9b-9624-a928f8c297de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware.exe"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_conditions": {
+                "if": {
+                    "command": "if [ -f /tmp/malware.exe ]; then",
+                    "then": "loop--1d2e361d-7bbd-4a0c-9496-dc5ad8f9188b"
+                }
+            }
+        },
+        "loop--1d2e361d-7bbd-4a0c-9496-dc5ad8f9188b": {
+            "name": "Loop until malware file is deleted",
+            "description": "Continue deleting the malware file until it is removed.",
+            "on_completion": "action--1df1b6f0-043f-4a9b-9624-a928f8c297de",
+            "type": "loop",
+            "condition": "until [ $(ls | grep -c malware.exe) -eq 0 ]; do rm /tmp/malware.exe; done"
+        },
+        "action--1df1b6f0-043f-4a9b-9624-a928f8c297de": {
+            "name": "Disable network access for compromised host",
+            "description": "Block network access for the compromised host to prevent further communication.",
+            "on_completion": "end--14e6f3d5-b241-4ba8-b4cc-7250fcde541b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-IP> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--14e6f3d5-b241-4ba8-b4cc-7250fcde541b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

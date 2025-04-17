@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7b8f273-8ef4-4736-8a7b-d62330e4059e",
+    "name": "Incident Response Playbook for SSH Key Compromise and Malicious Script Execution",
+    "description": "This playbook outlines the response actions to take after the detection of unauthorized SSH access and subsequent malicious script execution to protect sensitive information.",
+    "created_by": "identity--c13b2550-abb0-4b0a-b7aa-a08a974b5a1b",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1d5f3b8-bd7b-4f37-981b-19e7ace5a5f9",
+    "workflow": {
+        "start--f1d5f3b8-bd7b-4f37-981b-19e7ace5a5f9": {
+            "on_completion": "action--b0f7d6c4-09b4-4f02-85db-eee8b5e7a092",
+            "type": "start"
+        },
+        "action--b0f7d6c4-09b4-4f02-85db-eee8b5e7a092": {
+            "name": "Terminate PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be malicious.",
+            "on_completion": "if-condition--d3c8f725-7f12-4530-8914-4aeba8edc256",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--d3c8f725-7f12-4530-8914-4aeba8edc256": {
+            "name": "Check if compromised key is found",
+            "type": "if-condition",
+            "condition": "compromised_key_found",
+            "on_true": "action--d3c8f725-7f12-4530-8914-4aeba8edc256",
+            "on_false": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d"
+        },
+        "action--d3c8f725-7f12-4530-8914-4aeba8edc256": {
+            "name": "Revoke compromised SSH keys",
+            "description": "Remove the compromised SSH keys to prevent further unauthorized access.",
+            "on_completion": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh-keygen -R compromised-key"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d": {
+            "name": "Scan for remaining malicious scripts",
+            "description": "Identify and remove any remaining malicious scripts that may be on the server.",
+            "on_completion": "while-condition--a76b090a-f5fb-4c3e-829d-017030dc8442",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec grep 'suspicious-pattern' {} +"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--a76b090a-f5fb-4c3e-829d-017030dc8442": {
+            "name": "Scan for Scripts Loop",
+            "description": "Repeat scanning until no suspicious scripts are found.",
+            "on_completion": "action--e3ae1f68-472e-4fb1-9016-9d2c3f5db1df",
+            "type": "while-condition",
+            "condition": "malicious_scripts_found",
+            "on_true": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d"
+        },
+        "action--e3ae1f68-472e-4fb1-9016-9d2c3f5db1df": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Adjust firewall rules to prevent connections from known malicious IPs.",
+            "on_completion": "action--c0e8e731-1d8b-4e30-9867-783c393b48d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c0e8e731-1d8b-4e30-9867-783c393b48d5": {
+            "name": "Perform system audit and verify integrity",
+            "description": "Conduct an integrity check to identify any other potential issues.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "aide --check"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

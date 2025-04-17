@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b482f0c9-4b08-4a64-8b2a-c5b1b98b3cd4",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates the risks associated with a malicious script that executed on the server, leading to unauthorized data access and exfiltration.",
+    "created_by": "identity--abc12345-6789-0123-4567-89abcdef0123",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--e0103d76-b5d2-45f5-9e7d-8b6a62c3a5bb",
+    "workflow": {
+        "start--e0103d76-b5d2-45f5-9e7d-8b6a62c3a5bb": {
+            "on_completion": "action--b19c3e15-fdaf-4da7-95e2-91b0c8de404e",
+            "type": "start",
+            "name": "Initiate Mitigation Workflow",
+            "description": "Start the incident mitigation process for malicious script execution."
+        },
+        "action--b19c3e15-fdaf-4da7-95e2-91b0c8de404e": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--9d014a7b-0c17-4d87-bd30-152d66e9b763",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9d014a7b-0c17-4d87-bd30-152d66e9b763": {
+            "name": "Isolate affected host from network",
+            "description": "Block the affected host from network access to prevent further data exfiltration.",
+            "on_completion": "loop--c41fa6ee-44f9-452b-9b54-8a445b91c2c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c41fa6ee-44f9-452b-9b54-8a445b91c2c0": {
+            "name": "Conduct malware scan on all hosts",
+            "description": "Perform a malware scan on all hosts and repeat until scans are clean.",
+            "on_completion": "end--f183b480-e39c-4cc8-989f-1663eec263aa",
+            "type": "loop",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--f183b480-e39c-4cc8-989f-1663eec263aa",
+            "on_false": "action--run_scan",
+            "variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan (clean or infected)",
+                    "value": "infected",
+                    "constant": false
+                }
+            }
+        },
+        "action--run_scan": {
+            "name": "Run malware scan",
+            "description": "Initiate a scan to detect malware on hosts.",
+            "on_completion": "loop--c41fa6ee-44f9-452b-9b54-8a445b91c2c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh; scan_result=$(check_scan_result)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f183b480-e39c-4cc8-989f-1663eec263aa": {
+            "type": "end",
+            "name": "Mitigation Complete",
+            "description": "All mitigation actions have been successfully executed."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

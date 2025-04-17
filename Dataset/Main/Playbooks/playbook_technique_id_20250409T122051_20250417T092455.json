@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f292c223-f52a-4b5a-aedb-5cbb266e7ab4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an exploit involving a malicious script execution that initiated data exfiltration.",
+    "created_by": "identity--abc",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--5532b6a1-7ef1-4e94-9b43-e7fa31de3e9b",
+    "workflow": {
+        "start--5532b6a1-7ef1-4e94-9b43-e7fa31de3e9b": {
+            "on_completion": "action--fa9b7d11-a2d5-4698-b1cb-591e9325e1b9",
+            "type": "start"
+        },
+        "action--fa9b7d11-a2d5-4698-b1cb-591e9325e1b9": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script that has been executed.",
+            "on_completion": "if-condition--bd64e3c1-d379-4676-bc14-d75e0b9aac6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--bd64e3c1-d379-4676-bc14-d75e0b9aac6a": {
+            "name": "Check if connection established to suspicious IP",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--bd64e3c1-d379-4676-bc14-d75e0b9aac6a",
+            "on_false": "action--a9f7ecb0-ec02-47e4-91e3-d9a23183f6c3"
+        },
+        "action--bd64e3c1-d379-4676-bc14-d75e0b9aac6a": {
+            "name": "Block external IP",
+            "description": "Block the outbound connection to the suspicious IP.",
+            "on_completion": "action--a9f7ecb0-ec02-47e4-91e3-d9a23183f6c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a9f7ecb0-ec02-47e4-91e3-d9a23183f6c3": {
+            "name": "Quarantine affected files",
+            "description": "Move affected files to a quarantine directory.",
+            "on_completion": "while-condition--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/affected/files /quarantine/"
+                }
+            ],
+            "agent": "organization--abc",
+            "targets": [
+                "individual--host-22"
+            ]
+        },
+        "while-condition--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab": {
+            "name": "Perform system scan loop",
+            "description": "Repeat scanning the system until it's clean.",
+            "on_completion": "action--e8fa420b-6891-45bc-b3ce-24657b7dbd74",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab"
+        },
+        "action--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab": {
+            "name": "Perform system scan for malicious artifacts",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "repeat--while-condition--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e8fa420b-6891-45bc-b3ce-24657b7dbd74": {
+            "name": "Update threat intelligence feeds",
+            "description": "Sync up threat intelligence feeds from an external source.",
+            "on_completion": "end--1234abcd-5678-90ef-abcd-1234567890ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-threat-intel --source external"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--1234abcd-5678-90ef-abcd-1234567890ab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "target_definitions": {
+        "individual--host-22": {
+            "type": "individual",
+            "name": "Host 22"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7ef2e45-cd11-4b68-88e0-d3c9368baff0",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands through a compromised account, leading to data exfiltration and suspicious network activities.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-11T15:00:00Z",
+    "modified": "2023-10-11T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d5b67559-5a84-4f19-a1c8-22394e040800",
+    "workflow": {
+        "start--d5b67559-5a84-4f19-a1c8-22394e040800": {
+            "on_completion": "action--d5b67559-5a84-4f19-a1c8-22394e040800",
+            "type": "start"
+        },
+        "action--d5b67559-5a84-4f19-a1c8-22394e040800": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell scripts that are running.",
+            "on_completion": "action--d853ae8f-8724-4f69-b164-0813f2cc8c8b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d853ae8f-8724-4f69-b164-0813f2cc8c8b": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Prevent any further data exfiltration by blocking suspicious outbound connections.",
+            "on_completion": "while-condition--3421ee31-42aa-4764-8e02-4e283368be09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--3421ee31-42aa-4764-8e02-4e283368be09": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Repeatedly scan the host until no threats are detected.",
+            "on_true": "action--3421ee31-42aa-4764-8e02-4e283368be09",
+            "on_completion": "end--5f64e657-5f3e-40c5-b64b-62e4d1124210",
+            "condition": "scan_status != 'clean'",
+            "type": "while-condition"
+        },
+        "action--3421ee31-42aa-4764-8e02-4e283368be09": {
+            "name": "Run antivirus scan",
+            "description": "Scan the host for other possible malware or indicators of compromise.",
+            "on_completion": "while-condition--3421ee31-42aa-4764-8e02-4e283368be09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan host-12"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates the status of the last scan.",
+                    "value": "in_progress",
+                    "constant": false
+                }
+            }
+        },
+        "end--5f64e657-5f3e-40c5-b64b-62e4d1124210": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

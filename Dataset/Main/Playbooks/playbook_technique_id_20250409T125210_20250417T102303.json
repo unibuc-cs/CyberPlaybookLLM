@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e6f5a31-c430-4e4e-a460-48e5596e7c9d",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command-line interface to execute a script that exfiltrated sensitive data through a compromised user account.",
+    "created_by": "identity--abc12345-def6-7890-ghij-klmnopqrstuv",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1fabbbc-ac7b-4cd7-8163-fc57ae3b8f3e",
+    "workflow": {
+        "start--f1fabbbc-ac7b-4cd7-8163-fc57ae3b8f3e": {
+            "on_completion": "action--b0f3baca-e6ab-4d64-8f4c-4a63512c35aa",
+            "type": "start"
+        },
+        "action--b0f3baca-e6ab-4d64-8f4c-4a63512c35aa": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script identified.",
+            "on_completion": "action--4d46321b-4b08-4dd6-80a0-124b7b5f0a40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4d46321b-4b08-4dd6-80a0-124b7b5f0a40": {
+            "name": "Restrict user access",
+            "description": "Lock the compromised user account to prevent further access.",
+            "on_completion": "loop--683d706d-bc05-4b22-8375-33977afba12b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--683d706d-bc05-4b22-8375-33977afba12b": {
+            "name": "Monitor network activity until threat is eradicated",
+            "description": "Continuously monitor network activity to detect any further threats until confirmed eradicated.",
+            "type": "while-condition",
+            "condition": "threat_detected == true",
+            "on_true": "action--monitor_network_activity",
+            "next_steps": [
+                "check_threat_status"
+            ]
+        },
+        "action--monitor_network_activity": {
+            "name": "Monitor network activity",
+            "description": "Capture network traffic to identify any malicious data transfer.",
+            "on_completion": "check_threat_status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -n host attacking_ip"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--check_threat_status": {
+            "name": "Check if threat still exists",
+            "description": "Determine if any further threats are detected based on monitoring.",
+            "on_completion": "decision--threat_status_decision",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_threats"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--threat_status_decision": {
+            "name": "Evaluate Threat Status",
+            "type": "if-condition",
+            "condition": "threat_detected == false",
+            "on_true": "end--threat_resolved",
+            "on_false": "loop--683d706d-bc05-4b22-8375-33977afba12b"
+        },
+        "end--threat_resolved": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "threat_detected": {
+            "type": "boolean",
+            "description": "Indicates if a threat has been detected during monitoring.",
+            "value": "true",
+            "constant": false,
+            "external": false
+        }
+    }
+}

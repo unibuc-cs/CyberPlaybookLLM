@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1c32191-30c6-4e58-bcd9-e99cc2495f57",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to access sensitive data and moved laterally across the network.",
+    "created_by": "identity--92e03e8a-2b45-4eae-812b-0540b47e8c89",
+    "created": "2023-11-01T15:00:00Z",
+    "modified": "2023-11-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1f0e21a-cbf5-4b70-afc6-bb8ac6d4dd97",
+    "workflow": {
+        "start--a1f0e21a-cbf5-4b70-afc6-bb8ac6d4dd97": {
+            "on_completion": "parallel--1a2d3b4c-5e43-4820-be38-aa2b79498470",
+            "type": "start"
+        },
+        "parallel--1a2d3b4c-5e43-4820-be38-aa2b79498470": {
+            "name": "Initiate Mitigation Actions",
+            "description": "Simultaneously execute mitigation actions against the malicious threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b",
+                "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9",
+                "action--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd",
+                "action--544e6ca1-fd90-4cd1-8e92-c17934c53392"
+            ]
+        },
+        "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes identified as malicious.",
+            "on_completion": "action--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process -Name 'powershell' | Stop-Process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9": {
+            "name": "Block network connections from host-34",
+            "description": "Block all network connections from the malicious host.",
+            "on_completion": "action--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.34 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd": {
+            "name": "Identify and revoke compromised credentials",
+            "description": "Identify all compromised users and revoke their access.",
+            "on_completion": "action--544e6ca1-fd90-4cd1-8e92-c17934c53392",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(get_compromised_users); do net user $user /del; done"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": "For each user with unauthorized access",
+            "variables": {
+                "compromised_user": ""
+            }
+        },
+        "action--544e6ca1-fd90-4cd1-8e92-c17934c53392": {
+            "name": "Patch all systems with the latest security updates",
+            "description": "Ensure all systems are updated with the latest patches.",
+            "on_completion": "end--952c7cb5-63c1-469a-9350-b6291238fdfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo yum update -y"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": "Repeat until all hosts are updated"
+        },
+        "action--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77": {
+            "name": "Conduct full network scan for residual threats",
+            "description": "Scan the network for any remaining threats.",
+            "on_completion": "end--952c7cb5-63c1-469a-9350-b6291238fdfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if nmap -sS -T4 192.168.1.0/24 | grep -q 'threat'; then echo 'Threat indicators found'; fi"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "If any threat indicators are found"
+        },
+        "end--952c7cb5-63c1-469a-9350-b6291238fdfc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

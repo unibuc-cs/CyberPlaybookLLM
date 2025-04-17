@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f65c2720-f4bc-4c62-bd2c-c6ee9eebf807",
+    "name": "Response Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker exploited a vulnerability to run unauthorized scripts.",
+    "created_by": "identity--b77c8d69-70d6-4c18-bf36-66976172fbcd",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "action--d4f1edde-5b74-4b94-9fd4-8fec44e59f9a",
+            "type": "start"
+        },
+        "action--d4f1edde-5b74-4b94-9fd4-8fec44e59f9a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes identified as malicious.",
+            "on_completion": "if-condition--a2d720b9-80f4-4f3c-bb45-6a11068863df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a2d720b9-80f4-4f3c-bb45-6a11068863df": {
+            "name": "Check if firewall rules were modified",
+            "type": "if-condition",
+            "condition": "firewall_rules_modified == true",
+            "on_true": "action--a6938804-ef38-4d39-9bb8-f7cdabfbb9ff",
+            "on_false": "loop--3e16bc84-c7bf-4a36-ab35-f3c8aa891cbd"
+        },
+        "action--a6938804-ef38-4d39-9bb8-f7cdabfbb9ff": {
+            "name": "Revert configuration changes",
+            "description": "Restore the original firewall settings.",
+            "on_completion": "loop--3e16bc84-c7bf-4a36-ab35-f3c8aa891cbd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -F"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--3e16bc84-c7bf-4a36-ab35-f3c8aa891cbd": {
+            "name": "Scan for vulnerabilities",
+            "description": "Continuously scan for vulnerabilities until the system is clean.",
+            "on_completion": "if-condition--d30bf3eb-45a9-4074-b16d-1fc17b733c3d",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--6805f7e6-05bc-42c5-be88-649d9e0b818e"
+        },
+        "action--6805f7e6-05bc-42c5-be88-649d9e0b818e": {
+            "name": "Run vulnerability scan",
+            "on_completion": "loop--3e16bc84-c7bf-4a36-ab35-f3c8aa891cbd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_vuln_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d30bf3eb-45a9-4074-b16d-1fc17b733c3d": {
+            "name": "Final assessment",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--b2e2c5f0-f95e-4b87-8c09-78927b389853",
+            "on_false": "loop--3e16bc84-c7bf-4a36-ab35-f3c8aa891cbd"
+        },
+        "end--b2e2c5f0-f95e-4b87-8c09-78927b389853": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

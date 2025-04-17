@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d842b2c8-7bcb-4d3a-9a6e-2b13c4422bbb",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to a system and executed commands to exfiltrate sensitive data.",
+    "created_by": "identity--abc-1234-5678-90ab-cdef12345678",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a7dff3c5-7aef-4fb6-9897-58db13c15e3d",
+    "workflow": {
+        "start--a7dff3c5-7aef-4fb6-9897-58db13c15e3d": {
+            "on_completion": "action--c177f4ff-13df-44c4-83b4-d5e6f84942b8",
+            "type": "start"
+        },
+        "action--c177f4ff-13df-44c4-83b4-d5e6f84942b8": {
+            "name": "Isolate affected host",
+            "description": "Block network traffic from the compromised host.",
+            "on_completion": "action--2f3dd0a8-b9b6-4d2e-9f5f-89d1d4423d93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2f3dd0a8-b9b6-4d2e-9f5f-89d1d4423d93": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious processes identified.",
+            "on_completion": "action--3a25a6e4-3d67-491e-b3f3-06dfd36c9272",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "malicious_process_detected"
+        },
+        "action--3a25a6e4-3d67-491e-b3f3-06dfd36c9272": {
+            "name": "Clear unauthorized SSH keys",
+            "description": "Remove unauthorized SSH keys from authorized_keys.",
+            "on_completion": "loop--eff3cfbc-84dd-4fb0-8b5b-2beabd86c543",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sed -i '/unauthorized_key/d' ~/.ssh/authorized_keys"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--eff3cfbc-84dd-4fb0-8b5b-2beabd86c543": {
+            "name": "Re-scan affected host until clean",
+            "description": "Loop to scan the affected host until no infections are found.",
+            "type": "while-condition",
+            "condition": "infection_detected",
+            "on_true": "action--eff3cfbc-84dd-4fb0-8b5b-2beabd86c543",
+            "on_completion": "action--031e1cc8-a5d9-4f18-b290-ef287aabc092"
+        },
+        "action--eff3cfbc-84dd-4fb0-8b5b-2beabd86c543": {
+            "name": "Perform antivirus scan",
+            "description": "Scan the affected host for malware.",
+            "on_completion": "loop--eff3cfbc-84dd-4fb0-8b5b-2beabd86c543",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan host-22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--031e1cc8-a5d9-4f18-b290-ef287aabc092": {
+            "name": "Reset user passwords",
+            "description": "Loop through each affected user and reset their password.",
+            "type": "for-each",
+            "item": "user",
+            "collection": "users",
+            "on_completion": "end--f1e4d1d2-45fb-4825-b99b-66ba915b0f91"
+        },
+        "action--031e1cc8-a5d9-4f18-b290-ef287aabc092": {
+            "name": "Reset affected user password",
+            "description": "Reset the password for each user.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${user}"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "users": [
+                    "user1",
+                    "user2",
+                    "user3"
+                ]
+            }
+        },
+        "end--f1e4d1d2-45fb-4825-b99b-66ba915b0f91": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

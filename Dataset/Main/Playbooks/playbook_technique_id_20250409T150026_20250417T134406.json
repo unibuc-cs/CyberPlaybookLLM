@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d77f08c9-b5b5-4e45-a314-08fadc1b3b5e",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook addresses an incident involving PowerShell commands that downloaded malware and exfiltrated sensitive data.",
+    "created_by": "identity--12345678-abcd-ef12-3456-7890abcdef12",
+    "created": "2025-10-12T08:00:00Z",
+    "modified": "2025-10-12T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--f8bd3b62-f1e4-4e09-a3e4-29f90c4ba18f",
+    "workflow": {
+        "start--f8bd3b62-f1e4-4e09-a3e4-29f90c4ba18f": {
+            "on_completion": "action--f8c673dd-16eb-4b73-b4b5-f0ecb68258d8",
+            "type": "start"
+        },
+        "action--f8c673dd-16eb-4b73-b4b5-f0ecb68258d8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious activity.",
+            "on_completion": "parallel--abc1234e-5678-90ab-cdef-ghijklmnopqr",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--abc1234e-5678-90ab-cdef-ghijklmnopqr": {
+            "name": "Clean Up and Scan",
+            "description": "Remove the dropped malware and conduct a full system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--be48998a-6142-4e91-9e1c-91a81425bb87",
+                "action--d0a01626-1c54-4d4a-ba38-9fc4399a2c23"
+            ]
+        },
+        "action--be48998a-6142-4e91-9e1c-91a81425bb87": {
+            "name": "Remove dropped malware file",
+            "description": "Remove the malware file from the system.",
+            "on_completion": "if-condition--check-file-remove",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--check-file-remove": {
+            "name": "Check if file exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/malicious_script.sh",
+            "on_true": "action--be48998a-6142-4e91-9e1c-91a81425bb87",
+            "on_false": "action--d0a01626-1c54-4d4a-ba38-9fc4399a2c23"
+        },
+        "action--d0a01626-1c54-4d4a-ba38-9fc4399a2c23": {
+            "name": "Conduct a full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scan tool.",
+                    "value": "scan_tool_output",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan Loop",
+            "description": "Repeat scanning until the system is clean.",
+            "on_completion": "end--finalize-actions",
+            "type": "while-condition",
+            "condition": "scan_result indicates threat",
+            "on_true": "action--d0a01626-1c54-4d4a-ba38-9fc4399a2c23"
+        },
+        "end--finalize-actions": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d79f9826-6cb6-4d44-b63c-3185e0f8e9ce",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses incidents where an attacker executed commands on a vulnerable web application server, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--auditor-1",
+    "created": "2025-04-20T10:00:00Z",
+    "modified": "2025-04-20T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e5ccf32e-14c9-4d6e-9098-b7a75f4353d0",
+    "workflow": {
+        "start--e5ccf32e-14c9-4d6e-9098-b7a75f4353d0": {
+            "on_completion": "action--e9fbd940-e03a-4541-8784-573a1f272052",
+            "type": "start"
+        },
+        "action--e9fbd940-e03a-4541-8784-573a1f272052": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the attacker to prevent further damage.",
+            "on_completion": "action--7216d7d1-7768-4fca-890e-4ccd245bc51e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f attacker_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7216d7d1-7768-4fca-890e-4ccd245bc51e": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming traffic from the compromised host to prevent further access.",
+            "on_completion": "parallel--eae7b432-2aac-4c9e-a8fb-4cb6df1307ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--eae7b432-2aac-4c9e-a8fb-4cb6df1307ae": {
+            "name": "Run Parallel Mitigations",
+            "description": "Perform multiple actions after isolating the affected host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3f1599ef-3eee-40f4-be0a-c516df0ff1c4",
+                "action--a5f41d6b-f730-4ddd-abe1-5faabf28e2f9",
+                "action--e9d93590-41b1-40b5-b0e7-fb9b7f72e1c4"
+            ]
+        },
+        "action--3f1599ef-3eee-40f4-be0a-c516df0ff1c4": {
+            "name": "Perform incident response scan",
+            "description": "Continuously scan the system for any remaining threats.",
+            "on_completion": "end--e999dfca-0092-4e08-b948-86bbf45b522c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_is_clean; do run_scan; sleep 60; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a5f41d6b-f730-4ddd-abe1-5faabf28e2f9": {
+            "name": "Review access logs for anomalies",
+            "description": "Check access logs for any suspicious activity related to the attacker.",
+            "on_completion": "end--e999dfca-0092-4e08-b948-86bbf45b522c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'attacker' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e9d93590-41b1-40b5-b0e7-fb9b7f72e1c4": {
+            "name": "Change affected credentials",
+            "description": "Update credentials for any accounts that may have been compromised.",
+            "on_completion": "end--e999dfca-0092-4e08-b948-86bbf45b522c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd attacker_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e999dfca-0092-4e08-b948-86bbf45b522c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

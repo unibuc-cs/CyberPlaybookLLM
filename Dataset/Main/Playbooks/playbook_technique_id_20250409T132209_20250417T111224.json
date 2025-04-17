@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b746769a-92b2-4eb8-bc1d-7c8e7395c649",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a command and scripting interpreter vulnerability to run malicious scripts on a compromised server.",
+    "created_by": "identity--12345678-abcd-1234-abcd-123456789abc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c3d726e0-9635-4e4f-8b66-2093ea8b6c89",
+    "workflow": {
+        "start--c3d726e0-9635-4e4f-8b66-2093ea8b6c89": {
+            "on_completion": "parallel--2ae438c0-6a71-44af-b779-fd454f70f16e",
+            "type": "start"
+        },
+        "end--b124da16-8215-4a88-ba98-04eb883368c3": {
+            "type": "end"
+        },
+        "action--a5d618e3-8358-4c93-a300-8b25c82e3bc0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--f87158e6-72a9-4f76-b180-f0cd0bfa1ae7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious-script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f87158e6-72a9-4f76-b180-f0cd0bfa1ae7": {
+            "name": "Delete dropped malicious files",
+            "description": "Remove any dropped malicious script files on the server.",
+            "on_completion": "decision--d319e130-4b9e-4038-acd5-7204aee9e9e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious-script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--cbee8f84-5605-4fb0-9cfb-cb68bc65172e": {
+            "name": "Monitor outgoing connections loop",
+            "description": "Repeat monitoring of outgoing connections until none are detected.",
+            "on_completion": "action--27947127-876b-4ed0-bf8e-63f3c5b43e4b",
+            "type": "while-condition",
+            "condition": "malicious_ip_detected == true",
+            "on_true": "action--27947127-876b-4ed0-bf8e-63f3c5b43e4b"
+        },
+        "action--27947127-876b-4ed0-bf8e-63f3c5b43e4b": {
+            "name": "Monitor outgoing connections",
+            "description": "Check for established outgoing connections to the malicious IP.",
+            "on_completion": "while-condition--cbee8f84-5605-4fb0-9cfb-cb68bc65172e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -tuln | grep ESTABLISHED | grep 192.168.1.100"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "malicious_ip_detected": {
+                    "type": "boolean",
+                    "description": "Flag to indicate if malicious IP connections are detected",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "parallel--2ae438c0-6a71-44af-b779-fd454f70f16e": {
+            "name": "Execute mitigation actions",
+            "description": "Simultaneously kill malicious processes and delete dropped files.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a5d618e3-8358-4c93-a300-8b25c82e3bc0",
+                "action--f87158e6-72a9-4f76-b180-f0cd0bfa1ae7"
+            ]
+        },
+        "decision--d319e130-4b9e-4038-acd5-7204aee9e9e3": {
+            "name": "Evaluate if outgoing connections exist",
+            "type": "if-condition",
+            "condition": "malicious_ip_detected == false",
+            "on_true": "end--b124da16-8215-4a88-ba98-04eb883368c3",
+            "on_false": "while-condition--cbee8f84-5605-4fb0-9cfb-cb68bc65172e"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

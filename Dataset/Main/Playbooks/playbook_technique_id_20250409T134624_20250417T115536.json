@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d45b9c28-1f6b-4efb-84b8-470b5e92dcda",
+    "name": "Playbook for Command and Scripting Interpreter Incident Mitigation",
+    "description": "This playbook addresses an incident involving a malicious JavaScript execution that led to remote shell installation and data exfiltration.",
+    "created_by": "identity--b34cdda5-90d9-4e46-ae89-0b4f592e3b42",
+    "created": "2023-10-15T11:00:00Z",
+    "modified": "2023-10-15T11:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1e34efc-df0b-4db6-9a77-6e0eac98d392",
+    "workflow": {
+        "start--b1e34efc-df0b-4db6-9a77-6e0eac98d392": {
+            "on_completion": "action--ec5e7c8f-b46c-4fe8-8c3b-615a3fee7470",
+            "type": "start"
+        },
+        "action--ec5e7c8f-b46c-4fe8-8c3b-615a3fee7470": {
+            "name": "Kill malicious process",
+            "description": "Terminate the JavaScript process executed from the temporary directory.",
+            "on_completion": "action--2a832aae-eaa2-4cc2-9f4b-fcc9c9bd48b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'javascript_process_name'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2a832aae-eaa2-4cc2-9f4b-fcc9c9bd48b4": {
+            "name": "Block outbound connection",
+            "description": "Prevent further data exfiltration by blocking outbound connections to the C2 server.",
+            "on_completion": "while-condition--1c202b3c-f6ac-49f5-ab0d-0b45a45eaa9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.5 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--1c202b3c-f6ac-49f5-ab0d-0b45a45eaa9f": {
+            "name": "Full malware scan loop",
+            "description": "Perform a full malware scan and repeat until the system is verified as clean.",
+            "on_true": "action--1c202b3c-f6ac-49f5-ab0d-0b45a45eaa9f",
+            "on_false": "end--f6c75b5e-ed3e-4b6c-b8cf-fda9c19f1fc4",
+            "type": "while-condition",
+            "condition": "scan_result == 'dirty'"
+        },
+        "action--1c202b3c-f6ac-49f5-ab0d-0b45a45eaa9f": {
+            "name": "Perform full malware scan",
+            "description": "Execute a full scan of the system to find any lingering malware.",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the malware scan.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--1c202b3c-f6ac-49f5-ab0d-0b45a45eaa9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan / --report"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f6c75b5e-ed3e-4b6c-b8cf-fda9c19f1fc4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

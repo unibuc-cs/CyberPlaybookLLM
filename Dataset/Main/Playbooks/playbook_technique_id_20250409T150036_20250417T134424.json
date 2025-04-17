@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9fbc5a62-98ed-4ec8-b1eb-b59f0bd3c9e5",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses unauthorized access and command execution incidents, focusing on mitigating through termination of malicious processes and credential management.",
+    "created_by": "identity--12345678-abcd-1234-abcd-12345678abcd",
+    "created": "2023-10-03T14:00:00Z",
+    "modified": "2023-10-03T14:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--7e3ec2a2-b4cf-4f5e-aba5-29937001f3bc",
+    "workflow": {
+        "start--7e3ec2a2-b4cf-4f5e-aba5-29937001f3bc": {
+            "on_completion": "action--e54d8a8b-8e18-4ac8-a840-2cda045b8f94",
+            "type": "start"
+        },
+        "action--e54d8a8b-8e18-4ac8-a840-2cda045b8f94": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell scripts that are currently running.",
+            "on_completion": "parallel--1e8563a4-a44d-4f73-bef3-122bcde64662",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--1e8563a4-a44d-4f73-bef3-122bcde64662": {
+            "name": "Mitigation Steps",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1b70d6aa-6c35-4bd0-bc18-308039d5c5e7",
+                "action--f5ac6fbb-e3df-4396-ba4c-95101b8be097"
+            ]
+        },
+        "action--1b70d6aa-6c35-4bd0-bc18-308039d5c5e7": {
+            "name": "Isolate affected host",
+            "description": "Drop all incoming connections from the suspected malicious IP address.",
+            "on_completion": "decide--f5ac6fbb-e3df-4396-ba4c-95101b8be097",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f5ac6fbb-e3df-4396-ba4c-95101b8be097": {
+            "name": "Review security logs for traces of unauthorized access",
+            "description": "Review security logs until all entries are processed.",
+            "on_completion": "if-condition--4b38007e-5ed6-4cf8-ae85-bcb58fd2c7c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "log_index": {
+                    "type": "integer",
+                    "description": "Current index of reviewed logs.",
+                    "value": 0,
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--4b38007e-5ed6-4cf8-ae85-bcb58fd2c7c3": {
+            "name": "Check for compromised IDs",
+            "type": "if-condition",
+            "condition": "compromised_ids_found == true",
+            "on_true": "action--4b38007e-5ed6-4cf8-ae85-bcb58fd2c7c3",
+            "on_false": "end--25a2f29a-bb35-46b5-b1f4-5e7fa2e9f790"
+        },
+        "action--4b38007e-5ed6-4cf8-ae85-bcb58fd2c7c3": {
+            "name": "Change credentials for affected accounts",
+            "description": "Update passwords for accounts that may have been compromised.",
+            "on_completion": "end--25a2f29a-bb35-46b5-b1f4-5e7fa2e9f790",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chage -d 0 username"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--25a2f29a-bb35-46b5-b1f4-5e7fa2e9f790": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

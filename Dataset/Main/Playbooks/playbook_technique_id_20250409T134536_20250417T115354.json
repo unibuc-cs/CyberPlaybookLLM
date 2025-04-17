@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b46c15aa-44d4-469b-8d45-3b50709869e2",
+    "name": "Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker utilized a malicious PowerShell script for unauthorized access.",
+    "created_by": "identity--abc12345-6bcd-7890-def1-234567890abc",
+    "created": "2023-10-03T12:30:00Z",
+    "modified": "2023-10-03T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1e36b3c5-123f-4f37-bf0c-7a5e5c4e48de",
+    "workflow": {
+        "start--1e36b3c5-123f-4f37-bf0c-7a5e5c4e48de": {
+            "on_completion": "action--a564bca6-f5ea-4c9f-9f53-fd581f4bf4de",
+            "type": "start"
+        },
+        "action--a564bca6-f5ea-4c9f-9f53-fd581f4bf4de": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the powershell.exe process if it exists.",
+            "on_completion": "if-condition--ec1e1d14-3caa-4ec2-bf7b-70c0cf10db39",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--ec1e1d14-3caa-4ec2-bf7b-70c0cf10db39": {
+            "name": "Check if malicious process is killed",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe') == false",
+            "on_true": "loop--c0f25521-b3a2-452e-b026-41dc41b8d4a6",
+            "on_false": "end--f7ebe54b-0840-4fa7-b6f5-4623ef991395"
+        },
+        "loop--c0f25521-b3a2-452e-b026-41dc41b8d4a6": {
+            "name": "Delete dropped script file",
+            "description": "Try to delete the malicious script file until it is successfully deleted.",
+            "type": "loop",
+            "condition": "file_exists('/tmp/malicious_script.ps1')",
+            "on_true": "action--c0f25521-b3a2-452e-b026-41dc41b8d4a6",
+            "on_exit": "action--874c8b4e-1425-4dc1-bc77-2d1e67977fd2"
+        },
+        "action--c0f25521-b3a2-452e-b026-41dc41b8d4a6": {
+            "name": "Delete script file",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--c0f25521-b3a2-452e-b026-41dc41b8d4a6"
+        },
+        "action--874c8b4e-1425-4dc1-bc77-2d1e67977fd2": {
+            "name": "Conduct a full malware scan",
+            "description": "Perform a full malware scan until the status is clean.",
+            "on_completion": "if-condition--g5f6859c-d4a0-4400-b744-3f327ff40b05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-tool --scan-full"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the malware scan, expected to change to 'clean'.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--g5f6859c-d4a0-4400-b744-3f327ff40b05": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--f7ebe54b-0840-4fa7-b6f5-4623ef991395",
+            "on_false": "action--874c8b4e-1425-4dc1-bc77-2d1e67977fd2"
+        },
+        "end--f7ebe54b-0840-4fa7-b6f5-4623ef991395": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2c34e26-289e-4f79-8e26-b4b7cb4ef529",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident of unauthorized script execution detected on multiple hosts within the network. The playbook includes steps for terminating processes, blocking connections, and scanning for anomalies.",
+    "created_by": "identity--abc12345-def6-7890-gh12-ijklmnopqrst",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--ab123456-7890-abcd-efgh-ijklmnopqrstuvwxyz",
+    "workflow": {
+        "start--ab123456-7890-abcd-efgh-ijklmnopqrstuvwxyz": {
+            "on_completion": "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59",
+            "type": "start"
+        },
+        "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59": {
+            "name": "Terminate unauthorized PowerShell process",
+            "description": "Terminate the unauthorized PowerShell process running on affected hosts.",
+            "on_completion": "parallel--c2b014a0-5787-4e0c-898f-d91dc1fb4c43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d8955b97-6ec8-4872-acb0-0f83765052d7": {
+            "name": "Block external IP address",
+            "description": "Block the external IP address used by the malicious script.",
+            "on_completion": "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"malicious-external-ip\" reject'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7": {
+            "name": "Remove payload and scan for anomalies",
+            "description": "Remove the downloaded payload and scan the host for anomalies.",
+            "on_completion": "action--af4f3653-3467-4c72-872f-e063cbda7d65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/downloaded/payload && clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "type": "until",
+                "condition": "scan_is_clean"
+            },
+            "step_variables": {
+                "downloaded_payload_path": {
+                    "type": "string",
+                    "description": "Path of the downloaded payload that needs to be removed",
+                    "value": "/path/to/downloaded/payload",
+                    "constant": false
+                }
+            }
+        },
+        "action--af4f3653-3467-4c72-872f-e063cbda7d65": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Monitor network traffic for additional anomalies and escalate if necessary.",
+            "on_completion": "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if anomalies are detected, escalate to security team"
+        },
+        "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e": {
+            "name": "Enable logging of command and script execution",
+            "description": "Set up logging for all command and script execution on the system.",
+            "on_completion": "end--9d1e09da-6da2-4233-bf56-7d2ccf653c1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/powershell -p x -k powershell_exec"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--c2b014a0-5787-4e0c-898f-d91dc1fb4c43": {
+            "name": "Mitigate multiple actions simultaneously",
+            "description": "Execute both blocking actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d8955b97-6ec8-4872-acb0-0f83765052d7",
+                "action--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7"
+            ]
+        },
+        "end--9d1e09da-6da2-4233-bf56-7d2ccf653c1f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

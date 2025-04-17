@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--da3cabe3-773b-49f2-bc4c-bdd04b9ada3b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where attackers gained network access via phishing and executed a PowerShell script deploying malware across hosts.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-10T12:00:00Z",
+    "modified": "2023-10-10T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcdef12-3456-7890-abcd-ef1234567890",
+    "workflow": {
+        "start--abcdef12-3456-7890-abcd-ef1234567890": {
+            "on_completion": "parallel--12345678-90ab-cdef-1234-567890abcdef",
+            "type": "start"
+        },
+        "parallel--12345678-90ab-cdef-1234-567890abcdef": {
+            "name": "Initiate Parallel Mitigations",
+            "description": "Execute termination and isolation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b67e7905-3532-4280-8c72-3a33c9ba4f5c",
+                "loop--7cf8dfb0-435f-4b45-8dd4-59f932eb9cc3"
+            ]
+        },
+        "action--b67e7905-3532-4280-8c72-3a33c9ba4f5c": {
+            "name": "Terminate Malicious PowerShell Processes",
+            "description": "Stop all running malicious PowerShell processes.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process PowerShell | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "decision--b2be7884-ec35-4e60-ad0d-5fe575f0e6e5"
+        },
+        "action--18e739ea-5ab3-4e80-988f-c2b0c99794ec": {
+            "name": "Isolate Infected Machines from Network",
+            "description": "Isolate specified hosts from the network.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-IsolateMachine -HostName {host}"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "end--98765432-1abc-def0-1234-56789abcdef0"
+        },
+        "loop--7cf8dfb0-435f-4b45-8dd4-59f932eb9cc3": {
+            "name": "Perform Antivirus Scan Until Clean",
+            "description": "Execute AV scans on all hosts repeatedly until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_results.show_no_threats == False",
+            "on_true": "action--scan-task",
+            "on_completion": "action--18e739ea-5ab3-4e80-988f-c2b0c99794ec"
+        },
+        "action--scan-task": {
+            "name": "Execute Full Antivirus Scan",
+            "description": "Initiates a full antivirus scan.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-ScheduledTask -TaskName 'Full AV Scan'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "loop--7cf8dfb0-435f-4b45-8dd4-59f932eb9cc3"
+        },
+        "decision--b2be7884-ec35-4e60-ad0d-5fe575f0e6e5": {
+            "name": "Check External Connections",
+            "description": "Determine if an external connection has been established.",
+            "type": "if-condition",
+            "condition": "connection_established == True",
+            "on_true": "action--revoke-connection",
+            "on_false": "action--3f334551-9218-4dff-9139-9154ed1e5d6c"
+        },
+        "action--revoke-connection": {
+            "name": "Revoke Unauthorized Connections",
+            "description": "Revoke any unauthorized external connections.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-RevokeConnection -IPAddress attacker.ip.address"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--3f334551-9218-4dff-9139-9154ed1e5d6c"
+        },
+        "action--3f334551-9218-4dff-9139-9154ed1e5d6c": {
+            "name": "Update Firewall Rules",
+            "description": "Update firewall settings to prevent script execution.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-UpdateFirewallRule -RuleName 'Block Script Execution'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "end--98765432-1abc-def0-1234-56789abcdef0"
+        },
+        "end--98765432-1abc-def0-1234-56789abcdef0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b9b0733-542e-4736-8e0b-a2d85fbdb6f4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "A playbook to handle a Command and Scripting Interpreter attack that involved unauthorized PowerShell execution.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-10-01T12:45:00Z",
+    "modified": "2023-10-01T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1234567-b891-4cde-9b27-b6a1a2ab3c4d",
+    "workflow": {
+        "start--a1234567-b891-4cde-9b27-b6a1a2ab3c4d": {
+            "on_completion": "action--2c6ae552-f5e8-4c4f-8c79-dc86e5f0f02f",
+            "type": "start"
+        },
+        "action--2c6ae552-f5e8-4c4f-8c79-dc86e5f0f02f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that could be executing malicious commands.",
+            "on_completion": "action--e50e6ded-a57b-4293-8b7d-1c5f6123c30d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e50e6ded-a57b-4293-8b7d-1c5f6123c30d": {
+            "name": "Isolate infected hosts",
+            "description": "Disconnect affected hosts from the network to prevent further damage.",
+            "on_completion": "parallel--4fcc6b32-2956-4b06-91fd-feb59609780f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = 'host-22' ]; then nmcli device disconnect; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--4fcc6b32-2956-4b06-91fd-feb59609780f": {
+            "name": "Execute remediation steps in parallel",
+            "description": "Run subsequent remediation actions simultaneously to expedite mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--09db6c03-dbf3-4b30-9b90-f1b7f3f30c82",
+                "action--3093c4a1-4ee1-418a-be45-69c8d29ec7f3",
+                "action--f2ff2dde-c9e0-4b4e-b5aa-867341eb2083"
+            ]
+        },
+        "action--09db6c03-dbf3-4b30-9b90-f1b7f3f30c82": {
+            "name": "Perform a full system scan",
+            "description": "Scan the system for malware and clean up any infections.",
+            "on_completion": "loop--f1a2c1f5-8c9d-48ac-b54b-3f048e5815c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r / --move=/quarantine"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f1a2c1f5-8c9d-48ac-b54b-3f048e5815c6": {
+            "name": "Check if scan is clean",
+            "description": "Repeat scanning process until the system is unaffected by malware.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--09db6c03-dbf3-4b30-9b90-f1b7f3f30c82"
+        },
+        "action--3093c4a1-4ee1-418a-be45-69c8d29ec7f3": {
+            "name": "Check for persistence mechanisms",
+            "description": "Look for and remove any persistence mechanisms that might keep malware active.",
+            "on_completion": "action--f2ff2dde-c9e0-4b4e-b5aa-867341eb2083",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /etc/systemd/system -name '*malware*' -delete"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_true": "action--f2ff2dde-c9e0-4b4e-b5aa-867341eb2083"
+        },
+        "action--f2ff2dde-c9e0-4b4e-b5aa-867341eb2083": {
+            "name": "Review network logs for suspicious activity",
+            "description": "Analyze network logs for evidence of malicious connections.",
+            "on_completion": "end--e52cfb6a-acf5-4e86-b2c2-b9e752b2d76f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_ip' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e52cfb6a-acf5-4e86-b2c2-b9e752b2d76f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

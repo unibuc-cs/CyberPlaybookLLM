@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1ef6305-d0c0-48b1-9d37-b3f8056d3b3a",
+    "name": "Mitigation Playbook for Exploitation of Remote Services",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the company's remote desktop service, gaining unauthorized access to the internal network and exfiltrating sensitive data.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789012",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--abcde12345-678f-90ab-cdef-1234567890ab",
+    "workflow": {
+        "start--abcde12345-678f-90ab-cdef-1234567890ab": {
+            "on_completion": "action--d6e7b8a9-0b1a-2c3d-4e5f-67890abcdef1",
+            "type": "start"
+        },
+        "action--d6e7b8a9-0b1a-2c3d-4e5f-67890abcdef1": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate host-42 to prevent further data exfiltration.",
+            "on_completion": "action--b4c5d6e7-1a2b-3c4d-5e6f-78901abcdeef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh root@host-42 'iptables -A OUTPUT -j DROP'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b4c5d6e7-1a2b-3c4d-5e6f-78901abcdeef": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that appear to be malicious.",
+            "on_completion": "if-condition--condition-check-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--condition-check-scan": {
+            "name": "Check if scan is needed",
+            "type": "if-condition",
+            "condition": "if scan_result == 'threats_found'",
+            "on_true": "loop--scan-until-clear",
+            "on_false": "end--complete"
+        },
+        "loop--scan-until-clear": {
+            "name": "Conduct full scan of network",
+            "description": "Run a full scan of the network until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clear'",
+            "on_true": "action--a0b1c2d3-4e5f-6789-abcd-ef0123456789",
+            "on_false": "end--complete"
+        },
+        "action--a0b1c2d3-4e5f-6789-abcd-ef0123456789": {
+            "name": "Run ClamAV Scan",
+            "description": "Execute ClamAV scan on the network.",
+            "on_completion": "set-scan-result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav_scan()"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "set-scan-result": {
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the network scan",
+                    "value": "result_of_scan",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--scan-until-clear",
+            "type": "action"
+        },
+        "end--complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

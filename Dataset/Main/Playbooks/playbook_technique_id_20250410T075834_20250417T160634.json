@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5de75b7-8e9e-4ea6-982f-2e868c821fed",
+    "name": "Playbook to Mitigate Malicious Script Execution Incident",
+    "description": "This playbook handles the incident where an attacker exploited a vulnerability to execute unauthorized commands and attempt data exfiltration.",
+    "created_by": "identity--abc12345-67de-89f0-ab12-cdef34567890",
+    "created": "2025-04-10T07:58:34.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--01f818b9-aef4-4d6e-a648-db03e4cc0af1",
+    "workflow": {
+        "start--01f818b9-aef4-4d6e-a648-db03e4cc0af1": {
+            "on_completion": "action--2a1f56a7-d3b4-49f8-8f39-efb4d53ef29e",
+            "type": "start"
+        },
+        "action--2a1f56a7-d3b4-49f8-8f39-efb4d53ef29e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any process running the suspicious script if it exists.",
+            "on_completion": "action--5e92bb07-8250-42df-b3a9-0f2146f8a406",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5e92bb07-8250-42df-b3a9-0f2146f8a406": {
+            "name": "Block external IP connection",
+            "description": "Block any outbound connections to the malicious external IP address.",
+            "on_completion": "action--a8cc97dd-c0bb-4ce2-84d0-289d8c2838f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a8cc97dd-c0bb-4ce2-84d0-289d8c2838f4": {
+            "name": "Isolate affected host",
+            "description": "Take the affected host offline to prevent further access.",
+            "on_completion": "parallel--d29a69c8-b652-4b88-b4e7-2b5f10e7539b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--d29a69c8-b652-4b88-b4e7-2b5f10e7539b": {
+            "name": "Perform System Mitigation Actions",
+            "description": "Execute the full system scan and enable script execution logging.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b",
+                "action--b321dcd1-d69f-47f3-bf61-dc1a184c1f5e"
+            ]
+        },
+        "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b": {
+            "name": "Perform full system scan",
+            "description": "Conduct a full system scan for malicious software.",
+            "on_completion": "if-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--scan-check": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'ongoing'",
+            "on_true": "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b",
+            "on_false": "action--b321dcd1-d69f-47f3-bf61-dc1a184c1f5e"
+        },
+        "action--b321dcd1-d69f-47f3-bf61-dc1a184c1f5e": {
+            "name": "Enable script execution logging",
+            "description": "Set up logging for script executions to monitor for future anomalies.",
+            "on_completion": "end--3d1a72a6-2ad5-4cbc-b649-6be0ac9ecfe6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/python -p x"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--3d1a72a6-2ad5-4cbc-b649-6be0ac9ecfe6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Security Organization A"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "Security Organization B"
+        }
+    }
+}

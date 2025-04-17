@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d03aa4f-125b-46b7-9fd2-9e7b8bc4b84f",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates an incident where a malicious PowerShell script was executed, leading to data exfiltration and backdoor installation.",
+    "created_by": "identity--a733dc8d-d889-4f81-9c0d-330d86ee792c",
+    "created": "2025-10-05T09:00:00Z",
+    "modified": "2025-10-05T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a335f44f-3f2e-441c-b2c4-ba90d59e11v5",
+    "workflow": {
+        "start--a335f44f-3f2e-441c-b2c4-ba90d59e11v5": {
+            "on_completion": "parallel--0a164d35-1423-4400-b372-cee92667ea8d",
+            "type": "start"
+        },
+        "parallel--0a164d35-1423-4400-b372-cee92667ea8d": {
+            "name": "Execute Mitigation Steps",
+            "description": "Initiate steps to terminate processes, remove the backdoor, and block traffic.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b",
+                "if-condition--722b1a15-9d7b-48ad-8ee9-8a0627e02dab",
+                "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68",
+                "while-condition--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f"
+            ]
+        },
+        "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are malicious.",
+            "on_completion": "parallel--0a164d35-1423-4400-b372-cee92667ea8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'powershell' | grep -v grep | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--secops"
+        },
+        "if-condition--722b1a15-9d7b-48ad-8ee9-8a0627e02dab": {
+            "name": "Check and Remove Backdoor from Registry",
+            "type": "if-condition",
+            "condition": "registry_key_exists('HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', 'backdoor')",
+            "on_true": "action--722b1a15-9d7b-48ad-8ee9-8a0627e02dab_actual",
+            "on_false": "parallel--0a164d35-1423-4400-b372-cee92667ea8d"
+        },
+        "action--722b1a15-9d7b-48ad-8ee9-8a0627e02dab_actual": {
+            "name": "Remove backdoor from registry",
+            "description": "Delete the registry key that installs the backdoor.",
+            "on_completion": "parallel--0a164d35-1423-4400-b372-cee92667ea8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v backdoor /f"
+                }
+            ],
+            "agent": "organization--secops"
+        },
+        "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68": {
+            "name": "Block outbound traffic from host-47",
+            "description": "Block all outbound traffic from the infected host to prevent data exfiltration.",
+            "on_completion": "parallel--0a164d35-1423-4400-b372-cee92667ea8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 0.0.0.0/0 -j DROP"
+                }
+            ],
+            "agent": "organization--netops"
+        },
+        "while-condition--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f": {
+            "name": "Scan for lingering malicious scripts",
+            "description": "Repeat scanning for malicious scripts until clean.",
+            "on_completion": "parallel--0a164d35-1423-4400-b372-cee92667ea8d",
+            "type": "while-condition",
+            "condition": "scan_results_not_clean()",
+            "on_true": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f_exec"
+        },
+        "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f_exec": {
+            "name": "Execute malware scan",
+            "description": "Perform a scan of the filesystem to find lingering PowerShell scripts.",
+            "on_completion": "while-condition--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.ps1' -exec clamscan {} +"
+                }
+            ],
+            "agent": "organization--av"
+        },
+        "end--e6a2a6dc-58fa-4db1-b0e0-ea8eedb56b7d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--secops": {
+            "type": "organization",
+            "name": "SecurityOperations"
+        },
+        "organization--netops": {
+            "type": "organization",
+            "name": "NetworkOperations"
+        },
+        "organization--av": {
+            "type": "organization",
+            "name": "Antivirus"
+        }
+    }
+}

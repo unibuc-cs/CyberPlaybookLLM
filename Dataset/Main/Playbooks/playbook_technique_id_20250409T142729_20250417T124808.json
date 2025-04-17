@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2e1c5a5-869c-4e44-a8b3-dd02bb0e83b1",
+    "name": "Mitigation Playbook for PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script that extracted sensitive data.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-25T15:00:00Z",
+    "modified": "2023-10-25T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-5e6f-7g8h-9i0j-1a2b3c4d5e6f",
+    "workflow": {
+        "start--1a2b3c4d-5e6f-7g8h-9i0j-1a2b3c4d5e6f": {
+            "on_completion": "action--ac81b05f-3b6b-4930-b4f1-c6c787b626db",
+            "type": "start"
+        },
+        "action--ac81b05f-3b6b-4930-b4f1-c6c787b626db": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process if it's running.",
+            "on_completion": "if-condition--e7b0c9c4-8280-4e05-aa29-7460d372d590",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e7b0c9c4-8280-4e05-aa29-7460d372d590": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--b0dd27ae-8c21-4b77-8789-2ab4f2bb0d0c",
+            "on_false": "action--de17e0c3-1bb0-4310-87b8-deef2110a5b8"
+        },
+        "action--b0dd27ae-8c21-4b77-8789-2ab4f2bb0d0c": {
+            "name": "Run antivirus scan on affected host",
+            "description": "Perform a full scan on the affected host until it is clean.",
+            "on_completion": "while-condition--f8cdfb30-f3ab-4e08-91aa-e9652a2517b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--f8cdfb30-f3ab-4e08-91aa-e9652a2517b1": {
+            "name": "Antivirus scan loop",
+            "description": "Repeat scanning until the system is clean.",
+            "on_true": "action--b0dd27ae-8c21-4b77-8789-2ab4f2bb0d0c",
+            "on_completion": "action--de17e0c3-1bb0-4310-87b8-deef2110a5b8",
+            "type": "while-condition",
+            "condition": "scan_result == 'not_clean'"
+        },
+        "action--de17e0c3-1bb0-4310-87b8-deef2110a5b8": {
+            "name": "Review logs for suspicious activities",
+            "description": "Examine system logs for any suspicious activity patterns.",
+            "on_completion": "end--f0e6d0b5-6113-472e-9f66-e68ede8c5aa7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f0e6d0b5-6113-472e-9f66-e68ede8c5aa7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates if a malicious PowerShell process is running",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the antivirus scan",
+            "value": "not_clean",
+            "constant": false,
+            "external": true
+        }
+    }
+}

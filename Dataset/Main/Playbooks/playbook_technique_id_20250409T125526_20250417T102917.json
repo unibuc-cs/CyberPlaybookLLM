@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7acbe02-5b1e-4b90-b8d4-f45a297cd97e",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited PowerShell to execute unauthorized commands and interact with sensitive files.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--e4b4bccb-7eba-4320-99cc-7f080c8866bb",
+    "workflow": {
+        "start--e4b4bccb-7eba-4320-99cc-7f080c8866bb": {
+            "on_completion": "if-condition--condition-check",
+            "type": "start"
+        },
+        "if-condition--condition-check": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--terminate-powershell",
+            "on_false": "action--delete-malicious-executable"
+        },
+        "action--terminate-powershell": {
+            "name": "Terminate PowerShell Process",
+            "description": "Kill any running PowerShell processes.",
+            "on_completion": "action--delete-malicious-executable",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "killall powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--delete-malicious-executable": {
+            "name": "Delete Malicious Executable",
+            "description": "Remove the malicious executable dropped on the system.",
+            "on_completion": "while-condition--file-delete-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--file-delete-loop": {
+            "name": "File Deletion Loop",
+            "description": "Repeat until the malicious executable is deleted.",
+            "on_true": "action--scan-for-threats",
+            "condition": "! [ -f /tmp/malicious.exe ]",
+            "on_false": "action--scan-for-threats"
+        },
+        "action--scan-for-threats": {
+            "name": "Scan for Remaining Threats",
+            "description": "Run a threat scan on the specified path.",
+            "on_completion": "end--playbook-end",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav --path /tmp --alert-threshold high"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--playbook-end": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

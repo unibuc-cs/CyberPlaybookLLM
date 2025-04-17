@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b1c8d01-bd26-4c29-bdd3-e98d88444a72",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, leading to arbitrary command execution and unauthorized access to sensitive files.",
+    "created_by": "identity--d63c5894-8bdf-4851-9d30-bc1ec182328a",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1e2aee61-225d-4b42-bb1f-8da07de5b602",
+    "workflow": {
+        "start--1e2aee61-225d-4b42-bb1f-8da07de5b602": {
+            "on_completion": "action--b69a2874-ded9-42d9-a19b-2bf1095e1e45",
+            "type": "start"
+        },
+        "action--b69a2874-ded9-42d9-a19b-2bf1095e1e45": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script execution to stop further unauthorized actions.",
+            "on_completion": "action--f2c2c38a-225d-4a79-868d-cd505a87509b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f2c2c38a-225d-4a79-868d-cd505a87509b": {
+            "name": "Block outgoing traffic on suspicious port",
+            "description": "Prevent any outgoing connections on the suspicious port used during exploitation.",
+            "on_completion": "parallel--compromise_review_flow",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 8080 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--compromise_review_flow": {
+            "name": "Review of Compromised Environment",
+            "description": "Simultaneously scan for other compromised hosts and review user access permissions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4b6b7f34-bb96-42ae-94da-8a3fd435e6ec",
+                "action--dd2a6e58-4561-473e-9a1b-a4da679f2af4"
+            ]
+        },
+        "action--4b6b7f34-bb96-42ae-94da-8a3fd435e6ec": {
+            "name": "Scan for other compromised hosts",
+            "description": "Check each host listed in the compromised_hosts file for any potential compromise.",
+            "on_completion": "end--a44e95d5-834e-4562-ab47-fb46c0c4a847",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat compromised_hosts.txt); do nmap -sP $host; done"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "compromised_hosts": {
+                    "type": "file",
+                    "description": "File containing the list of potentially compromised hosts.",
+                    "value": "compromised_hosts.txt"
+                }
+            }
+        },
+        "action--dd2a6e58-4561-473e-9a1b-a4da679f2af4": {
+            "name": "Review user access permissions",
+            "description": "Identify users who have access permissions that may be excessive.",
+            "on_completion": "end--a44e95d5-834e-4562-ab47-fb46c0c4a847",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "awk -F: '$3 >= 1000 && $3 <= 60000 {print $1}' /etc/passwd"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a44e95d5-834e-4562-ab47-fb46c0c4a847": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

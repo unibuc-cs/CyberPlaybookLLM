@@ -1,0 +1,143 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d45f1e33-2b48-4b27-ad53-442d8b1e2a1d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution, payload downloads, and privilege escalation, with advanced CACAO constructs.",
+    "created_by": "identity--system-automated",
+    "created": "2025-04-10T07:43:33Z",
+    "modified": "2025-04-10T07:43:33Z",
+    "revoked": false,
+    "workflow_start": "start--a0f8468f-26f1-47f5-9ae8-a0f12dc6e29c",
+    "workflow": {
+        "start--a0f8468f-26f1-47f5-9ae8-a0f12dc6e29c": {
+            "on_completion": "parallel--b374f630-bb6f-4a7b-9d14-db5a391c7e20",
+            "type": "start"
+        },
+        "parallel--b374f630-bb6f-4a7b-9d14-db5a391c7e20": {
+            "name": "Execute initial mitigation actions in parallel",
+            "description": "Simultaneously execute multiple mitigation actions to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--0a2d3f67-52f6-4dce-a8b1-87f1d9b92344",
+                "action--ce9e5b9c-5a83-4c89-bc8c-d7f84680b8c1",
+                "if-condition--6f6dbfa5-33bd-4524-a4e6-b4432b3f8f3d",
+                "action--caa3acbe-2df0-4c51-994d-08422955a5a2"
+            ]
+        },
+        "action--0a2d3f67-52f6-4dce-a8b1-87f1d9b92344": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing malicious scripts.",
+            "on_completion": "end--efb29473-dd0a-40d7-bc68-1c455926e753",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious-script.sh"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--ce9e5b9c-5a83-4c89-bc8c-d7f84680b8c1": {
+            "name": "Reset Compromised Account Credentials",
+            "description": "Set a new password for the compromised user account.",
+            "on_completion": "end--efb29473-dd0a-40d7-bc68-1c455926e753",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh admin@host-22 'echo \"new_password\" | passwd --stdin compromised_user'"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "if-condition--6f6dbfa5-33bd-4524-a4e6-b4432b3f8f3d": {
+            "name": "Check for monitoring system",
+            "description": "Verify if a monitoring system for script execution exists.",
+            "type": "if-condition",
+            "condition": "monitoring_system_exists == false",
+            "on_true": "action--ee5b22af-cdae-4ab2-bde3-1a9e9119a1c8",
+            "on_false": "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930"
+        },
+        "action--ee5b22af-cdae-4ab2-bde3-1a9e9119a1c8": {
+            "name": "Set Up Monitoring for Script Execution",
+            "description": "Establish monitoring to detect unauthorized script execution.",
+            "on_completion": "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/bash -p x -k script_execution"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930": {
+            "name": "Scan for Additional Malware",
+            "description": "Run a comprehensive malware scan.",
+            "on_completion": "action--74b13bc0-204b-4884-8e48-208d8fa2c235",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "loop": {
+                "repeat": "true",
+                "until": "scan_result == 'clean'"
+            },
+            "agent": "organization--abc"
+        },
+        "action--74b13bc0-204b-4884-8e48-208d8fa2c235": {
+            "name": "Restore from Clean Backup",
+            "description": "Restore the system from a backup if system integrity cannot be confirmed.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -avz backup@backup-server:/backups/ / --exclude /tmp"
+                }
+            ],
+            "conditional_logic": {
+                "condition": "system_integrity == false",
+                "on_true": "end--efb29473-dd0a-40d7-bc68-1c455926e753"
+            },
+            "agent": "organization--ghi"
+        },
+        "action--caa3acbe-2df0-4c51-994d-08422955a5a2": {
+            "name": "Apply Security Patches",
+            "description": "Ensure all systems have the latest security updates to prevent vulnerabilities.",
+            "on_completion": "end--efb29473-dd0a-40d7-bc68-1c455926e753",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo yum update -y"
+                }
+            ],
+            "agent": "organization--jkl"
+        },
+        "end--efb29473-dd0a-40d7-bc68-1c455926e753": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "Organization DEF"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "Organization GHI"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--jkl": {
+            "type": "organization",
+            "name": "Organization JKL"
+        }
+    }
+}

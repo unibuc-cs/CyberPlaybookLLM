@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--abc01234-def5-6789-abcd-e1234567890f",
+    "name": "Malicious Script Execution Incident Mitigation Playbook",
+    "description": "This playbook addresses incidents where an attacker executed a malicious script leading to unauthorized data retrieval. The playbook includes actions to mitigate the threat and prevent further data exfiltration.",
+    "created_by": "identity--12345678-abcd-ef12-3456-7890abcdef12",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--00112233-4455-6677-8899-aabbccddeeff",
+    "workflow": {
+        "start--00112233-4455-6677-8899-aabbccddeeff": {
+            "on_completion": "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b",
+            "type": "start"
+        },
+        "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "if-condition--data_exfiltration_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "if-condition--data_exfiltration_check": {
+            "name": "Check if data exfiltration detected",
+            "type": "if-condition",
+            "condition": "data_exfiltration_detected",
+            "on_true": "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76",
+            "on_false": "action--d907e673-68bb-4c64-a681-32c68767c4ab"
+        },
+        "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76": {
+            "name": "Block outbound connections",
+            "description": "Block outbound connections to prevent further data exfiltration.",
+            "on_completion": "action--d907e673-68bb-4c64-a681-32c68767c4ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -m comment --comment 'Block exfiltration attempts' -j DROP"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "action--d907e673-68bb-4c64-a681-32c68767c4ab": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a system scan to find additional threats.",
+            "on_completion": "while-condition--scan_clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --detect-pua=yes --recursive"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "while-condition--scan_clean": {
+            "name": "Check if the scan is clean",
+            "description": "Repeat the scan until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_results_found",
+            "on_true": "action--d907e673-68bb-4c64-a681-32c68767c4ab",
+            "on_false": "action--faa2aa9d-cb10-414e-8566-bf5608ac4853"
+        },
+        "action--faa2aa9d-cb10-414e-8566-bf5608ac4853": {
+            "name": "Update host firewall rules",
+            "description": "Update firewall rules to block known malicious IP.",
+            "on_completion": "end--e12f4567-89ab-4cde-f123-456789abcdef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.200"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "end--e12f4567-89ab-4cde-f123-456789abcdef": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--123": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

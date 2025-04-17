@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4e7ab5ae-0987-41ef-b11e-44c3d59c6a13",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident of unauthorized script execution and data exfiltration through the command line interface in the organization's web application.",
+    "created_by": "identity--88f1e0d1-8278-4b99-bfa1-7faa9395a266",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--8f69c38d-a6e9-467b-9020-720e828845d2",
+    "workflow": {
+        "start--8f69c38d-a6e9-467b-9020-720e828845d2": {
+            "on_completion": "action--b78b54fc-0e1a-4970-82cb-13abb4db17b4",
+            "type": "start"
+        },
+        "action--b78b54fc-0e1a-4970-82cb-13abb4db17b4": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--64b735e4-bce3-41a3-8e51-15af3b7b3e3c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_script.sh)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--64b735e4-bce3-41a3-8e51-15af3b7b3e3c": {
+            "name": "Check for suspicious IP",
+            "type": "if-condition",
+            "condition": "suspicious_ip != None",
+            "on_true": "parallel--ebbe490b-bb73-49cb-a229-b26b5eda5ac0",
+            "on_false": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "parallel--ebbe490b-bb73-49cb-a229-b26b5eda5ac0": {
+            "name": "Block connections and Scan for artifacts",
+            "description": "Simultaneously block suspicious IP connections and scan for potential artifacts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bb87d036-5adb-47b4-abc1-44f5b15be60c",
+                "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+            ]
+        },
+        "action--bb87d036-5adb-47b4-abc1-44f5b15be60c": {
+            "name": "Block network connections to suspicious IPs",
+            "description": "Prevent outbound connections to identified suspicious IP address.",
+            "on_completion": "end--c7e0a998-5670-41e0-85f8-c3272fc8a0e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845": {
+            "name": "Scan for other potential artifacts",
+            "description": "Perform a scan to check for any additional malicious artifacts.",
+            "on_completion": "while-condition--9c395f9e-04c6-4d27-b01e-79cb144c2921",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--9c395f9e-04c6-4d27-b01e-79cb144c2921": {
+            "name": "Check scan results",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "end--c7e0a998-5670-41e0-85f8-c3272fc8a0e4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

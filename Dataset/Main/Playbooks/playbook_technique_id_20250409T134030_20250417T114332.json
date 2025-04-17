@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3a13158-6746-4f89-b80b-9e4be93af4a2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to incidents of unauthorized access through malicious script execution.",
+    "created_by": "identity--generic-identity",
+    "created": "2023-10-10T09:00:00Z",
+    "modified": "2023-10-10T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c9e45337-4db2-4c5f-b494-8529a64e0274",
+    "workflow": {
+        "start--c9e45337-4db2-4c5f-b494-8529a64e0274": {
+            "on_completion": "action--c5453c7c-5e8c-4a0b-894c-9e2b3e07c1f",
+            "type": "start"
+        },
+        "action--c5453c7c-5e8c-4a0b-894c-9e2b3e07c1f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "if-condition--b19527be-0256-4648-b392-f3875291c48c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b19527be-0256-4648-b392-f3875291c48c": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--f097fda4-48e4-4011-bac7-b8df6d034f94",
+            "on_false": "action--3b484c91-9f76-4c9e-82fa-07a5d173d982"
+        },
+        "action--f097fda4-48e4-4011-bac7-b8df6d034f94": {
+            "name": "Delete unauthorized scripts",
+            "description": "Remove unauthorized malicious scripts from the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc",
+            "next_steps": "while-condition--c3cac198-cd98-4e32-bec1-a73cb73363da"
+        },
+        "while-condition--c3cac198-cd98-4e32-bec1-a73cb73363da": {
+            "name": "Repeat delete action until no unauthorized scripts exist",
+            "on_completion": "action--3b484c91-9f76-4c9e-82fa-07a5d173d982",
+            "type": "while-condition",
+            "condition": "exists('/tmp/malicious_script.ps1')",
+            "on_true": "action--f097fda4-48e4-4011-bac7-b8df6d034f94"
+        },
+        "action--3b484c91-9f76-4c9e-82fa-07a5d173d982": {
+            "name": "Initiate network analysis",
+            "description": "Run a network scan to analyze potential exfiltration paths.",
+            "on_completion": "end--1f7f3089-7cec-47e1-ba09-fb7aa3eaa659",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_network_scan --ip 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the network scan.",
+                    "value": "network_scan_output",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--1f7f3089-7cec-47e1-ba09-fb7aa3eaa659": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

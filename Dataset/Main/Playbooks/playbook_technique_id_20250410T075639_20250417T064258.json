@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3f84d6b-df47-4cb0-b0ed-e410ae526332",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used a PowerShell script to disable user account controls and execute malicious payloads.",
+    "created_by": "identity--4f7d53f5-c47b-4f17-bc75-d89c6e267bd6",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--a5bff3ac-b1d9-4b53-b5c7-2363ac7485fb",
+    "workflow": {
+        "start--a5bff3ac-b1d9-4b53-b5c7-2363ac7485fb": {
+            "on_completion": "parallel--158d4f3e-820c-4d83-8a8e-a216d7b73c7a",
+            "type": "start"
+        },
+        "parallel--158d4f3e-820c-4d83-8a8e-a216d7b73c7a": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute multiple actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c4f52315-94e7-49f4-8c57-ebc2ac164b49",
+                "action--56e33a40-ff67-4d43-9baf-c4341f5e5489",
+                "action--d55f3152-f746-4482-b056-83b0aa2f749d"
+            ]
+        },
+        "action--c4f52315-94e7-49f4-8c57-ebc2ac164b49": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious executable.",
+            "on_completion": "action--432b4ac9-c665-47e9-bc81-3d52c2a5f234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM malicious.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--56e33a40-ff67-4d43-9baf-c4341f5e5489": {
+            "name": "Disable PowerShell remoting",
+            "description": "Disable PowerShell remoting if it is not already disabled.",
+            "on_completion": "action--d55f3152-f746-4482-b056-83b0aa2f749d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if (!(Get-PSRemotingEnabled)) { Disable-PSRemoting -Force }"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d55f3152-f746-4482-b056-83b0aa2f749d": {
+            "name": "Remove downloaded executables",
+            "description": "Remove all downloaded malicious executables from the Downloads directory.",
+            "on_completion": "action--7ace34d4-50de-4aff-b595-90ac2d328f4a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "foreach ($file in Get-ChildItem 'C:\\DownloadedMalware\\*.exe') { Remove-Item $file.FullName -Force }"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7ace34d4-50de-4aff-b595-90ac2d328f4a": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "on_completion": "if-condition--734ffb72-f785-4eaf-bd01-7d4aa97e6301",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--734ffb72-f785-4eaf-bd01-7d4aa97e6301": {
+            "name": "Threat scan evaluation",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "action--5d2468b4-87ae-4b79-9623-6eb7ef9f3df8",
+            "on_false": "action--7ace34d4-50de-4aff-b595-90ac2d328f4a"
+        },
+        "action--5d2468b4-87ae-4b79-9623-6eb7ef9f3df8": {
+            "name": "Restore security settings",
+            "description": "Restore Windows security settings after verifying threat removal.",
+            "on_completion": "end--e4f7378f-f912-4f27-a93b-5eb7342edb8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command 'Set-MpPreference -DisableRealtimeMonitoring $false'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e4f7378f-f912-4f27-a93b-5eb7342edb8f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

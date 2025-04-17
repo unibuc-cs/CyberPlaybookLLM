@@ -1,0 +1,135 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--90a3eec5-1b91-4aba-9e6b-cc36802ef19d",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses incidents involving the exploitation of Command and Scripting Interpreter to execute malicious scripts on host systems. It outlines the necessary remediation steps.",
+    "created_by": "identity--3defe47e-98f2-428c-9a32-eab3aa8055a2",
+    "created": "2023-11-01T14:50:00Z",
+    "modified": "2023-11-01T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--ee045abe-78c8-4aab-8176-78e4a82e2c8b",
+    "workflow": {
+        "start--ee045abe-78c8-4aab-8176-78e4a82e2c8b": {
+            "on_completion": "parallel--1f3d3028-370e-4e5f-8e3b-ebf8c095d36b",
+            "type": "start"
+        },
+        "parallel--1f3d3028-370e-4e5f-8e3b-ebf8c095d36b": {
+            "name": "Execute Mitigations",
+            "description": "Execute multiple mitigations in parallel to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5fa8b194-a9af-4e26-b253-7d47b88587f0",
+                "action--ac301e84-7330-4f84-9a58-62b47e6a0e47",
+                "action--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8",
+                "action--d9f8c246-939b-4982-8f99-74558f05b1ac",
+                "action--123e4567-e89b-12d3-a456-426614174000",
+                "action--48640097-5fb4-4349-a6a1-4ce6a5e3cf52"
+            ]
+        },
+        "action--5fa8b194-a9af-4e26-b253-7d47b88587f0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "end--ba35f94f-3b09-4edb-a915-c600099c2691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ac301e84-7330-4f84-9a58-62b47e6a0e47": {
+            "name": "Block offending IP",
+            "description": "Block the IP address of the attacker if found in fail2ban logs.",
+            "on_completion": "end--ba35f94f-3b09-4edb-a915-c600099c2691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if [ $(fail2ban-client status ssh | grep -c '192.168.1.100') -gt 0 ]"
+        },
+        "action--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8": {
+            "name": "Scan system for further infections",
+            "description": "Perform a system scan for further infections.",
+            "on_completion": "action--d9f8c246-939b-4982-8f99-74558f05b1ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --log=/var/log/clamscan.log"
+                }
+            ],
+            "agent": "organization--def",
+            "loop": "until [ $(grep -c 'Infected files: 0' /var/log/clamscan.log) -gt 0 ]"
+        },
+        "action--d9f8c246-939b-4982-8f99-74558f05b1ac": {
+            "name": "Reset user access credentials",
+            "description": "Reset all user passwords and keys.",
+            "on_completion": "action--123e4567-e89b-12d3-a456-426614174000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Reset all user passwords and keys'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "variables": {
+                "userList": "$(cat /etc/passwd | cut -d: -f1)"
+            }
+        },
+        "action--123e4567-e89b-12d3-a456-426614174000": {
+            "name": "Apply security patches",
+            "description": "Update the system and apply necessary security patches.",
+            "on_completion": "action--48640097-5fb4-4349-a6a1-4ce6a5e3cf52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--48640097-5fb4-4349-a6a1-4ce6a5e3cf52": {
+            "name": "Monitor for repeated attack attempts",
+            "description": "Monitor logs for any suspicious activity.",
+            "on_completion": "end--ba35f94f-3b09-4edb-a915-c600099c2691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep -i 'suspicious activity'"
+                }
+            ],
+            "agent": "organization--def",
+            "condition": "if [ -f /var/log/auth.log ]"
+        },
+        "end--ba35f94f-3b09-4edb-a915-c600099c2691": {
+            "step_extensions": {
+                "": "extension-definition--4b7e64f8-79a9-40d4-b451-156c95a62690"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Security Team"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Network Operations"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "Endpoint Security"
+        }
+    }
+}

@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fff6d60c-e1a1-4f6a-b6af-75b88a8147d7",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed a malicious script via a remote command interpreter, allowing data exfiltration.",
+    "created_by": "identity--7537b5e7-32b2-478e-bf3d-37e9e1780d99",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d04fc314-baff-4ffa-8550-af52e593b73c",
+    "workflow": {
+        "start--d04fc314-baff-4ffa-8550-af52e593b73c": {
+            "on_completion": "action--6eaf7beb-85ce-4c40-afdd-0db735c50309",
+            "type": "start"
+        },
+        "action--6eaf7beb-85ce-4c40-afdd-0db735c50309": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes found on the system.",
+            "on_completion": "if-condition--b481d74e-d9c4-48c6-8373-c47027db75dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b481d74e-d9c4-48c6-8373-c47027db75dd": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists = true",
+            "on_true": "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921",
+            "on_false": "action--b34a8bc3-1018-4a7c-b88c-43cb0787c538"
+        },
+        "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious files dropped by the attacker.",
+            "on_completion": "while-condition--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/dropped_files/*"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5": {
+            "name": "Check if files exist",
+            "description": "Repeat deletion until there are no more dropped files.",
+            "on_true": "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921",
+            "on_completion": "action--b34a8bc3-1018-4a7c-b88c-43cb0787c538",
+            "type": "while-condition",
+            "condition": "files_exist == true"
+        },
+        "action--b34a8bc3-1018-4a7c-b88c-43cb0787c538": {
+            "name": "Perform network traffic analysis",
+            "description": "Analyze network traffic to gather evidence of the attack.",
+            "on_completion": "action--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -w network_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5": {
+            "name": "Initiate full system antivirus scan",
+            "description": "Run a thorough antivirus scan to detect any remaining threats.",
+            "on_completion": "action--8c72d1c2-bc7a-49b2-bd6f-b7631285b46a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditional": "if incident_id == 'e5c208d7-5c58-4bff-9275-1fc38472b16e'"
+        },
+        "action--8c72d1c2-bc7a-49b2-bd6f-b7631285b46a": {
+            "name": "Update firewall rules",
+            "description": "Update firewall rules to block further access from malicious sources.",
+            "on_completion": "end--0a765f85-2f44-4f7e-8db6-a112c0129389",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0a765f85-2f44-4f7e-8db6-a112c0129389": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

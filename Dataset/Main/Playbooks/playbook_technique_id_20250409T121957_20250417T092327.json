@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c7fc2a6e-588a-4a4f-8535-d9267a5b54a3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via the command interpreter leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-17T12:00:00Z",
+    "modified": "2023-10-17T12:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--aa32c22f-acd9-4e4e-a00e-5cfdcf34d0e6",
+    "workflow": {
+        "start--aa32c22f-acd9-4e4e-a00e-5cfdcf34d0e6": {
+            "on_completion": "parallel--def42f38-d90d-43e2-bc8b-aa1ee997a8e2",
+            "type": "start"
+        },
+        "parallel--def42f38-d90d-43e2-bc8b-aa1ee997a8e2": {
+            "name": "Immediate Mitigation Actions",
+            "description": "Simultaneously perform kill process and isolate host actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e5e36e7c-11f1-43f0-b5f0-81075f28b4a8",
+                "action--a3c9e765-af2e-4647-bf9a-f2a1e421d0f7",
+                "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2"
+            ]
+        },
+        "action--e5e36e7c-11f1-43f0-b5f0-81075f28b4a8": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "action--a3c9e765-af2e-4647-bf9a-f2a1e421d0f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a3c9e765-af2e-4647-bf9a-f2a1e421d0f7": {
+            "name": "Isolate Affected Host",
+            "description": "Disable the network interface of the affected host.",
+            "on_completion": "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2": {
+            "name": "Scan for Additional Threats",
+            "description": "Continually scan for threats until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "on_false": "action--a6cace01-90ab-4e60-be73-ff6a1c1128fc",
+            "next_steps": [
+                "action--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2"
+            ]
+        },
+        "action--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2": {
+            "name": "Run Antivirus Scan",
+            "description": "Run the antivirus scan.",
+            "on_completion": "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_antivirus"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a6cace01-90ab-4e60-be73-ff6a1c1128fc": {
+            "name": "Change Compromised Passwords",
+            "description": "Update all compromised user passwords if necessary.",
+            "on_completion": "action--f3e4b823-b2de-4fbc-8b3b-73e8f3df8a53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "change_passwords --users compromised_users.txt"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f3e4b823-b2de-4fbc-8b3b-73e8f3df8a53": {
+            "name": "Monitor Log Files",
+            "description": "Continuously monitor log files for suspicious activities.",
+            "on_completion": "end--b79e53ae-d73d-42de-aa9d-97eebcc8b3bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'Failed login'"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "user_monitor": {
+                    "type": "string",
+                    "description": "Counts failed login attempts",
+                    "value": "failed_attempts",
+                    "constant": false
+                }
+            }
+        },
+        "end--b79e53ae-d73d-42de-aa9d-97eebcc8b3bc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

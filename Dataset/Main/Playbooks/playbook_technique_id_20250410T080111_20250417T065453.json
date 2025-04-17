@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d52cfb35-5f92-4c3d-acd2-7e9c966f41da",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to an incident where an attacker exploited a vulnerable web server using command and scripting interpreter.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc12345-1234-5678-abcd-ef0123456789",
+    "workflow": {
+        "start--abc12345-1234-5678-abcd-ef0123456789": {
+            "on_completion": "parallel--0a1b2c3d-4e5f-6789-abcd-ef0123456789",
+            "type": "start"
+        },
+        "parallel--0a1b2c3d-4e5f-6789-abcd-ef0123456789": {
+            "name": "Execute Initial Mitigations",
+            "description": "Perform initial actions to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e8f43cb1-4137-48a0-8fdf-91889d2c1ad4",
+                "action--27f4de0a-fac2-4fc7-9d9c-2bdcd1a755ca",
+                "action--3e54ad6a-6584-4983-8129-3bf9f3c771df"
+            ]
+        },
+        "action--e8f43cb1-4137-48a0-8fdf-91889d2c1ad4": {
+            "name": "Kill malicious process",
+            "on_completion": "action--b1b02158-7ae3-4f6a-9339-ec4b8a7a6f83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--27f4de0a-fac2-4fc7-9d9c-2bdcd1a755ca": {
+            "name": "Apply security patch",
+            "on_completion": "action--b1b02158-7ae3-4f6a-9339-ec4b8a7a6f83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if ! dpkg -s vulnerable-package | grep -q 'version X'; then sudo apt-get update && sudo apt-get install --only-upgrade vulnerable-package; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--3e54ad6a-6584-4983-8129-3bf9f3c771df": {
+            "name": "Monitor outbound traffic",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w exfiltration.pcap"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": "repeat until traffic is normal"
+        },
+        "action--b1b02158-7ae3-4f6a-9339-ec4b8a7a6f83": {
+            "name": "Check for additional malware",
+            "on_completion": "if-condition--8415fab7-983b-4af9-abde-efa78a495ae3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of malware scan",
+                    "value": "clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--8415fab7-983b-4af9-abde-efa78a495ae3": {
+            "name": "Audit system commands executed",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--8415fab7-983b-4af9-abde-efa78a495ae3",
+            "on_false": "end--c90178a1-64e1-4788-a051-e9d65c6abfb6"
+        },
+        "action--8415fab7-983b-4af9-abde-efa78a495ae3": {
+            "name": "Audit system commands",
+            "on_completion": "end--c90178a1-64e1-4788-a051-e9d65c6abfb6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ausearch -m EXECVE"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--c90178a1-64e1-4788-a051-e9d65c6abfb6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f93e1f9e-cc3e-42ab-ae3b-153d4abcde18",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook mitigates the effects of a malicious user executing scripts leading to credential dumping and lateral movement.",
+    "created_by": "identity--827c1fbc-b2ea-4d3d-abc3-30654e2955b6",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--a6eb44ee-74c8-45d5-b2b9-1a9c5e79d422",
+    "workflow": {
+        "start--a6eb44ee-74c8-45d5-b2b9-1a9c5e79d422": {
+            "on_completion": "parallel--f1c6ee3e-5b2b-437d-b8a5-4931fbda7313",
+            "type": "start"
+        },
+        "parallel--f1c6ee3e-5b2b-437d-b8a5-4931fbda7313": {
+            "name": "Execute Mitigations",
+            "description": "Run necessary mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8b8d1b0-c6cf-4b82-9a7b-68e0f2efa41d",
+                "action--b21089eb-c1ab-4e6d-85c8-6094d4f7e589",
+                "action--4dbe37c5-cf21-4b2b-8b3b-906d0e1b246c"
+            ]
+        },
+        "action--f8b8d1b0-c6cf-4b82-9a7b-68e0f2efa41d": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process executing the malicious script.",
+            "on_completion": "action--c749e66c-c1a8-42f8-b19c-53a2c440d784",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b21089eb-c1ab-4e6d-85c8-6094d4f7e589": {
+            "name": "Implement network segmentation",
+            "description": "Block further lateral movement from compromised host.",
+            "on_completion": "action--c749e66c-c1a8-42f8-b19c-53a2c440d784",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4dbe37c5-cf21-4b2b-8b3b-906d0e1b246c": {
+            "name": "Review and analyze logs",
+            "description": "Gather insights from authentications to identify further risks.",
+            "on_completion": "action--c749e66c-c1a8-42f8-b19c-53a2c440d784",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'suspect_pattern'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c749e66c-c1a8-42f8-b19c-53a2c440d784": {
+            "name": "Scan for malware on affected hosts",
+            "description": "Perform malware scanning until the system is clean.",
+            "type": "action",
+            "step_variables": {
+                "malware_clean": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the system is clean",
+                    "value": "false"
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan; if [ $? -ne 0 ]; then malware_clean=false; else malware_clean=true; fi"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--b8e6a6ac-4f3b-48ab-b08e-6b57a3b235a9"
+        },
+        "while-condition--b8e6a6ac-4f3b-48ab-b08e-6b57a3b235a9": {
+            "name": "Repeat scanning until clean",
+            "description": "Loop until malware is cleaned from hosts.",
+            "on_true": "action--c749e66c-c1a8-42f8-b19c-53a2c440d784",
+            "condition": "malware_clean == false",
+            "on_false": "action--256ce61e-1aff-4b3a-8ad5-4660fc67bf78"
+        },
+        "action--256ce61e-1aff-4b3a-8ad5-4660fc67bf78": {
+            "name": "Change credentials for affected accounts",
+            "description": "Update passwords for users affected by credential dumping.",
+            "on_completion": "end--d3eae3a9-cdb9-45b4-a614-3f3c42fe5244",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_password' | passwd user1"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if compromised_accounts_found"
+        },
+        "end--d3eae3a9-cdb9-45b4-a614-3f3c42fe5244": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

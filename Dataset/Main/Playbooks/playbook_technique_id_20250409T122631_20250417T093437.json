@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3e6f51a4-9c6c-44d4-9c6e-d8b9d2c276b3",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses a security incident where an attacker executed a malicious script, leading to data exfiltration. It includes steps to mitigate the damage and identify the source.",
+    "created_by": "identity--b6e27d44-5b1f-4515-aef6-7886757ba521",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--678c9dff-4d63-4f50-a316-2823ee03ab58",
+    "workflow": {
+        "start--678c9dff-4d63-4f50-a316-2823ee03ab58": {
+            "on_completion": "action--1c7f6e8e-3ebd-4e68-bc79-12349876abcd",
+            "type": "start"
+        },
+        "action--1c7f6e8e-3ebd-4e68-bc79-12349876abcd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process to prevent further actions.",
+            "on_completion": "if-condition--2a6cfea4-5d07-4016-a6cf-925abcd1d334",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--2a6cfea4-5d07-4016-a6cf-925abcd1d334": {
+            "name": "Check if malicious traffic detected",
+            "type": "if-condition",
+            "condition": "malicious_traffic_detected == true",
+            "on_true": "action--2a6cfea4-5d07-4016-a6cf-925abcd1d334",
+            "on_false": "action--c1199db5-63af-4cf2-bd39-456ff25c45ea"
+        },
+        "action--2a6cfea4-5d07-4016-a6cf-925abcd1d334": {
+            "name": "Identify and block suspicious IP",
+            "description": "Block incoming traffic from suspicious IP addresses to enhance security.",
+            "on_completion": "loop--c1199db5-63af-4cf2-bd39-456ff25c45ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--c1199db5-63af-4cf2-bd39-456ff25c45ea": {
+            "name": "System Scan Loop",
+            "description": "Continuously scan the system for rootkits and malware until it is clean.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--c1199db5-63af-4cf2-bd39-456ff25c45ea",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--c1199db5-63af-4cf2-bd39-456ff25c45ea": {
+            "name": "Scan the system for rootkits and malware",
+            "description": "Perform a security scan to identify any residual threats.",
+            "on_completion": "loop--c1199db5-63af-4cf2-bd39-456ff25c45ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_traffic_detected": {
+            "type": "boolean",
+            "description": "Indicator of whether malicious traffic has been detected.",
+            "value": false,
+            "constant": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the rootkit scan.",
+            "value": "not_clean",
+            "constant": false
+        }
+    }
+}

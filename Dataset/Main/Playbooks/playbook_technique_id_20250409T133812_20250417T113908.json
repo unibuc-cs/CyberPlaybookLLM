@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bfc4a867-0241-4d13-9351-7d8f8e518d02",
+    "name": "Playbook for Mitigating Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where a malicious PowerShell script was executed, resulting in the downloading of additional payloads.",
+    "created_by": "identity--abc8ed4f-8b92-4958-89fa-df2c82584729",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f12b321b-a498-4049-a0d6-cf770d98c532",
+    "workflow": {
+        "start--f12b321b-a498-4049-a0d6-cf770d98c532": {
+            "on_completion": "if-condition--c01b3767-132a-42ca-bf17-870b79acc007",
+            "type": "start"
+        },
+        "if-condition--c01b3767-132a-42ca-bf17-870b79acc007": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "action--2d2b3b21-87d4-4cb0-b938-cfcbf439ef11",
+            "on_false": "loop--f0116140-1be0-42d9-9440-61e320cdbd0a"
+        },
+        "action--2d2b3b21-87d4-4cb0-b938-cfcbf439ef11": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing the malicious script.",
+            "on_completion": "action--b8fbb7fd-ec71-4ef9-a579-ddc7c4b05d2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--f0116140-1be0-42d9-9440-61e320cdbd0a": {
+            "name": "Delete Malicious Files",
+            "description": "Repeat the deletion of malicious files until none are found.",
+            "on_completion": "action--0e5c3eae-4086-4b0d-9b59-31e5cb65c1da",
+            "type": "loop",
+            "condition": "malicious_files_found",
+            "next_steps": [
+                "action--b8fbb7fd-ec71-4ef9-a579-ddc7c4b05d2b"
+            ]
+        },
+        "action--b8fbb7fd-ec71-4ef9-a579-ddc7c4b05d2b": {
+            "name": "Delete downloaded malicious files",
+            "description": "Remove any downloaded malicious payloads on the system.",
+            "on_completion": "loop--f0116140-1be0-42d9-9440-61e320cdbd0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--0e5c3eae-4086-4b0d-9b59-31e5cb65c1da": {
+            "name": "Run full system antivirus scan",
+            "description": "Perform a comprehensive antivirus scan of the system to identify other potential threats.",
+            "on_completion": "action--3b6e0425-2250-4d7c-8eb4-3dcf6a76e912",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--3b6e0425-2250-4d7c-8eb4-3dcf6a76e912": {
+            "name": "Notify security team of incident",
+            "description": "Send an alert to the security team about the detected incident.",
+            "on_completion": "end--f4cee140-3496-4938-9aba-024bc2d8203b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-12, immediate action required' | mail -s 'Security Alert' security@organization.xyz"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f4cee140-3496-4938-9aba-024bc2d8203b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

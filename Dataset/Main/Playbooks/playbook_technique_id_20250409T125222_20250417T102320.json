@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9651c47-3f8c-4f09-a85c-fb042a1fe3d7",
+    "name": "Mitigation Playbook for Malicious PDF Execution Incident",
+    "description": "This playbook addresses the incident where an employee opened a malicious PDF causing remote code execution.",
+    "created_by": "identity--abc12345-6789-0abc-def0-123456789012",
+    "created": "2023-10-04T12:00:00Z",
+    "modified": "2023-10-04T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--001",
+    "workflow": {
+        "start--001": {
+            "on_completion": "action--kill-malicious-process",
+            "type": "start"
+        },
+        "action--kill-malicious-process": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious PDF execution.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "action--isolate-affected-device"
+        },
+        "action--isolate-affected-device": {
+            "name": "Isolate affected device from the network",
+            "description": "Prevent the infected device from communicating with external networks.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <affected_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--scan-for-infections"
+        },
+        "while-condition--scan-for-infections": {
+            "name": "Scan for additional infections",
+            "description": "Perform a recursive scan on the device until no infections are detected.",
+            "type": "while-condition",
+            "condition": "infected == true",
+            "on_true": "action--run-scan",
+            "on_false": "end--001"
+        },
+        "action--run-scan": {
+            "name": "Run malware scan",
+            "description": "Scan for infections on the device.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "description": "Flag indicating if infections were found.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "update-infection-status"
+        },
+        "update-infection-status": {
+            "name": "Update infection status",
+            "type": "action",
+            "description": "Update infection status based on the scan result.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_infection_status > infected"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--scan-for-infections"
+        },
+        "end--001": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "infected": {
+            "type": "boolean",
+            "description": "Indicates if any infections were detected during scanning.",
+            "value": "false",
+            "constant": false,
+            "external": true
+        }
+    }
+}

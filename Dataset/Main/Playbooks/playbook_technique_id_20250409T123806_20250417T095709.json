@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--89f577b4-731b-458b-b2a3-c1c0f057b67e",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook outlines the steps to mitigate a PowerShell backdoor incident triggered by a phishing email.",
+    "created_by": "identity--abcd1234-5678-90ef-ghij-klmnopqrstuv",
+    "created": "2025-04-09T14:00:00.000Z",
+    "modified": "2025-04-09T14:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1d2d9b3-c3e1-483b-bb45-098b0fae3f23",
+    "workflow": {
+        "start--f1d2d9b3-c3e1-483b-bb45-098b0fae3f23": {
+            "on_completion": "action--d3e771fe-bb1d-4b24-bd76-19f0aa4b5e0c",
+            "type": "start"
+        },
+        "action--d3e771fe-bb1d-4b24-bd76-19f0aa4b5e0c": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script that executed the backdoor.",
+            "on_completion": "action--f2ceced0-026c-4bf5-9b20-2b1b996d1b89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f2ceced0-026c-4bf5-9b20-2b1b996d1b89": {
+            "name": "Remove dropped malicious files",
+            "description": "Remove the malicious backdoor file from the system.",
+            "on_completion": "while-condition--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_backdoor.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f": {
+            "name": "System Scan Loop",
+            "description": "Perform a full system scan repeatedly until no threats are found.",
+            "on_true": "action--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f",
+            "condition": "scan_status != 'clean'",
+            "type": "while-condition",
+            "on_false": "end--1dcb6734-12f2-4719-898f-ae4812c841dc"
+        },
+        "action--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f": {
+            "name": "Run full system scan",
+            "description": "Perform a comprehensive scan of the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --full-system"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the system scan.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "if-condition--check-scan-status"
+        },
+        "if-condition--check-scan-status": {
+            "name": "Check Scan Status",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--1dcb6734-12f2-4719-898f-ae4812c841dc",
+            "on_false": "while-condition--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f"
+        },
+        "end--1dcb6734-12f2-4719-898f-ae4812c841dc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

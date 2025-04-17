@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1b8451e1-a497-4c36-9db3-eecf7b9e4195",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script for remote control and exfiltration of sensitive data.",
+    "created_by": "identity--abc",
+    "created": "2025-04-09T14:00:00Z",
+    "modified": "2025-04-09T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--1b8451e1-abcdef-1234-56789abcdefg",
+    "workflow": {
+        "start--1b8451e1-abcdef-1234-56789abcdefg": {
+            "on_completion": "if-condition--process_found",
+            "type": "start"
+        },
+        "if-condition--process_found": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--kill_malicious_process",
+            "on_false": "action--block_c2_connections"
+        },
+        "action--kill_malicious_process": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes that may be exploited by the attacker.",
+            "on_completion": "action--block_c2_connections",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--block_c2_connections": {
+            "name": "Block outbound connections to known C2 IPs",
+            "description": "Prevent further communication with the command and control server.",
+            "on_completion": "action--run_antivirus_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <C2_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--run_antivirus_scan": {
+            "name": "Antivirus Scan Loop",
+            "description": "Run antivirus scan until no threats are detected.",
+            "on_true": "action--run_antivirus_scan_action",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--run_antivirus_scan_action"
+            ]
+        },
+        "action--run_antivirus_scan_action": {
+            "name": "Run antivirus scan on affected host",
+            "on_completion": "while-condition--run_antivirus_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --quick host-22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--document_and_notify": {
+            "name": "Document incident and notify security team",
+            "description": "Record the incident details for future reference and alert the security team.",
+            "on_completion": "if-condition--escalation_detected",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident documented' >> /var/log/security_incidents.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--escalation_detected": {
+            "name": "Check for privilege escalation",
+            "type": "if-condition",
+            "condition": "privilege_escalation_detected == true",
+            "on_true": "action--change_network_credentials",
+            "on_false": "end--incident_response_complete"
+        },
+        "action--change_network_credentials": {
+            "name": "Change network credentials",
+            "description": "Force reset the credentials to prevent further access.",
+            "on_completion": "end--incident_response_complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd -e user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--incident_response_complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

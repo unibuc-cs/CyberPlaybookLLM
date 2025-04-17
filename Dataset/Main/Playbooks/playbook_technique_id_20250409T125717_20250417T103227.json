@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c97aa52d-c0de-4b38-8bcb-34f5b3d2e540",
+    "name": "Mitigation for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident involving the execution of unauthorized commands via a scripting language on a target host.",
+    "created_by": "identity--abc12345-6789-efgh-ijkl-mnopqrstuvwxyz",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a59e3b71-c3f1-4d75-9e39-f8bffa123456",
+    "workflow": {
+        "start--a59e3b71-c3f1-4d75-9e39-f8bffa123456": {
+            "on_completion": "action--64f8c825-f6d3-46b0-bbcd-fe33eb8fb5d4",
+            "type": "start"
+        },
+        "action--64f8c825-f6d3-46b0-bbcd-fe33eb8fb5d4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "parallel--34df62f9-bb97-4c8c-8ea7-eb9ca9e78e0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--34df62f9-bb97-4c8c-8ea7-eb9ca9e78e0c": {
+            "name": "Monitor and Secure",
+            "description": "Actions to secure the host and monitor for further threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c906320d-5c8a-4f99-bb89-9c6e8eec5b43",
+                "action--a6e19657-ee71-414d-afc3-e476565e4e57",
+                "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42"
+            ]
+        },
+        "action--c906320d-5c8a-4f99-bb89-9c6e8eec5b43": {
+            "name": "Block suspicious IP",
+            "description": "Blocks incoming traffic from known malicious IP addresses.",
+            "on_completion": "action--190c1c67-17a3-4666-8aeb-0059f51e2676",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": {
+                "condition": "malicious_IP_detected",
+                "true_next": "action--190c1c67-17a3-4666-8aeb-0059f51e2676"
+            }
+        },
+        "action--a6e19657-ee71-414d-afc3-e476565e4e57": {
+            "name": "Run a full antivirus scan",
+            "description": "Scan the entire system for threats after incident detection.",
+            "on_completion": "loop--51e8e54c-125b-4500-8e3f-7d6d30708c62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--51e8e54c-125b-4500-8e3f-7d6d30708c62": {
+            "name": "Check for threats",
+            "description": "Continue antivirus scanning until no threats are found.",
+            "on_completion": "end--d3e76e44-db3a-4d82-a6a8-c85f34b941e1",
+            "type": "while-condition",
+            "condition": "threats_found",
+            "true_next": "action--a6e19657-ee71-414d-afc3-e476565e4e57"
+        },
+        "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42": {
+            "name": "Review logs for abnormal activity",
+            "description": "Check the last 100 lines of the log file for suspicious commands or activities.",
+            "on_completion": "end--d3e76e44-db3a-4d82-a6a8-c85f34b941e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n ${log_size} /var/log/syslog | grep suspicious"
+                }
+            ],
+            "agent": "organization--abc",
+            "variables": {
+                "log_size": 100
+            }
+        },
+        "action--190c1c67-17a3-4666-8aeb-0059f51e2676": {
+            "name": "Update firewall rules",
+            "description": "Update firewall settings to deny traffic from the known threat.",
+            "on_completion": "end--d3e76e44-db3a-4d82-a6a8-c85f34b941e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.0.2.1"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": {
+                "condition": "IP_is_known_threat",
+                "true_next": "end--d3e76e44-db3a-4d82-a6a8-c85f34b941e1"
+            }
+        },
+        "end--d3e76e44-db3a-4d82-a6a8-c85f34b941e1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "CyberDefenseCorp"
+        }
+    }
+}

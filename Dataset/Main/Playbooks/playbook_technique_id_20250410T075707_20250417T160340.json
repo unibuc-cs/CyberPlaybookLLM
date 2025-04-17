@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f48afd06-5b8b-4fe9-9c7e-c43bc2e1a6d4",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where a threat actor utilized a scripting interpreter to deploy malicious scripts across several compromised hosts, disrupting services and exfiltrating sensitive data.",
+    "created_by": "identity--abc12345-6789-ef00-1234-56789abcdef0",
+    "created": "2023-11-10T15:00:00.000Z",
+    "modified": "2023-11-10T15:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1aaab1e1-3abc-4d2b-def0-56789abcdef0",
+    "workflow": {
+        "start--1aaab1e1-3abc-4d2b-def0-56789abcdef0": {
+            "on_completion": "action--kill-malicious-process",
+            "type": "start"
+        },
+        "action--kill-malicious-process": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script running with elevated privileges.",
+            "on_completion": "if-condition--script-detected",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--script-detected": {
+            "name": "Check if malicious script was detected running",
+            "type": "if-condition",
+            "condition": "script_detected == true",
+            "on_true": "action--remove-dropped-files",
+            "on_false": "action--block-malicious-ip"
+        },
+        "action--remove-dropped-files": {
+            "name": "Remove dropped files",
+            "description": "Remove any files dropped by the malicious script.",
+            "on_completion": "while-condition--no-files-left",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--no-files-left": {
+            "name": "Check for remaining dropped files",
+            "description": "Continue to remove files until no suspicious files are found.",
+            "type": "while-condition",
+            "condition": "files_remaining == true",
+            "on_true": "action--remove-dropped-files",
+            "on_false": "action--block-malicious-ip"
+        },
+        "action--block-malicious-ip": {
+            "name": "Block malicious IP",
+            "description": "Block outbound connections to the identified malicious IP.",
+            "on_completion": "loop--investigate-quarantine-hosts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.25 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--investigate-quarantine-hosts": {
+            "name": "Investigate and quarantine affected hosts",
+            "description": "For each compromised host, isolate it from the network.",
+            "type": "loop",
+            "iteration": "foreach host in [\"host-77\", \"host-34\", \"host-22\"]",
+            "next_steps": "action--scan-network-for-intrusions",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "isolate --host $HOST"
+                }
+            ],
+            "variables": {
+                "HOST": [
+                    "host-77",
+                    "host-34",
+                    "host-22"
+                ]
+            }
+        },
+        "action--scan-network-for-intrusions": {
+            "name": "Scan network for further intrusions",
+            "description": "Conduct a scan of the network for further potential intrusions.",
+            "on_completion": "end--end-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -oA /logs/scan_results $NETWORK"
+                }
+            ],
+            "agent": "organization--xyz",
+            "variables": {
+                "NETWORK": "192.168.0.0/24"
+            }
+        },
+        "end--end-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

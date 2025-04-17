@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d94ff75a-1c7d-4b8d-9d97-7d82aa2e07d5",
+    "name": "Mitigation Playbook for Command Interpreter Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability to execute arbitrary commands and deploy a backdoor shell on the server.",
+    "created_by": "identity--b0294bc3-c88d-4df3-b401-b57ec03557ae",
+    "created": "2023-10-02T09:00:00Z",
+    "modified": "2023-10-02T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--9f2903ae-56b3-4579-9823-c3fdff616c8c",
+    "workflow": {
+        "start--9f2903ae-56b3-4579-9823-c3fdff616c8c": {
+            "on_completion": "action--d1baf75e-1c7d-4b8d-9d97-7d82aa2e07d5",
+            "type": "start"
+        },
+        "action--d1baf75e-1c7d-4b8d-9d97-7d82aa2e07d5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the backdoor shell.",
+            "on_completion": "action--8e231c0e-c1fc-4fb4-9869-817c4ca8b6ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--8e231c0e-c1fc-4fb4-9869-817c4ca8b6ac": {
+            "name": "Delete dropped files",
+            "description": "Remove the backdoor shell script from the server.",
+            "on_completion": "loop--6f6e11fc-4199-4c11-bb24-e5e82a37dcdc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--6f6e11fc-4199-4c11-bb24-e5e82a37dcdc": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Run vulnerability scanner until the scan is clean.",
+            "type": "loop",
+            "condition": "scan_clean == false",
+            "on_true": "action--6f6e11fc-4199-4c11-bb24-e5e82a37dcdc",
+            "on_false": "end--d2f46e08-968i-4ae2-894c-8821c05a1e2a"
+        },
+        "action--6f6e11fc-4199-4c11-bb24-e5e82a37dcdc": {
+            "name": "Run vulnerability scanner",
+            "description": "Perform a scan to identify any additional vulnerabilities.",
+            "on_completion": "if-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scanner"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--scan-check": {
+            "name": "Check scan status",
+            "description": "Evaluate if the scan results are clean.",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--d2f46e08-968i-4ae2-894c-8821c05a1e2a",
+            "on_false": "loop--6f6e11fc-4199-4c11-bb24-e5e82a37dcdc"
+        },
+        "end--d2f46e08-968i-4ae2-894c-8821c05a1e2a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

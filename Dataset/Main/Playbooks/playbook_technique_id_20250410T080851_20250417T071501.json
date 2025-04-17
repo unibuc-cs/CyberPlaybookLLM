@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b73e34d-0fdf-4c07-8e54-40c57ef5cae8",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized script was detected running on a compromised host, attempting to establish a remote connection.",
+    "created_by": "identity--4ce2630d-0d26-4f34-9a1c-9e5ded6f33fc",
+    "created": "2025-04-10T08:50:00.000Z",
+    "modified": "2025-04-10T08:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--501ac69a-2881-4e1c-b99a-b573831d6c52",
+    "workflow": {
+        "start--501ac69a-2881-4e1c-b99a-b573831d6c52": {
+            "on_completion": "action--e1c74b9a-aef1-4748-b0df-b6cos9e6aa01",
+            "type": "start"
+        },
+        "action--e1c74b9a-aef1-4748-b0df-b6cos9e6aa01": {
+            "name": "Kill Unauthorized Script",
+            "description": "Identify the running script process and kill it.",
+            "on_completion": "action--f3c9a071-ceb8-4c3a-9dca-8a51f853324f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--admin"
+        },
+        "action--f3c9a071-ceb8-4c3a-9dca-8a51f853324f": {
+            "name": "Delete Malicious Script",
+            "description": "Delete the malicious script file from the system.",
+            "on_completion": "while-condition--deb322bc-881f-42d0-89c7-9ce313ff5c58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--admin"
+        },
+        "while-condition--deb322bc-881f-42d0-89c7-9ce313ff5c58": {
+            "name": "Conduct Virus Scan Loop",
+            "description": "Conduct a full virus scan and repeat until no threats are detected.",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--deb322bc-881f-42d0-89c7-9ce313ff5c58",
+            "on_false": "if-condition--caf2cb72-8b58-40d4-82c8-722b0335f4b9"
+        },
+        "action--deb322bc-881f-42d0-89c7-9ce313ff5c58": {
+            "name": "Full Virus Scan",
+            "description": "Conduct a full scan of the affected directories.",
+            "on_completion": "while-condition--deb322bc-881f-42d0-89c7-9ce313ff5c58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--it",
+            "step_variables": {
+                "threats_detected": {
+                    "type": "boolean",
+                    "description": "Indicates whether threats were detected during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--caf2cb72-8b58-40d4-82c8-722b0335f4b9": {
+            "name": "Check PowerShell Execution Policy",
+            "type": "if-condition",
+            "condition": "powershell_execution_policy != 'Restricted'",
+            "on_true": "action--caf2cb72-8b58-40d4-82c8-722b0335f4b9",
+            "on_false": "action--8fa0e5df-53ec-4a0d-8b33-f1s26c8c7e46"
+        },
+        "action--caf2cb72-8b58-40d4-82c8-722b0335f4b9": {
+            "name": "Restrict PowerShell Execution",
+            "description": "Ensure PowerShell execution is restricted.",
+            "on_completion": "action--8fa0e5df-53ec-4a0d-8b33-f1s26c8c7e46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--security"
+        },
+        "action--8fa0e5df-53ec-4a0d-8b33-f1s26c8c7e46": {
+            "name": "Block External IP Address",
+            "description": "Block the external IP address at the firewall.",
+            "on_completion": "end--a7582e85-409d-4fa3-95d2-4ad346efda77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d Malicious.IP.Address -j DROP"
+                }
+            ],
+            "agent": "organization--network"
+        },
+        "end--a7582e85-409d-4fa3-95d2-4ad346efda77": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--admin": {
+            "type": "organization",
+            "name": "Administrative Team"
+        },
+        "organization--it": {
+            "type": "organization",
+            "name": "IT Team"
+        },
+        "organization--security": {
+            "type": "organization",
+            "name": "Security Team"
+        },
+        "organization--network": {
+            "type": "organization",
+            "name": "Network Team"
+        }
+    }
+}

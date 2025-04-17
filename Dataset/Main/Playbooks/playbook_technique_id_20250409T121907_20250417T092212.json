@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1e3b9cc-2d6b-4b2c-85b0-ac4b8e9e62cb",
+    "name": "Mitigation Playbook for Malicious Process Creation Incident",
+    "description": "A playbook to mitigate a security incident involving the creation of a malicious process used to establish a backdoor for persistent access and exfiltrate sensitive data.",
+    "created_by": "identity--xyz-12345678-1234-5678-1234-567812345678",
+    "created": "2023-10-03T14:00:00.000Z",
+    "modified": "2023-10-03T14:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1ab8bc0-cc60-445e-8eaf-4b4a9560c228",
+    "workflow": {
+        "start--b1ab8bc0-cc60-445e-8eaf-4b4a9560c228": {
+            "on_completion": "action--dd77c14e-4b40-4a45-8b3e-f5707f8d4f4b",
+            "type": "start"
+        },
+        "action--dd77c14e-4b40-4a45-8b3e-f5707f8d4f4b": {
+            "name": "Terminate malicious process",
+            "description": "Terminate the malicious process that was spawned using elevated privileges.",
+            "on_completion": "action--d377e2be-6c59-4acf-9614-d3a2ebe53e7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_process_name)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d377e2be-6c59-4acf-9614-d3a2ebe53e7e": {
+            "name": "Investigate network connections",
+            "description": "Investigate network connections established to suspicious external IP.",
+            "on_completion": "loop--f1c3f7ba-3cb1-4a57-8c22-f3aa0f07b2c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -tunap | grep suspicious_ip"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--f1c3f7ba-3cb1-4a57-8c22-f3aa0f07b2c3": {
+            "name": "Perform system scan loop",
+            "description": "Perform a full system scan and repeat until the scan is clean.",
+            "condition": "scan_status != clean",
+            "on_true": "action--f1c3f7ba-3cb1-4a57-8c22-f3aa0f07b2c3_rerun",
+            "on_false": "end--f10bb53f-1514-4ac1-a55d-d272bc616395",
+            "type": "while-condition"
+        },
+        "action--f1c3f7ba-3cb1-4a57-8c22-f3aa0f07b2c3_rerun": {
+            "name": "Perform a full system scan",
+            "description": "Executing a full system scan on the affected system to detect and remove any malicious files.",
+            "on_completion": "loop--f1c3f7ba-3cb1-4a57-8c22-f3aa0f07b2c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan --remove"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates whether the last scan was clean.",
+                    "value": "initial",
+                    "constant": false
+                }
+            }
+        },
+        "end--f10bb53f-1514-4ac1-a55d-d272bc616395": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Cybersecurity Team"
+        }
+    }
+}

@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d206621d-947a-4d00-9ad0-b1d7cde051ae",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on the organization's server to extract sensitive data.",
+    "created_by": "identity--abc",
+    "created": "2023-10-01T10:00:00Z",
+    "modified": "2023-10-01T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a13125b8-1c88-4e8b-bad5-83808199c404",
+    "workflow": {
+        "start--a13125b8-1c88-4e8b-bad5-83808199c404": {
+            "on_completion": "action--c58a7e9d-8fad-4f50-b9eb-a377429c155d",
+            "type": "start"
+        },
+        "action--c58a7e9d-8fad-4f50-b9eb-a377429c155d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9": {
+            "name": "Check script execution settings",
+            "type": "if-condition",
+            "condition": "script_execution_enabled == true",
+            "on_true": "loop--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9",
+            "on_false": "action--ff6a83ab-23f9-4ef8-ab34-8beb79e823b0"
+        },
+        "loop--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9": {
+            "name": "Restrict script execution loop",
+            "on_completion": "if-condition--ff6a83ab-23f9-4ef8-ab34-8beb79e823b0",
+            "type": "loop",
+            "condition": "script_execution_enabled == true",
+            "next_steps": [
+                "action--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9"
+            ]
+        },
+        "action--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9": {
+            "name": "Restrict script execution on the server",
+            "description": "Disable script execution by modifying security settings.",
+            "on_completion": "loop--ec6c5bcb-a3f7-4c7e-af4b-64bd5ba5c1a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'disable script execution' > /etc/security/disable_scripts.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ff6a83ab-23f9-4ef8-ab34-8beb79e823b0": {
+            "name": "Initiate full system scan",
+            "description": "Run a comprehensive scan of the system to identify any other threats.",
+            "on_completion": "while-condition--scan--pending",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan --system"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates the status of the system scan.",
+                    "value": "pending",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--scan--pending": {
+            "name": "Check for threats after scanning",
+            "description": "Loop until the scan finds no threats.",
+            "on_completion": "end--completion--successfully",
+            "type": "while-condition",
+            "condition": "scan_status == 'pending'",
+            "on_true": "action--ff6a83ab-23f9-4ef8-ab34-8beb79e823b0",
+            "on_false": "end--completion--successfully"
+        },
+        "end--completion--successfully": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

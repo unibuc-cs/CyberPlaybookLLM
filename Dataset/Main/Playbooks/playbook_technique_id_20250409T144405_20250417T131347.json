@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3d9c618-1c09-48bc-83e7-9342c6194c5f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed malicious scripts on the organization's server, leading to unauthorized network activity and file exfiltration.",
+    "created_by": "identity--abcde1234-5678-9012-3456-7890abcdefg",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0001",
+    "workflow": {
+        "start--0001": {
+            "on_completion": "action--1c11f3ad-754e-4b8c-b5ca-6386ce226ae1",
+            "type": "start"
+        },
+        "action--1c11f3ad-754e-4b8c-b5ca-6386ce226ae1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script running on the host.",
+            "on_completion": "action--dca1a0b7-94c0-4c8e-b5f3-0d8a5b5c71b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dca1a0b7-94c0-4c8e-b5f3-0d8a5b5c71b9": {
+            "name": "Block external IP addresses",
+            "description": "Block outbound connections to suspicious external IPs identified.",
+            "on_completion": "while-condition--9b998de0-4b81-4c29-9b62-5d40159c519e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--9b998de0-4b81-4c29-9b62-5d40159c519e": {
+            "name": "Conduct full system scan",
+            "description": "Repeatedly conduct a full system scan until no infected files are found.",
+            "on_true": "action--9b998de0-4b81-4c29-9b62-5d40159c519e",
+            "type": "while-condition",
+            "condition": "$(clamscan --recursive /path/to/scan | grep 'Infected files: 0' | wc -l) -eq 0",
+            "on_false": "end--0002"
+        },
+        "action--9b998de0-4b81-4c29-9b62-5d40159c519e": {
+            "name": "Perform system scan",
+            "description": "Perform a full recursive scan of the system to identify any threats.",
+            "on_completion": "while-condition--9b998de0-4b81-4c29-9b62-5d40159c519e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0002": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

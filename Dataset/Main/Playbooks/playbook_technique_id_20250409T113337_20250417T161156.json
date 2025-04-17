@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d83d2384-5e6f-4f36-bb5e-48ddd1448f62",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where attackers exploited a vulnerability to execute arbitrary commands, dropping a malicious script and modifying system configurations.",
+    "created_by": "identity--5c2a314c-2e47-4b3b-adb9-b3877e20dbe2",
+    "created": "2025-04-09T10:30:00.000Z",
+    "modified": "2025-04-09T10:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029",
+    "workflow": {
+        "start--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029": {
+            "on_completion": "action--kill-malicious-process",
+            "type": "start"
+        },
+        "action--kill-malicious-process": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process associated with the dropped script.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "if-condition--check-malware-file"
+        },
+        "if-condition--check-malware-file": {
+            "name": "Check if malware file exists",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/malware.sh')",
+            "on_true": "action--remove-malicious-file",
+            "on_false": "action--restart-affected-service"
+        },
+        "action--remove-malicious-file": {
+            "name": "Remove dropped malicious file",
+            "description": "Remove the malicious script from the temporary directory.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "action--restart-affected-service"
+        },
+        "action--restart-affected-service": {
+            "name": "Restart affected service",
+            "description": "Restart the web service to restore normal operation.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart web-service"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--check-service-health"
+        },
+        "while-condition--check-service-health": {
+            "name": "Check service health",
+            "description": "Repeat until the web service is healthy.",
+            "on_true": "action--conduct-file-integrity-check",
+            "condition": "service_is_healthy('web-service')",
+            "on_false": "action--restart-affected-service"
+        },
+        "action--conduct-file-integrity-check": {
+            "name": "Conduct file integrity check",
+            "description": "Perform an integrity check on the system to ensure no malicious modifications remain.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "aide --check"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--mitigation-complete"
+        },
+        "end--mitigation-complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

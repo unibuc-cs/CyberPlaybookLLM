@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3a1e54b9-fe56-4c1f-adc6-479d794f67e4",
+    "name": "Mitigation Playbook for Unauthorized Shell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used scripting capabilities to execute unauthorized shell commands, leading to potential data breach and persistence through malware deployment.",
+    "created_by": "identity--0f8f4eda-ef12-4bf8-bb71-0b8e7e828d23",
+    "created": "2023-10-23T08:00:00Z",
+    "modified": "2023-10-23T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--0f4b2a72-9eb5-4f9c-b2b4-57f68a440b23",
+    "workflow": {
+        "start--0f4b2a72-9eb5-4f9c-b2b4-57f68a440b23": {
+            "on_completion": "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e",
+            "type": "start"
+        },
+        "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that may be executing.",
+            "on_completion": "parallel--d1234567-e890-4abc-b123-4567890abcdef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--d1234567-e890-4abc-b123-4567890abcdef": {
+            "name": "Execute additional mitigations",
+            "description": "Run subsequent mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6b92c330-b2a1-4034-b710-45902e6211b8",
+                "action--c8b033e8-049e-4d7c-b641-0669349eff32",
+                "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b",
+                "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de"
+            ]
+        },
+        "action--6b92c330-b2a1-4034-b710-45902e6211b8": {
+            "name": "Scan for residual scripts",
+            "description": "Find and remove any residual scripts that may still exist on the system.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "no_more_infected",
+                "continue": "if infected_files_exist"
+            }
+        },
+        "action--c8b033e8-049e-4d7c-b641-0669349eff32": {
+            "name": "Block IPs related to command and control server",
+            "description": "Block known malicious IPs to prevent further communication.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                },
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 10.0.0.200 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b": {
+            "name": "Reset user's admin privileges",
+            "description": "Remove admin privileges from the affected users.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L -G '' attacker_user"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "for each affected_user",
+                "continue": "if is_admin"
+            }
+        },
+        "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de": {
+            "name": "Verify integrity of core security services",
+            "description": "Check the status of core security services.",
+            "on_completion": "end--b1e9d66e-1234-47c8-b6f6-4c63251dcd56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl status firewalld && systemctl status auditd"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b1e9d66e-1234-47c8-b6f6-4c63251dcd56": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a1df0e4-fecb-47ce-8713-d2f34e1f8404",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook mitigates an incident where an attacker exploited an application layer protocol to exfiltrate sensitive data.",
+    "created_by": "identity--f32b1d1e-da60-4de9-94a1-fad973076409",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bfa25c8e-dc27-4441-9d1d-6e47eb8f0824",
+    "workflow": {
+        "start--bfa25c8e-dc27-4441-9d1d-6e47eb8f0824": {
+            "on_completion": "action--fa0a3d54-5f43-4b4c-b0a7-1c5b7748f1ee",
+            "type": "start"
+        },
+        "action--fa0a3d54-5f43-4b4c-b0a7-1c5b7748f1ee": {
+            "name": "Block suspicious outbound traffic",
+            "description": "Block all suspicious outbound traffic to prevent further data exfiltration.",
+            "on_completion": "action--1883bfec-9e5f-4649-bb1f-db76c9de3446",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport [port_number] -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1883bfec-9e5f-4649-bb1f-db76c9de3446": {
+            "name": "Isolate the affected host",
+            "description": "Shutdown the affected host to prevent further data loss.",
+            "on_completion": "loop--2444934e-b1db-4be3-9fe8-51f123918536",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh -t admin@host-15 'shutdown -h now'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "affected_host": {
+                    "type": "string",
+                    "description": "The host that is affected by the incident.",
+                    "value": "host-15",
+                    "constant": false
+                }
+            }
+        },
+        "loop--2444934e-b1db-4be3-9fe8-51f123918536": {
+            "name": "Analyze and correlate logs",
+            "description": "Iteratively analyze logs for evidence of suspicious activity.",
+            "on_completion": "end--f5e4b6e8-69d1-4ca3-9fec-7ae9d8730ce3",
+            "type": "loop",
+            "condition": "analysis_complete == false",
+            "on_true": "action--2444934e-b1db-4be3-9fe8-51f123918536",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'host-15' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--2444934e-b1db-4be3-9fe8-51f123918536": {
+            "name": "Check for more suspicious traffic",
+            "on_completion": "loop--2444934e-b1db-4be3-9fe8-51f123918536",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if grep -q 'suspicious_pattern' /var/log/syslog; then analysis_complete=false; else analysis_complete=true; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f5e4b6e8-69d1-4ca3-9fec-7ae9d8730ce3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

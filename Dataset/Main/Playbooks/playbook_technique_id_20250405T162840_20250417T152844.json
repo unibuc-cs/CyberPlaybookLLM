@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e53b303a-bb94-409e-87c4-9707a2952a67",
+    "name": "Mitigation Playbook for Masquerading Incident",
+    "description": "This playbook is designed to respond to an incident where an attacker used masquerading to disguise a malicious executable as a legitimate process.",
+    "created_by": "identity--8395a1e4-ef8a-4d89-92c0-7c64780f4aef",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-ef12-3456-7890abcdef12",
+    "workflow": {
+        "start--12345678-abcd-ef12-3456-7890abcdef12": {
+            "on_completion": "parallel--abc12345-6789-0abcd-ef01-23456789abcdef",
+            "type": "start"
+        },
+        "parallel--abc12345-6789-0abcd-ef01-23456789abcdef": {
+            "name": "Execute Mitigations",
+            "description": "Run mitigation steps for the masquerading incident in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--312fb737-aafa-4b21-a90e-d6c3f73b78bf",
+                "action--54b1c459-f698-434d-963b-c3b0edc5698f",
+                "action--d5fbf486-f7d9-4944-a0be-4444b54932e6",
+                "action--bfe9bd0f-b238-4f01-bafa-6a0f3812da81",
+                "action--7e8a70cd-c05b-41f0-b175-828214b64eea"
+            ]
+        },
+        "action--312fb737-aafa-4b21-a90e-d6c3f73b78bf": {
+            "name": "Delete disguised svchost.exe",
+            "description": "Inspect Server-1 and delete the disguised svchost.exe file in C:\\Windows\\System32\\.",
+            "on_completion": "end--finish-12345678-abcd-ef12-3456-7890abcdef12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if (Test-Path 'C:\\Windows\\System32\\svchost.exe') { Remove-Item 'C:\\Windows\\System32\\svchost.exe' -Force }"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--54b1c459-f698-434d-963b-c3b0edc5698f": {
+            "name": "Establish file integrity monitoring",
+            "description": "Establish file integrity monitoring on Server-1.",
+            "on_completion": "end--finish-12345678-abcd-ef12-3456-7890abcdef12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditpol /set /subcategory:\"File System\" /success:enable /failure:enable"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--d5fbf486-f7d9-4944-a0be-4444b54932e6": {
+            "name": "Update process execution policies",
+            "description": "Review and update process execution policies on Server-1.",
+            "on_completion": "end--finish-12345678-abcd-ef12-3456-7890abcdef12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy AllSigned -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--bfe9bd0f-b238-4f01-bafa-6a0f3812da81": {
+            "name": "Revoke access on Workstation-12",
+            "description": "Revoke access to Workstation-12 databases for processes originating from Server-1.",
+            "on_completion": "end--finish-12345678-abcd-ef12-3456-7890abcdef12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sqlcmd -S Workstation-12 -Q \"REVOKE CONNECT ON DATABASE::Workstation12DB FROM [Server-1$];\""
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7e8a70cd-c05b-41f0-b175-828214b64eea": {
+            "name": "Check logs for unauthorized access",
+            "description": "Check Server-1's and Workstation-12's logs for unauthorized access patterns.",
+            "on_completion": "end--finish-12345678-abcd-ef12-3456-7890abcdef12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-Command -ComputerName Server-1,Workstation-12 -ScriptBlock { Get-EventLog -LogName Security -EntryType FailureAudit } && Set-ADDefaultDomainPasswordPolicy -LockoutThreshold 5 -LockoutDuration 00:30:00"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "end--finish-12345678-abcd-ef12-3456-7890abcdef12": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "DefensiveTeam"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "DBAdministrationTeam"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "LogManagementTeam"
+        }
+    }
+}

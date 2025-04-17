@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ff281c34-5666-4b5e-8b28-d7689f6e9487",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook aims to mitigate an attack leveraging a command-line interpreter and includes actions such as killing malicious processes and blocking C2 communications.",
+    "created_by": "identity--0521cf84-570a-4f50-9f01-1f07fbc9f47f",
+    "created": "2025-10-11T08:00:00.000Z",
+    "modified": "2025-10-11T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d4101ad6-bdfb-450d-9c52-fb75eae95bd6",
+    "workflow": {
+        "start--d4101ad6-bdfb-450d-9c52-fb75eae95bd6": {
+            "on_completion": "parallel--8f184acf-9c13-4879-b22e-87efd35dc4ab",
+            "type": "start"
+        },
+        "parallel--8f184acf-9c13-4879-b22e-87efd35dc4ab": {
+            "name": "Simultaneous Mitigations",
+            "description": "Perform actions in parallel to address different aspects of the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080",
+                "decision--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25"
+            ]
+        },
+        "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the process executing the suspicious script.",
+            "on_completion": "loop--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f 'suspicious_script')"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "decision--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25": {
+            "name": "Root User Decision",
+            "description": "Determine if the current user is root to allow blocking C2 server traffic.",
+            "type": "if-condition",
+            "condition": "$(whoami) == 'root'",
+            "on_true": "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25",
+            "on_false": "end--e38cf4f9-6d64-41f0-a426-1bb442651f06"
+        },
+        "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25": {
+            "name": "Block Outbound Traffic to C2 Server",
+            "description": "Use iptables to block communications with the known C2 server.",
+            "on_completion": "end--e38cf4f9-6d64-41f0-a426-1bb442651f06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.45 -j DROP"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "loop--b3a58fed-db5f-41ac-bf87-be368a8319c6": {
+            "name": "Scan and Clean Loop",
+            "description": "Repeat scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "on_false": "action--e9855c96-c70c-41fb-813b-14ca36be325e"
+        },
+        "action--b3a58fed-db5f-41ac-bf87-be368a8319c6": {
+            "name": "Scan and Clean Infected Host",
+            "on_completion": "loop--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan / && echo 'scan_clean=true'"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--e9855c96-c70c-41fb-813b-14ca36be325e": {
+            "name": "Patch Vulnerable Web Server",
+            "description": "Update and upgrade the web server software to fix vulnerabilities.",
+            "on_completion": "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef": {
+            "name": "Monitor for Repeated Access Attempts",
+            "description": "Continuously monitor logs for failed login attempts to address repeated access.",
+            "on_completion": "end--e38cf4f9-6d64-41f0-a426-1bb442651f06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep 'failed password'"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "end--e38cf4f9-6d64-41f0-a426-1bb442651f06": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "DefenderOrganization"
+        }
+    }
+}

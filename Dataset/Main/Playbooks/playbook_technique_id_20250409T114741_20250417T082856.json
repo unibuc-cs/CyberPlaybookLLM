@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8a7e648f-8760-4dd9-9af6-c5d5e26bf3f7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized commands executed via the command interpreter, resulting in data exfiltration and malware deployment.",
+    "created_by": "identity--0cfb66de-29c6-41b4-97d0-9c2bc761c3b7",
+    "created": "2023-10-10T10:00:00Z",
+    "modified": "2023-10-10T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--0001fdbb-e621-4739-bb60-bac5b3482d2a",
+    "workflow": {
+        "start--0001fdbb-e621-4739-bb60-bac5b3482d2a": {
+            "on_completion": "action--c3f4e3a0-f4b6-4897-ae55-d3dfdb0aa54d",
+            "type": "start"
+        },
+        "action--c3f4e3a0-f4b6-4897-ae55-d3dfdb0aa54d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing malicious scripts.",
+            "on_completion": "if-condition--malicious_ip_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--malicious_ip_check": {
+            "name": "Check for malicious IP",
+            "type": "if-condition",
+            "condition": "malicious_ip_detected == true",
+            "on_true": "action--a2c2885b-cr48-478c-be98-3eabba297d8f",
+            "on_false": "action--ff67d903-4476-4331-bcd4-635f6378c6b9"
+        },
+        "action--a2c2885b-cr48-478c-be98-3eabba297d8f": {
+            "name": "Block outbound connections",
+            "description": "Block any outbound connections to identified malicious IP addresses.",
+            "on_completion": "action--ff67d903-4476-4331-bcd4-635f6378c6b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ff67d903-4476-4331-bcd4-635f6378c6b9": {
+            "name": "Run antivirus scan",
+            "description": "Perform a full antivirus scan to detect and eliminate any remaining threats.",
+            "on_completion": "while-condition--repeat_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--repeat_scan": {
+            "name": "Repeat antivirus scan until clean",
+            "description": "Continue scanning until the system is confirmed clean of all threats.",
+            "on_true": "action--ff67d903-4476-4331-bcd4-635f6378c6b9",
+            "condition": "scan_status != 'clean'",
+            "on_false": "end--0003e8f6-e90d-4090-b9ee-a89124667228"
+        },
+        "end--0003e8f6-e90d-4090-b9ee-a89124667228": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_ip_detected": {
+            "type": "boolean",
+            "description": "Flag indicating if a malicious IP is detected",
+            "value": "false",
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the antivirus scan",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

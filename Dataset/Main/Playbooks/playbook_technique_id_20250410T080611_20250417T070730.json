@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bf81a0c6-8b76-4d07-a4d7-8d3d36bdd4f8",
+    "name": "Mitigation Playbook for Remote Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts remotely using a compromised account.",
+    "created_by": "identity--c67e1eef-cc93-4bfe-afd9-99fe94394c8d",
+    "created": "2023-10-22T15:00:00Z",
+    "modified": "2023-10-22T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1b13e6a-7d6d-4b91-b555-159d397f7818",
+    "workflow": {
+        "start--d1b13e6a-7d6d-4b91-b555-159d397f7818": {
+            "on_completion": "parallel--193c4d83-4acf-4ac2-ab1d-6ec407bafbd7",
+            "type": "start"
+        },
+        "parallel--193c4d83-4acf-4ac2-ab1d-6ec407bafbd7": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--442f1be5-93b0-425f-9d6e-c7f56ed1a5e1",
+                "if-condition--5e476ef5-6738-4a82-bc89-3ad3879b617e",
+                "loop--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3",
+                "if-condition--498dcbf7-4ad9-4c99-abc8-3dee5cf12bb6",
+                "action--cfb2374e-5753-4d6f-b8f5-362d20f45b70"
+            ]
+        },
+        "action--442f1be5-93b0-425f-9d6e-c7f56ed1a5e1": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious process running on the system.",
+            "on_completion": "action--5e476ef5-6738-4a82-bc89-3ad3879b617e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--5e476ef5-6738-4a82-bc89-3ad3879b617e": {
+            "name": "Check for External IP Connection",
+            "type": "if-condition",
+            "condition": "connection_to_external_ip_detected",
+            "on_true": "action--5e476ef5-6738-4a82-bc89-3ad3879b617e_block",
+            "on_false": "loop--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3"
+        },
+        "action--5e476ef5-6738-4a82-bc89-3ad3879b617e_block": {
+            "name": "Block External IP",
+            "description": "Block connections to the suspicious external IP.",
+            "on_completion": "loop--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3": {
+            "name": "Scan for Additional Threats",
+            "description": "Scan all connected hosts for additional threats until the scan is clean.",
+            "on_completion": "end--dffab2f7-e0d3-4f20-9ba4-51d55d5d5b68",
+            "type": "loop",
+            "condition": "scan_result == 'dirty'",
+            "next_steps": [
+                "action--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3_action"
+            ]
+        },
+        "action--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3_action": {
+            "name": "Perform Threat Scan",
+            "description": "Scan the log directory for malware.",
+            "on_completion": "loop--acdeba25-ae43-4b7e-a8fd-ffb4555b09b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive --remove /var/log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--498dcbf7-4ad9-4c99-abc8-3dee5cf12bb6": {
+            "name": "Check Compromised Host",
+            "type": "if-condition",
+            "condition": "host_status == 'compromised'",
+            "on_true": "action--498dcbf7-4ad9-4c99-abc8-3dee5cf12bb6_action",
+            "on_false": "action--cfb2374e-5753-4d6f-b8f5-362d20f45b70"
+        },
+        "action--498dcbf7-4ad9-4c99-abc8-3dee5cf12bb6_action": {
+            "name": "Isolate Compromised Host",
+            "description": "Take the network interface down for the compromised host.",
+            "on_completion": "action--cfb2374e-5753-4d6f-b8f5-362d20f45b70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--cfb2374e-5753-4d6f-b8f5-362d20f45b70": {
+            "name": "Reset Compromised Account Passwords",
+            "description": "Reset passwords for any compromised accounts.",
+            "on_completion": "end--dffab2f7-e0d3-4f20-9ba4-51d55d5d5b68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new-password' | passwd --stdin compromised_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--dffab2f7-e0d3-4f20-9ba4-51d55d5d5b68": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

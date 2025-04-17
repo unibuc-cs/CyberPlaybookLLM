@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3a618b73-be95-4626-9c5b-3e3e5dc3aa69",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses incidents of unauthorized script executions that result in sensitive data exfiltration. It includes steps to terminate malicious processes, reset compromised passwords, conduct security scans, and monitor for abnormal outgoing traffic.",
+    "created_by": "identity--6707168b-3ed0-41f2-a396-466bf96c1d5f",
+    "created": "2025-04-10T12:00:00Z",
+    "modified": "2025-04-10T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--4df23a45-d721-4937-8ede-38cec95e3846",
+    "workflow": {
+        "start--4df23a45-d721-4937-8ede-38cec95e3846": {
+            "on_completion": "action--b8eaeac5-b098-4de5-b04e-60f3de8078b3",
+            "type": "start"
+        },
+        "action--b8eaeac5-b098-4de5-b04e-60f3de8078b3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the unauthorized script.",
+            "on_completion": "action--bbf79e34-11f7-4a55-b9d5-190e9f044aff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bbf79e34-11f7-4a55-b9d5-190e9f044aff": {
+            "name": "Change user passwords with evidence of being compromised",
+            "description": "Reset the password of the user suspected to be compromised.",
+            "on_completion": "while-condition--c2e68b1e-4de0-4cb7-b3b7-1c7350f4f846",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd attacker --new-password new_secure_password"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--c2e68b1e-4de0-4cb7-b3b7-1c7350f4f846": {
+            "name": "Run a full security scan",
+            "description": "Perform security scan on the system until it is verified to be clean.",
+            "on_completion": "if-condition--ddf6d6f9-41c5-41ad-ac94-97044b1a2550",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c2e68b1e-4de0-4cb7-b3b7-1c7350f4f846",
+            "on_false": "if-condition--ddf6d6f9-41c5-41ad-ac94-97044b1a2550"
+        },
+        "action--c2e68b1e-4de0-4cb7-b3b7-1c7350f4f846": {
+            "name": "Initiate full security scan",
+            "on_completion": "while-condition--c2e68b1e-4de0-4cb7-b3b7-1c7350f4f846",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--ddf6d6f9-41c5-41ad-ac94-97044b1a2550": {
+            "name": "Monitor outgoing connections for anomalies",
+            "description": "Check if outgoing traffic exceeds the designated threshold.",
+            "type": "if-condition",
+            "condition": "outgoing_traffic > threshold",
+            "on_true": "action--monitor_connections",
+            "on_false": "end--839c7920-de53-4fc5-a97d-2989d0403716"
+        },
+        "action--monitor_connections": {
+            "name": "Monitor outgoing connections",
+            "description": "Using tcpdump to track outgoing connections to identify anomalies.",
+            "on_completion": "end--839c7920-de53-4fc5-a97d-2989d0403716",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any 'port 80 or port 443'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--839c7920-de53-4fc5-a97d-2989d0403716": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

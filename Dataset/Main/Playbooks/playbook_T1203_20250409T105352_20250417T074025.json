@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a59c02b-1d43-41b9-9a3e-7bb1e0f71a25",
+    "name": "Mitigation Playbook for PDF Exploitation Incident",
+    "description": "This playbook addresses an incident where an employee opened a malicious PDF that exploited a vulnerability, leading to arbitrary code execution and unauthorized access to sensitive files.",
+    "created_by": "identity--1c7894a8-6c05-4cba-8984-70d5c9ac817b",
+    "created": "2025-04-10T10:35:52.641Z",
+    "modified": "2025-04-10T10:50:00.641Z",
+    "revoked": false,
+    "workflow_start": "start--456e2da1-0dba-43d5-87ba-9801d8c1b1b7",
+    "workflow": {
+        "start--456e2da1-0dba-43d5-87ba-9801d8c1b1b7": {
+            "on_completion": "action--fbd9c630-3f4d-4a01-bb7b-d761edc72e7b",
+            "type": "start"
+        },
+        "action--fbd9c630-3f4d-4a01-bb7b-d761edc72e7b": {
+            "name": "Isolate infected host",
+            "description": "Take the infected host offline to prevent further exploitation.",
+            "on_completion": "parallel--efdec76d-3b53-430c-bc76-b35d1c5d9995",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d0b857de-b42f-422c-bbc4-5ee3a0a5f93b": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan on the isolated host to detect infections.",
+            "on_completion": "if-condition--a74b8153-b37b-4aaa-b231-7adaef8e2356",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --host host-23"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--a74b8153-b37b-4aaa-b231-7adaef8e2356": {
+            "name": "Check if infection is detected",
+            "type": "if-condition",
+            "condition": "infection_detected",
+            "on_true": "action--d0b857de-b42f-422c-bbc4-5ee3a0a5f93b",
+            "on_false": "action--5b82c9ae-a7e2-4f38-9e53-0cc5d0b5c8f9"
+        },
+        "action--5b82c9ae-a7e2-4f38-9e53-0cc5d0b5c8f9": {
+            "name": "Review access logs for unauthorized access",
+            "description": "Examine access logs for any unauthorized actions taken from the infected host.",
+            "on_completion": "action--d1cce94e-d1a4-4d60-99ea-3a76d6d8760c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/access.log | grep 'host-23'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "variables": {
+                "logs": "/var/log/access.log"
+            }
+        },
+        "action--d1cce94e-d1a4-4d60-99ea-3a76d6d8760c": {
+            "name": "Notify IT security team",
+            "description": "Send an immediate notification to the IT security team regarding the incident.",
+            "on_completion": "action--d53dfd43-660f-4568-ac8c-3e930a1e604f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --team IT_Security --message 'Action required for host-23 exploitation incident'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d53dfd43-660f-4568-ac8c-3e930a1e604f": {
+            "name": "Update firewall rules",
+            "description": "Update firewall rules to prevent further communication from the infected host.",
+            "on_completion": "end--b79cdd6c-afc3-47b9-9327-b9a8a8020513",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule 'rule family=ipv4 source address=host-23 reject'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--efdec76d-3b53-430c-bc76-b35d1c5d9995": {
+            "name": "Run Antivirus and Notify",
+            "description": "Run antivirus scan and notify IT Security team concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d0b857de-b42f-422c-bbc4-5ee3a0a5f93b",
+                "action--d1cce94e-d1a4-4d60-99ea-3a76d6d8760c"
+            ]
+        },
+        "end--b79cdd6c-afc3-47b9-9327-b9a8a8020513": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

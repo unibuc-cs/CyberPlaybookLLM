@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--be6f21d6-bb93-4cbd-8f93-1730a9b2b6b7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a web application, executing commands and dropping a web shell.",
+    "created_by": "identity--generic-id-01",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--687f27e8-d92e-43d5-9d7b-bce5b9cd6745",
+            "type": "start"
+        },
+        "action--687f27e8-d92e-43d5-9d7b-bce5b9cd6745": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious commands.",
+            "on_completion": "if-condition--e045da24-cb12-474f-9c6e-e06a6d088f37",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--e045da24-cb12-474f-9c6e-e06a6d088f37": {
+            "name": "Check if web shell exists",
+            "type": "if-condition",
+            "condition": "test -f /var/www/html/suspicious_shell.php",
+            "on_true": "action--e045da24-cb12-474f-9c6e-e06a6d088f37",
+            "on_false": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04"
+        },
+        "action--e045da24-cb12-474f-9c6e-e06a6d088f37": {
+            "name": "Delete dropped web shell",
+            "description": "Remove the web shell that was dropped into the web directory.",
+            "on_completion": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/suspicious_shell.php"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04": {
+            "name": "Conduct full system scan",
+            "description": "Perform a full system scan and repeat until the system is clean.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--3c9cc18a-0eaa-4783-bf43-963ef47bfb04": {
+            "name": "Run full system scan",
+            "description": "Execute the full system scan to check for other potential threats.",
+            "on_completion": "update-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "update-scan-status": {
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(grep -c 'no threats found' scan.log) -gt 0 ]; then scan_status='clean'; else scan_status='not_clean'; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

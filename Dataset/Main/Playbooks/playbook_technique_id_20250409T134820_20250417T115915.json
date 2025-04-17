@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e0b74f-5c2b-4cb4-9462-0b1a0acdc9d0",
+    "name": "Playbook for Command Execution and Data Exfiltration Incident",
+    "description": "This playbook addresses the incident where an attacker executed scripts via a command line to exfiltrate sensitive data after infiltrating through a phishing email.",
+    "created_by": "identity--a1b2c3d4-e5f6-7g8h-9i10-j11k12l13m14",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b0d3fcb1-64c4-473f-bf0a-d72d89fec7ab",
+    "workflow": {
+        "start--b0d3fcb1-64c4-473f-bf0a-d72d89fec7ab": {
+            "on_completion": "action--b3ff3b0a-4c89-41c6-8d82-82d544e0808b",
+            "type": "start"
+        },
+        "action--b3ff3b0a-4c89-41c6-8d82-82d544e0808b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process used for the malicious activity.",
+            "on_completion": "action--441b8f7b-f599-487a-81a2-9c194672c43b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--441b8f7b-f599-487a-81a2-9c194672c43b": {
+            "name": "Disable remote command execution",
+            "description": "Set the execution policy to restrict remote execution and prevent further script execution.",
+            "type": "loop",
+            "on_completion": "action--563a3eef-1d4e-4c1e-b68e-fd36a56f1aa5",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "execution_policy != 'Restricted'",
+            "step_variables": {
+                "execution_policy": {
+                    "type": "string",
+                    "value": "None",
+                    "constant": false
+                }
+            }
+        },
+        "action--563a3eef-1d4e-4c1e-b68e-fd36a56f1aa5": {
+            "name": "Run a full system scan",
+            "description": "Perform a scan of the system to identify additional threats.",
+            "on_completion": "end--7d3b37e0-bc61-47ee-8c89-c58d2b0e4f47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_found": {
+                    "type": "boolean",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "condition": "scan_found == false"
+        },
+        "end--7d3b37e0-bc61-47ee-8c89-c58d2b0e4f47": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

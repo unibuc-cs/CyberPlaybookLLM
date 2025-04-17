@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a23c6a9b-5d45-4f68-b9c5-48d1489e02cf",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application and executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--4f0eb1db-9c65-4227-b83d-68e638f179da",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--d38960e1-2b58-47a2-b95a-4490c04a60f3",
+            "type": "start"
+        },
+        "action--d38960e1-2b58-47a2-b95a-4490c04a60f3": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--b62b478c-1748-44b6-9a34-8c907d7ad8bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b62b478c-1748-44b6-9a34-8c907d7ad8bc": {
+            "name": "Check if logs are missing",
+            "type": "if-condition",
+            "condition": "are_logs_missing == true",
+            "on_true": "action--b62b478c-1748-44b6-9a34-8c907d7ad8bc",
+            "on_false": "loop--d2463229-82bb-452c-8503-72b140dda43c"
+        },
+        "action--b62b478c-1748-44b6-9a34-8c907d7ad8bc": {
+            "name": "Restore logs from backup",
+            "description": "Restore the deleted logs from backup.",
+            "on_completion": "loop--d2463229-82bb-452c-8503-72b140dda43c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/logs/* /var/log/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--d2463229-82bb-452c-8503-72b140dda43c": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Perform a malware scan on the affected hosts until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--d2463229-82bb-452c-8503-72b140dda43c",
+            "on_completion": "end--b4c23b5d-3c5e-4c4c-8b55-789b042d9f1f"
+        },
+        "action--d2463229-82bb-452c-8503-72b140dda43c": {
+            "name": "Run malware scanning",
+            "description": "Execute a recursive malware scan on home directories.",
+            "on_completion": {
+                "type": "variable",
+                "variable": "scan_is_clean",
+                "check_condition": "if scan is clean"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b4c23b5d-3c5e-4c4c-8b55-789b042d9f1f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "are_logs_missing": {
+            "type": "boolean",
+            "description": "Indicates if logs are missing after the attack.",
+            "value": true
+        },
+        "scan_is_clean": {
+            "type": "boolean",
+            "description": "Indicates if the malware scan is clean.",
+            "value": false
+        }
+    }
+}

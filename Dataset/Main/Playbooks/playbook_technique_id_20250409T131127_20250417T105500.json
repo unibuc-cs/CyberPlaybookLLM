@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7d067a5-8b2c-4e84-b966-dde3ea75fb41",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration",
+    "description": "This playbook addresses incidents involving data exfiltration through application layer protocols. It includes steps to block malicious IPs, kill suspicious processes, and run network scans to identify compromised hosts.",
+    "created_by": "identity--4f2f8bfe-1e69-4a3a-8118-b5f21ed9bd27",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1001a22b-3bc7-4c79-8f4b-260c17a1eff1",
+    "workflow": {
+        "start--1001a22b-3bc7-4c79-8f4b-260c17a1eff1": {
+            "on_completion": "action--a1c190c9-b00c-4e75-8bdd-094f35324db3",
+            "type": "start"
+        },
+        "action--a1c190c9-b00c-4e75-8bdd-094f35324db3": {
+            "name": "Block outbound requests to known malicious IPs",
+            "description": "Blocking outbound requests to known malicious IP addresses to prevent further data exfiltration.",
+            "on_completion": "action--34f7593a-90f6-4cce-ba4b-c204d5c2f6aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--34f7593a-90f6-4cce-ba4b-c204d5c2f6aa": {
+            "name": "Kill malicious process",
+            "description": "Killing any running processes that are deemed suspicious.",
+            "on_completion": "parallel--process_monitoring",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_process'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--process_monitoring": {
+            "name": "Network monitoring and scanning",
+            "description": "Executing network scan and monitoring for compromised hosts in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e3c8f68e-5b4f-4736-b6a4-18df86cde5a1"
+            ]
+        },
+        "action--e3c8f68e-5b4f-4736-b6a4-18df86cde5a1": {
+            "name": "Run network scan to identify compromised hosts",
+            "description": "Performing network scan to identify compromised hosts in the internal network.",
+            "on_completion": "decision--scan_results_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--scan_results_check": {
+            "name": "Check if scan returns compromised hosts",
+            "type": "if-condition",
+            "condition": "scan_results != 0",
+            "on_true": "action--notify_admins",
+            "on_false": "end--successful_mitigation"
+        },
+        "action--notify_admins": {
+            "name": "Notify administrators of compromised hosts",
+            "description": "Alerting the IT security team about the detected compromised hosts.",
+            "on_completion": "end--successful_mitigation",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Compromised hosts detected! Review the logs and take action.' | mail -s 'Security Alert: Compromised Hosts' admins@organization.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--successful_mitigation": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f31e4d5-b0f1-421e-9e4d-4c4813e6823d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access and executed malicious scripts on multiple hosts, leading to data compromise.",
+    "created_by": "identity--a45d8a17-8c23-4ef7-a464-b4bd5c07be90",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c2bfe739-fdab-4470-8c5b-e16b0efcf8e3",
+    "workflow": {
+        "start--c2bfe739-fdab-4470-8c5b-e16b0efcf8e3": {
+            "on_completion": "action--b7d3a891-b689-4e45-bd33-cc456c0ef988",
+            "type": "start"
+        },
+        "action--b7d3a891-b689-4e45-bd33-cc456c0ef988": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--ce4e89be-2a36-4b81-94bb-1881148c4ac4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ce4e89be-2a36-4b81-94bb-1881148c4ac4": {
+            "name": "Isolate affected hosts",
+            "description": "Block inbound traffic from the attacker's IP address.",
+            "on_completion": "parallel--cdddb1ff-c9e7-4f31-b1ef-0dd6cd809bee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--cdddb1ff-c9e7-4f31-b1ef-0dd6cd809bee": {
+            "name": "Handle Follow-up Mitigations",
+            "description": "Run follow-up mitigations parallelly: integrity check and notification.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a12b4c5d-e93e-4f8b-a2e5-8b0034cbe6e7",
+                "action--dd5c85f4-2e51-4e7f-9cba-007a7288816c",
+                "action--abe7949c-b18d-4edf-9e0f-6bc0bae0c594"
+            ]
+        },
+        "action--a12b4c5d-e93e-4f8b-a2e5-8b0034cbe6e7": {
+            "name": "Run integrity check on affected files",
+            "description": "Perform integrity checks on potentially affected files.",
+            "on_completion": "if-condition--8abcaa03-9b0e-4be5-9e9c-ff7eb208c7cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tripwire --check"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--8abcaa03-9b0e-4be5-9e9c-ff7eb208c7cd": {
+            "name": "Check if suspicious files are found",
+            "type": "if-condition",
+            "condition": "suspicious_file_found",
+            "on_true": "loop--70053743-f4e3-4013-9743-8ec5c2153547",
+            "on_false": "end--e4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "loop--70053743-f4e3-4013-9743-8ec5c2153547": {
+            "name": "Verify remaining files",
+            "description": "Repeat integrity check until all files are verified.",
+            "on_completion": "action--a12b4c5d-e93e-4f8b-a2e5-8b0034cbe6e7",
+            "type": "while-condition",
+            "condition": "suspicious_file_found == true"
+        },
+        "action--dd5c85f4-2e51-4e7f-9cba-007a7288816c": {
+            "name": "Notify security team",
+            "description": "Send notification to the security team regarding the incident.",
+            "on_completion": "end--e4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --team security"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--abe7949c-b18d-4edf-9e0f-6bc0bae0c594": {
+            "name": "Update network firewall rules",
+            "description": "Implement firewall rules to prevent further access from the attacker.",
+            "on_completion": "end--e4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=ipv4 source address=<attacker_ip> reject'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

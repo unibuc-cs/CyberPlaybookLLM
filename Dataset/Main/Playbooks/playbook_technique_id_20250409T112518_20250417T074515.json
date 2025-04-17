@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6f1e30f-8eae-4a3a-b89b-6cad43f1c91c",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where a malicious PowerShell script was executed, triggering unauthorized actions on the company network.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-10-12T09:00:00Z",
+    "modified": "2025-10-12T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc12345-def6-7890-ghij-klmnopqrstuv",
+    "workflow": {
+        "start--abc12345-def6-7890-ghij-klmnopqrstuv": {
+            "on_completion": "action--5e30b2c0-92cb-4c48-a2ce-1de4f3cc5e4c",
+            "type": "start"
+        },
+        "action--5e30b2c0-92cb-4c48-a2ce-1de4f3cc5e4c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes related to the malicious script.",
+            "on_completion": "if-condition--c9f6d9e4-73ef-47e0-b8f0-b6333c4d92bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c9f6d9e4-73ef-47e0-b8f0-b6333c4d92bc": {
+            "name": "Check if suspicious network connections exist",
+            "type": "if-condition",
+            "condition": "suspicious_connections_found == true",
+            "on_true": "action--25c27bc8-ba8c-4c01-b071-0928dd0a4b87",
+            "on_false": "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1"
+        },
+        "action--25c27bc8-ba8c-4c01-b071-0928dd0a4b87": {
+            "name": "Terminate suspicious network connections",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport <port> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1": {
+            "name": "Scan for other malicious scripts",
+            "description": "Search through user directories for other potential malicious PowerShell scripts.",
+            "on_completion": "loop--f5f7d3c3-9180-4795-b740-06e56ad79b96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f5f7d3c3-9180-4795-b740-06e56ad79b96": {
+            "name": "Scan user directories loop",
+            "description": "Repeat the scanning until all user directories are checked for malicious scripts.",
+            "on_completion": "end--xyz12345-abc-6789-def0-ghijklmnopqr",
+            "type": "while-condition",
+            "condition": "all_user_dirs_scanned == false",
+            "on_true": "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1"
+        },
+        "end--xyz12345-abc-6789-def0-ghijklmnopqr": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

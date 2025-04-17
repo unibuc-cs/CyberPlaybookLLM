@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8a1d28f-ee40-4e84-b1d0-99772fa3a742",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts using a command-line interpreter to exfiltrate sensitive data.",
+    "created_by": "identity--abcd1234-5678-90ab-cdef-1234567890ab",
+    "created": "2023-10-04T15:00:00Z",
+    "modified": "2023-10-04T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--62103de1-92a0-4ccc-98f3-12ef3ec9a9fa",
+    "workflow": {
+        "start--62103de1-92a0-4ccc-98f3-12ef3ec9a9fa": {
+            "on_completion": "action--491b6e87-3f04-4c59-b0ba-58f9c9dc23f8",
+            "type": "start"
+        },
+        "action--491b6e87-3f04-4c59-b0ba-58f9c9dc23f8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "decision--0a5cf8db-3e80-4d92-8e3b-e6d6f7766375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--0a5cf8db-3e80-4d92-8e3b-e6d6f7766375": {
+            "name": "Check for existing threats",
+            "type": "if-condition",
+            "condition": "threat_detected == true",
+            "on_true": "action--8d4f3b89-4b53-4693-9f71-b2dc82e6c507",
+            "on_false": "end--f2a0a51b-8a3e-485c-acf8-edb64b4872ef"
+        },
+        "action--8d4f3b89-4b53-4693-9f71-b2dc82e6c507": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Run vulnerability scans until the system is clean.",
+            "type": "action",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan has produced no threats.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_is_clean; do run_vulnerability_scan; done"
+                }
+            ],
+            "on_completion": "action--0a5cf8db-3e80-4d92-8e3b-e6d6f7766375",
+            "agent": "organization--xyz"
+        },
+        "end--f2a0a51b-8a3e-485c-acf8-edb64b4872ef": {
+            "type": "end"
+        },
+        "action--0a5cf8db-3e80-4d92-8e3b-e6d6f7766375": {
+            "name": "Isolate affected host from the network",
+            "description": "Block outbound network traffic to prevent exfiltration.",
+            "on_completion": "end--f2a0a51b-8a3e-485c-acf8-edb64b4872ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

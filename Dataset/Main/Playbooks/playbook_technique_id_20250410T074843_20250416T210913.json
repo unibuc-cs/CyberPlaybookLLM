@@ -1,0 +1,146 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4e8f4bc-b697-4fac-b112-43e67da63304",
+    "name": "Mitigate PowerShell Reverse Shell Attack",
+    "description": "This playbook outlines the steps to mitigate an incident involving a PowerShell-executed malicious payload delivering a reverse shell.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-20T00:00:00Z",
+    "modified": "2023-10-20T00:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--33c75caa-1ec4-4c93-a3ca-f9b8c645d9ca",
+    "workflow": {
+        "start--33c75caa-1ec4-4c93-a3ca-f9b8c645d9ca": {
+            "on_completion": "parallel--3960f6f9-6e5f-4131-9be9-fb2439b66eda",
+            "type": "start"
+        },
+        "parallel--3960f6f9-6e5f-4131-9be9-fb2439b66eda": {
+            "name": "Concurrent Mitigation Steps",
+            "description": "Initiate parallel execution of key mitigation steps.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cc58b77d-8a4b-45a2-8e1b-c8cfd18d6f77",
+                "decision--2b67e033-d07e-4fbf-91b1-4d24f33659a6"
+            ]
+        },
+        "action--cc58b77d-8a4b-45a2-8e1b-c8cfd18d6f77": {
+            "name": "Terminate Malicious PowerShell Session",
+            "description": "Kill all PowerShell processes forcibly.",
+            "on_completion": "loop--e9aff50e-2920-4fc2-ae93-ef8a9ac5cae5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--2b67e033-d07e-4fbf-91b1-4d24f33659a6": {
+            "name": "Quarantine Host Decision",
+            "type": "if-condition",
+            "condition": "host_reachable",
+            "on_true": "action--2b67e033-d07e-4fbf-91b1-4d24f33659a6",
+            "on_false": "action--32e4c659-c9e3-4edf-a726-bb6f22cdeaa4"
+        },
+        "action--2b67e033-d07e-4fbf-91b1-4d24f33659a6": {
+            "name": "Quarantine Compromised Host",
+            "description": "Disable all network profiles on the host.",
+            "on_completion": "action--32e4c659-c9e3-4edf-a726-bb6f22cdeaa4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--e9aff50e-2920-4fc2-ae93-ef8a9ac5cae5": {
+            "name": "Remove Reverse Shell",
+            "description": "Attempt to delete the reverse shell binary until it is successfully removed.",
+            "type": "while-condition",
+            "condition": "file_present(filePath)",
+            "on_true": "action--e9aff50e-2920-4fc2-ae93-ef8a9ac5cae5",
+            "step_variables": {
+                "filePath": {
+                    "type": "string",
+                    "value": "C:\\Windows\\Temp\\reverseshell.exe"
+                }
+            }
+        },
+        "action--e9aff50e-2920-4fc2-ae93-ef8a9ac5cae5": {
+            "name": "Delete Reverse Shell Binary",
+            "description": "Delete the reverse shell executable.",
+            "on_completion": "action--f4676b56-bf91-4fde-96dc-ba3b6547dd64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Windows\\Temp\\reverseshell.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f4676b56-bf91-4fde-96dc-ba3b6547dd64": {
+            "name": "Scan Host for Residual Malware",
+            "description": "Perform a cleanup scan across the system after removing the reverse shell.",
+            "on_completion": "action--32e4c659-c9e3-4edf-a726-bb6f22cdeaa4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malwarescanner --scan --remove C:\\"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--32e4c659-c9e3-4edf-a726-bb6f22cdeaa4": {
+            "name": "Review Firewall Rules",
+            "description": "Check current firewall rules on host-34.",
+            "on_completion": "loop--af3c4997-c6f3-41de-b0c1-c5f50467d33d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall show rule name=all"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--af3c4997-c6f3-41de-b0c1-c5f50467d33d": {
+            "name": "Reset Compromised Accounts",
+            "description": "Reset passwords for each user in the compromised user list.",
+            "type": "for-each",
+            "variables": {
+                "compromised_users": [
+                    "user1",
+                    "user2"
+                ]
+            },
+            "on_each": "action--af3c4997-c6f3-41de-b0c1-c5f50467d33d"
+        },
+        "action--af3c4997-c6f3-41de-b0c1-c5f50467d33d": {
+            "name": "Reset User Password",
+            "description": "Reset the password for the compromised user account.",
+            "on_completion": "end--3e736f0c-7bf1-44e0-90dd-2ef7f3c1271a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "dsmod user -pwd newpassword /fullname:<compromised_user>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--3e736f0c-7bf1-44e0-90dd-2ef7f3c1271a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

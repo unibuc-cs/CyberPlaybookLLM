@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8b73f4e-abc9-4b88-9b8d-159f9d223a5c",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user executed malicious scripts using a vulnerable web application.",
+    "created_by": "identity--f871b783-b7bb-4f36-b7f5-9353ea68d0ee",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--00112233-4455-6677-8899-aabbccddeeff",
+    "workflow": {
+        "start--00112233-4455-6677-8899-aabbccddeeff": {
+            "on_completion": "decision--456aef32-cca0-4ab2-9bf6-ecleo97aabcc",
+            "type": "start"
+        },
+        "decision--456aef32-cca0-4ab2-9bf6-ecleo97aabcc": {
+            "name": "Check for running malicious processes",
+            "type": "if-condition",
+            "condition": "process_running == True",
+            "on_true": "action--0c6a2d57-fc93-4120-8372-31ef632cd487",
+            "on_false": "action--9d1b45e9-049b-481f-8e3e-4d818a0021cb"
+        },
+        "action--0c6a2d57-fc93-4120-8372-31ef632cd487": {
+            "name": "Kill malicious process",
+            "description": "Terminate the running backdoor process.",
+            "on_completion": "action--9d1b45e9-049b-481f-8e3e-4d818a0021cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9d1b45e9-049b-481f-8e3e-4d818a0021cb": {
+            "name": "Remove dropped files",
+            "description": "Remove any malicious files dropped by the attacker.",
+            "on_completion": "loop--7bfa5468-d2ff-4b27-bc8f-2b5ae745970c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--7bfa5468-d2ff-4b27-bc8f-2b5ae745970c": {
+            "name": "Repeat file removal",
+            "description": "Continue removing backdoor files until they no longer exist.",
+            "on_completion": "action--61eebd7f-1ef3-4cf8-b8d5-62290fe3bb98",
+            "type": "while-condition",
+            "condition": "Check if /tmp/backdoor exists",
+            "on_true": "action--9d1b45e9-049b-481f-8e3e-4d818a0021cb"
+        },
+        "action--61eebd7f-1ef3-4cf8-b8d5-62290fe3bb98": {
+            "name": "Conduct a full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "end--deadbeef-1234-5678-9abc-def012345678",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan-tool --full-scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan",
+                    "value": "initial",
+                    "constant": false
+                }
+            }
+        },
+        "end--deadbeef-1234-5678-9abc-def012345678": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

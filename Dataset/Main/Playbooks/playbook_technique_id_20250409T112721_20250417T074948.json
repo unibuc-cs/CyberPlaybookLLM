@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a5d29c3b-ff89-4ba5-bc9a-32835dab937d",
+    "name": "Mitigation Playbook for PowerShell Script Exfiltration",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts that exfiltrated sensitive data.",
+    "created_by": "identity--abc12345-6789-42cd-b123-efghijklmnop",
+    "created": "2023-10-15T15:00:00.000Z",
+    "modified": "2023-10-15T15:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--522092ce-b41b-4eca-bf85-8ead2f9f9f02",
+    "workflow": {
+        "start--522092ce-b41b-4eca-bf85-8ead2f9f9f02": {
+            "on_completion": "action--d2f89e5a-9055-4ffc-8f1e-49d7daa5c6f1",
+            "type": "start"
+        },
+        "action--d2f89e5a-9055-4ffc-8f1e-49d7daa5c6f1": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "if-condition--b9a0e2b5-6ea3-4b70-ae1a-06cdb379f88b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b9a0e2b5-6ea3-4b70-ae1a-06cdb379f88b": {
+            "name": "Check if dropped files exist",
+            "type": "if-condition",
+            "condition": "$(ls -A /path/to/dropped/files) != ''",
+            "on_true": "action--b9a0e2b5-6ea3-4b70-ae1a-06cdb379f88b",
+            "on_false": "action--f5932dfc-1a2e-49aa-8b74-cf72a4640391"
+        },
+        "action--b9a0e2b5-6ea3-4b70-ae1a-06cdb379f88b": {
+            "name": "Analyze dropped files",
+            "description": "List the contents of the directory where dropped files are found.",
+            "on_completion": "action--55b93d43-c611-498b-8f56-75fa5b06a8dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ls -l /path/to/dropped/files"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--55b93d43-c611-498b-8f56-75fa5b06a8dd": {
+            "name": "Run malware scan",
+            "description": "Perform a recursive scan on the target directory to detect threats.",
+            "on_completion": "while-condition--repeat-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /target/directory/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--repeat-scan": {
+            "name": "Repeat malware scan loop",
+            "description": "Continue scanning until no threats are detected.",
+            "type": "while-condition",
+            "condition": "$(clamscan --recursive /target/directory/ | grep 'Infected files: 0') == 0",
+            "on_true": "action--55b93d43-c611-498b-8f56-75fa5b06a8dd"
+        },
+        "action--f5932dfc-1a2e-49aa-8b74-cf72a4640391": {
+            "name": "Review firewall logs",
+            "description": "Review the last 1000 lines of firewall logs for suspicious activities.",
+            "on_completion": "action--c4b7b6ca-4e87-47ba-a11a-1dcf8ce404b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 1000 /var/log/firewall.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "log_file": "/var/log/firewall.log",
+                "lines": 1000
+            }
+        },
+        "action--c4b7b6ca-4e87-47ba-a11a-1dcf8ce404b2": {
+            "name": "Block suspicious IP address",
+            "description": "Block the suspicious IP address responsible for the malicious activity.",
+            "on_completion": "end--0a1183a3-9a44-4d8f-82ee-4bbf99aa10f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <suspicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0a1183a3-9a44-4d8f-82ee-4bbf99aa10f1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

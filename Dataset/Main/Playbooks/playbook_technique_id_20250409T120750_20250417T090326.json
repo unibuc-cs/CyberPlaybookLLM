@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e71265c8-f2b3-4ada-966c-46efc8bc451a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a scripting interpreter to execute malicious commands on a compromised server, allowing unauthorized data access and manipulation.",
+    "created_by": "identity--12345678-90ab-cdef-1234-567890abcdef",
+    "created": "2023-10-24T08:00:00.000Z",
+    "modified": "2023-10-24T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "decision--check-malware",
+            "type": "start",
+            "name": "Start Mitigation Process",
+            "description": "Initialize the workflow to mitigate the command execution incident."
+        },
+        "decision--check-malware": {
+            "name": "Check for Malware Presence",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--delete-malware",
+            "on_false": "action--run-security-scan"
+        },
+        "action--kill-process": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious process running on the server.",
+            "on_completion": "decision--check-malware",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--delete-malware": {
+            "name": "Delete Dropped Malware Files",
+            "description": "Remove malware files that were dropped in the system directories.",
+            "on_completion": "action--run-security-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malware"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--run-security-scan": {
+            "name": "Run Security Scan",
+            "description": "Perform a security scan to identify additional threats.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the security scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--check-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--check-scan-status": {
+            "name": "Check Security Scan Status Loop",
+            "description": "Continue running scans until the status is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--run-security-scan",
+            "on_false": "end--mitigation-complete"
+        },
+        "end--mitigation-complete": {
+            "type": "end",
+            "name": "End of Mitigation Process",
+            "description": "All mitigation actions have been completed."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

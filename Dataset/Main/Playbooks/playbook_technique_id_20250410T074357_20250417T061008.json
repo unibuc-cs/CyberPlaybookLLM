@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d9c123de-503b-44d4-bb9b-c3b34a0f0e1f",
+    "name": "Mitigation Playbook for Vulnerable Script Interpreter Incident",
+    "description": "This playbook mitigates an incident where an attacker exploited a vulnerable script interpreter, gained unauthorized access to a web server, and deployed a backdoor script.",
+    "created_by": "identity--12345678-12ab-34cd-56ef-1234567890ab",
+    "created": "2025-04-10T08:55:30.000Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--382f17cb-3adf-4c1d-8e62-447bdde344e5",
+            "type": "start"
+        },
+        "action--382f17cb-3adf-4c1d-8e62-447bdde344e5": {
+            "name": "Disable the vulnerable script interpreter",
+            "description": "Stopping the vulnerable script interpreter to prevent further exploitation.",
+            "on_completion": "action--e1a3be60-75ab-45f1-a5b8-d1a9f4865bb2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service interpreter stop"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--e1a3be60-75ab-45f1-a5b8-d1a9f4865bb2": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the backdoor script.",
+            "on_completion": "action--c2cd4fc5-7e60-4619-8956-146b98c073e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--c2cd4fc5-7e60-4619-8956-146b98c073e1": {
+            "name": "Scan and remove backdoor script",
+            "description": "Locate and remove any instances of the backdoor script.",
+            "on_completion": "loop--backdoor_scan_condition",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/ -name 'backdoor.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "loop--backdoor_scan_condition": {
+            "name": "Repeat backdoor scan until all backdoor scripts are removed",
+            "description": "A loop to continue to remove backdoor scripts until none are found.",
+            "on_true": "action--c2cd4fc5-7e60-4619-8956-146b98c073e1",
+            "condition": "find /var/www/ -name 'backdoor.sh' | wc -l > 0",
+            "type": "while-condition"
+        },
+        "action--ba6e5036-9909-47f8-88ec-2299d4df441e": {
+            "name": "Block outbound connection to suspicious IP",
+            "description": "Prevent any outbound connections to known suspicious IP addresses.",
+            "on_completion": "decision--access_permission_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.101 -j REJECT"
+                }
+            ],
+            "agent": "organization--1234"
+        },
+        "action--ed2d8dcf-aa3d-4c38-a2ad-0f26677e5b2b": {
+            "name": "Implement script interpreter usage monitoring",
+            "description": "Set up monitoring for any usage of the script interpreter to detect future exploitation attempts.",
+            "on_completion": "decision--access_permission_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/interpreter -p x"
+                }
+            ],
+            "agent": "organization--5678"
+        },
+        "decision--access_permission_check": {
+            "name": "Evaluate and update access permissions",
+            "type": "if-condition",
+            "condition": "unauthorized_users_have_directory_access",
+            "on_true": "action--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53",
+            "on_false": "end--1234567890ab"
+        },
+        "action--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53": {
+            "name": "Update directory access permissions",
+            "description": "Restrict directory access to prevent unauthorized users.",
+            "on_completion": "end--1234567890ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod o-rwx /var/www/"
+                }
+            ],
+            "agent": "organization--5678"
+        },
+        "end--1234567890ab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1234": {
+            "type": "organization",
+            "name": "ClientOrganization_1234"
+        },
+        "organization--5678": {
+            "type": "organization",
+            "name": "ClientOrganization_5678"
+        }
+    }
+}

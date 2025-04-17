@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6b4dde7-cdee-4a41-b5b9-3a3b4f3ee4b5",
+    "name": "Response Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to exfiltrate sensitive data.",
+    "created_by": "identity--d2e0beeb-fc29-4d07-8a73-3b20f2a2365b",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--6be3e510-df63-41ed-9e9d-02ffa4abc338",
+    "workflow": {
+        "start--6be3e510-df63-41ed-9e9d-02ffa4abc338": {
+            "on_completion": "action--e2c11d49-5f36-4e70-ac1a-bbd36dc25490",
+            "type": "start"
+        },
+        "action--e2c11d49-5f36-4e70-ac1a-bbd36dc25490": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--7a0fae3e-527c-4ef3-8f91-8c6a9773ae5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--7a0fae3e-527c-4ef3-8f91-8c6a9773ae5f": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f malicious_script.sh) != ''",
+            "on_true": "action--5f6fc050-888c-4299-a267-c689114de59d",
+            "on_false": "action--b1c1438e-b1a3-4c61-8c73-dcac5f5e2247"
+        },
+        "action--5f6fc050-888c-4299-a267-c689114de59d": {
+            "name": "Isolate affected host",
+            "description": "Disable network interface to prevent further data exfiltration.",
+            "on_completion": "loop--7b2ecb61-1f90-4821-bf96-4a2e0e843df9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--7b2ecb61-1f90-4821-bf96-4a2e0e843df9": {
+            "name": "Run antivirus scan until no threats found",
+            "description": "Iterate antivirus scans until all threats are cleared.",
+            "type": "loop",
+            "on_true": "action--9b909e25-4c79-4863-8fdc-b44154d00b83",
+            "condition": "threats_found",
+            "next_steps": [
+                "action--9b909e25-4c79-4863-8fdc-b44154d00b83"
+            ]
+        },
+        "action--9b909e25-4c79-4863-8fdc-b44154d00b83": {
+            "name": "Run antivirus scan",
+            "description": "Perform a scan to find and eliminate threats on the host.",
+            "on_completion": "action--b1c1438e-b1a3-4c61-8c73-dcac5f5e2247",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b1c1438e-b1a3-4c61-8c73-dcac5f5e2247": {
+            "name": "Review firewall logs",
+            "description": "Check firewall logs for suspicious activity related to the incident.",
+            "on_completion": "action--dc056829-de3c-4ca4-8c5d-6721537f0b76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/firewall.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--dc056829-de3c-4ca4-8c5d-6721537f0b76": {
+            "name": "Change credentials for affected accounts",
+            "description": "Reset credentials for any potentially affected accounts.",
+            "on_completion": "end--3f11c01e-7075-4874-90da-6a4ea585426d",
+            "type": "action",
+            "step_variables": {
+                "user_account": {
+                    "type": "string",
+                    "description": "The user account that is affected",
+                    "value": "affected_user",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${user_account}"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--3f11c01e-7075-4874-90da-6a4ea585426d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

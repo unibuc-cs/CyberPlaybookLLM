@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9fc1ae8-6289-4f40-92ad-c0c9d72a64e7",
+    "name": "Mitigation Playbook for Web Server Compromise Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web server and executed malicious scripts, leading to the installation of a backdoor.",
+    "created_by": "identity--74937a88-1f8c-4c05-8b8d-3ec97e878b10",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--ff871a07-76c9-4e3e-ab21-0b8580455823",
+    "workflow": {
+        "start--ff871a07-76c9-4e3e-ab21-0b8580455823": {
+            "on_completion": "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080",
+            "type": "start"
+        },
+        "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f 'suspicious_script')"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Prevent outbound connections to the command and control server if running as root.",
+            "on_completion": "if-condition--e4158493-6aab-48a4-9b04-760d8f6eabf0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.45 -j DROP"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "if-condition--e4158493-6aab-48a4-9b04-760d8f6eabf0": {
+            "name": "Check if user is root",
+            "type": "if-condition",
+            "condition": "if [ $(whoami) == 'root' ]; then true; else false; fi",
+            "on_true": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "on_false": "action--e9855c96-c70c-41fb-813b-14ca36be325e"
+        },
+        "action--b3a58fed-db5f-41ac-bf87-be368a8319c6": {
+            "name": "Scan and clean infected host",
+            "description": "Perform a virus scan until the system is clean.",
+            "on_completion": "while-condition--f5d97bab-cf5f-48aa-8af4-e638b731d93c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan /"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "while-condition--f5d97bab-cf5f-48aa-8af4-e638b731d93c": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the host until the system is determined to be clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "action--e9855c96-c70c-41fb-813b-14ca36be325e",
+            "on_false": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6"
+        },
+        "action--e9855c96-c70c-41fb-813b-14ca36be325e": {
+            "name": "Patch vulnerable web server",
+            "description": "Update and upgrade packages to secure the web server.",
+            "on_completion": "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef": {
+            "name": "Monitor for repeated access attempts",
+            "description": "Continuously monitor the authentication logs for repeated access attempts from the malicious host.",
+            "on_completion": "end--4f05c798-6d46-44c9-9fbe-9cd4b9ebad42",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep 'failed password'"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "MALICIOUS_HOST": {
+                    "type": "string",
+                    "value": "198.51.100.45"
+                }
+            }
+        },
+        "end--4f05c798-6d46-44c9-9fbe-9cd4b9ebad42": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

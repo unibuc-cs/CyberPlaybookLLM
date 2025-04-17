@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d54d57ac-6c3e-41f3-94cd-bffed1f2f5d4",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where a PowerShell script was executed to exfiltrate sensitive data from servers.",
+    "created_by": "identity--abc12345-6789-0def-ghij-klmnopqrstuv",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7g8h-9i10-jk11lm12nopqr",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7g8h-9i10-jk11lm12nopqr": {
+            "on_completion": "action--e4c6bf3b-2f83-4f6f-8314-a7351a68cf96",
+            "type": "start"
+        },
+        "action--e4c6bf3b-2f83-4f6f-8314-a7351a68cf96": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes identified.",
+            "on_completion": "if-condition--condition1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--condition1": {
+            "name": "Check If Process Exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--e97c30c3-04a8-4769-9ea3-3cc65d2c2579",
+            "on_false": "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225"
+        },
+        "action--e97c30c3-04a8-4769-9ea3-3cc65d2c2579": {
+            "name": "Isolate affected hosts",
+            "description": "Disable network interface on compromised hosts.",
+            "on_completion": "parallel--isolation-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225": {
+            "name": "Perform a security scan",
+            "description": "Run a security scan until the system is clean.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the security scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--isolation-scan": {
+            "name": "Isolation and Scanning",
+            "description": "Run isolation and scanning actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225"
+            ]
+        },
+        "while-condition--scan-loop": {
+            "name": "Security Scan Loop",
+            "description": "Repeat security scan until the system shows no threats.",
+            "on_true": "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225",
+            "condition": "scan_result != 'clean'",
+            "on_false": "end--end-success"
+        },
+        "end--end-success": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

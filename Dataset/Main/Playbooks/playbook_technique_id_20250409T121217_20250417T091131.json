@@ -1,0 +1,72 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1e08847-6247-4564-a9c8-e5c32c7ada5b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable service, executed PowerShell commands for persistence, and exfiltrated data.",
+    "created_by": "identity--user-organization",
+    "created": "2023-10-15T09:00:00.000Z",
+    "modified": "2023-10-15T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7g8h-i9j0-k1l2m3n4o5p6",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7g8h-i9j0-k1l2m3n4o5p6": {
+            "on_completion": "action--f4b9b46a-957f-4a67-8bff-220a3e261d59",
+            "type": "start"
+        },
+        "action--f4b9b46a-957f-4a67-8bff-220a3e261d59": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes related to the attack.",
+            "on_completion": "loop--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84": {
+            "name": "Revoke unauthorized user accounts",
+            "description": "Remove any unauthorized user accounts created by the attacker.",
+            "on_true": "action--df0be5fa-b205-4265-a0be-1110a249122e",
+            "on_false": "end--d0e4b7f4-8e29-49c3-8f4e-3342b22bdd89",
+            "type": "loop",
+            "condition": "user_exists(attacker_user)",
+            "next_steps": [
+                "action--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84"
+            ]
+        },
+        "action--df0be5fa-b205-4265-a0be-1110a249122e": {
+            "name": "Scan for further malicious activity",
+            "description": "Run a system scan to identify any additional threats.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! (scan_status == clean) { run_scan() }"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan loop",
+            "description": "Repeat scan until system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--df0be5fa-b205-4265-a0be-1110a249122e",
+            "on_false": "end--d0e4b7f4-8e29-49c3-8f4e-3342b22bdd89"
+        },
+        "end--d0e4b7f4-8e29-49c3-8f4e-3342b22bdd89": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

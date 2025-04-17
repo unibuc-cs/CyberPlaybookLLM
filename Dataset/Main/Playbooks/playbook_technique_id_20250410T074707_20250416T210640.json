@@ -1,0 +1,145 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1f7e28f-7e4a-4acf-9b98-6f7e4c91f123",
+    "name": "Mitigation Playbook for T1059 Command and Scripting Interpreter Incident",
+    "description": "This playbook handles the incident involving unauthorized script execution using various mitigation strategies.",
+    "created_by": "identity--aac1daf6-6bd7-4e5f-89d3-2456bdfca4b4",
+    "created": "2023-10-10T13:45:00.000Z",
+    "modified": "2023-10-10T13:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--0f07b5ca-9077-47ad-966e-7f9b1421c1f8",
+    "workflow": {
+        "start--0f07b5ca-9077-47ad-966e-7f9b1421c1f8": {
+            "on_completion": "action--0f5b4f8b-8b37-4d6b-8cda-1e5ee760731f",
+            "type": "start"
+        },
+        "action--0f5b4f8b-8b37-4d6b-8cda-1e5ee760731f": {
+            "name": "Terminate unauthorized processes",
+            "description": "Terminate any unauthorized processes that are executing scripts.",
+            "on_completion": "decision--8e2c2c7e-4d83-4ad8-9575-073dd98c3a5e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--8e2c2c7e-4d83-4ad8-9575-073dd98c3a5e": {
+            "name": "Check host status",
+            "description": "Determine if the host is still suspected of being compromised.",
+            "type": "if-condition",
+            "condition": "suspect_host != clean",
+            "on_true": "action--d953ea1e-53b7-4e85-8585-5561b8152d96",
+            "on_false": "parallel--6d3f7a58-a7e6-47a7-ad9b-cb8c8f2e1b28"
+        },
+        "action--d953ea1e-53b7-4e85-8585-5561b8152d96": {
+            "name": "Block outgoing connections from suspicious host",
+            "description": "Block any outgoing network connections from the host if it is suspected of being compromised.",
+            "on_completion": "parallel--6d3f7a58-a7e6-47a7-ad9b-cb8c8f2e1b28",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -m tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--6d3f7a58-a7e6-47a7-ad9b-cb8c8f2e1b28": {
+            "name": "Simultaneous Mitigations",
+            "description": "Perform simultaneous actions to mitigate threats.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--b1c2e7b2-4c7c-4e62-96a5-23f8bc54d271",
+                "action--f3b87ebf-fcbe-426e-bec2-8298c852f16e"
+            ]
+        },
+        "loop--b1c2e7b2-4c7c-4e62-96a5-23f8bc54d271": {
+            "name": "Scan and remove malicious files",
+            "description": "Regularly scan for and remove any residual malicious files.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--b1c2e7b2-4c7c-4e62-96a5-23f8bc54d271",
+            "on_false": "parallel--c376c8e1-180b-4a1b-978f-1d5e4d29560b"
+        },
+        "action--b1c2e7b2-4c7c-4e62-96a5-23f8bc54d271": {
+            "name": "Perform file scan",
+            "description": "Initiate a scan to find and remove malicious files.",
+            "on_completion": "loop--b1c2e7b2-4c7c-4e62-96a5-23f8bc54d271",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove=yes /path/to/check"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f3b87ebf-fcbe-426e-bec2-8298c852f16e": {
+            "name": "Update security policies",
+            "description": "Change system policies to restrict script execution.",
+            "on_completion": "parallel--c376c8e1-180b-4a1b-978f-1d5e4d29560b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine Restricted"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--c376c8e1-180b-4a1b-978f-1d5e4d29560b": {
+            "name": "Final Mitigations",
+            "description": "Complete the remaining mitigation steps.",
+            "type": "parallel",
+            "next_steps": [
+                "action--53fa1e2a-d810-4c70-b037-7f9d4f6bfb73",
+                "action--24e7bdcf-8490-44aa-97c3-6135f7f8a9d3"
+            ]
+        },
+        "action--53fa1e2a-d810-4c70-b037-7f9d4f6bfb73": {
+            "name": "Patch and update systems",
+            "description": "Apply patches and updates to specified hosts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "hosts_to_update": {
+                    "type": "array",
+                    "description": "List of hosts that require updating.",
+                    "value": [
+                        "host-22",
+                        "host-34"
+                    ],
+                    "constant": true
+                }
+            }
+        },
+        "action--24e7bdcf-8490-44aa-97c3-6135f7f8a9d3": {
+            "name": "Monitor Systems",
+            "description": "Continuously monitor the systems for any suspicious activities.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/suspicious_activity.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

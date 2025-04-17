@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a67c7f63-e3e8-4390-bf55-dc8c41c5a424",
+    "name": "Command and Scripting Interpreter Attack Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed obfuscated scripts via the command-line interface on a compromised host.",
+    "created_by": "identity--abc12345-def6-7890-ghij-klmnopqrstuv",
+    "created": "2023-10-01T15:00:00.000Z",
+    "modified": "2023-10-01T15:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--ef4e60f5-6d5c-4478-8a89-12d44f5d362a",
+    "workflow": {
+        "start--ef4e60f5-6d5c-4478-8a89-12d44f5d362a": {
+            "on_completion": "action--8cfc90f5-53b1-4bbd-9ac7-ec2644d4celb",
+            "type": "start"
+        },
+        "action--8cfc90f5-53b1-4bbd-9ac7-ec2644d4celb": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process identified from the attack logs.",
+            "on_completion": "parallel--ca3f90e0-79d2-42e5-9e32-d3c5bded2f90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--ca3f90e0-79d2-42e5-9e32-d3c5bded2f90": {
+            "name": "Run and verify scans",
+            "description": "Run a malware scan and verify the cleanliness of the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bd96ca58-b2b4-4c4f-8b43-dcb6443efa48",
+                "action--d4ae2a56-24cb-4373-b64e-adf4bac9affd"
+            ]
+        },
+        "action--bd96ca58-b2b4-4c4f-8b43-dcb6443efa48": {
+            "name": "Run malware scan",
+            "description": "Initiate a malware scan and check for issues.",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Holds the result of the malware scan.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "if-condition--fb90f5f3-79b2-42e5-9e32-d3c5bded3cdc"
+        },
+        "action--d4ae2a56-24cb-4373-b64e-adf4bac9affd": {
+            "name": "Isolate affected host",
+            "description": "Isolate the compromised host to prevent further damage.",
+            "on_completion": "end--e4b5055e-7d3f-4dc6-8b85-85315686a34a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s compromised_host_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--fb90f5f3-79b2-42e5-9e32-d3c5bded3cdc": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result != clean",
+            "on_true": "while-condition--7e189ae0-84c2-4ebb-81d1-e638e56ee6d8",
+            "on_false": "end--e4b5055e-7d3f-4dc6-8b85-85315686a34a"
+        },
+        "while-condition--7e189ae0-84c2-4ebb-81d1-e638e56ee6d8": {
+            "name": "Repeat scan until clean",
+            "description": "Repeat malware scan until the system is clean.",
+            "on_completion": "if-condition--fb90f5f3-79b2-42e5-9e32-d3c5bded3cdc",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--bd96ca58-b2b4-4c4f-8b43-dcb6443efa48"
+        },
+        "end--e4b5055e-7d3f-4dc6-8b85-85315686a34a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

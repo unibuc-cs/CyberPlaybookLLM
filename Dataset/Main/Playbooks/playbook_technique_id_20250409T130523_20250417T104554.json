@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8f2bcb7-b43e-4368-8c60-bac9b1d73bde",
+    "name": "Mitigation Playbook for Remote Service Exploitation Incident",
+    "description": "This playbook addresses incidents where an attacker has exploited remote services, gaining unauthorized access and moving laterally within the network.",
+    "created_by": "identity--4a5dcb21-daca-4174-9616-50f651d8584c",
+    "created": "2023-10-02T15:00:00Z",
+    "modified": "2023-10-02T15:10:00Z",
+    "workflow_start": "start--e1f2d3e4-56b7-8c9b-abc0-12d34f5e6789",
+    "workflow": {
+        "start--e1f2d3e4-56b7-8c9b-abc0-12d34f5e6789": {
+            "on_completion": "decision--decide-remote-session",
+            "type": "start"
+        },
+        "decision--decide-remote-session": {
+            "name": "Check if Remote Session Exists",
+            "type": "if-condition",
+            "condition": "session_active == true",
+            "on_true": "action--kill-remote-session",
+            "on_false": "action--implement-network-segmentation"
+        },
+        "action--kill-remote-session": {
+            "name": "Kill Remote Session",
+            "description": "Terminate any active Remote Desktop connections.",
+            "on_completion": "action--implement-network-segmentation",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'Remote Desktop Connection'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--implement-network-segmentation": {
+            "name": "Implement Network Segmentation",
+            "description": "Block access to sensitive networks.",
+            "on_completion": "parallel--monitor-anomalies",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s sensitive_network -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--monitor-anomalies": {
+            "name": "Monitor and Check Access Patterns",
+            "on_completion": "end--finish",
+            "type": "parallel",
+            "next_steps": [
+                "action--monitor-access-patterns",
+                "action--check-for-anomalies"
+            ]
+        },
+        "action--monitor-access-patterns": {
+            "name": "Monitor Access Patterns",
+            "description": "Continuously monitor access logs for unusual behavior.",
+            "on_completion": "action--check-for-anomalies",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while true; do check_access_logs; sleep 300; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--check-for-anomalies": {
+            "name": "Evaluate Anomaly Detection",
+            "description": "Check if any anomalies are detected in the access logs.",
+            "on_completion": "decision--anomaly-detected",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "detect_anomalies"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--anomaly-detected": {
+            "name": "Anomalies Detected Check",
+            "type": "if-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--continue-monitoring",
+            "on_false": "end--finish"
+        },
+        "action--continue-monitoring": {
+            "name": "Continue Monitoring for Anomalies",
+            "description": "Continue the monitoring loop as long as anomalies are detected.",
+            "on_completion": "action--monitor-access-patterns",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sleep 300"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--finish": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

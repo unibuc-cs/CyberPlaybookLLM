@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3c85be62-b30a-4b71-8383-b5d1c29d15b7",
+    "name": "Response Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook outlines the steps to mitigate the impact of a malicious PowerShell script execution incident.",
+    "created_by": "identity--b36d2bea-ecf2-4909-bf3d-c0bc6d8decf7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e2d623bc-4b6a-4f06-b3fb-4f97ef465a6f",
+    "workflow": {
+        "start--e2d623bc-4b6a-4f06-b3fb-4f97ef465a6f": {
+            "on_completion": "action--4c53dbd8-4a95-49a2-a3a4-ca8d7b3b5270",
+            "type": "start"
+        },
+        "action--4c53dbd8-4a95-49a2-a3a4-ca8d7b3b5270": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that may be running the malicious script.",
+            "on_completion": "if-condition--829c48c5-b83a-4baa-b763-8b8f64c9db8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--829c48c5-b83a-4baa-b763-8b8f64c9db8d": {
+            "name": "Check if PowerShell process was running",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--c0feabc8-e15e-4fe2-9e76-4c66c5f5c714",
+            "on_false": "action--8ac2b51d-b86d-4d54-b0bc-92c4b151f439"
+        },
+        "action--c0feabc8-e15e-4fe2-9e76-4c66c5f5c714": {
+            "name": "Delete downloaded malicious file",
+            "description": "Remove the malicious file downloaded by the PowerShell script.",
+            "on_completion": "action--8ac2b51d-b86d-4d54-b0bc-92c4b151f439",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--8ac2b51d-b86d-4d54-b0bc-92c4b151f439": {
+            "name": "Run malware scan",
+            "description": "Perform a recursive malware scan to detect any other threats.",
+            "on_completion": "while-condition--1c6693e2-c1b1-4a3c-b5d0-9eeb93e67ec3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--1c6693e2-c1b1-4a3c-b5d0-9eeb93e67ec3": {
+            "name": "Check malware scan results",
+            "description": "Continue scanning until no more threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_result == 'detected'",
+            "on_true": "action--8ac2b51d-b86d-4d54-b0bc-92c4b151f439",
+            "on_false": "end--ef08e538-ef71-4abc-af6f-1fc07fe9168c"
+        },
+        "end--ef08e538-ef71-4abc-af6f-1fc07fe9168c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fa3f8b60-4e39-4380-a7ea-08d2707cc881",
+    "name": "Mitigation Playbook for PowerShell Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker used a compromised account to execute PowerShell scripts, allowing them to download a malicious payload.",
+    "created_by": "identity--dd28b138-cb27-4e45-b9ec-3c89b02d8c72",
+    "created": "2023-10-19T10:00:00Z",
+    "modified": "2023-10-19T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--ef6759e9-5786-4506-86aa-1f5fa8c206f0",
+    "workflow": {
+        "start--ef6759e9-5786-4506-86aa-1f5fa8c206f0": {
+            "on_completion": "if-condition--a7a123e2-579f-4c8d-b77f-2071c0d0100a",
+            "type": "start"
+        },
+        "if-condition--a7a123e2-579f-4c8d-b77f-2071c0d0100a": {
+            "name": "Check if malicious PowerShell processes are running",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--e13bf876-46f7-4e71-93d6-c6b4509b01ed",
+            "on_false": "action--b74317ca-6727-4655-8b5e-5df2cb17a6ed"
+        },
+        "action--e13bf876-46f7-4e71-93d6-c6b4509b01ed": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Terminate any malicious PowerShell processes found.",
+            "on_completion": "parallel--1a223a3f-bde1-4cef-bcd5-04a4e7441708",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--1a223a3f-bde1-4cef-bcd5-04a4e7441708": {
+            "name": "Execute remediation steps",
+            "description": "Run subsequent actions in parallel to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d279d27d-5edb-4e38-bec8-172a4f18f799",
+                "action--d36e76a7-8f9c-4c30-905c-d8a692cb4b8c",
+                "action--a7cb5e03-0f0e-4f33-95da-c4b8988f8f44"
+            ]
+        },
+        "action--d279d27d-5edb-4e38-bec8-172a4f18f799": {
+            "name": "Scan and remove downloaded payloads",
+            "description": "Scan the system for any downloaded malicious payloads and remove them.",
+            "on_completion": "while-condition--b787f7c2-68e7-415c-b36f-b4a520ad56ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /suspected_path"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--b787f7c2-68e7-415c-b36f-b4a520ad56ad": {
+            "name": "Check if system is clean from payloads",
+            "description": "Repeat the scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_not_clean == true",
+            "on_true": "action--d279d27d-5edb-4e38-bec8-172a4f18f799",
+            "on_false": "action--b74317ca-6727-4655-8b5e-5df2cb17a6ed"
+        },
+        "action--d36e76a7-8f9c-4c30-905c-d8a692cb4b8c": {
+            "name": "Block outgoing connections to known malicious IPs",
+            "description": "Prevent network connections to known malicious IP addresses.",
+            "on_completion": "end--1f0c8e67-4ee7-4aad-b5c4-bbcf02b71a01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b74317ca-6727-4655-8b5e-5df2cb17a6ed": {
+            "name": "Revert compromised account actions",
+            "description": "Restore the previous state of the compromised account.",
+            "on_completion": "end--1f0c8e67-4ee7-4aad-b5c4-bbcf02b71a01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -RFv /home/compromised_user"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "account": {
+                    "type": "string",
+                    "value": "compromised_user",
+                    "description": "The name of the compromised user account."
+                }
+            }
+        },
+        "action--a7cb5e03-0f0e-4f33-95da-c4b8988f8f44": {
+            "name": "Update firewall rules",
+            "description": "Reload the firewall rules to apply any changes.",
+            "on_completion": "end--1f0c8e67-4ee7-4aad-b5c4-bbcf02b71a01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--1f0c8e67-4ee7-4aad-b5c4-bbcf02b71a01": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganizationABC"
+        }
+    }
+}

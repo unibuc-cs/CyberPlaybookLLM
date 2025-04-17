@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b769a7e4-4e9c-4a76-b8c5-e262654d99b2",
+    "name": "Playbook for Remote Code Execution Mitigation",
+    "description": "This playbook handles the mitigation of remote code execution on multiple hosts and includes steps for isolating compromised systems, removing unauthorized accounts, and patching vulnerabilities.",
+    "created_by": "identity--b67aca50-a0e8-4c43-b7e3-98f30e08d025",
+    "created": "2023-11-02T10:45:23Z",
+    "modified": "2023-11-02T10:45:23Z",
+    "revoked": false,
+    "workflow_start": "start--36b322ea-be89-4e1f-9f0d-e80cb5517b47",
+    "workflow": {
+        "start--36b322ea-be89-4e1f-9f0d-e80cb5517b47": {
+            "on_completion": "action--9c08ff0e-3236-4a35-ae4a-b9a00577e1d5",
+            "type": "start"
+        },
+        "action--9c08ff0e-3236-4a35-ae4a-b9a00577e1d5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "action--ba2ff9b6-f8a9-413f-9922-dc9a194f1764",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ba2ff9b6-f8a9-413f-9922-dc9a194f1764": {
+            "name": "Isolate compromised hosts",
+            "description": "Isolate hosts identified as compromised from the network.",
+            "on_completion": "if-condition--a54bf91a-afa5-40c5-9496-ec04e1ac94f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [[ $(hostname) == 'host-17' || $(hostname) == 'host-22' ]]; then iptables -I INPUT -s 0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--a54bf91a-afa5-40c5-9496-ec04e1ac94f5": {
+            "name": "Check for unauthorized user accounts",
+            "type": "if-condition",
+            "condition": "user_list_file == 'bad_users.txt'",
+            "on_true": "action--d21bc5f4-47d7-42fb-b58d-87e3f5988636",
+            "on_false": "action--0e948d9b-c359-4806-a092-4158a8d48ff2"
+        },
+        "action--d21bc5f4-47d7-42fb-b58d-87e3f5988636": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete any unauthorized user accounts from the system.",
+            "on_completion": "action--0e948d9b-c359-4806-a092-4158a8d48ff2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat bad_users.txt); do userdel -r $user; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--0e948d9b-c359-4806-a092-4158a8d48ff2": {
+            "name": "Perform a full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "loop--4f4c5fe1-0c30-4b07-a1a4-457857865409",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove infected_files"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--4f4c5fe1-0c30-4b07-a1a4-457857865409": {
+            "name": "Repeat scan until no infected files found",
+            "description": "Continue scanning until no infected files are found.",
+            "on_completion": "action--f2a015eb-3895-471a-90d8-b521a46a0d01",
+            "type": "loop",
+            "condition": "infected_files_found == true",
+            "next_steps": [
+                "action--0e948d9b-c359-4806-a092-4158a8d48ff2"
+            ]
+        },
+        "action--f2a015eb-3895-471a-90d8-b521a46a0d01": {
+            "name": "Patch vulnerability in web application",
+            "description": "Apply patches to the web application to close vulnerabilities.",
+            "on_completion": "end--b3dac2b3-b801-4f3b-8c62-ed6abcf7cc61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./patch_vulnerability.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b3dac2b3-b801-4f3b-8c62-ed6abcf7cc61": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

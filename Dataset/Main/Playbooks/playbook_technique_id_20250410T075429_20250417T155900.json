@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--eec42e11-484e-417d-9917-0f9b6dec4cfc",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute a malicious script on the server.",
+    "created_by": "identity--abc",
+    "created": "2023-11-03T15:30:00Z",
+    "modified": "2023-11-03T15:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--6fea8c4f-481d-4e40-bba6-9971e43fe3d8",
+            "type": "start"
+        },
+        "action--6fea8c4f-481d-4e40-bba6-9971e43fe3d8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script being executed.",
+            "on_completion": "if-condition--1e92ed4d-5172-4631-a6db-81ce20fbd7de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--1e92ed4d-5172-4631-a6db-81ce20fbd7de": {
+            "name": "Check for outgoing connection to attacker IP",
+            "type": "if-condition",
+            "condition": "scan_result == 'detected'",
+            "on_true": "action--1e92ed4d-5172-4631-a6db-81ce20fbd7de",
+            "on_false": "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b"
+        },
+        "action--1e92ed4d-5172-4631-a6db-81ce20fbd7de": {
+            "name": "Block IP Address",
+            "description": "Block outbound connections to the attacker's IP.",
+            "on_completion": "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d [attacker_ip] -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b": {
+            "name": "Scan system for further infections",
+            "description": "Perform a comprehensive scan of the system to detect any further infections.",
+            "on_completion": "while-condition--loop-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--loop-scan": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Continue scanning until the system is confirmed clean.",
+            "on_completion": "if-condition--0c49643d-7bfe-4056-8753-dd33c1700862",
+            "type": "while-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--0c49643d-7bfe-4056-8753-dd33c1700862",
+            "on_false": "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b"
+        },
+        "if-condition--0c49643d-7bfe-4056-8753-dd33c1700862": {
+            "name": "Check for Compromised Files",
+            "type": "if-condition",
+            "condition": "file_status == 'compromised'",
+            "on_true": "action--0c49643d-7bfe-4056-8753-dd33c1700862",
+            "on_false": "end--complete"
+        },
+        "action--0c49643d-7bfe-4056-8753-dd33c1700862": {
+            "name": "Restore Compromised Files",
+            "description": "Restore files from backup if compromised.",
+            "on_completion": "end--complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/* /compromised_directory/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8a7b9c1-a5f1-4d9f-85e0-52e29d2565be",
+    "name": "Mitigation Playbook for Signed Binary Proxy Execution Incident",
+    "description": "This playbook addresses the execution of a signed DLL via Regsvr32, which allowed an attacker to run malicious payloads.",
+    "created_by": "identity--xyz987",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ffb89a9e-c0e4-40f2-8e3f-75e84f8f1a2d",
+    "workflow": {
+        "start--ffb89a9e-c0e4-40f2-8e3f-75e84f8f1a2d": {
+            "on_completion": "action--a5c9bfef-f4dc-4753-8cdd-e86f30174b85",
+            "type": "start"
+        },
+        "action--a5c9bfef-f4dc-4753-8cdd-e86f30174b85": {
+            "name": "Kill malicious Regsvr32 process",
+            "description": "Terminate any processes associated with malicious Regsvr32 execution.",
+            "on_completion": "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill regsvr32"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c": {
+            "name": "Isolate affected host condition",
+            "type": "if-condition",
+            "condition": "process found",
+            "on_true": "loop--isolation-loop",
+            "on_false": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9"
+        },
+        "loop--isolation-loop": {
+            "name": "Isolate Host Loop",
+            "description": "Repeatedly attempt to isolate the affected host until confirmed isolated.",
+            "type": "while-condition",
+            "condition": "host_isolated == False",
+            "on_true": "action--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "on_completion": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9"
+        },
+        "action--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c": {
+            "name": "Isolate the affected host",
+            "description": "Block all network connections from the affected host until it is determined safe.",
+            "on_completion": "loop--isolation-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9": {
+            "name": "Perform a threat scan on affected host",
+            "description": "Conduct a thorough threat scan on the affected host to identify remaining threats.",
+            "on_completion": "if-condition--scan-result-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "threat_scan --target host-22"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the threat scan",
+                    "value": "none",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--scan-result-check": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result == clean",
+            "on_true": "end--e1b1f9be-1f4b-4d8b-b6e7-2c0eccf24dff",
+            "on_false": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9"
+        },
+        "end--e1b1f9be-1f4b-4d8b-b6e7-2c0eccf24dff": {
+            "type": "end",
+            "description": "Playbook execution completed successfully."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1fca3fa-3c4a-447b-8d02-f6e623a49761",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook mitigates the impact of an attacker exploiting a vulnerable application to execute arbitrary commands, drop a malicious script, and exfiltrate sensitive data.",
+    "created_by": "identity--f2c3788d-5742-4c73-84fd-b0c0b6017173",
+    "created": "2023-10-01T10:20:00Z",
+    "modified": "2023-10-01T10:25:00Z",
+    "revoked": false,
+    "workflow_start": "start--f3e4b9bc-3823-4723-90fd-abc3a9886322",
+    "workflow": {
+        "start--f3e4b9bc-3823-4723-90fd-abc3a9886322": {
+            "on_completion": "action--d4e0be1a-3e2b-4beb-bcf6-188b7cc0eb1f",
+            "type": "start"
+        },
+        "action--d4e0be1a-3e2b-4beb-bcf6-188b7cc0eb1f": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any running processes of the malicious script.",
+            "on_completion": "if-condition--b012fa75-d037-4733-bb71-c7608314183b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b012fa75-d037-4733-bb71-c7608314183b": {
+            "name": "Check if malicious script exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malicious_script.sh ]",
+            "on_true": "action--b012fa75-d037-4733-bb71-c7608314183b",
+            "on_false": "loop--3fd9ee2b-5fda-4e7f-bd0a-e4ecb6a9893b"
+        },
+        "action--b012fa75-d037-4733-bb71-c7608314183b": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious script dropped in the /tmp directory.",
+            "on_completion": "loop--3fd9ee2b-5fda-4e7f-bd0a-e4ecb6a9893b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--3fd9ee2b-5fda-4e7f-bd0a-e4ecb6a9893b": {
+            "name": "Perform system scan",
+            "description": "Continuously perform a system scan until the scan is clean.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--3fd9ee2b-5fda-4e7f-bd0a-e4ecb6a9893b",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--3fd9ee2b-5fda-4e7f-bd0a-e4ecb6a9893b": {
+            "name": "Run system scan",
+            "description": "Scan the system to identify any remaining threats.",
+            "on_completion": {
+                "set_conditions": {
+                    "scan_status": {
+                        "type": "string",
+                        "value": "clean",
+                        "constant": false
+                    }
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

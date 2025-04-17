@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3b0a1f4-88da-4c42-b8b2-2d086eec1f81",
+    "name": "Mitigation Playbook for C2 Exfiltration Incident",
+    "description": "This playbook addresses a command and control exfiltration incident involving multiple mitigation strategies.",
+    "created_by": "identity--f1b237eb-c793-4299-95d1-12aefb7f94fb",
+    "created": "2025-04-09T14:00:00Z",
+    "modified": "2025-04-09T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-1234-5678-1234-567812345678",
+    "workflow": {
+        "start--12345678-1234-5678-1234-567812345678": {
+            "on_completion": "action--a1c4caf8-302b-4dd4-be3c-0c2bb16ad1db",
+            "type": "start"
+        },
+        "action--a1c4caf8-302b-4dd4-be3c-0c2bb16ad1db": {
+            "name": "Kill C2 process",
+            "description": "Terminate the command and control process running on the host.",
+            "on_completion": "parallel--d2f1fbb1-eea3-4d42-bd23-a48bc2e19468",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f c2_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7a2fc77b-e2e7-43c7-ada6-5fcf1614c5b3": {
+            "name": "Block external IP",
+            "description": "Block outbound connections to the attacker's IP address.",
+            "on_completion": "end--f1e2e3e4-5678-1234-5678-90abcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b9526a5a-1b39-4b13-b89d-643b13c45184": {
+            "name": "Conduct network traffic analysis",
+            "description": "Analyze network traffic to gather evidence of the exfiltration.",
+            "on_completion": "if-condition--e1234567-1234-5678-1234-567812345678",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn -s 0 -X"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e1234567-1234-5678-1234-567812345678": {
+            "name": "Check if analysis is complete",
+            "type": "if-condition",
+            "condition": "analysis_complete == false",
+            "on_true": "action--b9526a5a-1b39-4b13-b89d-643b13c45184",
+            "on_false": "action--5c5c36d5-61c6-42ef-b58f-4d4f9b0b990e"
+        },
+        "action--5c5c36d5-61c6-42ef-b58f-4d4f9b0b990e": {
+            "name": "Isolate infected host",
+            "description": "Temporarily shut down the infected host to prevent further data loss.",
+            "on_completion": "end--f1e2e3e4-5678-1234-5678-90abcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if compromised == true"
+        },
+        "action--b0a33fce-7331-4dee-97ff-0f5ea99d14f5": {
+            "name": "Review user account activity",
+            "description": "Check logs for unusual user activity related to the compromised account.",
+            "on_completion": "end--f1e2e3e4-5678-1234-5678-90abcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'username' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--d2f1fbb1-eea3-4d42-bd23-a48bc2e19468": {
+            "name": "Execute Mitigations",
+            "description": "Perform all mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7a2fc77b-e2e7-43c7-ada6-5fcf1614c5b3",
+                "action--b9526a5a-1b39-4b13-b89d-643b13c45184",
+                "action--b0a33fce-7331-4dee-97ff-0f5ea99d14f5"
+            ]
+        },
+        "end--f1e2e3e4-5678-1234-5678-90abcdef1234": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

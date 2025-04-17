@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9b73956a-41ed-4724-8515-e7f5244fcecb",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to exfiltrate sensitive data.",
+    "created_by": "identity--e7f5244f-6cd2-4f88-b827-e7e5244fcecb",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--2e9735b2-d8f6-45e1-b038-fcfbdd4030f1",
+    "workflow": {
+        "start--2e9735b2-d8f6-45e1-b038-fcfbdd4030f1": {
+            "on_completion": "parallel--1f91dcef-9c9a-4f1c-8fbe-d047261155ff",
+            "type": "start"
+        },
+        "parallel--1f91dcef-9c9a-4f1c-8fbe-d047261155ff": {
+            "name": "Immediate Response",
+            "description": "Execute actions to respond to the incident in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a47e4086-7207-41f2-8cf1-c57a13b3dcf1",
+                "action--c481e1b2-845d-4b3d-9a9b-f4ad042c8d95",
+                "action--e50f4eb7-46c3-49c5-8250-0dc68238b8a7"
+            ]
+        },
+        "action--a47e4086-7207-41f2-8cf1-c57a13b3dcf1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script execution.",
+            "on_completion": "parallel--1f91dcef-9c9a-4f1c-8fbe-d047261155ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c481e1b2-845d-4b3d-9a9b-f4ad042c8d95": {
+            "name": "Isolate affected host",
+            "description": "Block traffic from the affected host.",
+            "on_completion": "parallel--1f91dcef-9c9a-4f1c-8fbe-d047261155ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-32 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e50f4eb7-46c3-49c5-8250-0dc68238b8a7": {
+            "name": "Audit recent scripts",
+            "description": "Review recent scripts in user directory for any malicious content.",
+            "type": "action",
+            "on_completion": "end--f28afca9-2b8e-4e02-aea9-6a9cb893da71",
+            "loop": "for each script in found",
+            "next_steps": "action--process_script",
+            "step_variables": {
+                "script_name": {
+                    "type": "string",
+                    "description": "Current script name being audited",
+                    "value": "None",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home/user -name '*.sh' -exec echo {} \\;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--process_script": {
+            "name": "Process each script",
+            "description": "Process the current script to determine if it is malicious",
+            "on_completion": "end--f28afca9-2b8e-4e02-aea9-6a9cb893da71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat $script_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f28afca9-2b8e-4e02-aea9-6a9cb893da71": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

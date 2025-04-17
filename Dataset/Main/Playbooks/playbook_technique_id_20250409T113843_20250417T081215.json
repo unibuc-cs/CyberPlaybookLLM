@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9b517832-b8c4-4cd8-b80c-f05b56435645",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where an adversary executed a malicious script remotely, leading to unauthorized access and potential data exfiltration.",
+    "created_by": "identity--abc12345-6789-def0-abcd-1234567890ab",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1f9f870-f2be-42cf-975a-f748080b67ae",
+    "workflow": {
+        "start--b1f9f870-f2be-42cf-975a-f748080b67ae": {
+            "on_completion": "action--7f48a632-f676-4b46-bc1c-cd6a549f7420",
+            "type": "start"
+        },
+        "action--7f48a632-f676-4b46-bc1c-cd6a549f7420": {
+            "name": "Kill suspicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--e36a3e41-01bc-4f76-8dc5-77d18959fcb6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e36a3e41-01bc-4f76-8dc5-77d18959fcb6": {
+            "name": "Initiate host scan",
+            "description": "Perform a scan on the affected host.",
+            "on_completion": "decision--c465cc60-ef91-4c28-aeb6-020d3c72d0cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --target host-22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--c465cc60-ef91-4c28-aeb6-020d3c72d0cc": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c465cc60-ef91-4c28-aeb6-020d3c72d0cc",
+            "on_false": "action--ab7c5074-b381-4f9c-a69e-73d8b82fdbc6"
+        },
+        "action--c465cc60-ef91-4c28-aeb6-020d3c72d0cc": {
+            "name": "Check network connections",
+            "description": "Identify established network connections.",
+            "on_completion": "action--ab7c5074-b381-4f9c-a69e-73d8b82fdbc6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -antp | grep ESTABLISHED"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "current_connections": {
+                    "type": "string",
+                    "description": "Stores the results of current network connections.",
+                    "value": "result_of_previous_command",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--ab7c5074-b381-4f9c-a69e-73d8b82fdbc6": {
+            "name": "Block malicious IP addresses",
+            "description": "Block any established connections to suspicious IP addresses.",
+            "on_completion": "action--1d65c840-62fc-494a-8319-652c4f2e63b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if current_connections contains suspicious_ip"
+        },
+        "action--1d65c840-62fc-494a-8319-652c4f2e63b1": {
+            "name": "Update incident response documentation",
+            "description": "Log the incident response actions taken.",
+            "on_completion": "end--7c639c10-588e-418b-bf84-d41f3b5c7d44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident T1059 response actions taken' >> incident_log.txt"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--7c639c10-588e-418b-bf84-d41f3b5c7d44": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d9e392f4-9dcf-4cae-b749-78998f944c5f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the network via a compromised user account and executed malicious scripts to enumerate sensitive folders. It implements various mitigations and uses conditional and iterative flows to ensure thorough remediation.",
+    "created_by": "identity--f5e0fef9-50b6-4949-bb15-ee8e10a65a41",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--0ace8f9e-c145-4f7f-95f2-5150bd84d7b2",
+    "workflow": {
+        "start--0ace8f9e-c145-4f7f-95f2-5150bd84d7b2": {
+            "on_completion": "if-condition--983a11df-1628-4bb2-9607-a79f1b7479c5",
+            "type": "start"
+        },
+        "if-condition--983a11df-1628-4bb2-9607-a79f1b7479c5": {
+            "name": "Check if malicious process is running",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731",
+            "on_false": "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e"
+        },
+        "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731": {
+            "name": "Kill malicious process",
+            "description": "Terminate any active malicious processes detected on the system.",
+            "on_completion": "action--742cfba9-1513-4fed-95c9-2edb8c3b454a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e": {
+            "name": "Disable user account",
+            "description": "Lock the compromised user account to prevent further access.",
+            "on_completion": "action--430bec4a-3672-4693-a72b-61cf3b4fbc39",
+            "type": "action",
+            "step_variables": {
+                "user": "compromised_user"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L ${user}"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--430bec4a-3672-4693-a72b-61cf3b4fbc39": {
+            "name": "Update system and security patches",
+            "description": "Ensure that all system patches are updated before proceeding with scanning.",
+            "on_completion": "while-condition--2ae8dd50-f5a0-4d68-a872-e045687477bd",
+            "type": "action",
+            "step_variables": {
+                "lastPatchDate": "2023-10-10"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--2ae8dd50-f5a0-4d68-a872-e045687477bd": {
+            "name": "Scan for residual scripts",
+            "description": "Search for potentially malicious PowerShell scripts on the system.",
+            "on_completion": "end--e2a7eec1-4ed3-4e7c-865d-43a1bef7307f",
+            "condition": "any_scripts_found == true",
+            "on_true": "action--742cfba9-1513-4fed-95c9-2edb8c3b454a",
+            "on_false": "end--e2a7eec1-4ed3-4e7c-865d-43a1bef7307f"
+        },
+        "end--e2a7eec1-4ed3-4e7c-865d-43a1bef7307f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

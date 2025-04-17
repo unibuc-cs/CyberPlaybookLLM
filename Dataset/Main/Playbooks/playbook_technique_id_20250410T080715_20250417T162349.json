@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a4b5d78e-957e-43a2-891e-4e68755a61d1",
+    "name": "Mitigation for Exploited Server Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web server to execute unauthorized scripts. Immediate actions are performed to terminate malicious processes, block outbound connections, scan for infections, evaluate logs, and restore the server.",
+    "created_by": "identity--abc12345-78f9-432d-ba5b-0dac002dc5aa",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f3c7b390-9881-4b13-b002-bf6f91d131ec",
+    "workflow": {
+        "start--f3c7b390-9881-4b13-b002-bf6f91d131ec": {
+            "on_completion": "if-condition--script-running-check",
+            "type": "start"
+        },
+        "if-condition--script-running-check": {
+            "name": "Check if malicious script is running",
+            "type": "if-condition",
+            "condition": "script_running",
+            "on_true": "action--terminate-malicious-process",
+            "on_false": "action--block-outbound-connections"
+        },
+        "action--terminate-malicious-process": {
+            "name": "Terminate malicious process",
+            "description": "Terminate the unauthorized script that was executed.",
+            "on_completion": "action--block-outbound-connections",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--block-outbound-connections": {
+            "name": "Block outbound connections from suspected host",
+            "description": "Block outbound connections from the host to prevent further malicious activity.",
+            "on_completion": "while-condition--scan-host",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d evil-domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-host": {
+            "name": "Conduct host scan until no infections detected",
+            "description": "Scan the host for malware until no infections are detected.",
+            "on_true": "action--conduct-scan",
+            "on_completion": "if-condition--log-evaluation",
+            "type": "while-condition",
+            "condition": "no_infection_detected",
+            "next_steps": [
+                "action--conduct-scan"
+            ]
+        },
+        "action--conduct-scan": {
+            "name": "Conduct a scan of the host",
+            "description": "Perform a scan on the whole host.",
+            "on_completion": "while-condition--scan-host",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --remove"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--log-evaluation": {
+            "name": "Evaluate server logs for redundancy",
+            "type": "if-condition",
+            "condition": "incident_found",
+            "on_true": "action--evaluate-server-logs",
+            "on_false": "if-condition--restore-backup"
+        },
+        "action--evaluate-server-logs": {
+            "name": "Evaluate server logs",
+            "description": "Evaluate logs for any errors that could indicate further issues.",
+            "on_completion": "if-condition--restore-backup",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'error' /var/log/httpd/access_log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--restore-backup": {
+            "name": "Restore backup and patch vulnerability",
+            "type": "if-condition",
+            "condition": "vulnerability_assessed",
+            "on_true": "action--restore-backup",
+            "on_false": "end--playbook-complete"
+        },
+        "action--restore-backup": {
+            "name": "Restore backup and patch vulnerability",
+            "description": "Restore the server from backup and patch any vulnerabilities.",
+            "on_completion": "end--playbook-complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup/webserver/ /var/www/html/ && apt-get install --only-upgrade vulnerable-package"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--playbook-complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityResponseTeam"
+        }
+    }
+}

@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3c1d572f-6e66-41c7-a1fe-90b5f3cb3502",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute arbitrary commands and aimed to establish persistent access and exfiltrate sensitive data.",
+    "created_by": "identity--a67d8a38-2db2-4e03-8c8c-57af5bd8e465",
+    "created": "2023-10-15T09:00:00Z",
+    "modified": "2023-10-15T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--c1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--21a3c1b2-ef77-489f-abd5-fc6e5f0dd3b8",
+            "type": "start"
+        },
+        "action--21a3c1b2-ef77-489f-abd5-fc6e5f0dd3b8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the suspicious script.",
+            "on_completion": "decision-condition--08a2f7bc-5424-49dc-9ae2-81ff6908a3c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision-condition--08a2f7bc-5424-49dc-9ae2-81ff6908a3c5": {
+            "name": "Check if malicious script exists",
+            "description": "Determine if the malicious script is still present.",
+            "type": "if-condition",
+            "condition": "file_exists('/var/www/html/suspicious_script.sh')",
+            "on_true": "action--08a2f7bc-5424-49dc-9ae2-81ff6908a3c5",
+            "on_false": "action--90dabf42-a4cf-4e67-8aff-a79339dcd35b"
+        },
+        "action--08a2f7bc-5424-49dc-9ae2-81ff6908a3c5": {
+            "name": "Remove uploaded malicious script",
+            "description": "Delete the uploaded malicious script from the server.",
+            "on_completion": "action--90dabf42-a4cf-4e67-8aff-a79339dcd35b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--90dabf42-a4cf-4e67-8aff-a79339dcd35b": {
+            "name": "Scan system for vulnerabilities",
+            "description": "Run a vulnerability scan on the system to identify other threats.",
+            "on_completion": "loop--vulnerability-scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vuln_scan"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the vulnerability scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "loop--vulnerability-scan-loop": {
+            "name": "Vulnerability Scan Loop",
+            "description": "Continue scanning until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--90dabf42-a4cf-4e67-8aff-a79339dcd35b",
+            "on_false": "end--completion"
+        },
+        "end--completion": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

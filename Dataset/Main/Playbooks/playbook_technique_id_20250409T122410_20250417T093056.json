@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a85d0e4d-baf1-4db5-85a8-73ebc8be5cdd",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via a command-line interface that compromised the server.",
+    "created_by": "identity--6132d3a3-8beb-42a4-ab12-f73fcf202dda",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c02e3450-b827-41d8-af16-0d9202444f12",
+    "workflow": {
+        "start--c02e3450-b827-41d8-af16-0d9202444f12": {
+            "on_completion": "action--e6b92714-0bc6-4977-9f75-13d9f431d8c2",
+            "type": "start"
+        },
+        "action--e6b92714-0bc6-4977-9f75-13d9f431d8c2": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process that is still running.",
+            "on_completion": "if-condition--d2fd5867-ae85-4aa5-a73b-cc7da31316a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d2fd5867-ae85-4aa5-a73b-cc7da31316a0": {
+            "name": "Check if connection exists to malicious IP",
+            "type": "if-condition",
+            "condition": "connection_exists",
+            "on_true": "action--d550db43-f670-4bfa-a11f-18b4ca2e775a",
+            "on_false": "action--9e92f310-2b18-470d-9e4e-23e5f2070f6d"
+        },
+        "action--d550db43-f670-4bfa-a11f-18b4ca2e775a": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Prevent any outbound traffic to the known malicious IP.",
+            "on_completion": "action--9e92f310-2b18-470d-9e4e-23e5f2070f6d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9e92f310-2b18-470d-9e4e-23e5f2070f6d": {
+            "name": "Scan the system for malware",
+            "description": "Run a malware scan and keep checking until the system is clean.",
+            "on_completion": "while-condition--fdf5b401-655d-4d30-9a3f-20f4c5ae6ab4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./malware-scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--fdf5b401-655d-4d30-9a3f-20f4c5ae6ab4": {
+            "name": "Check scan result",
+            "description": "Repeat scanning process until no malware is found.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--9e92f310-2b18-470d-9e4e-23e5f2070f6d",
+            "on_false": "end--6829454d-0c90-4386-b776-b8e73dc580ae"
+        },
+        "end--6829454d-0c90-4386-b776-b8e73dc580ae": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

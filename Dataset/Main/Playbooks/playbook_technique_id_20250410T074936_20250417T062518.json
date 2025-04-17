@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1dc4dd4-48f4-4331-94b7-8b3860fdb3ca",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook addresses an incident where an attacker gained administrative access through a compromised email, executing PowerShell scripts to establish a backdoor.",
+    "created_by": "identity--f2f3df8c-ff3b-4936-8e1b-929aa3d4f0d0",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f04e10e2-b5f8-480b-8ac1-2d2257eaa6da",
+    "workflow": {
+        "start--f04e10e2-b5f8-480b-8ac1-2d2257eaa6da": {
+            "on_completion": "action--b123dd4e-efc4-4f13-9b8b-527b981ad181",
+            "type": "start"
+        },
+        "action--b123dd4e-efc4-4f13-9b8b-527b981ad181": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any lingering malicious PowerShell scripts.",
+            "on_completion": "action--15f7aebe-f829-44c8-9490-3c1d734541d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while pgrep -f 'powershell'; do pkill -f 'powershell'; sleep 5; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--15f7aebe-f829-44c8-9490-3c1d734541d3": {
+            "name": "Block network connection to C2 server",
+            "description": "Prevent any outbound communication to the attacker\u2019s command and control server.",
+            "on_completion": "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.45 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb": {
+            "name": "Remove unauthorized administrative account",
+            "description": "Delete the unauthorized account created by the attacker.",
+            "on_completion": "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo deluser --remove-home attacker_account"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d": {
+            "name": "Scan for additional malicious scripts",
+            "description": "Run a scan to identify any additional threats on the system.",
+            "on_completion": "if-condition--55b7b53a-9c96-43ba-b3dd-dfc8e2372c2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --infected --recursive /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--55b7b53a-9c96-43ba-b3dd-dfc8e2372c2f": {
+            "name": "Check for infected files",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--remove-infected-files",
+            "on_false": "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43"
+        },
+        "action--remove-infected-files": {
+            "name": "Remove infected files",
+            "description": "Delete all files that were flagged by the last scan.",
+            "on_completion": "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove --recursive /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43": {
+            "name": "Strengthen email filtering rules",
+            "description": "Update the email filtering to block suspicious attachments.",
+            "on_completion": "end--e9c2f149-befc-49b4-8995-615418f32b98",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_email_filtering"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e9c2f149-befc-49b4-8995-615418f32b98": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

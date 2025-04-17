@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6e3c4c06-01cc-4883-bd8a-7f0fea8b388b",
+    "name": "Mitigation Playbook for Data Exfiltration via Compromised Web Application",
+    "description": "This playbook addresses an incident where an attacker leveraged a compromised web application to exfiltrate sensitive data using HTTP POST requests.",
+    "created_by": "identity--3a1d5c8f-1fa0-4ba7-9e2e-e21fefbadf46",
+    "created": "2023-10-10T16:00:00Z",
+    "modified": "2023-10-10T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--fd51e1be-0cda-4c05-b927-f0c3058535a7",
+    "workflow": {
+        "start--fd51e1be-0cda-4c05-b927-f0c3058535a7": {
+            "on_completion": "if-condition--b6b9c641-91ee-4c61-af1a-2c5e4524e623",
+            "type": "start"
+        },
+        "if-condition--b6b9c641-91ee-4c61-af1a-2c5e4524e623": {
+            "name": "Check if malicious web app process is running",
+            "type": "if-condition",
+            "condition": "is_process_running('malicious_web_app')",
+            "on_true": "action--74a4d5d7-48e5-4d9a-8fe4-1fade87242e7",
+            "on_false": "action--78c37ecc-b18b-41c3-9177-f1a7feae0da5"
+        },
+        "action--74a4d5d7-48e5-4d9a-8fe4-1fade87242e7": {
+            "name": "Terminate the malicious web application",
+            "description": "Identify and terminate the malicious web application process.",
+            "on_completion": "action--78c37ecc-b18b-41c3-9177-f1a7feae0da5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_web_app"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--78c37ecc-b18b-41c3-9177-f1a7feae0da5": {
+            "name": "Block outbound traffic to suspicious IP",
+            "description": "Block outbound traffic to the identified malicious IP address.",
+            "on_completion": "loop--4f83ecec-3dfc-419e-872b-923b2facf5ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--4f83ecec-3dfc-419e-872b-923b2facf5ee": {
+            "name": "Review server logs for unauthorized POST requests",
+            "description": "Loop through server logs to find all unauthorized POST entries.",
+            "on_completion": "end--f45f8d77-b949-4b16-8d74-cca2345cbe47",
+            "type": "loop",
+            "condition": "has_next_log_entry()",
+            "next_steps": "check_next_log_entry--4f83ecec-3dfc-419e-872b-923b2facf5ee",
+            "step_variables": {
+                "entry": {
+                    "type": "string",
+                    "description": "Current log entry being processed",
+                    "value": "None",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "check_next_log_entry--4f83ecec-3dfc-419e-872b-923b2facf5ee": {
+            "name": "Process next log entry",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "export entry=$(grep 'POST' /var/log/httpd/access_log | head -n 1)"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "loop--4f83ecec-3dfc-419e-872b-923b2facf5ee"
+        },
+        "end--f45f8d77-b949-4b16-8d74-cca2345cbe47": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

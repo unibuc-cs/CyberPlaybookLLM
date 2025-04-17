@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b547d21d-a924-4faf-9f3e-29547738e1ae",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses the incident where a malicious PowerShell script was executed to exfiltrate sensitive data. It includes steps for killing the process, isolating the host, and running an anti-malware scan.",
+    "created_by": "identity--7f2e241e-5aef-4e51-9e70-fd24e48d2c42",
+    "created": "2025-04-10T08:55:35.00Z",
+    "modified": "2025-04-10T08:56:56.00Z",
+    "revoked": false,
+    "workflow_start": "start--3c4f8230-f9f5-49de-9737-7a12c2ca193f",
+    "workflow": {
+        "start--3c4f8230-f9f5-49de-9737-7a12c2ca193f": {
+            "on_completion": "if-condition--c3e91fbf-f708-4919-ab9c-8ac9382f5d3f",
+            "type": "start"
+        },
+        "if-condition--c3e91fbf-f708-4919-ab9c-8ac9382f5d3f": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "power_shell_running() == true",
+            "on_true": "action--c1b2f89f-47e5-4f23-a09c-dd4e12de2e46",
+            "on_false": "action--d2bfa2aa-8d5d-4940-8f74-4cc564ec2fcf"
+        },
+        "action--c1b2f89f-47e5-4f23-a09c-dd4e12de2e46": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the running PowerShell process if detected.",
+            "on_completion": "action--d2bfa2aa-8d5d-4940-8f74-4cc564ec2fcf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d2bfa2aa-8d5d-4940-8f74-4cc564ec2fcf": {
+            "name": "Isolate affected host from the network",
+            "description": "Block outbound network connections from the affected host.",
+            "on_completion": "while-condition--8d2c3d3f-1c66-4be2-8103-fd82ef343942",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--8d2c3d3f-1c66-4be2-8103-fd82ef343942": {
+            "name": "Anti-malware scan loop",
+            "description": "Perform an anti-malware scan until the host is clean.",
+            "condition": "scan_status == 'Not Clean'",
+            "on_true": "action--f4adca46-1223-48ef-a7b2-f119d76888ec",
+            "on_false": "end--f1a6de81-c7c6-48fb-b64f-7352c9c61ba1"
+        },
+        "action--f4adca46-1223-48ef-a7b2-f119d76888ec": {
+            "name": "Run anti-malware scan on affected host",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Determines the status of the anti-malware scan.",
+                    "value": "Not Clean",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--8d2c3d3f-1c66-4be2-8103-fd82ef343942",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --move=/infected; if [ $? -eq 0 ]; then scan_status='Clean'; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f1a6de81-c7c6-48fb-b64f-7352c9c61ba1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

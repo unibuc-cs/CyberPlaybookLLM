@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e25d5e77-f06b-41d3-8903-efb3ad12f1e9",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Abuse",
+    "description": "This playbook mitigates an incident where an attacker exploited a vulnerable scripting interface to execute malicious commands and modify system files.",
+    "created_by": "identity--2b35ea3d-94f8-4ee4-be71-5d1705518d5a",
+    "created": "2023-10-14T09:30:00Z",
+    "modified": "2023-10-14T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d742a68c-41c4-495a-85b0-02be2b21cbf6",
+    "workflow": {
+        "start--d742a68c-41c4-495a-85b0-02be2b21cbf6": {
+            "on_completion": "action--a6da8e59-8a4d-4605-8e52-e8518eab9b96",
+            "type": "start"
+        },
+        "action--a6da8e59-8a4d-4605-8e52-e8518eab9b96": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing suspicious commands.",
+            "on_completion": "action--7e4c9ad6-22a6-4f8b-a1ec-c878e4d7f4bf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'rm -rf'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7e4c9ad6-22a6-4f8b-a1ec-c878e4d7f4bf": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete any unauthorized scripts using patterns that are flagged.",
+            "on_completion": "action--c88aeccb-3d76-4c77-9b8c-715af7a5f4bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.sh' -exec rm -f {} +"
+                }
+            ],
+            "agent": "organization--xyz",
+            "conditional": {
+                "condition": "script_contains(unauthorized_patterns)",
+                "on_true": "action--c88aeccb-3d76-4c77-9b8c-715af7a5f4bc",
+                "on_false": "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b"
+            }
+        },
+        "action--c88aeccb-3d76-4c77-9b8c-715af7a5f4bc": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent connections to known malicious IP addresses.",
+            "on_completion": "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.27 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b": {
+            "name": "Perform system integrity checks",
+            "description": "Check for any signs of infection in the system.",
+            "on_completion": "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit | grep INFECTED"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "condition": "infected == true",
+                "on_true": "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b",
+                "next_steps": "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d"
+            }
+        },
+        "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d": {
+            "name": "Restore modified system files",
+            "description": "Restore critical system files to a known good state.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/etc/passwd /etc/passwd"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

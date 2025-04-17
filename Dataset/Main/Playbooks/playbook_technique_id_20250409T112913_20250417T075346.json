@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3c6b4e8-4c1f-4a00-a899-154ac7b9a3de",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook outlines the response to an incident involving unauthorized command execution, data exfiltration, and privilege escalation.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-01T12:35:00Z",
+    "modified": "2023-10-01T12:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--a22f3b00-0589-4082-a8ce-9cd68f200432",
+    "workflow": {
+        "start--a22f3b00-0589-4082-a8ce-9cd68f200432": {
+            "on_completion": "if-condition--e3052b4c-8fcd-4e99-b689-7496b71ffef7",
+            "type": "start"
+        },
+        "if-condition--e3052b4c-8fcd-4e99-b689-7496b71ffef7": {
+            "name": "Check if suspicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_process)",
+            "on_true": "action--6f8f57715090b5a4c3b6e7c8f8385d7e",
+            "on_false": "action--61b7e18b-0e27-4f31-a9c6-342d166e134d"
+        },
+        "action--6f8f57715090b5a4c3b6e7c8f8385d7e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that match the suspicious process criteria.",
+            "on_completion": "action--61b7e18b-0e27-4f31-a9c6-342d166e134d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--61b7e18b-0e27-4f31-a9c6-342d166e134d": {
+            "name": "Isolate compromised host",
+            "description": "Block all incoming traffic from the identified compromised host.",
+            "on_completion": "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive malware scan on the affected system.",
+            "on_completion": "if-condition--f251b1ba-b71a-40cd-88a3-249f302e7c21",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--f251b1ba-b71a-40cd-88a3-249f302e7c21": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_is_clean()",
+            "on_true": "action--b71c3455-e6b4-4928-8db6-5c3bdeeeeb4c",
+            "on_false": "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de"
+        },
+        "action--b71c3455-e6b4-4928-8db6-5c3bdeeeeb4c": {
+            "name": "Review command history",
+            "description": "Check the command history for suspicious activity.",
+            "on_completion": "action--5840f743-9d69-46e0-9d6e-c4212299b523",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'CMD'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5840f743-9d69-46e0-9d6e-c4212299b523": {
+            "name": "Alert security team",
+            "description": "Notify the security team about the suspicious activity detected.",
+            "on_completion": "end--b35bfe1d-c579-4ff9-a265-63e50ab8bde8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert('Suspicious activity detected on host-22')"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b35bfe1d-c579-4ff9-a265-63e50ab8bde8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

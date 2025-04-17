@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e235f292-2676-44e6-8341-b345b19158b0",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident involving a malicious script execution that resulted in sensitive files being uploaded to an external server.",
+    "created_by": "identity--abc12345-6789-0def-1234-56789abcdef0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1fa23c51-a56e-4ab4-aba0-d1d4abf0ab33",
+    "workflow": {
+        "start--1fa23c51-a56e-4ab4-aba0-d1d4abf0ab33": {
+            "on_completion": "action--1b02c7da-572c-4a63-a309-319b776ecf84",
+            "type": "start",
+            "name": "Start Playbook",
+            "description": "Initialize the playbook for responding to the malicious script execution incident."
+        },
+        "action--1b02c7da-572c-4a63-a309-319b776ecf84": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--126d8d8d-7992-47b8-9f73-1d855f01ebc1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--126d8d8d-7992-47b8-9f73-1d855f01ebc1": {
+            "name": "Initiate Full System Scan",
+            "description": "Run a comprehensive scan of the system to identify additional threats.",
+            "on_completion": "if-condition--loop-check-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--loop-check-scan": {
+            "name": "Check if scan was successful",
+            "type": "if-condition",
+            "condition": "scan_successful == false",
+            "on_true": "action--126d8d8d-7992-47b8-9f73-1d855f01ebc1",
+            "on_false": "action--c3f26dca-3e94-4c1c-9f5e-d797fed84712"
+        },
+        "action--c3f26dca-3e94-4c1c-9f5e-d797fed84712": {
+            "name": "Investigate Outbound Traffic",
+            "description": "Monitor outbound traffic for connections to the suspicious IP address.",
+            "on_completion": "end--f4c5b489-f01d-4f83-97ee-fdb43fba6a68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host $suspicious_ip"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "suspicious_ip": {
+                    "type": "string",
+                    "description": "The IP address associated with suspicious outbound connections.",
+                    "value": "192.168.1.100",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--f4c5b489-f01d-4f83-97ee-fdb43fba6a68": {
+            "type": "end",
+            "name": "End of Playbook",
+            "description": "Conclude the remediation process for the malicious script execution incident."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c9892f23-bf70-4c38-8b2f-5b1f3d126asd",
+    "name": "Mitigation Playbook for Masquerading Incident",
+    "description": "Playbook to address a masquerading attack that led to unauthorized data access.",
+    "created_by": "identity--9843bdf1-39c7-4ad9-a1df-ff092bfab67a",
+    "created": "2023-10-12T08:25:00.000Z",
+    "modified": "2023-10-12T08:25:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--43f3b8b8-4746-4db4-ae81-13d59f69cb43",
+    "workflow": {
+        "start--43f3b8b8-4746-4db4-ae81-13d59f69cb43": {
+            "on_completion": "parallel--e4a2c0c9-832a-42df-b481-889e5084bf2c",
+            "type": "start"
+        },
+        "parallel--e4a2c0c9-832a-42df-b481-889e5084bf2c": {
+            "name": "Execute Mitigation Steps in Parallel",
+            "description": "Perform multiple mitigation steps simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ea1f6d17-7f28-437c-9a1b-770d489a3c78",
+                "action--fb2c6714-cd90-4dab-b21e-1f09c5753400",
+                "action--a57419f7-da61-4205-8624-2663f362003f",
+                "action--e660be2d-ceb8-4ae7-ae3f-16eec58d14f9",
+                "decision--d31b454e-0a65-4810-84a5-0b8e086084ba"
+            ]
+        },
+        "action--ea1f6d17-7f28-437c-9a1b-770d489a3c78": {
+            "name": "Delete Disguised svchost.exe",
+            "description": "Inspect Server-1 and delete the disguised svchost.exe file located in C:\\Windows\\System32\\.",
+            "on_completion": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /mnt/c/Windows/System32/svchost.exe",
+                    "description": "This assumes a WSL-like environment for simplicity."
+                }
+            ],
+            "agent": "host--server-1"
+        },
+        "action--fb2c6714-cd90-4dab-b21e-1f09c5753400": {
+            "name": "Establish File Integrity Monitoring",
+            "description": "Establish file integrity monitoring on Server-1 to detect unauthorized changes.",
+            "on_completion": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt install -y aide && aide --init && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db"
+                }
+            ],
+            "agent": "host--server-1"
+        },
+        "action--a57419f7-da61-4205-8624-2663f362003f": {
+            "name": "Review and Update Execution Policies",
+            "description": "Review and update process execution policies on Server-1.",
+            "on_completion": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -a always,exit -S execve"
+                }
+            ],
+            "agent": "host--server-1"
+        },
+        "action--e660be2d-ceb8-4ae7-ae3f-16eec58d14f9": {
+            "name": "Revoke Access to Workstation-12 Databases",
+            "description": "Revoke access to databases on Workstation-12 for processes from Server-1.",
+            "on_completion": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s server-1-ip -j DROP"
+                }
+            ],
+            "agent": "host--workstation-12"
+        },
+        "decision--d31b454e-0a65-4810-84a5-0b8e086084ba": {
+            "name": "Check Logs for Unauthorized Access",
+            "description": "Check Server-1's and Workstation-12's logs and improve authentication mechanisms.",
+            "type": "if-condition",
+            "condition": "authentication_issues_detected",
+            "on_true": "action--5a2d4c01-3a2d-4425-890c-6631598f9644",
+            "on_false": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3"
+        },
+        "action--5a2d4c01-3a2d-4425-890c-6631598f9644": {
+            "name": "Improve Authentication Mechanisms",
+            "description": "Enhance authentication mechanisms based on log findings.",
+            "on_completion": "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pam-auth-update"
+                }
+            ],
+            "agent": "host--server-1"
+        },
+        "end--7c04e2e2-5d1e-43d1-8ab0-fc207b95f2d3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "host--server-1": {
+            "type": "host",
+            "name": "Server-1",
+            "description": "The primary server affected in the masquerading incident."
+        },
+        "host--workstation-12": {
+            "type": "host",
+            "name": "Workstation-12",
+            "description": "The workstation where unauthorized database access occurred."
+        }
+    }
+}

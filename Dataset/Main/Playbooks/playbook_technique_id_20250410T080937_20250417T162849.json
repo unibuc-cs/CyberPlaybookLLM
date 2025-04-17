@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5d43f263-ecb6-4f84-b5c0-d9a6a3f92654",
+    "name": "Playbook for Unauthorized Script Execution Incident",
+    "description": "Mitigation steps for an incident involving unauthorized script execution and potential data exfiltration.",
+    "created_by": "identity--abcde123-4567-89ab-cdef-1234567890ab",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:00:00Z",
+    "workflow_start": "start--11111111-2222-3333-4444-555555555555",
+    "workflow": {
+        "start--11111111-2222-3333-4444-555555555555": {
+            "on_completion": "action--43df1aec-d8c9-4d2a-ba2b-1823f529742b",
+            "type": "start"
+        },
+        "action--43df1aec-d8c9-4d2a-ba2b-1823f529742b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that was executed.",
+            "on_completion": "action--55d51c10-1209-41b7-b0d3-112ea8dde6a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[s]uspicious_script' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--55d51c10-1209-41b7-b0d3-112ea8dde6a6": {
+            "name": "Isolate the infected host",
+            "description": "Block inbound connections from the infected host if connections are still observed.",
+            "on_completion": "decision--check_network",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--check_network": {
+            "name": "Check if network connections still observed",
+            "type": "if-condition",
+            "condition": "network_connections_observed == true",
+            "on_true": "action--remove_script",
+            "on_false": "action--reset_credentials"
+        },
+        "action--remove_script": {
+            "name": "Remove unauthorized script",
+            "description": "Delete the suspicious script from the system.",
+            "on_completion": "loop--check_script_existence",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/suspicious_script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--check_script_existence": {
+            "name": "Check if script still exists",
+            "type": "while-condition",
+            "condition": "script_exists('/path/to/suspicious_script')",
+            "on_true": "action--remove_script",
+            "on_false": "action--reset_credentials"
+        },
+        "action--reset_credentials": {
+            "name": "Reset compromised credentials",
+            "description": "Reset user credentials if compromise is confirmed.",
+            "on_completion": "action--patch_vulnerable_apps",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'user:password123' | chpasswd"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--patch_vulnerable_apps": {
+            "name": "Patch vulnerable applications",
+            "description": "Update and upgrade installed packages to patch vulnerabilities.",
+            "on_completion": "end--99999999-8888-7777-6666-555555555555",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--99999999-8888-7777-6666-555555555555": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

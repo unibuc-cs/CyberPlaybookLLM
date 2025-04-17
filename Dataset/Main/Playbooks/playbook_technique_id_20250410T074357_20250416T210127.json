@@ -1,0 +1,159 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f07f9a8c-39c9-4a5b-8db8-4b6f5df8b939",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses unauthorized script execution and backdoor deployment on a web server.",
+    "created_by": "identity--8524f4b9-e75e-4817-9308-3c36b9229875",
+    "created": "2025-10-12T08:22:34.000Z",
+    "modified": "2025-10-12T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--507fda02-a5a1-4b6b-abf4-236e0b124fb3",
+    "workflow": {
+        "start--507fda02-a5a1-4b6b-abf4-236e0b124fb3": {
+            "type": "start",
+            "on_completion": "parallel--6b46c479-a5e6-4e5c-8a5d-8a5fe4c319f4"
+        },
+        "parallel--6b46c479-a5e6-4e5c-8a5d-8a5fe4c319f4": {
+            "name": "Simultaneous Actions to Mitigate Threat",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--382f17cb-3adf-4c1d-8e62-447bdde344e5",
+                "action--e1a3be60-75ab-45f1-a5b8-d1a9f4865bb2",
+                "action--ba6e5036-9909-47f8-88ec-2299d4df441e"
+            ]
+        },
+        "action--382f17cb-3adf-4c1d-8e62-447bdde344e5": {
+            "name": "Disable Vulnerable Script Interpreter",
+            "description": "Stop the interpreter service to prevent further exploitation.",
+            "type": "action",
+            "agent": "organization--1234",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service interpreter stop"
+                }
+            ],
+            "on_completion": "action--c2cd4fc5-7e60-4619-8956-146b98c073e1"
+        },
+        "action--e1a3be60-75ab-45f1-a5b8-d1a9f4865bb2": {
+            "name": "Terminate Malicious Process",
+            "description": "Kill the running malicious scripts.",
+            "type": "action",
+            "agent": "organization--1234",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "on_completion": "action--ed2d8dcf-aa3d-4c38-a2ad-0f26677e5b2b"
+        },
+        "action--ba6e5036-9909-47f8-88ec-2299d4df441e": {
+            "name": "Block Outbound Connection",
+            "description": "Reject outbound connections to a suspicious IP.",
+            "type": "action",
+            "agent": "organization--1234",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.101 -j REJECT"
+                }
+            ],
+            "on_completion": "decision--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53"
+        },
+        "action--c2cd4fc5-7e60-4619-8956-146b98c073e1": {
+            "name": "Scan and Remove Backdoor Script",
+            "description": "Iteratively search and delete backdoor scripts until none are found.",
+            "type": "loop",
+            "loop": {
+                "condition": "found_files == true",
+                "on_true": "action--scan-remove",
+                "on_completion": "end--00000000-0000-0000-0000-000000000000"
+            }
+        },
+        "action--scan-remove": {
+            "name": "Remove Detected Backdoor Scripts",
+            "description": "Execute removal of malicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/ -name 'backdoor.sh' -exec rm {} \\;"
+                }
+            ],
+            "on_completion": "set-variable--found_files"
+        },
+        "set-variable--found_files": {
+            "name": "Set Found File Flag",
+            "description": "Set variable to determine the presence of malicious files.",
+            "type": "action",
+            "step_variables": {
+                "found_files": {
+                    "type": "boolean",
+                    "description": "Indicator if any backdoor scripts are found after latest scan.",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "decision--found_files"
+        },
+        "decision--found_files": {
+            "name": "Check If Files Remain",
+            "description": "Determine if more malicious files exist.",
+            "type": "if-condition",
+            "condition": "found_files == true",
+            "on_true": "action--scan-remove",
+            "on_false": "end--00000000-0000-0000-0000-000000000000"
+        },
+        "action--ed2d8dcf-aa3d-4c38-a2ad-0f26677e5b2b": {
+            "name": "Monitor Script Interpreter",
+            "description": "Install audit rules to monitor script interpreter usage.",
+            "type": "action",
+            "agent": "organization--5678",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/interpreter -p x"
+                }
+            ],
+            "on_completion": "end--00000000-0000-0000-0000-000000000000"
+        },
+        "decision--3bdeb736-ad58-4e15-91b7-e3dbf8cb3a53": {
+            "name": "Evaluate Access Permissions",
+            "description": "Check if unauthorized directory access must be corrected.",
+            "type": "if-condition",
+            "condition": "unauthorized_access == true",
+            "on_true": "action--correct-permissions",
+            "on_false": "end--00000000-0000-0000-0000-000000000000"
+        },
+        "action--correct-permissions": {
+            "name": "Update Directory Access Permissions",
+            "description": "Restrict access permissions to the web server directory.",
+            "type": "action",
+            "agent": "organization--5678",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod o-rwx /var/www/"
+                }
+            ],
+            "on_completion": "end--00000000-0000-0000-0000-000000000000"
+        },
+        "end--00000000-0000-0000-0000-000000000000": {
+            "name": "End of Playbook",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1234": {
+            "type": "organization",
+            "name": "AgentyOrganization"
+        },
+        "organization--5678": {
+            "type": "organization",
+            "name": "SupportOrganization"
+        }
+    }
+}

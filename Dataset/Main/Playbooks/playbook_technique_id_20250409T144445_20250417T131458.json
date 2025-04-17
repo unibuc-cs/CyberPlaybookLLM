@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f57d09a2-d70b-4a51-8f8d-7b75e481f4d3",
+    "name": "Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates the execution of a malicious script on a compromised server to exfiltrate sensitive data.",
+    "created_by": "identity--abcde123-fgh4-i567-jklm-nopqrstuvwxyz",
+    "created": "2023-10-05T10:00:00Z",
+    "modified": "2023-10-05T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1e5b5f5-c4f0-4144-9335-60fafc221f8d",
+    "workflow": {
+        "start--d1e5b5f5-c4f0-4144-9335-60fafc221f8d": {
+            "on_completion": "action--1f9d09f6-6cb2-4f1f-b5f8-ae67761f2abc",
+            "type": "start"
+        },
+        "action--1f9d09f6-6cb2-4f1f-b5f8-ae67761f2abc": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that has been executed.",
+            "on_completion": "action--8394f5c1-bf67-4d45-9a8f-f33f40ca5610",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8394f5c1-bf67-4d45-9a8f-f33f40ca5610": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block any outbound traffic to the detected malicious IP address.",
+            "on_completion": "loop--ed56c7f3-a0e4-4c3d-a74b-ef1fcc3f1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--ed56c7f3-a0e4-4c3d-a74b-ef1fcc3f1234": {
+            "name": "Run antivirus scan loop",
+            "description": "Repeatedly run the antivirus scan until clean.",
+            "on_completion": "end--f56f8145-cd78-4ccd-bc39-7e2de0ab5b05",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--ed56c7f3-a0e4-4c3d-a74b-ef1fcc3f1234",
+            "on_false": "end--f56f8145-cd78-4ccd-bc39-7e2de0ab5b05"
+        },
+        "action--ed56c7f3-a0e4-4c3d-a74b-ef1fcc3f1234": {
+            "name": "Run antivirus scan",
+            "description": "Run the antivirus scan on the compromised server.",
+            "on_completion": "loop--ed56c7f3-a0e4-4c3d-a74b-ef1fcc3f1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_antivirus"
+                },
+                {
+                    "type": "bash",
+                    "command": "scan_is_clean=$(check_scan_status)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f56f8145-cd78-4ccd-bc39-7e2de0ab5b05": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

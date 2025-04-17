@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8b5d4a7-f1c5-4482-8dbb-99fb3c55f3f2",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to deploy malware across multiple endpoints.",
+    "created_by": "identity--abc12345-1234-1234-1234-123456789abc",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1ab2c3d4-5678-9101-1121-314159265358",
+    "workflow": {
+        "start--1ab2c3d4-5678-9101-1121-314159265358": {
+            "on_completion": "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a",
+            "type": "start"
+        },
+        "action--b2d1fa5c-5191-4da1-bb27-5a555d731924": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process if it is running.",
+            "on_completion": "decision--check-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-22 to prevent further spread of malware.",
+            "on_completion": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "curl -X POST http://network-isolation/api/isolate -d '{\"host_id\": \"host-22\"}'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the isolated host.",
+            "on_completion": "loop--scan-for-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan --log=/path/to/log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan-for-clean": {
+            "name": "Repeat scan until clean",
+            "description": "Keep running the malware scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "on_false": "end--finalize"
+        },
+        "decision--check-scan-status": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "on_false": "end--finalize"
+        },
+        "end--finalize": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

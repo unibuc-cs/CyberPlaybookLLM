@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--42e4c1e3-752f-4c12-9c54-bd8415e1d9e0",
+    "name": "Mitigation Playbook for HTTP Exfiltration Incident",
+    "description": "This playbook outlines the response to an incident where an attacker has compromised the internal network and is exfiltrating data via HTTP.",
+    "created_by": "identity--abcde1234-5678-90ab-cdef-1234567890ab",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcd1234-efgh-5678-ijkl-90mnopqrstu",
+    "workflow": {
+        "start--abcd1234-efgh-5678-ijkl-90mnopqrstu": {
+            "on_completion": "parallel--multi-action-group",
+            "type": "start"
+        },
+        "parallel--multi-action-group": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation steps to handle the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--block-outbound-traffic",
+                "action--kill-malicious-process",
+                "while-condition--scan-networks"
+            ]
+        },
+        "action--block-outbound-traffic": {
+            "name": "Block Outbound Traffic to Malicious IP",
+            "description": "Block outbound traffic to the identified malicious IP address to prevent further data exfiltration.",
+            "on_completion": "action--kill-malicious-process",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--kill-malicious-process": {
+            "name": "Kill the Associated Malicious Process",
+            "description": "Terminate any processes associated with the malicious activity to stop ongoing data exfiltration.",
+            "on_completion": "while-condition--scan-networks",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-networks": {
+            "name": "Initiate Full Network Scan",
+            "description": "Perform a network scan and continue until the scan results are clean.",
+            "type": "while-condition",
+            "condition": "scan_results != clean",
+            "on_true": "action--perform-network-scan",
+            "on_false": "end--playbook-completion"
+        },
+        "action--perform-network-scan": {
+            "name": "Perform Network Scan",
+            "description": "Conduct a network scan to identify any lingering threats.",
+            "on_completion": "while-condition--scan-networks",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the latest network scan.",
+                    "value": "results of the previous scan",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--playbook-completion": {
+            "name": "End of Playbook",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

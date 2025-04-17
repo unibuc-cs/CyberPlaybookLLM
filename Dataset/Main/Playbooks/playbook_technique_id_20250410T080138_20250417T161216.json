@@ -1,0 +1,127 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8fdf08c9-f88c-4e4e-9f25-bfd358db111c",
+    "name": "Mitigation Playbook for Remote Command Execution via Scripting",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting language to execute commands remotely on a compromised server. It includes actions to terminate malicious scripts, change access permissions, scan for residual threats, and monitor network traffic.",
+    "created_by": "identity--ef56b2a9-a167-490e-8af6-fbe30c00e923",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--cfa47d4b-c23f-4903-a03d-8d159f4be41c",
+    "workflow": {
+        "start--cfa47d4b-c23f-4903-a03d-8d159f4be41c": {
+            "on_completion": "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68",
+            "type": "start"
+        },
+        "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68": {
+            "name": "Terminate PowerShell processes",
+            "description": "Terminate any PowerShell processes that were initiated by the attacker.",
+            "on_completion": "parallel--e230c6e9-49b1-4a0d-bdf0-7124abc0bb15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for pid in $(pgrep -x PowerShell); do kill -9 $pid; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--e230c6e9-49b1-4a0d-bdf0-7124abc0bb15": {
+            "name": "Perform concurrent mitigations",
+            "description": "Run multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3427c9bc-3b51-42e0-bf0e-90746dce3678",
+                "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+                "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce",
+                "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65"
+            ]
+        },
+        "action--3427c9bc-3b51-42e0-bf0e-90746dce3678": {
+            "name": "Change access permissions for sensitive directories",
+            "description": "Change permissions on sensitive directories to prevent unauthorized access.",
+            "on_completion": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /sensitive_data/"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": [
+                {
+                    "type": "if-condition",
+                    "condition": "if compromised",
+                    "on_true": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+                    "on_false": "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce"
+                }
+            ]
+        },
+        "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13": {
+            "name": "Scan for residual malicious scripts",
+            "description": "Scan the system for any remaining malicious scripts to ensure no threats remain.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --include='*.ps1'"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--7a1f880e-c492-4b72-9a20-3f4c89be1bce"
+        },
+        "while-condition--7a1f880e-c492-4b72-9a20-3f4c89be1bce": {
+            "name": "Residual Scan Loop",
+            "description": "Repeat scanning until no malicious scripts are found.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "on_false": "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce"
+        },
+        "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce": {
+            "name": "Update firewall rules to block remote command execution",
+            "description": "Implement firewall rules to block any unauthorized remote commands.",
+            "on_completion": "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny proto tcp from any to any port 5985"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Start monitoring network traffic to detect any suspicious activities.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "alert_threshold": {
+                    "type": "string",
+                    "description": "Threshold for alerting based on packet count.",
+                    "value": "1000 packets/min",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--cfa47d4b-c23f-4903-a03d-8d159f4be41c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

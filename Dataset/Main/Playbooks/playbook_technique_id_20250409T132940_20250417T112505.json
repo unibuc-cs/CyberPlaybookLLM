@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c349c430-3cce-4575-891a-7965bfa007bd",
+    "name": "Playbook for Command and Scripting Interpreter Exploitation Incident",
+    "description": "This playbook outlines the steps to mitigate an incident where an attacker executed malicious scripts on a corporate server.",
+    "created_by": "identity--5c3f16b6-1d4f-4406-b35b-7f7e5c0f134b",
+    "created": "2023-10-05T10:15:30Z",
+    "modified": "2023-10-05T10:45:42Z",
+    "revoked": false,
+    "workflow_start": "start--f2e09ee0-23c5-48ee-ab39-20309cf378aa",
+    "workflow": {
+        "start--f2e09ee0-23c5-48ee-ab39-20309cf378aa": {
+            "on_completion": "parallel--7eeb3c8e-2f94-4c8a-8d42-d537c47b4566",
+            "type": "start"
+        },
+        "parallel--7eeb3c8e-2f94-4c8a-8d42-d537c47b4566": {
+            "name": "Execute Mitigation Steps",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4c73d3b3-b72f-4e9b-8605-901e4898f50c",
+                "action--c2f1fee5-34dc-463d-8aa3-c3c061d6e5e0",
+                "loop--2e270864-fc28-46b0-b005-bf6120556c56"
+            ]
+        },
+        "action--4c73d3b3-b72f-4e9b-8605-901e4898f50c": {
+            "name": "Kill malicious process and related scripts",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--c2f1fee5-34dc-463d-8aa3-c3c061d6e5e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c2f1fee5-34dc-463d-8aa3-c3c061d6e5e0": {
+            "name": "Isolate affected server",
+            "description": "Block incoming connections from the attacker's IP to the affected server.",
+            "on_completion": "loop--2e270864-fc28-46b0-b005-bf6120556c56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s [ATTACKER_IP] -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--2e270864-fc28-46b0-b005-bf6120556c56": {
+            "name": "Run full system scan until no threats detected",
+            "description": "Perform a full system scan repeatedly until no threats are detected.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_results == 'not clean'",
+            "on_true": "action--run_clamav"
+        },
+        "action--run_clamav": {
+            "name": "Run ClamAV scan",
+            "description": "Run a system scan using ClamAV.",
+            "on_completion": "loop--2e270864-fc28-46b0-b005-bf6120556c56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

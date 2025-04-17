@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f98cff2-5a73-4562-bbce-b7037c0db41e",
+    "name": "Malicious Scripting Attack Mitigation Playbook",
+    "description": "This playbook mitigates the impact of an incident where an attacker executed a series of malicious scripts to establish a backdoor.",
+    "created_by": "identity--d4117e72-4c09-481f-8ff1-6ea6c012488f",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:01:00.000Z",
+    "workflow_start": "start--1f49a721-9707-4b92-bf6b-bf34849f9a1f",
+    "workflow": {
+        "start--1f49a721-9707-4b92-bf6b-bf34849f9a1f": {
+            "on_completion": "action--b1a3f1b0-d37b-4a1f-85bb-09dee6c9c463",
+            "type": "start"
+        },
+        "action--b1a3f1b0-d37b-4a1f-85bb-09dee6c9c463": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--efe120c1-cf34-4a89-bc5b-e539b1dad45c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'suspicious_script.sh')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--efe120c1-cf34-4a89-bc5b-e539b1dad45c": {
+            "name": "Check if isolation is needed",
+            "type": "if-condition",
+            "condition": "$ISOLATION_NEEDED == true",
+            "on_true": "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c",
+            "on_false": "action--2e3d2f63-e8b2-472d-8b0b-2759adae7302"
+        },
+        "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c": {
+            "name": "Network isolation of host",
+            "description": "Block incoming traffic from the compromised host.",
+            "on_completion": "action--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f3ac9f29-4aab-463d-934b-7c653c9ef975": {
+            "name": "Remove malicious files",
+            "description": "Delete malicious files to prevent further exploitation.",
+            "on_completion": "while-condition--remove-files-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/suspicious/files/*"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--remove-files-loop": {
+            "name": "Loop until all files are removed",
+            "description": "Check if the malicious files have been removed",
+            "condition": "$FILES_REMOVED == false",
+            "on_true": "action--f3ac9f29-4aab-463d-934b-7c653c9ef975"
+        },
+        "action--2e3d2f63-e8b2-472d-8b0b-2759adae7302": {
+            "name": "Update firewall rules",
+            "description": "Deny access to the external IP involved in the attack.",
+            "on_completion": "action--c754f6ad-6e12-4ffa-8c2c-846658adf556",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny external_ip"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c754f6ad-6e12-4ffa-8c2c-846658adf556": {
+            "name": "Conduct full system scan",
+            "description": "Scan the system for any remaining threats or vulnerabilities.",
+            "on_completion": "while-condition--system-scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--system-scan-loop": {
+            "name": "Loop until scan is complete",
+            "description": "Check if the system scan has finished.",
+            "condition": "$scan_complete == false",
+            "on_true": "action--c754f6ad-6e12-4ffa-8c2c-846658adf556"
+        },
+        "end--e67a80b9-5316-4d32-93ec-342843c048af": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

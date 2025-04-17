@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fec3ae40-a245-4784-b479-fb8ef8c6bb1d",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited the command and scripting interpreter to execute a malicious script remotely, initiating several reconnaissance commands.",
+    "created_by": "identity--d5cd97f8-3c3d-4417-bef1-174b293e54fe",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d3fc7e77-8501-4939-900d-1a123c8309ec",
+    "workflow": {
+        "start--d3fc7e77-8501-4939-900d-1a123c8309ec": {
+            "on_completion": "action--c3d123e2-963b-4ad9-bf9f-fc123be779b5",
+            "type": "start"
+        },
+        "action--c3d123e2-963b-4ad9-bf9f-fc123be779b5": {
+            "name": "Terminate malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--80ececf2-fc90-48bb-a89f-a4b20f412593",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--80ececf2-fc90-48bb-a89f-a4b20f412593": {
+            "name": "Block outbound traffic to the malicious IP",
+            "description": "Block outbound connections to the known malicious IP.",
+            "on_completion": "if-condition--f7c32e12-3ea9-4ba2-b4a7-3e74d8ea315c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.200.54 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--f7c32e12-3ea9-4ba2-b4a7-3e74d8ea315c": {
+            "name": "Check if cleanup is needed",
+            "type": "if-condition",
+            "condition": "[ -d /tmp/malicious ]",
+            "on_true": "action--f7c32e12-3ea9-4ba2-b4a7-3e74d8ea315c",
+            "on_false": "action--edf8e810-65b8-4788-85eb-58ce4c6d44e3"
+        },
+        "action--f7c32e12-3ea9-4ba2-b4a7-3e74d8ea315c": {
+            "name": "Clean up affected host",
+            "description": "Remove any residual malicious files from the system.",
+            "on_completion": "action--edf8e810-65b8-4788-85eb-58ce4c6d44e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--edf8e810-65b8-4788-85eb-58ce4c6d44e3": {
+            "name": "Scan system for residual malware",
+            "description": "Perform a scan of the system to identify any remaining threats.",
+            "on_completion": "while-condition--loop-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scanner --scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--loop-until-clean": {
+            "name": "Check for malware presence",
+            "description": "Continue scanning until the system is found to be clean.",
+            "on_true": "action--edf8e810-65b8-4788-85eb-58ce4c6d44e3",
+            "condition": "malware-scanner --status != clean",
+            "type": "while-condition"
+        },
+        "end--b2dd8b88-bc8b-4d6a-9e39-ba80db463f7a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

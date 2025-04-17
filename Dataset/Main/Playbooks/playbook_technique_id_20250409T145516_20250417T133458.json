@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8d707b9-5a45-4a68-bb97-34a08e288d77",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate the impacts of malicious script execution and data exfiltration.",
+    "created_by": "identity--76b1b306-9c89-4c38-ba37-98d64de6a2ff",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--a326efdf-96e2-4bfa-a2d4-b3c03f0b041d",
+    "workflow": {
+        "start--a326efdf-96e2-4bfa-a2d4-b3c03f0b041d": {
+            "on_completion": "parallel--b3e909ed-c062-43bc-85f2-0b508b34683e",
+            "type": "start"
+        },
+        "parallel--b3e909ed-c062-43bc-85f2-0b508b34683e": {
+            "name": "Execute Mitigations",
+            "description": "Initiate actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8f5c1a9e-4e6e-47c7-8c1b-55dd64e2ebc6",
+                "action--9d1f9a3d-1f3c-4bae-b625-8225a3f0ffe3"
+            ]
+        },
+        "action--8f5c1a9e-4e6e-47c7-8c1b-55dd64e2ebc6": {
+            "name": "Kill malicious scripts",
+            "description": "Terminate the execution of the malicious PowerShell script.",
+            "on_completion": "action--c0a6bb89-7a8d-4260-bf7a-dfb650bed9f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9d1f9a3d-1f3c-4bae-b625-8225a3f0ffe3": {
+            "name": "Block outbound connection",
+            "description": "Block any outgoing connections to the malicious IP address.",
+            "on_completion": "action--c0a6bb89-7a8d-4260-bf7a-dfb650bed9f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport [malicious_IP] -j REJECT"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c0a6bb89-7a8d-4260-bf7a-dfb650bed9f3": {
+            "name": "Perform full disk scan",
+            "description": "Execute a complete disk scan to identify any further compromise.",
+            "on_completion": "while-condition--bc3e2662-2c90-4cde-a676-0ba45879f641",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the scan.",
+                    "value": "infected",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--bc3e2662-2c90-4cde-a676-0ba45879f641": {
+            "name": "Scan Verification Loop",
+            "description": "Repeat scanning until no infections are found.",
+            "type": "while-condition",
+            "condition": "scan_results == 'infected'",
+            "on_true": "action--c0a6bb89-7a8d-4260-bf7a-dfb650bed9f3",
+            "on_false": "end--b30a2cda-5b5e-4608-8570-7d03eca5bd3b"
+        },
+        "end--b30a2cda-5b5e-4608-8570-7d03eca5bd3b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

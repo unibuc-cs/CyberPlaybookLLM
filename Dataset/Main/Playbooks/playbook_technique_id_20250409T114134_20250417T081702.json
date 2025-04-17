@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d00b4f9c-51f4-4d50-bdbd-3aee6c5f516b",
+    "name": "Playbook for Process Injection Incident Mitigation",
+    "description": "This playbook addresses a process injection incident by killing malicious processes, running a full system scan, and isolating affected hosts based on detection.",
+    "created_by": "identity--9c8b5c42-b85b-4a17-9e18-3e85cad1f84c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1a23b51c-c12e-4a7f-aba0-dcc18ae12348",
+    "workflow": {
+        "start--1a23b51c-c12e-4a7f-aba0-dcc18ae12348": {
+            "on_completion": "action--b1c3e531-17d8-4a79-9c1e-93b91f44bc3d",
+            "type": "start"
+        },
+        "action--b1c3e531-17d8-4a79-9c1e-93b91f44bc3d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process running on the affected host.",
+            "on_completion": "parallel--1f54a298-8b7d-473f-a713-e79fdaae5c59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5": {
+            "name": "Run full system scan",
+            "description": "Perform a comprehensive scan of the system to detect any further threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f64bcb07-71c6-41b4-8e7f-614181f6d2f5": {
+            "name": "Isolate affected host",
+            "description": "Temporarily disable the network interface of the affected host.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--1f54a298-8b7d-473f-a713-e79fdaae5c59": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Run the system scan and isolate the affected host simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5",
+                "action--f64bcb07-71c6-41b4-8e7f-614181f6d2f5"
+            ]
+        },
+        "while-condition--d1b2f2e0-701e-4ea2-9049-49ae35b79e98": {
+            "name": "Repeat scan until clean",
+            "description": "Continue to run the system scan until all threats are resolved.",
+            "on_true": "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5",
+            "condition": "scan_result != 'clean'",
+            "type": "while-condition",
+            "on_completion": "end--e53bd1f1-abd2-4d93-a609-6b655c8487a2"
+        },
+        "end--e53bd1f1-abd2-4d93-a609-6b655c8487a2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8c0441d-b62e-4933-b3c6-9055be5b1845",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to deploy a backdoor. It includes actions to terminate processes, remove malicious files, and continuously monitor network connections.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2023-10-12T14:30:00Z",
+    "modified": "2023-10-12T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--d9e949ae-ef2e-4d79-8797-79780c56c15f",
+    "workflow": {
+        "start--d9e949ae-ef2e-4d79-8797-79780c56c15f": {
+            "on_completion": "parallel--ceec5f96-982e-4ea5-a54e-bf898eac5de6",
+            "type": "start"
+        },
+        "parallel--ceec5f96-982e-4ea5-a54e-bf898eac5de6": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Executing multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d510c73f-bb5b-451c-94aa-bf9be7c98d6f",
+                "action--ae84bc8e-1bc4-45e7-a44f-3c1b46f84e06",
+                "loop--ecf52917-97fc-455e-b2cd-f0ccffbf485d"
+            ]
+        },
+        "action--d510c73f-bb5b-451c-94aa-bf9be7c98d6f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that were initiated by the attacker.",
+            "on_completion": "action--ae84bc8e-1bc4-45e7-a44f-3c1b46f84e06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ae84bc8e-1bc4-45e7-a44f-3c1b46f84e06": {
+            "name": "Remove dropped files",
+            "description": "Delete any files that were dropped by the malicious scripts.",
+            "on_completion": "loop--ecf52917-97fc-455e-b2cd-f0ccffbf485d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malicious_file"
+                }
+            ],
+            "agent": "organization--abc",
+            "if_condition": {
+                "condition": "test -e /path/to/malicious_file",
+                "on_true": "loop--ecf52917-97fc-455e-b2cd-f0ccffbf485d"
+            }
+        },
+        "loop--ecf52917-97fc-455e-b2cd-f0ccffbf485d": {
+            "name": "Monitor network connections",
+            "description": "Continuously monitor network connections and check for any suspicious activity.",
+            "on_completion": "end--f8c0441d-b62e-4933-b3c6-9055be5b1845",
+            "type": "while-condition",
+            "condition": "scan_status == 'running'",
+            "on_true": [
+                {
+                    "type": "action",
+                    "name": "Perform Network Scan",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "netstat -an | grep LISTEN"
+                        }
+                    ],
+                    "agent": "organization--abc"
+                }
+            ],
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the network scan",
+                    "value": "running",
+                    "constant": false
+                }
+            }
+        },
+        "end--f8c0441d-b62e-4933-b3c6-9055be5b1845": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

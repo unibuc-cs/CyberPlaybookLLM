@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5d3b307b-e795-4855-b30d-cc327a83f9ed",
+    "name": "Command and Scripting Interpreter Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker used a compromised account to execute malicious scripts for folder enumeration.",
+    "created_by": "identity--1c8df05b-0c92-497b-9a3c-83fcd5ac5a48",
+    "created": "2023-10-17T15:00:00Z",
+    "modified": "2023-10-17T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a9e1bcd3-45ef-4b12-9179-d30a3945abcd",
+    "workflow": {
+        "start--a9e1bcd3-45ef-4b12-9179-d30a3945abcd": {
+            "on_completion": "parallel--5a7e3f8d-a3e2-4fdf-a4c7-f7a5f3e02ead",
+            "type": "start"
+        },
+        "parallel--5a7e3f8d-a3e2-4fdf-a4c7-f7a5f3e02ead": {
+            "name": "Execute simultaneous mitigations",
+            "description": "Kill malicious processes and disable compromised user account concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731",
+                "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e"
+            ]
+        },
+        "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes tied to the detected malicious activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process'"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--742cfba9-1513-4fed-95c9-2edb8c3b454a"
+        },
+        "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e": {
+            "name": "Disable compromised user account",
+            "description": "Lock the account used in the attack to prevent further unauthorized access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--be23f10e-06de-48b1-a2c0-e9bdd2d234de"
+        },
+        "loop--742cfba9-1513-4fed-95c9-2edb8c3b454a": {
+            "name": "Scan and clean scripts",
+            "description": "Continue scanning for residual scripts until all have been verified clean.",
+            "type": "while-condition",
+            "condition": "scripts_not_clean == true",
+            "on_true": "action--430bec4a-3672-4693-a72b-61cf3b4fbc39",
+            "on_completion": "end--be23f10e-06de-48b1-a2c0-e9bdd2d234de",
+            "variables": {
+                "scripts_not_clean": {
+                    "type": "boolean",
+                    "description": "Indicates whether all scripts have been scanned and found clean",
+                    "value": true
+                }
+            }
+        },
+        "action--430bec4a-3672-4693-a72b-61cf3b4fbc39": {
+            "name": "Update system and security patches",
+            "description": "Ensure the system is up to date with the latest patches if any are available since the last update.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--742cfba9-1513-4fed-95c9-2edb8c3b454a",
+            "variables": {
+                "lastPatchDate": {
+                    "type": "string",
+                    "description": "Date of the last patch applied",
+                    "value": "2023-10-10"
+                }
+            }
+        },
+        "end--be23f10e-06de-48b1-a2c0-e9bdd2d234de": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

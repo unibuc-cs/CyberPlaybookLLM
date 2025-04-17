@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3197d29-9964-45e0-8bb1-604a29eaa9c8",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook aims to respond to incidents involving the execution of malicious scripts through command-line interpreters.",
+    "created_by": "identity--0e80170f-975f-4c62-b3d3-eefc381fa1f5",
+    "created": "2023-10-01T14:32:00Z",
+    "modified": "2023-10-01T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--d63c5c04-ac3e-4f2a-856e-7e4b52cde40f",
+    "workflow": {
+        "start--d63c5c04-ac3e-4f2a-856e-7e4b52cde40f": {
+            "on_completion": "action--c9f4b69c-0a45-4dc8-89ab-9e2dbe0c5a3f",
+            "type": "start"
+        },
+        "action--c9f4b69c-0a45-4dc8-89ab-9e2dbe0c5a3f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "if-condition--7e3fbb3c-fa4e-4d82-8fbf-b0c20aa0e925",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--7e3fbb3c-fa4e-4d82-8fbf-b0c20aa0e925": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "[ -f /home/user/malicious_script.sh ]",
+            "on_true": "action--7e3fbb3c-fa4e-4d82-8fbf-b0c20aa0e925",
+            "on_false": "while-condition--bdfc8fbc-0141-4ec7-b3a9-39e113a3dc4e"
+        },
+        "action--7e3fbb3c-fa4e-4d82-8fbf-b0c20aa0e925": {
+            "name": "Remove dropped files",
+            "description": "Remove the malicious script from the user directory.",
+            "on_completion": "while-condition--bdfc8fbc-0141-4ec7-b3a9-39e113a3dc4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /home/user/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--bdfc8fbc-0141-4ec7-b3a9-39e113a3dc4e": {
+            "name": "Scan for additional threats",
+            "description": "Perform a scan to ensure there are no other threats.",
+            "on_completion": "end--e4b8364b-c16b-4cdd-96c0-a0c69e5d40c8",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--bdfc8fbc-0141-4ec7-b3a9-39e113a3dc4e",
+            "on_false": "end--e4b8364b-c16b-4cdd-96c0-a0c69e5d40c8"
+        },
+        "action--bdfc8fbc-0141-4ec7-b3a9-39e113a3dc4e": {
+            "name": "Scan host for additional threats",
+            "description": "Run a recursive scan on the user directory to identify other possible threats.",
+            "on_completion": "update--scan_status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user/"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the last scan (either 'clean' or 'threats_found').",
+                    "value": "threats_found",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e4b8364b-c16b-4cdd-96c0-a0c69e5d40c8": {
+            "step_extensions": {
+                "": "extension-definition--f503592d-34ae-43b8-b117-43f9e7f96a0d"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

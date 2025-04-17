@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e72f2505-d7f0-4b35-b4c9-7c3a4ab2fcbc",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a PowerShell script to download and execute a malicious file on a compromised host.",
+    "created_by": "identity--00000000-0000-0000-0000-000000000001",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--00000000-0000-0000-0000-000000000002",
+    "workflow": {
+        "start--00000000-0000-0000-0000-000000000002": {
+            "on_completion": "if-condition--6789ab12-ef34-56gh-78ij-90klmnop1234",
+            "type": "start"
+        },
+        "if-condition--6789ab12-ef34-56gh-78ij-90klmnop1234": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--6789ab12-ef34-56gh-78ij-90klmnop1234",
+            "on_false": "if-condition--2344bc56-def7-89gh-01ij-23klmnop4567"
+        },
+        "if-condition--2344bc56-def7-89gh-01ij-23klmnop4567": {
+            "name": "Check if file download was detected",
+            "type": "if-condition",
+            "condition": "file_download_detected == true",
+            "on_true": "action--8901cd23-ef45-67gh-89ij-01klmnop6789",
+            "on_false": "action--end--00000000-0000-0000-0000-000000000003"
+        },
+        "action--6789ab12-ef34-56gh-78ij-90klmnop1234": {
+            "name": "Kill malicious PowerShell process",
+            "on_completion": "action--2344bc56-def7-89gh-01ij-23klmnop4567",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2344bc56-def7-89gh-01ij-23klmnop4567": {
+            "name": "Disconnect from network",
+            "on_completion": "while-condition--3456ef23-01ij-23klmnop4567",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j REJECT"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--3456ef23-01ij-23klmnop4567": {
+            "name": "Repeat until all malicious processes are terminated",
+            "description": "Keep disconnecting the network as long as there are malicious processes running.",
+            "on_completion": "end--00000000-0000-0000-0000-000000000003",
+            "type": "while-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--5678gh34-ef67-89gh-01ij-23klmnop4567"
+        },
+        "action--5678gh34-ef67-89gh-01ij-23klmnop4567": {
+            "name": "Check for processes again",
+            "on_completion": "while-condition--3456ef23-01ij-23klmnop4567",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_processes"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8901cd23-ef45-67gh-89ij-01klmnop6789": {
+            "name": "Run antivirus scan",
+            "on_completion": "end--00000000-0000-0000-0000-000000000003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan ${scan_path}"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "description": "The path where the scan will occur",
+                    "value": "/path/to/scan",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--00000000-0000-0000-0000-000000000003": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

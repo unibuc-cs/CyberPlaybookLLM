@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2f5e54a-4b12-4c9e-9452-0f48bfaebba2",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook mitigates the incident caused by the execution of a malicious PowerShell script that resulted in downloading a backdoor and exfiltrating sensitive data.",
+    "created_by": "identity--example-identity",
+    "created": "2023-10-10T14:10:00Z",
+    "modified": "2023-10-10T14:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1d2c03a-1f85-4f40-9db6-d5d8e97a6547",
+    "workflow": {
+        "start--b1d2c03a-1f85-4f40-9db6-d5d8e97a6547": {
+            "on_completion": "action--b2f95eae-487d-4de9-b842-cdb0b18b7fbb",
+            "type": "start"
+        },
+        "action--b2f95eae-487d-4de9-b842-cdb0b18b7fbb": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes executing the malicious script.",
+            "on_completion": "action--a76e9b62-6c64-4035-abe6-78b4091eaa23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a76e9b62-6c64-4035-abe6-78b4091eaa23": {
+            "name": "Isolate affected host from the network",
+            "description": "Disconnect the affected host from the network to prevent further data exfiltration.",
+            "on_completion": "while-condition--c4ad0cdc1d21-4788-bbf2-2ee01191b97a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--c4ad0cdc1d21-4788-bbf2-2ee01191b97a": {
+            "name": "Scan for other instances of the malicious script",
+            "description": "Repeat scanning for other instances of the malicious script until none are found.",
+            "on_true": "action--c4ad0cdc-1d21-4788-bbf2-2ee01191b97a",
+            "condition": "scan_clean == false",
+            "type": "while-condition"
+        },
+        "action--c4ad0cdc-1d21-4788-bbf2-2ee01191b97a": {
+            "name": "Scan for instances of the script",
+            "description": "Perform a scan to find any instances of the malicious script.",
+            "on_completion": "while-condition--c4ad0cdc1d21-4788-bbf2-2ee01191b97a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --pattern 'malicious_script.ps1' --recursive /home/users/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e1e0ecfa-2cbb-4aa2-999f-7f3c0fa7834a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

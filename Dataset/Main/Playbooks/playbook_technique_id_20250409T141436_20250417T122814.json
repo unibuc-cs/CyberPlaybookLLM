@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2d812f14-87bd-4042-bf63-2c4d564cfda1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute unauthorized commands via the scripting interpreter, resulting in data exfiltration.",
+    "created_by": "identity--e1e1b2b3-a963-4fde-9fe4-4c23956aa4e4",
+    "created": "2025-04-09T08:52:32.498Z",
+    "modified": "2025-04-09T08:52:32.498Z",
+    "revoked": false,
+    "workflow_start": "start--c5842d91-b0a3-41de-a7ca-e4bc8f05e260",
+    "workflow": {
+        "start--c5842d91-b0a3-41de-a7ca-e4bc8f05e260": {
+            "on_completion": "action--b5be07be-eef7-4b34-8cb9-f1f5accb334b",
+            "type": "start",
+            "name": "Start Playbook",
+            "description": "Initiate the mitigation playbook for the command execution incident."
+        },
+        "action--b5be07be-eef7-4b34-8cb9-f1f5accb334b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that has been executing unauthorized commands.",
+            "on_completion": "action--25509c74-8d10-4c9e-80b4-fc91f1b37f86",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--25509c74-8d10-4c9e-80b4-fc91f1b37f86": {
+            "name": "Revoke user access",
+            "description": "Revoke access for the suspicious user involved in the incident.",
+            "on_completion": "if-condition--9084b7d2-83be-4e65-a2f3-cd21b3a36671",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "revoke_access_to_user.sh suspicious_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--9084b7d2-83be-4e65-a2f3-cd21b3a36671": {
+            "name": "Check for malicious IP",
+            "type": "if-condition",
+            "condition": "malicious_ip_found",
+            "on_true": "action--61e1b437-4580-4c6b-914e-faa49b553e3f",
+            "on_false": "action--f590e256-4c86-4868-af48-e3fe102bd0e2"
+        },
+        "action--61e1b437-4580-4c6b-914e-faa49b553e3f": {
+            "name": "Update firewall rules",
+            "description": "Add a rule to the firewall to block the malicious IP.",
+            "on_completion": "action--f590e256-4c86-4868-af48-e3fe102bd0e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "add_firewall_rule.sh block malicious_ip"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f590e256-4c86-4868-af48-e3fe102bd0e2": {
+            "name": "Scan system for other malicious activity",
+            "description": "Perform a system scan to check for any further malicious activity.",
+            "on_completion": "while-condition--repeat_until_clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "start_scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--repeat_until_clean": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the system until it is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--f590e256-4c86-4868-af48-e3fe102bd0e2",
+            "on_false": "end--b8eeb6dd-5b64-4d40-b4cd-b21792a4fdc1"
+        },
+        "end--b8eeb6dd-5b64-4d40-b4cd-b21792a4fdc1": {
+            "name": "End of Playbook",
+            "description": "Complete the mitigation process for the incident.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

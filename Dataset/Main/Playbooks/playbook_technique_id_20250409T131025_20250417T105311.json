@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3e6b2a1-42a8-4ab0-b14f-91782d9a7623",
+    "name": "Mitigation Playbook for Arbitrary Script Execution Incident",
+    "description": "This playbook handles an incident involving the exploitation of a web application where arbitrary scripts were executed, leading to sensitive data exfiltration.",
+    "created_by": "identity--12345678-9012-3456-7890-1234567890ab",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--bde4d4da-0d48-4eb9-bd77-de3ef037f1ad",
+    "workflow": {
+        "start--bde4d4da-0d48-4eb9-bd77-de3ef037f1ad": {
+            "on_completion": "action--aeb0083b-5c09-435e-8e4f-1b04149fe470",
+            "type": "start"
+        },
+        "action--aeb0083b-5c09-435e-8e4f-1b04149fe470": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--1cba0567-3c5b-4716-b3b4-e7e32b2c3dde",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1cba0567-3c5b-4716-b3b4-e7e32b2c3dde": {
+            "name": "Identify and isolate affected host",
+            "description": "Shut down the affected host to prevent further damage.",
+            "on_completion": "while-condition--4f3e3bd3-fb4b-4e54-a425-3b8bc2fccf57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--4f3e3bd3-fb4b-4e54-a425-3b8bc2fccf57": {
+            "name": "Scan for additional artifacts",
+            "description": "Search for additional malicious artifacts recursively.",
+            "on_completion": "if-condition--89f56d57-14e3-41aa-ba79-8e623fa1b557",
+            "type": "while-condition",
+            "condition": "artifacts_found == true",
+            "on_true": "action--4f3e3bd3-fb4b-4e54-a425-3b8bc2fccf57",
+            "on_false": "if-condition--89f56d57-14e3-41aa-ba79-8e623fa1b557"
+        },
+        "action--4f3e3bd3-fb4b-4e54-a425-3b8bc2fccf57": {
+            "name": "Scan for files",
+            "description": "Look for suspicious script files and examine their contents.",
+            "on_completion": "while-condition--4f3e3bd3-fb4b-4e54-a425-3b8bc2fccf57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/html -name '*.sh' -o -name '*.php' | while read file; do grep -i 'suspicious_keyword' \"$file\"; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--89f56d57-14e3-41aa-ba79-8e623fa1b557": {
+            "name": "Check for persistence mechanisms",
+            "type": "if-condition",
+            "condition": "crontab -l | grep 'malicious_command'",
+            "on_true": "action--remove_persistence",
+            "on_false": "end--d0c16921-802d-4d6a-b236-72c0c98b6230"
+        },
+        "action--remove_persistence": {
+            "name": "Remove persistence",
+            "description": "Remove the malicious command from crontab if found.",
+            "on_completion": "end--d0c16921-802d-4d6a-b236-72c0c98b6230",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "crontab -l | grep -v 'malicious_command' | crontab -"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d0c16921-802d-4d6a-b236-72c0c98b6230": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

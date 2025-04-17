@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0b98d20b-2d78-4d3d-a5c9-3c2f6c3df6bb",
+    "name": "Mitigation Playbook for Malicious PowerShell Commands Incident",
+    "description": "This playbook mitigates an incident where an attacker executed malicious PowerShell commands attempting to exfiltrate data.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a4b9b537-8f0d-464f-8976-25bb5b631f92",
+    "workflow": {
+        "start--a4b9b537-8f0d-464f-8976-25bb5b631f92": {
+            "on_completion": "action--b03f49c2-2470-487b-a8a7-4c9b631ec292",
+            "type": "start"
+        },
+        "action--b03f49c2-2470-487b-a8a7-4c9b631ec292": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell process running on the compromised workstation.",
+            "on_completion": "action--114bc139-bca9-4e00-a0d6-6ed949579144",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--114bc139-bca9-4e00-a0d6-6ed949579144": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Block any attempts to send data to the known malicious IP address.",
+            "on_completion": "while-condition--4081ff43-7b4e-4904-b551-e06b36491638",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--4081ff43-7b4e-4904-b551-e06b36491638": {
+            "name": "Scan System for Remnants",
+            "description": "Perform a system scan to ensure all artifacts from the attack have been removed.",
+            "on_true": "action--4081ff43-7b4e-4904-b551-e06b36491638",
+            "condition": "scan_status != 'clean'",
+            "on_false": "end--d9a496fe-d435-44e1-a027-02fdcfc0c5b5",
+            "type": "while-condition"
+        },
+        "action--4081ff43-7b4e-4904-b551-e06b36491638": {
+            "name": "Scan system for remnants of the attack",
+            "description": "Run a scan on the system and update the scan status.",
+            "on_completion": "while-condition--4081ff43-7b4e-4904-b551-e06b36491638",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan()"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d9a496fe-d435-44e1-a027-02fdcfc0c5b5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

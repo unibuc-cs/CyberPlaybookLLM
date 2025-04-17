@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ec61cbf4-eb01-4eeb-9407-455ba13de65a",
+    "name": "Playbook for Mitigating WMI-based Script Execution Incident",
+    "description": "This playbook addresses an incident where attackers used Windows Management Instrumentation to execute malicious scripts across several hosts, circumventing traditional security measures.",
+    "created_by": "identity--abcd1234-5678-90ab-cdef-1234567890ab",
+    "created": "2023-10-21T12:00:00.000Z",
+    "modified": "2023-10-21T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1d1c28b-43da-4b93-b4bd-8cf3f5d66c93",
+    "workflow": {
+        "start--f1d1c28b-43da-4b93-b4bd-8cf3f5d66c93": {
+            "on_completion": "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a",
+            "type": "start"
+        },
+        "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a": {
+            "name": "Terminate malicious PowerShell instances",
+            "description": "Forcefully terminate all running instances of PowerShell to stop malicious scripts.",
+            "on_completion": "loop--1b905d68-ef74-4651-825e-738d5054d21b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /f /im powershell.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--1b905d68-ef74-4651-825e-738d5054d21b": {
+            "name": "Check for remaining PowerShell instances",
+            "description": "Repeat the termination step until no malicious PowerShell instances are running.",
+            "condition": "ps -ef | grep powershell | wc -l == 0",
+            "on_true": "action--3c1e223d-ae29-4bf9-8167-1e9e6a7ca594",
+            "on_false": "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a",
+            "type": "while-condition"
+        },
+        "action--3c1e223d-ae29-4bf9-8167-1e9e6a7ca594": {
+            "name": "Block WMI access for untrusted users",
+            "description": "Deny access for untrusted users to the WMI namespace.",
+            "on_completion": "action--acc407be-b2a1-4ebe-97c8-821bb9e432a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-WmiNamespaceSecurity -Namespace 'root' -Account 'untrusted_user' -Permission 'Deny'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--acc407be-b2a1-4ebe-97c8-821bb9e432a6": {
+            "name": "Inspect and isolate affected hosts",
+            "description": "Check if hosts are compromised and isolate them if necessary.",
+            "on_completion": "action--dedc93de-e53b-4db8-95da-b6e1d275863f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Checking host status'; if [ compromised ]; then isolate_host; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dedc93de-e53b-4db8-95da-b6e1d275863f": {
+            "name": "Reset compromised credentials",
+            "description": "Change the password for any compromised user accounts.",
+            "on_completion": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user newpassword /domain"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e2701f21-2041-4bef-b86f-1c7f9ff63229": {
+            "name": "Deploy EDR tool scan for malicious scripts",
+            "description": "Conduct a full scan to detect and remediate any remaining threats.",
+            "on_completion": "loop--2b40a8ba-4fa2-4cc4-8f93-efb5c69b0541",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "EDRTool --scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_type": {
+                    "type": "string",
+                    "description": "The type of scan performed by the EDR tool",
+                    "value": "full",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "loop--2b40a8ba-4fa2-4cc4-8f93-efb5c69b0541": {
+            "name": "Verify EDR scan results",
+            "description": "Repeat the EDR scan until the system is confirmed clean.",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--c0da80d3-6b5f-4efb-b049-3e36595f4617",
+            "on_false": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229",
+            "type": "while-condition"
+        },
+        "end--c0da80d3-6b5f-4efb-b049-3e36595f4617": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1095e4d-f68e-4fea-9bb8-ab635d7c3c93",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts using PowerShell to exfiltrate sensitive data.",
+    "created_by": "identity--c5d00110-n314-49c8-bf1d-e9g2t7d0f1h3",
+    "created": "2025-04-09T10:15:30.000Z",
+    "modified": "2025-04-09T10:15:30.000Z",
+    "revoked": false,
+    "workflow_start": "start--cba95ef6-4779-4ba9-b593-bc5718565b64",
+    "workflow": {
+        "start--cba95ef6-4779-4ba9-b593-bc5718565b64": {
+            "on_completion": "if-condition--bd363bf0-6407-4ab8-b973-89e5524f3c2d",
+            "type": "start"
+        },
+        "if-condition--bd363bf0-6407-4ab8-b973-89e5524f3c2d": {
+            "name": "Check if malicious processes are running",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--7f5bigh-21da-4e73-b56d-5ac54gch2c36",
+            "on_false": "action--8f9eab2-56fa-4e38-9b92-6db57b8efc46"
+        },
+        "action--7f5bigh-21da-4e73-b56d-5ac54gch2c36": {
+            "name": "Kill malicious process",
+            "description": "Terminate any currently running malicious PowerShell processes.",
+            "on_completion": "action--a11427e-615e-4de1-a07a-1b6db1bc9497",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "malicious_process_running": {
+                    "type": "boolean",
+                    "description": "Indicates if any malicious processes are running",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "action--8f9eab2-56fa-4e38-9b92-6db57b8efc46": {
+            "name": "Delete malicious files",
+            "description": "Remove any malicious temporary files created by scripts.",
+            "on_completion": "while-condition--d39f6a56-ff9a-4fad-a897-3c2ac82bc157",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_temp_file"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--d39f6a56-ff9a-4fad-a897-3c2ac82bc157": {
+            "name": "Check for remaining malicious files",
+            "description": "Repeat deletion of malicious files until none remain.",
+            "on_completion": "action--a11427e-615e-4de1-a07a-1b6db1bc9497",
+            "type": "while-condition",
+            "condition": "no_more_files_exist == false",
+            "on_true": "action--8f9eab2-56fa-4e38-9b92-6db57b8efc46"
+        },
+        "action--a11427e-615e-4de1-a07a-1b6db1bc9497": {
+            "name": "Block outgoing IP",
+            "description": "Block any network communications to the malicious IP address used for data exfiltration.",
+            "on_completion": "end--371d4561-8abd-489a-aef9-054606ff66b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--371d4561-8abd-489a-aef9-054606ff66b1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates if there are any malicious processes running.",
+            "value": "check process",
+            "constant": false
+        },
+        "no_more_files_exist": {
+            "type": "boolean",
+            "description": "Indicates if there are any remaining malicious files.",
+            "value": "check for existing files",
+            "constant": false
+        }
+    }
+}

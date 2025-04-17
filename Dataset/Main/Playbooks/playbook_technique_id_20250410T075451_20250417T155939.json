@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--be6b56e3-5f2b-4d90-b15b-bdbe7c0a1dab",
+    "name": "Mitigation Playbook for PowerShell Unauthorized Command Incident",
+    "description": "This playbook automates the response to an incident where an attacker executed unauthorized PowerShell scripts to access sensitive files.",
+    "created_by": "identity--23fasfef-c034-4e4a-8466-123456789abc",
+    "created": "2023-11-01T08:30:00Z",
+    "modified": "2023-11-01T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1f2e4c3-8c61-4b68-ad52-0d4e3424cde1",
+    "workflow": {
+        "start--e1f2e4c3-8c61-4b68-ad52-0d4e3424cde1": {
+            "on_completion": "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b",
+            "type": "start"
+        },
+        "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b": {
+            "name": "Terminate unauthorized PowerShell sessions",
+            "on_completion": "parallel--12345678-1234-5678-1234-567812345678",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--12345678-1234-5678-1234-567812345678": {
+            "name": "Mitigation parallel actions",
+            "description": "Scan for malicious scripts and isolate compromised hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089",
+                "action--f16b7fd4-2a98-42da-95a9-6a0d3d70d009"
+            ]
+        },
+        "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089": {
+            "name": "Scan for malicious scripts on all compromised hosts",
+            "on_completion": "loop--scan_results_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Process -FilePath 'antivirus_scan_tool.exe' -ArgumentList '/scan'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--scan_results_check": {
+            "name": "Check scan results",
+            "description": "Repeat scan until results are clean.",
+            "on_completion": "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089"
+        },
+        "action--f16b7fd4-2a98-42da-95a9-6a0d3d70d009": {
+            "name": "Isolate compromised hosts from the network",
+            "on_completion": "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-NetAdapter -Name 'Ethernet' -AdminStatus Disabled"
+                }
+            ],
+            "agent": "organization--xyz",
+            "targets": [
+                "host-05",
+                "host-11",
+                "host-22"
+            ]
+        },
+        "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be": {
+            "name": "Patch all systems with latest security updates",
+            "on_completion": "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if updates are available"
+        },
+        "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8": {
+            "name": "Restore sensitive data from backup",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/data/ /data/"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "source": "/backup/data/",
+                "destination": "/data/"
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

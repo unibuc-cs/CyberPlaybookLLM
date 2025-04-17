@@ -1,0 +1,151 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f4424de2-2835-4c11-bc10-a927b1c94b58",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized scripts were executed on a user workstation resulting in system compromise.",
+    "created_by": "identity--c8b91b6a-390b-42c5-8c4c-8d63429945e2",
+    "created": "2023-10-15T09:30:00Z",
+    "modified": "2023-10-15T09:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b8d6fde2-3942-4d5a-b674-8ac5e9f68536",
+    "workflow": {
+        "start--b8d6fde2-3942-4d5a-b674-8ac5e9f68536": {
+            "on_completion": "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165",
+            "type": "start"
+        },
+        "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--3127acee-575c-4dcb-8c43-8722c82e1e0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -F $(pgrep powershell)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3127acee-575c-4dcb-8c43-8722c82e1e0f": {
+            "name": "Restrict PowerShell execution policy",
+            "description": "Change the execution policy of PowerShell to prevent unauthorized script execution.",
+            "on_completion": "if-condition--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa": {
+            "name": "Check if compromise is confirmed",
+            "type": "if-condition",
+            "condition": "compromise_confirmed == true",
+            "on_true": "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa",
+            "on_false": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc"
+        },
+        "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa": {
+            "name": "Change compromised user credentials",
+            "description": "Change the password for the compromised user account.",
+            "on_completion": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user new_password123"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc": {
+            "name": "Monitor and block suspicious outbound traffic",
+            "description": "Create a firewall rule to block potentially malicious outbound traffic.",
+            "on_completion": "while-condition--1edf9d54-b379-44e5-af9e-91c8b465d7ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 12345 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--1edf9d54-b379-44e5-af9e-91c8b465d7ce": {
+            "name": "Run antivirus scan until clean",
+            "description": "Repeat the antivirus scan until the system is determined to be clean.",
+            "on_completion": "if-condition--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce",
+            "on_false": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9"
+        },
+        "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce": {
+            "name": "Run a full antivirus scan",
+            "description": "Perform a full antivirus scan on the affected system.",
+            "on_completion": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9": {
+            "name": "Check if firewall is disabled",
+            "type": "if-condition",
+            "condition": "firewall_enabled == false",
+            "on_true": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9",
+            "on_false": "end--e946e457-3d02-4e39-aaa8-1469e7aeefcb"
+        },
+        "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9": {
+            "name": "Update system firewall rules",
+            "description": "Enable the system firewall to protect it from future unauthorized access.",
+            "on_completion": "end--e946e457-3d02-4e39-aaa8-1469e7aeefcb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state on"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e946e457-3d02-4e39-aaa8-1469e7aeefcb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "compromise_confirmed": {
+            "type": "boolean",
+            "description": "Indicates if the compromise has been confirmed",
+            "value": false,
+            "constant": false,
+            "external": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the antivirus scan",
+            "value": "infected",
+            "constant": false,
+            "external": false
+        },
+        "firewall_enabled": {
+            "type": "boolean",
+            "description": "Indicates if the firewall is enabled",
+            "value": false,
+            "constant": false,
+            "external": false
+        }
+    }
+}

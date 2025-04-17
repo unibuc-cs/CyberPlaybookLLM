@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2f8d1d86-e16a-4cd3-8c62-5f3c9f7f2e01",
+    "name": "Mitigation Playbook for OS Credential Dumping Incident",
+    "description": "This playbook addresses an incident involving OS Credential Dumping where an attacker executed a script to extract cached credentials from host machines.",
+    "created_by": "identity--xyz-software",
+    "created": "2025-04-09T08:45:00Z",
+    "modified": "2025-04-09T08:46:00Z",
+    "revoked": false,
+    "workflow_start": "start--5f9e4c59-afaa-4f6f-884f-4c27eb4a6df1",
+    "workflow": {
+        "start--5f9e4c59-afaa-4f6f-884f-4c27eb4a6df1": {
+            "on_completion": "action--aef7079e-6585-44e6-b872-bb8f1d0800c4",
+            "type": "start"
+        },
+        "action--aef7079e-6585-44e6-b872-bb8f1d0800c4": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process executing the suspicious script.",
+            "on_completion": "loop--ffcb5c96-cf1d-4761-b2b5-d3033fbe6b70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--ffcb5c96-cf1d-4761-b2b5-d3033fbe6b70": {
+            "name": "Reset user passwords",
+            "description": "Loop to reset all user passwords until complete.",
+            "on_completion": "action--9d689911-f9e1-4b52-982a-445a056c3488",
+            "type": "while-condition",
+            "condition": "passwords_reset_count < total_users",
+            "on_true": "action--reset-password",
+            "on_false": "action--9d689911-f9e1-4b52-982a-445a056c3488"
+        },
+        "action--reset-password": {
+            "name": "Execute password reset for all users",
+            "on_completion": "loop--ffcb5c96-cf1d-4761-b2b5-d3033fbe6b70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cut -f1 -d: /etc/passwd); do echo 'NewSecurePassword!' | passwd --stdin $user; done"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "passwords_reset_count": {
+                    "type": "integer",
+                    "description": "Count of successfully reset passwords",
+                    "value": "0",
+                    "constant": false,
+                    "external": false
+                },
+                "total_users": {
+                    "type": "integer",
+                    "description": "Total number of users to reset passwords",
+                    "value": "100",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--9d689911-f9e1-4b52-982a-445a056c3488": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Perform a scan to identify any further vulnerabilities in the system.",
+            "on_completion": "end--d3f6b7b6-05ac-4b26-88c3-98459efc0419",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--d3f6b7b6-05ac-4b26-88c3-98459efc0419": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

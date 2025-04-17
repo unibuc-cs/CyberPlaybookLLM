@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d618a4c8-654d-44af-8720-1f29af58a927",
+    "name": "Mitigation Playbook for Malicious PowerShell Commands Execution",
+    "description": "This playbook mitigates an incident where an attacker executed PowerShell commands to perform privilege escalation and data exfiltration.",
+    "created_by": "identity--b739c3ac-b35a-4717-bfa3-ff6eefb539c7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--3f2d2e5e-e007-4d9a-a658-b7461b04b6f6",
+    "workflow": {
+        "start--3f2d2e5e-e007-4d9a-a658-b7461b04b6f6": {
+            "on_completion": "if-condition--e6e47681-381c-4a1d-82e5-f8cdebf67c23",
+            "type": "start"
+        },
+        "if-condition--e6e47681-381c-4a1d-82e5-f8cdebf67c23": {
+            "name": "Check for PowerShell processes",
+            "type": "if-condition",
+            "condition": "ps aux | grep -v grep | grep powershell",
+            "on_true": "action--1f30b21e-ef03-43e2-bf59-df5e49ac4e93",
+            "on_false": "action--20859af0-c0ea-4f67-8486-d652fb4c951a"
+        },
+        "action--1f30b21e-ef03-43e2-bf59-df5e49ac4e93": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that may have been exploited.",
+            "on_completion": "parallel--f03d2e51-92ca-4f77-a12b-a7c48e1d6c8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--20859af0-c0ea-4f67-8486-d652fb4c951a": {
+            "name": "Block outbound connections to malicious IPs",
+            "description": "Block connections to a known malicious IP address.",
+            "on_completion": "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3": {
+            "name": "Run endpoint detection and response (EDR) scan",
+            "description": "Perform a comprehensive EDR scan on the affected host.",
+            "on_completion": "while-condition--90a31d4d-0abb-4310-bc73-2ee32bd585dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./edr-scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--90a31d4d-0abb-4310-bc73-2ee32bd585dc": {
+            "name": "Check if EDR scan is clean",
+            "description": "Continue scanning until the EDR report is clean.",
+            "on_true": "end--72c4aeb8-b0f3-4b6b-b58f-a2f1162b9e63",
+            "on_false": "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3",
+            "type": "while-condition",
+            "condition": "edr_scan_status != 'clean'"
+        },
+        "end--72c4aeb8-b0f3-4b6b-b58f-a2f1162b9e63": {
+            "type": "end"
+        },
+        "parallel--f03d2e51-92ca-4f77-a12b-a7c48e1d6c8f": {
+            "name": "Mitigation parallel actions",
+            "description": "Perform actions in parallel after killing PowerShell.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3",
+                "action--20859af0-c0ea-4f67-8486-d652fb4c951a"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

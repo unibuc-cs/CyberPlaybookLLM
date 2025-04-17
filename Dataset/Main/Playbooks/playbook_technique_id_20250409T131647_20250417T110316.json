@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--59a4df25-6e55-493f-bb68-e23b4f0ab0db",
+    "name": "Mitigation Playbook for PowerShell Based Attack",
+    "description": "This playbook mitigates an incident where an attacker used a PowerShell script to execute commands leading to data exfiltration.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789012",
+    "created": "2023-10-06T14:32:25Z",
+    "modified": "2023-10-06T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--1b1d48cf-00e7-4d2a-b208-1f8b9baffabc",
+    "workflow": {
+        "start--1b1d48cf-00e7-4d2a-b208-1f8b9baffabc": {
+            "on_completion": "if-condition--83e49ec6-a356-4f09-ba9c-c0df0fc27f70",
+            "type": "start"
+        },
+        "if-condition--83e49ec6-a356-4f09-ba9c-c0df0fc27f70": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process.exists('PowerShell')",
+            "on_true": "action--b525c1c2-5e7d-4e6b-bebc-2337e44f84d1",
+            "on_false": "loop--12e1a620-db41-46a8-bb90-bf65537c0a4e"
+        },
+        "action--b525c1c2-5e7d-4e6b-bebc-2337e44f84d1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any ongoing PowerShell processes linked to malicious activity.",
+            "on_completion": "loop--12e1a620-db41-46a8-bb90-bf65537c0a4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--12e1a620-db41-46a8-bb90-bf65537c0a4e": {
+            "name": "Remove dropped files loop",
+            "description": "Continuously remove any malicious files that may have been dropped.",
+            "on_completion": "if-condition--4ae29e00-2d65-4f0e-8176-f643b8055242",
+            "type": "loop",
+            "condition": "files.exist('/path/to/malicious')",
+            "next_steps": [
+                "action--cd108c8f-0dc3-4c01-a8aa-5f60e3f7bd1d"
+            ]
+        },
+        "action--cd108c8f-0dc3-4c01-a8aa-5f60e3f7bd1d": {
+            "name": "Remove dropped files",
+            "description": "Delete all malicious files from the compromised system.",
+            "on_completion": "loop--12e1a620-db41-46a8-bb90-bf65537c0a4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malicious/file"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--4ae29e00-2d65-4f0e-8176-f643b8055242": {
+            "name": "Check if malware scan is complete",
+            "type": "if-condition",
+            "condition": "scan_status == 'complete'",
+            "on_true": "end--e2d1ca16-f625-4b17-98c4-d5b38ab285a5",
+            "on_false": "action--06b8ca43-860d-4398-9a02-08c70833bb0c"
+        },
+        "action--06b8ca43-860d-4398-9a02-08c70833bb0c": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan to detect any remaining threats on the system.",
+            "on_completion": "if-condition--4ae29e00-2d65-4f0e-8176-f643b8055242",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --system"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the malware scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e2d1ca16-f625-4b17-98c4-d5b38ab285a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

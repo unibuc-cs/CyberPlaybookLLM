@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ac57d5e7-189c-4d55-8c49-5820af3c4512",
+    "name": "Incident Response Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses the unauthorized script execution incident detected on host-22, including steps for killing processes, isolating hosts, and patching vulnerabilities.",
+    "created_by": "identity--e1d9f839-a965-4c64-9fd1-38ee61b8443a",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--7fbb36e1-ec23-4bff-8550-883a11bfbb8e",
+    "workflow": {
+        "start--7fbb36e1-ec23-4bff-8550-883a11bfbb8e": {
+            "on_completion": "action--3b24c8de-fbb8-412c-8914-3129cd125d90",
+            "type": "start"
+        },
+        "action--3b24c8de-fbb8-412c-8914-3129cd125d90": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the suspicious script.",
+            "on_completion": "if-condition--45b4b529-e96d-4ba2-b79c-87a74c0c1676",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[s]uspicious_script' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--45b4b529-e96d-4ba2-b79c-87a74c0c1676": {
+            "name": "Check for Remaining Network Connections",
+            "type": "if-condition",
+            "condition": "network_connections_still_observed == true",
+            "on_true": "action--87a53d8b-da6d-4bd7-8e6a-c8b7a5b27081",
+            "on_false": "loop--67d84c4e-702d-4be2-b48e-f274c91aa575"
+        },
+        "action--87a53d8b-da6d-4bd7-8e6a-c8b7a5b27081": {
+            "name": "Isolate the infected host",
+            "description": "Block network traffic from the infected host to prevent further communication.",
+            "on_completion": "action--2f8c8f77-fd42-47f5-8e9e-edb935609674",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--67d84c4e-702d-4be2-b48e-f274c91aa575": {
+            "name": "Repeat process removal until done",
+            "description": "Ensure the suspicious script has been completely removed.",
+            "on_completion": "action--823b36fe-fa91-45cc-b573-88f0d829e19e",
+            "type": "loop",
+            "condition": "script_exists == true",
+            "next_steps": "action--2f8c8f77-fd42-47f5-8e9e-edb935609674"
+        },
+        "action--2f8c8f77-fd42-47f5-8e9e-edb935609674": {
+            "name": "Remove unauthorized script",
+            "description": "Delete the unauthorized script from the host.",
+            "on_completion": "if-condition--7dfb0d46-b2c5-44e1-b930-8f0da0ecec78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/suspicious_script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--7dfb0d46-b2c5-44e1-b930-8f0da0ecec78": {
+            "name": "Check if credential compromise is confirmed",
+            "type": "if-condition",
+            "condition": "credential_compromise_confirmed == true",
+            "on_true": "action--823b36fe-fa91-45cc-b573-88f0d829e19e",
+            "on_false": "action--05c7e8ad-89a0-4506-8124-dc3894cfb2c9"
+        },
+        "action--823b36fe-fa91-45cc-b573-88f0d829e19e": {
+            "name": "Reset compromised credentials",
+            "description": "Reset user credentials to secure the account.",
+            "on_completion": "action--05c7e8ad-89a0-4506-8124-dc3894cfb2c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'user:password123' | chpasswd"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--05c7e8ad-89a0-4506-8124-dc3894cfb2c9": {
+            "name": "Patch vulnerable applications",
+            "description": "Update all vulnerable applications to mitigate further attacks.",
+            "on_completion": "end--1f7381b1-b881-45b8-adf2-f5ceb2c0ee1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--1f7381b1-b881-45b8-adf2-f5ceb2c0ee1c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

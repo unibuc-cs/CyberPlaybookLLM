@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--64e687cc-2cb4-4d92-9bbc-7aa372d27a5b",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter",
+    "description": "A playbook to mitigate incidents involving unauthorized script execution and data exfiltration.",
+    "created_by": "identity--d0b1e2a5-06a1-4e2a-b8fb-3535dbbb7d96",
+    "created": "2023-10-15T12:00:00.000Z",
+    "modified": "2023-10-15T13:00:00.000Z",
+    "workflow_start": "start--64e687cc-a4d4-4d92-9bbc-7aa372d27a5b",
+    "workflow": {
+        "start--64e687cc-a4d4-4d92-9bbc-7aa372d27a5b": {
+            "on_completion": "parallel--b0a2e0c9-4a3b-4cf8-bcde-dbb1815d9c24",
+            "type": "start",
+            "name": "Start the Incident Response Workflow",
+            "description": "Initiate the workflow for responding to the command and scripting interpreter incident."
+        },
+        "parallel--b0a2e0c9-4a3b-4cf8-bcde-dbb1815d9c24": {
+            "name": "Execute Initial Mitigations in Parallel",
+            "description": "Perform initial mitigations such as killing malicious scripts and blocking external IPs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a965f809-478c-41dc-bef4-ab8d9e1e0af1",
+                "action--572f3a87-bd85-4d9a-9abe-8c3ce3b5ba21",
+                "action--4f28c59e-e9c2-4c08-9ca4-bc8f91ef80d8"
+            ]
+        },
+        "action--a965f809-478c-41dc-bef4-ab8d9e1e0af1": {
+            "name": "Kill all active malicious scripts",
+            "description": "Terminate any running malicious scripts detected on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "decision--b0a9f6f1-cd59-4ed5-a1a6-dcc6ddef8c69"
+        },
+        "action--572f3a87-bd85-4d9a-9abe-8c3ce3b5ba21": {
+            "name": "Block external IP associated with data exfiltration",
+            "description": "Block incoming traffic from the external IP associated with data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7"
+        },
+        "action--4f28c59e-e9c2-4c08-9ca4-bc8f91ef80d8": {
+            "name": "Quarantine affected host",
+            "description": "Quarantine the host if compromised to prevent further spread.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if [host-compromise] == 'true'",
+            "on_completion": "decision--b0a9f6f1-cd59-4ed5-a1a6-dcc6ddef8c69"
+        },
+        "decision--b0a9f6f1-cd59-4ed5-a1a6-dcc6ddef8c69": {
+            "name": "Check if additional actions are necessary",
+            "description": "Decide whether further actions are needed based on host state.",
+            "type": "if-condition",
+            "condition": "[host-compromise] == 'false'",
+            "on_true": "end--f0f67452-8a4b-433f-976f-f0f6745289ee",
+            "on_false": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7"
+        },
+        "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7": {
+            "name": "Scan for additional malicious processes",
+            "description": "Conduct an antivirus scan to detect further malicious processes.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --all"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "loop--9f3d585e-4e71-4bec-8685-51a485f0d636"
+        },
+        "loop--9f3d585e-4e71-4bec-8685-51a485f0d636": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Ensure scans are conducted until no more malicious processes are detected.",
+            "type": "loop",
+            "condition": "[scan-result] == 'clean'",
+            "on_true": "action--2696a4cb-4e93-433f-976f-f0f6745289ee",
+            "on_false": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7"
+        },
+        "action--2696a4cb-4e93-433f-976f-f0f6745289ee": {
+            "name": "Analyze incoming and outgoing network traffic",
+            "description": "Monitor network traffic for anomalies and ensure no malicious connections exist.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--xyz",
+            "variables": {
+                "traffic_filter": "src or dst <internal_ip_range>"
+            },
+            "on_completion": "end--f0f67452-8a4b-433f-976f-f0f6745289ee"
+        },
+        "end--f0f67452-8a4b-433f-976f-f0f6745289ee": {
+            "name": "End of Playbook",
+            "description": "Finish the incident response workflow.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

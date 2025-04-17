@@ -1,0 +1,173 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1f2c5be1-e158-4f9e-bc3f-f61099bbef15",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter Exploit",
+    "description": "Respond to an incident where an attacker exploited a web application to access a Linux server and executed malicious commands.",
+    "created_by": "identity--a11e5045-d3ae-4f2c-822c-8429c497a9bc",
+    "created": "2023-10-12T14:45:00.000Z",
+    "modified": "2023-10-12T14:50:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9d74059d-8d11-4693-8e53-b95f5fb7d399",
+    "workflow": {
+        "start--9d74059d-8d11-4693-8e53-b95f5fb7d399": {
+            "on_completion": "action--d2f2c81a-45f3-4a73-a780-1f3cf3601001",
+            "type": "start"
+        },
+        "action--d2f2c81a-45f3-4a73-a780-1f3cf3601001": {
+            "name": "Terminate suspicious processes",
+            "description": "Terminate any processes that match known malicious scripts or commands.",
+            "on_completion": "parallel--a50f00de-1677-4e0f-9b63-035775ea50ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-process'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--a50f00de-1677-4e0f-9b63-035775ea50ec": {
+            "name": "Execute additional mitigations",
+            "description": "Conduct further actions in parallel to strengthen the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f",
+                "action--b20ae7f5-1047-4015-9482-45d3f6628d60",
+                "while-condition--eae1a1c7-2ee4-4f48-a255-a12b915bee01",
+                "if-condition--c834df34-42c0-41d4-bfa9-80e65eb5822d",
+                "action--47aeda9f-df79-495b-b428-4a3cc54aae90"
+            ]
+        },
+        "while-condition--eae1a1c7-2ee4-4f48-a255-a12b915bee01": {
+            "name": "Conduct full system antivirus scan",
+            "description": "Repeat until the antivirus scan shows no threats.",
+            "on_completion": "action--47aeda9f-df79-495b-b428-4a3cc54aae90",
+            "type": "while-condition",
+            "condition": "scan_in_progress == true",
+            "on_true": "action--eae1a1c7-2ee4-4f48-a255-a12b915bee01"
+        },
+        "action--eae1a1c7-2ee4-4f48-a255-a12b915bee01": {
+            "name": "Run antivirus scan",
+            "on_completion": "if-condition--c834df34-42c0-41d4-bfa9-80e65eb5822d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_in_progress": {
+                    "type": "boolean",
+                    "description": "Indicates if the antivirus scan is still running",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "action--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f": {
+            "name": "Reset compromised accounts",
+            "description": "Reset passwords for accounts flagged as compromised.",
+            "on_completion": "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo passwd --expire username"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "is_compromised": {
+                    "type": "boolean",
+                    "description": "Indicates if user is flagged as compromised",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--c834df34-42c0-41d4-bfa9-80e65eb5822d": {
+            "name": "Backup and clean configuration files",
+            "type": "if-condition",
+            "condition": "unauthorized_modifications == true",
+            "on_true": "action--c834df34-42c0-41d4-bfa9-80e65eb5822d",
+            "on_false": "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7"
+        },
+        "action--c834df34-42c0-41d4-bfa9-80e65eb5822d": {
+            "name": "Backup and clean configuration files",
+            "description": "Backup configuration files and restore from defaults if unauthorized modifications are found.",
+            "on_completion": "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /etc/config /backup/ && cat /etc/config.default > /etc/config"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b20ae7f5-1047-4015-9482-45d3f6628d60": {
+            "name": "Deploy updated web application firewall rules",
+            "description": "Reload web application firewall rules to block new threats.",
+            "on_completion": "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw reload"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "rules_id": {
+                    "type": "string",
+                    "description": "Identifier for the rules set being deployed",
+                    "value": "WAF-v1.3",
+                    "constant": false
+                }
+            }
+        },
+        "action--47aeda9f-df79-495b-b428-4a3cc54aae90": {
+            "name": "Monitor external connections for anomalies",
+            "description": "Track network connections for any suspicious activity.",
+            "on_completion": "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --track"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "threshold": {
+                    "type": "integer",
+                    "description": "Max allowed external connections before alerts",
+                    "value": 10,
+                    "constant": false
+                },
+                "alert": {
+                    "type": "string",
+                    "description": "Alert method for anomalies",
+                    "value": "Email-Alert",
+                    "constant": false
+                }
+            }
+        },
+        "end--9e8611e8-a19e-4252-8dc1-f83c86b160f7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Agent XYZ"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "Agent ABC"
+        }
+    }
+}

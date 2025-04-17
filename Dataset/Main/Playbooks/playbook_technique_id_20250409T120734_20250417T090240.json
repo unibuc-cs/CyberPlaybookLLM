@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a82cb302-bc8e-4c0a-bdef-6ab2e0e80c4e",
+    "name": "Mitigation Playbook for Exploitation of Web Application",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application, executing arbitrary commands leading to data breaches.",
+    "created_by": "identity--xyz-12345",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1a28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1a28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "decision--check_process_existence",
+            "type": "start"
+        },
+        "decision--check_process_existence": {
+            "name": "Check if malicious processes are running",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_process')",
+            "on_true": "action--kill_malicious_process",
+            "on_false": "action--delete_uploaded_script"
+        },
+        "action--kill_malicious_process": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any running malicious processes on the server.",
+            "on_completion": "action--delete_uploaded_script",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--delete_uploaded_script": {
+            "name": "Delete uploaded malicious script",
+            "description": "Remove the malicious script uploaded to the /tmp directory.",
+            "on_completion": "loop--run_security_audit",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--run_security_audit": {
+            "name": "Run Security Audits",
+            "description": "Perform a security audit on the affected host and repeat until no vulnerabilities are found.",
+            "on_completion": "action--enhance_firewall_rules",
+            "type": "while-condition",
+            "condition": "vulnerabilities_found",
+            "on_true": "action--run_security_audit",
+            "on_false": "action--enhance_firewall_rules"
+        },
+        "action--run_security_audit": {
+            "name": "Run security audit",
+            "description": "Execute the security audit script to find vulnerabilities.",
+            "on_completion": "loop--run_security_audit",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash run_security_audit.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--enhance_firewall_rules": {
+            "name": "Review and enhance firewall rules",
+            "description": "Update firewall rules to protect against future attacks.",
+            "on_completion": "end--finish_playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw allow from ${trusted_ip} to any port ${specific_port}"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "trusted_ip": {
+                    "type": "string",
+                    "description": "IP address of the trusted entity",
+                    "value": "<insert_trusted_ip>",
+                    "constant": false,
+                    "external": true
+                },
+                "specific_port": {
+                    "type": "string",
+                    "description": "Port number that needs to be secured",
+                    "value": "<insert_affected_port>",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--finish_playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Cybersecurity Response Team"
+        }
+    }
+}

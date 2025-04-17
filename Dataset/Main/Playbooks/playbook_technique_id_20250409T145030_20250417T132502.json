@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a6c3f28e-7a3e-47ff-9bda-8b4e70d63c6d",
+    "name": "Mitigation Playbook for Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a command injection vulnerability in a web application.",
+    "created_by": "identity--a3d2c8b1-b49f-4704-bc62-b4b3c78d2c8f",
+    "created": "2023-10-09T08:55:35.498Z",
+    "modified": "2023-10-09T09:30:00.000Z",
+    "revoked": false,
+    "derived_from": [],
+    "workflow_start": "start--e5c7d6af-0585-45d2-90bb-2dfaae667abe",
+    "workflow": {
+        "start--e5c7d6af-0585-45d2-90bb-2dfaae667abe": {
+            "on_completion": "action--b23e4053-0daf-433f-8849-3e1b06802b51",
+            "type": "start"
+        },
+        "action--b23e4053-0daf-433f-8849-3e1b06802b51": {
+            "name": "Kill malicious process",
+            "description": "Terminate the reverse shell script if it is running.",
+            "on_completion": "if-condition--0aff0c77-b8b4-43b6-a3b0-4c64b58bb8c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--0aff0c77-b8b4-43b6-a3b0-4c64b58bb8c8": {
+            "name": "Check if reverse shell script is running",
+            "type": "if-condition",
+            "condition": "pgrep -f reverse_shell_script > /dev/null",
+            "on_true": "action--f8913f2b-6c6e-45a7-a7c4-8e4b4c2d9b8f",
+            "on_false": "loop--d4915412-a4f3-46e0-9c32-e9b57a0853ad"
+        },
+        "action--f8913f2b-6c6e-45a7-a7c4-8e4b4c2d9b8f": {
+            "name": "Remove dropped malicious files",
+            "description": "Delete the malicious script from the /tmp directory.",
+            "on_completion": "if-condition--0aff0c77-b8b4-43b6-a3b0-4c64b58bb8c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/reverse_shell_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--d4915412-a4f3-46e0-9c32-e9b57a0853ad": {
+            "name": "Check for remaining malicious files",
+            "description": "Repeat until no malicious files exist in the /tmp directory.",
+            "on_completion": "action--e66e9205-8e85-4a64-ae6b-fbafe25f684a",
+            "type": "while-condition",
+            "condition": "[ -e /tmp/reverse_shell_script ]"
+        },
+        "action--e66e9205-8e85-4a64-ae6b-fbafe25f684a": {
+            "name": "Conduct a vulnerability scan",
+            "description": "Run a vulnerability scan on the web application.",
+            "on_completion": "end--b0b44402-45d7-41ec-9e9c-084cc1f91467",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vuln_scan.sh > vulnerability_scan_output"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Stores the output of the vulnerability scan.",
+                    "value": "vulnerability_scan_output",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b0b44402-45d7-41ec-9e9c-084cc1f91467": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

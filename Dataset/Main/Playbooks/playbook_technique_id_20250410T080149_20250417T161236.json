@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1c5ed8a-5df1-49e8-b20f-f12f12dc8d10",
+    "name": "Incident Response Playbook for Malicious PowerShell Execution",
+    "description": "This playbook mitigates an incident involving unauthorized PowerShell script execution and data exfiltration.",
+    "created_by": "identity--f129f40f-e0b5-4a25-8cef-b4d757c0e21a",
+    "created": "2023-10-18T14:30:00Z",
+    "modified": "2023-10-18T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2f45a91-45a3-4b7a-bfc6-ee5df5d81b9d",
+    "workflow": {
+        "start--b2f45a91-45a3-4b7a-bfc6-ee5df5d81b9d": {
+            "on_completion": "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d",
+            "type": "start"
+        },
+        "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running PowerShell scripts that are unauthorized.",
+            "on_completion": "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo kill -9 $(pgrep -f script.js)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete the script file from the temporary directory if it exists.",
+            "on_completion": "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo rm /tmp/script.js"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_true": "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73",
+            "condition": {
+                "type": "if-condition",
+                "condition": "file_exists('/tmp/script.js')"
+            }
+        },
+        "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73": {
+            "name": "Block IP of command and control server",
+            "description": "Block outbound traffic to the known command and control server.",
+            "on_completion": "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A OUTPUT -d 198.51.100.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d": {
+            "name": "Conduct system integrity check",
+            "description": "Run a system integrity check to ensure the system is clean.",
+            "on_completion": "action--75b10d86-60a3-4790-af24-053f1a7b3cc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo chkrootkit"
+                }
+            ],
+            "agent": "organization--abc",
+            "conditions": [
+                {
+                    "type": "while-condition",
+                    "condition": "scan_is_clean == false",
+                    "on_true": "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d"
+                }
+            ],
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false
+                }
+            }
+        },
+        "action--75b10d86-60a3-4790-af24-053f1a7b3cc4": {
+            "name": "Notify security team to review logs",
+            "description": "Send an email notification to the security team for further action.",
+            "on_completion": "end--eaf01c8b-99cf-494e-b403-a29f3f8c5856",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Review required: Check PowerShell activity logs' | mail -s 'Incident Response' sec-team@organization.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--eaf01c8b-99cf-494e-b403-a29f3f8c5856": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

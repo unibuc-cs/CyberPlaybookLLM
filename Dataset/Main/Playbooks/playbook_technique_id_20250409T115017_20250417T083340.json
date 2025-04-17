@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f10a2c7b-0e3c-4e90-858e-d95eedf1f4cf",
+    "name": "Incident Response for Unauthorized Access and Data Exfiltration",
+    "description": "This playbook outlines steps to mitigate an incident where an attacker executed malicious PowerShell scripts to exfiltrate sensitive data.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2023-10-02T12:32:00Z",
+    "modified": "2023-10-02T12:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--a5c6e5f3-cd67-4f7b-ba59-d7c277a8b859",
+    "workflow": {
+        "start--a5c6e5f3-cd67-4f7b-ba59-d7c277a8b859": {
+            "on_completion": "parallel--123abc45-678d-90ef-ab12-3456abcdef79",
+            "type": "start"
+        },
+        "parallel--123abc45-678d-90ef-ab12-3456abcdef79": {
+            "name": "Mitigation Steps",
+            "description": "Execute actions to respond to the incident in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--d3c06b9e-7f8b-4e60-a7a5-7d24ff7011bc",
+                "action--da6cc320-e504-4e7b-9b3e-2d651b7b89ad",
+                "action--fa9b6e8f-fd43-45bc-a91d-105cbc56660f",
+                "action--be4ccf56-8e72-4fc4-83ba-7066d5d0c3f3"
+            ]
+        },
+        "if-condition--d3c06b9e-7f8b-4e60-a7a5-7d24ff7011bc": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--d3c06b9e-7f8b-4e60-a7a5-7d24ff7011bc",
+            "on_false": "action--fa9b6e8f-fd43-45bc-a91d-105cbc56660f"
+        },
+        "action--d3c06b9e-7f8b-4e60-a7a5-7d24ff7011bc": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes potentially executing harmful commands.",
+            "on_completion": "conclude",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--da6cc320-e504-4e7b-9b3e-2d651b7b89ad": {
+            "name": "Isolate affected host from the network",
+            "description": "Block all incoming network connections to the affected host to stop further data exfiltration.",
+            "on_completion": "conclude",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fa9b6e8f-fd43-45bc-a91d-105cbc56660f": {
+            "name": "Initiate malware scan",
+            "description": "Conduct a comprehensive scan to identify and eliminate any malware.",
+            "on_completion": "while-condition--loop-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--loop-scan": {
+            "name": "Repeat malware scanning until threats cleared",
+            "description": "Loop through scanning until there are no threats found.",
+            "condition": "threats_found()",
+            "on_true": "action--fa9b6e8f-fd43-45bc-a91d-105cbc56660f",
+            "on_false": "conclude"
+        },
+        "action--be4ccf56-8e72-4fc4-83ba-7066d5d0c3f3": {
+            "name": "Review security logs for additional indicators",
+            "description": "Look for additional suspicious activities in security logs to perform further analysis.",
+            "on_completion": "conclude",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'malicious' /var/log/secure"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "conclude": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

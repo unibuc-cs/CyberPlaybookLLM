@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1c72a74d-c0f2-496f-bd64-84db78e35efb",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script that compromised sensitive user data on a web server.",
+    "created_by": "identity--0de72fcf-7df5-4976-bbb3-e634050c958f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:55:35.498Z",
+    "workflow_start": "start--a75f6d56-3b75-490a-b10e-d826bbc17c87",
+    "workflow": {
+        "start--a75f6d56-3b75-490a-b10e-d826bbc17c87": {
+            "on_completion": "action--eaa2a92c-6dac-4704-b1da-61d65a88d41a",
+            "type": "start"
+        },
+        "action--eaa2a92c-6dac-4704-b1da-61d65a88d41a": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script that was executed on the server.",
+            "on_completion": "if-condition--bbc0f5a1-6f5b-4426-b580-1234cb7650d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--bbc0f5a1-6f5b-4426-b580-1234cb7650d2": {
+            "name": "Check for malicious script files",
+            "type": "if-condition",
+            "condition": "file_exists('/path/to/directory/malicious_script.sh')",
+            "on_true": "loop--condition_loop",
+            "on_false": "action--d9b29558-3f3c-4fbe-b8f0-8f5736366c3b"
+        },
+        "loop--condition_loop": {
+            "name": "Scan for malware until no threats found",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--bbc0f5a1-6f5b-4426-b580-1234cb7650d2",
+            "on_false": "action--d9b29558-3f3c-4fbe-b8f0-8f5736366c3b"
+        },
+        "action--bbc0f5a1-6f5b-4426-b580-1234cb7650d2": {
+            "name": "Scan system for malware",
+            "description": "Perform a scan of the system to find and remove potential threats.",
+            "on_completion": "update-threat-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "update-threat-status": {
+            "name": "Update threat status",
+            "description": "Check if any threats were found during the scan.",
+            "on_completion": "loop--condition_loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /path/to/directory/threats_found ]; then threats_found=true; else threats_found=false; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d9b29558-3f3c-4fbe-b8f0-8f5736366c3b": {
+            "name": "Update firewall rules",
+            "description": "Block potentially malicious outgoing traffic to an external IP.",
+            "on_completion": "end--1ebc7538-b99f-4f63-bf94-bd769d20f7c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--1ebc7538-b99f-4f63-bf94-bd769d20f7c0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

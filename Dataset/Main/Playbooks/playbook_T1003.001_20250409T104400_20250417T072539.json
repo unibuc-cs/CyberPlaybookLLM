@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6a5b9d0-9b1c-4c11-b29d-0ada2c2ba5d8",
+    "name": "LSASS Memory Dump Incident Response Playbook",
+    "description": "This playbook is designed to mitigate an incident involving unauthorized access to LSASS memory for credential dumping.",
+    "created_by": "identity--abc-94f3-4f16-a57a-f8d4d6a8f920",
+    "created": "2025-04-09T10:44:00.000Z",
+    "modified": "2025-04-09T10:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1c0f7c1-40c7-4f96-9ed2-2ea77d4be14a",
+    "workflow": {
+        "start--f1c0f7c1-40c7-4f96-9ed2-2ea77d4be14a": {
+            "on_completion": "parallel--a5e0a959-bf8f-487e-882c-61a68f88e62a",
+            "type": "start"
+        },
+        "end--bfb8aabe-3abf-492b-b5de-5c70aa75d36d": {
+            "type": "end"
+        },
+        "parallel--a5e0a959-bf8f-487e-882c-61a68f88e62a": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b3b54d5b-e97e-4a4b-9bcf-6d5b25bc9a0b",
+                "action--dc679b71-8c71-4d80-865f-c1c5b26300e9",
+                "action--f5938c60-f2a7-4d2b-8aad-57b7820ec6e1"
+            ]
+        },
+        "action--b3b54d5b-e97e-4a4b-9bcf-6d5b25bc9a0b": {
+            "name": "Kill malicious LSASS process",
+            "description": "Terminate any malicious processes attempting to access LSASS.",
+            "on_completion": "action--f5938c60-f2a7-4d2b-8aad-57b7820ec6e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep lsass)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dc679b71-8c71-4d80-865f-c1c5b26300e9": {
+            "name": "Monitor process access patterns",
+            "description": "Set up monitoring for unusual process access patterns.",
+            "on_completion": "action--f5938c60-f2a7-4d2b-8aad-57b7820ec6e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -a always,exit -F arch=b64 -S ptrace"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f5938c60-f2a7-4d2b-8aad-57b7820ec6e1": {
+            "name": "Remove suspicious dump files",
+            "description": "Automatically scan and delete any suspicious dump files.",
+            "on_completion": "end--bfb8aabe-3abf-492b-b5de-5c70aa75d36d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /tmp -name 'lsass.dmp' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "[[ -f /tmp/lsass.dmp ]]",
+                "repeat_while": "true",
+                "description": "Repeat until no more lsass.dmp files exist"
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

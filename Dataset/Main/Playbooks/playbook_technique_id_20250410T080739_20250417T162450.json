@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c6e45373-8c8e-4bcd-8e87-09cd1eb56c77",
+    "name": "Playbook for Phishing Incident Mitigation",
+    "description": "This playbook outlines steps to mitigate unauthorized access and lateral movement within the network following a phishing attack.",
+    "created_by": "identity--d0b13773-9936-4e9f-af3e-9a6e2b6017f2",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--ef21c536-af2d-41e7-b16e-d5658861f235",
+    "workflow": {
+        "start--ef21c536-af2d-41e7-b16e-d5658861f235": {
+            "on_completion": "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b",
+            "type": "start"
+        },
+        "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b": {
+            "name": "Revoke Compromised Credentials",
+            "description": "Disable the account of the suspicious user to prevent further unauthorized access.",
+            "on_completion": "parallel--a1a2f2c4-abc0-4cd2-9d7b-ff072bde1f51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L suspicious_user"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "parallel--a1a2f2c4-abc0-4cd2-9d7b-ff072bde1f51": {
+            "name": "Mitigation Actions",
+            "description": "Conduct multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb",
+                "action--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1",
+                "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129",
+                "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2"
+            ]
+        },
+        "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb": {
+            "name": "Network-wide Scan",
+            "description": "Conduct a network-wide scan for unauthorized access. Repeat until clean.",
+            "on_completion": "decision--d6e1cf03-5d70-438c-b86e-43d3adba0aa1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -Pn 192.168.0.0/24"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "decision--d6e1cf03-5d70-438c-b86e-43d3adba0aa1": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "action--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1",
+            "on_false": "action--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb"
+        },
+        "action--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1": {
+            "name": "Monitor Network Activity",
+            "description": "Monitor network for irregular activity and alert if necessary.",
+            "on_completion": "end--d1c5417e-9ba7-4c48-88f1-9a2bf6f4173b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any 'port 22'"
+                }
+            ],
+            "agent": "organization--123"
+        },
+        "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129": {
+            "name": "Update Firewall Rules",
+            "description": "Block incoming traffic from the suspicious IP address to prevent access.",
+            "on_completion": "end--d1c5417e-9ba7-4c48-88f1-9a2bf6f4173b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 203.0.113.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "targets": [
+                "organization--123"
+            ]
+        },
+        "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2": {
+            "name": "Check for Backdoors",
+            "description": "Scan all servers to check for potential backdoors left by the attacker.",
+            "on_completion": "end--d1c5417e-9ba7-4c48-88f1-9a2bf6f4173b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --checkall"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d1c5417e-9ba7-4c48-88f1-9a2bf6f4173b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--123": {
+            "type": "organization",
+            "name": "InternalSecurityTeam"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "NetworkAdminTeam"
+        }
+    }
+}

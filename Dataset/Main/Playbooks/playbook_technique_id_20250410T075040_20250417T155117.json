@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3a045e2-702b-4a9f-89a6-cf624334cc3b",
+    "name": "Mitigation Playbook for PowerShell Exploitation Incident",
+    "description": "This playbook addresses a security incident where an attacker exploited a PowerShell script to execute malicious commands and gained unauthorized access.",
+    "created_by": "identity--e4d19751-a234-4b62-b19c-e12a2f0444d4",
+    "created": "2023-11-01T09:00:00Z",
+    "modified": "2023-11-01T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--35a3c9aa-ad32-4567-b757-7511bbcb4536",
+    "workflow": {
+        "start--35a3c9aa-ad32-4567-b757-7511bbcb4536": {
+            "on_completion": "if-condition--7f4e8e05-0af1-4f32-9ef7-a92c5345a123",
+            "type": "start"
+        },
+        "if-condition--7f4e8e05-0af1-4f32-9ef7-a92c5345a123": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_running(malicious_process)",
+            "on_true": "action--e5c6c1c2-7b43-459f-89b8-6ac9a6c66052",
+            "on_false": "loop--b7c1f9c1-d1bc-4194-a88f-e37719b628b5"
+        },
+        "action--e5c6c1c2-7b43-459f-89b8-6ac9a6c66052": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process executing on the host.",
+            "on_completion": "action--f6e4a1d1-c40b-4ad9-bc20-3ed290d72c4c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--b7c1f9c1-d1bc-4194-a88f-e37719b628b5": {
+            "name": "Wait for malicious process termination",
+            "type": "loop",
+            "condition": "process_running(malicious_process)",
+            "on_true": "action--e5c6c1c2-7b43-459f-89b8-6ac9a6c66052",
+            "next_steps": "action--f6e4a1d1-c40b-4ad9-bc20-3ed290d72c4c"
+        },
+        "action--f6e4a1d1-c40b-4ad9-bc20-3ed290d72c4c": {
+            "name": "Reset compromised passwords",
+            "description": "Reset the password for compromised users.",
+            "on_completion": "while-condition--b2a5f8c6-e95e-49ab-8844-1c04ec279ba4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${user}"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "user": {
+                    "type": "string",
+                    "description": "Compromised user account",
+                    "value": "compromised_user",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--b2a5f8c6-e95e-49ab-8844-1c04ec279ba4": {
+            "name": "Patch vulnerable service loop",
+            "description": "Patch the vulnerable service to prevent exploitation.",
+            "type": "while-condition",
+            "condition": "service_running(vulnerable_service) == false",
+            "on_true": "action--bf7ad3f2-8198-4d9b-928f-1b02d776b289"
+        },
+        "action--bf7ad3f2-8198-4d9b-928f-1b02d776b289": {
+            "name": "Patch vulnerable service",
+            "description": "Update and patch the vulnerable service.",
+            "on_completion": "action--a9f5d0e1-d2af-4337-8eed-49b2e58c38cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install vulnerable-service-patch"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a9f5d0e1-d2af-4337-8eed-49b2e58c38cb": {
+            "name": "Conduct full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "if-condition--5c3dbcc3-b6b5-42a4-b8af-e7b0e1fdbb26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--5c3dbcc3-b6b5-42a4-b8af-e7b0e1fdbb26": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "clamscan_clean",
+            "on_true": "action--d7b783da-3585-4c4e-973c-43d7f6a76a1b",
+            "on_false": "end--c69f0bb4-d460-41a2-af50-e8c1de7b46a4"
+        },
+        "action--d7b783da-3585-4c4e-973c-43d7f6a76a1b": {
+            "name": "Review access logs for anomalous activity",
+            "description": "Examine access logs for any suspicious activity.",
+            "on_completion": "end--c69f0bb4-d460-41a2-af50-e8c1de7b46a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--c69f0bb4-d460-41a2-af50-e8c1de7b46a4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

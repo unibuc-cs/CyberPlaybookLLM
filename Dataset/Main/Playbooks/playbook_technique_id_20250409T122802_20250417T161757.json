@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4e55c77-9c52-4e68-bb78-f60f4c383e3f",
+    "name": "Mitigation Playbook for Malicious PowerShell Command Execution",
+    "description": "This playbook addresses an incident where an attacker gained access to the internal network and executed PowerShell commands to download and execute a malicious payload.",
+    "created_by": "identity--abc12345-6789-0ab1-cdef-1234567890ab",
+    "created": "2023-10-05T12:00:00Z",
+    "modified": "2023-10-05T12:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--1d3c5aeb-e2fc-4f06-93db-362946ca781c",
+    "workflow": {
+        "start--1d3c5aeb-e2fc-4f06-93db-362946ca781c": {
+            "on_completion": "if-condition--2a3bd57c-57f9-42e2-9fbb-9b446f3ed842",
+            "type": "start"
+        },
+        "if-condition--2a3bd57c-57f9-42e2-9fbb-9b446f3ed842": {
+            "name": "Check if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists(\"powershell\")",
+            "on_true": "action--c53bbcde-d18f-4b18-849a-64bc4e706953",
+            "on_false": "if-condition--3f38628b-8bb7-4b20-aad0-df372db7e579"
+        },
+        "action--c53bbcde-d18f-4b18-849a-64bc4e706953": {
+            "name": "Kill malicious PowerShell process",
+            "on_completion": "if-condition--3f38628b-8bb7-4b20-aad0-df372db7e579",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--3f38628b-8bb7-4b20-aad0-df372db7e579": {
+            "name": "Check if malicious script exists",
+            "type": "if-condition",
+            "condition": "file_exists(\"payload.ps1\")",
+            "on_true": "action--f6ed503b-9f0f-4fbc-9ef4-e3dc68987b56",
+            "on_false": "while-condition--0a5b49e7-1dd8-4814-bff2-cc00c30fbf6f"
+        },
+        "action--f6ed503b-9f0f-4fbc-9ef4-e3dc68987b56": {
+            "name": "Remove the dropped malicious file",
+            "on_completion": "while-condition--0a5b49e7-1dd8-4814-bff2-cc00c30fbf6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f payload.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--0a5b49e7-1dd8-4814-bff2-cc00c30fbf6f": {
+            "name": "Conduct a full system scan until clean",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4",
+            "on_false": "end--end-12345678-90ab-cdef-1234-567890abcdef"
+        },
+        "action--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4": {
+            "name": "Conduct a full system scan",
+            "on_completion": "while-condition--0a5b49e7-1dd8-4814-bff2-cc00c30fbf6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--end-12345678-90ab-cdef-1234-567890abcdef": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

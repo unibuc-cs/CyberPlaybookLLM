@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2cf0e31-4c72-4d5f-a14e-fcb3594edadb",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Abuse",
+    "description": "This playbook responds to incidents where malicious commands are executed via scripting interpreters, focusing on killing processes, blocking connections, and restoring modified files.",
+    "created_by": "identity--example-identity-id",
+    "created": "2023-10-03T14:32:10Z",
+    "modified": "2023-10-03T14:32:20Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7a8b-9a0b-cdef12345678",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7a8b-9a0b-cdef12345678": {
+            "on_completion": "if-suspicious-activity--12345678-abcd-ef01-2345-6789abcdef01",
+            "type": "start"
+        },
+        "if-suspicious-activity--12345678-abcd-ef01-2345-6789abcdef01": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--b5225efc-f460-4f4f-b929-e2c82f026fe6",
+            "on_false": "end--d1e2f3g4-h5i6-7j8k-1m2n-123456789abc"
+        },
+        "action--b5225efc-f460-4f4f-b929-e2c82f026fe6": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that are currently running.",
+            "on_completion": "action--2e309856-91dc-41b8-8160-0bc1e3f8e438",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f PowerShell)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--2e309856-91dc-41b8-8160-0bc1e3f8e438": {
+            "name": "Block network connection to known malicious IPs",
+            "description": "Block outbound connections to known malicious IP addresses using iptables.",
+            "on_completion": "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b": {
+            "name": "Restore modified configuration files",
+            "description": "Scan for modified files and restore them until all files are checked.",
+            "on_completion": "end--d1e2f3g4-h5i6-7j8k-1m2n-123456789abc",
+            "type": "while-condition",
+            "condition": "all_files_scanned == false",
+            "on_true": "action--scan-and-restore-files--fedcba0987654321"
+        },
+        "action--scan-and-restore-files--fedcba0987654321": {
+            "name": "Scan and restore modified files",
+            "description": "Restore each modified configuration file to its previous state.",
+            "on_completion": "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for file in /path/to/config/files/*; do restore_file $file; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--d1e2f3g4-h5i6-7j8k-1m2n-123456789abc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "suspicious_activity_detected": {
+            "type": "boolean",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "all_files_scanned": {
+            "type": "boolean",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

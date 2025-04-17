@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c301ce63-65e7-4422-b74a-6a361bb13e6f",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script that allowed remote control, downloaded payloads, and compromised a workstation.",
+    "created_by": "identity--b8e71e5e-5e2f-44ff-b42c-31b21322023d",
+    "created": "2025-10-10T12:15:30Z",
+    "modified": "2025-10-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--5c64e71f-4fc4-4ffe-bb1b-b22b51a4c3e5",
+    "workflow": {
+        "start--5c64e71f-4fc4-4ffe-bb1b-b22b51a4c3e5": {
+            "on_completion": "action--9fdced66-dfc3-4a3a-84c1-89d3e9005c00",
+            "type": "start"
+        },
+        "action--9fdced66-dfc3-4a3a-84c1-89d3e9005c00": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes associated with the malicious script.",
+            "on_completion": "if-condition--2c1b0cda-19bf-4c74-ae26-e64e12c3c4f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name pwsh -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--2c1b0cda-19bf-4c74-ae26-e64e12c3c4f4": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "if (Get-Item 'C:\\Temp\\malicious.exe')",
+            "on_true": "action--2c1b0cda-19bf-4c74-ae26-e64e12c3c4f4",
+            "on_false": "action--e1b1c82c-bcfa-4435-8ae3-e01987f56f82"
+        },
+        "action--2c1b0cda-19bf-4c74-ae26-e64e12c3c4f4": {
+            "name": "Delete malicious files from Temp directory",
+            "description": "Remove any malicious executable files downloaded to the Temp directory.",
+            "on_completion": "action--e1b1c82c-bcfa-4435-8ae3-e01987f56f82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Remove-Item -Path 'C:\\Temp\\malicious.exe' -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e1b1c82c-bcfa-4435-8ae3-e01987f56f82": {
+            "name": "Run full system malware scan",
+            "description": "Perform a comprehensive malware scan of the system to ensure no threats remain.",
+            "on_completion": "while-condition--8c5dce49-8407-4c5b-ba8f-2c130a532359",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--8c5dce49-8407-4c5b-ba8f-2c130a532359": {
+            "name": "Check scan results",
+            "description": "Repeat the malware scan until the system is clean.",
+            "on_completion": "end--f1c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--e1b1c82c-bcfa-4435-8ae3-e01987f56f82",
+            "on_false": "end--f1c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "end--f1c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

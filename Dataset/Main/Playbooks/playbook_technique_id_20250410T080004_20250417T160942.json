@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7a9f2e4-fa2e-4e98-b894-8ac4d6f29b1e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed remote commands via a vulnerability in an external-facing server, using it to download malicious scripts that established persistence and exfiltrated sensitive data.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-10-15T15:10:00Z",
+    "modified": "2023-10-15T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d3b03a91-a78b-4cd1-bd79-93748fc26149",
+    "workflow": {
+        "start--d3b03a91-a78b-4cd1-bd79-93748fc26149": {
+            "on_completion": "parallel--f150e23a-4bf3-4ebf-8d2f-6e478a599f73",
+            "type": "start"
+        },
+        "parallel--f150e23a-4bf3-4ebf-8d2f-6e478a599f73": {
+            "name": "Immediate Response Actions",
+            "description": "Perform initial response actions to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f3339f1f-bc6c-4e5a-b915-7a1f1beab2a0",
+                "action--b6c611fd-905a-4a10-9076-57be68812a3f",
+                "action--f89e6106-58c1-487c-af08-cf28ee367957"
+            ]
+        },
+        "action--f3339f1f-bc6c-4e5a-b915-7a1f1beab2a0": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process to stop its execution.",
+            "on_completion": "action--b253f3a2-6af1-42db-b4cc-4ab6a8f49579",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM malicious.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b253f3a2-6af1-42db-b4cc-4ab6a8f49579": {
+            "name": "Remove malicious script",
+            "description": "Delete the downloaded malicious script to prevent execution.",
+            "on_completion": "action--8c8794b7-4f54-4be4-a5d4-91539ca1b637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Temp\\malicious.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8c8794b7-4f54-4be4-a5d4-91539ca1b637": {
+            "name": "Terminate network connections to malicious IP",
+            "description": "Stop any network connections directed to the malicious IP address.",
+            "on_completion": "if-condition--cc8baec7-7a6c-4abc-a3db-947434432dc3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-NetTCPConnection -RemoteAddress 192.168.1.100 | Remove-NetTCPConnection"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--cc8baec7-7a6c-4abc-a3db-947434432dc3": {
+            "name": "Check if remote script execution is enabled",
+            "type": "if-condition",
+            "condition": "IsRemoteExecutionEnabled",
+            "on_true": "action--25f64729-b6ce-40f6-8c1a-9c2f69f8c211",
+            "on_false": "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf"
+        },
+        "action--25f64729-b6ce-40f6-8c1a-9c2f69f8c211": {
+            "name": "Disable remote script execution",
+            "description": "Block remote script execution to ensure no further commands can be run remotely.",
+            "on_completion": "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf": {
+            "name": "Scan for additional threats",
+            "description": "Perform a thorough scan to identify any additional threats.",
+            "on_completion": "end--ec2a0464-be57-4875-9d6d-bd55c1dfb487",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f8b4e764-4e35-4db4-9a32-eab3b1d872f8": {
+            "name": "Threat scan loop",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "end--ec2a0464-be57-4875-9d6d-bd55c1dfb487",
+            "type": "while-condition",
+            "condition": "scan_is_clean != True",
+            "on_true": "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf"
+        },
+        "end--ec2a0464-be57-4875-9d6d-bd55c1dfb487": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

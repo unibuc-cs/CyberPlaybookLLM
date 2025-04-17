@@ -28,7 +28,7 @@ def main(args):
 
     converted = [convert_entry(entry) for entry in data]
 
-    with open(args.output_file, "w") as fout:
+    with open(args.output_file_path, "w") as fout:
         json.dump(converted, fout, indent=2)
 
 if __name__ == "__main__":

@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4c8c4fd3-bc8d-47fc-ab45-1d5d0a8f75b7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious command execution through a command-line interface.",
+    "created_by": "identity--1d2a4f38-af84-4267-9ff6-2fee6e116abe",
+    "created": "2023-10-01T12:30:00Z",
+    "modified": "2023-10-01T12:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--bf15fce2-8c21-4b0b-aef5-a3ff7fb04c4d",
+    "workflow": {
+        "start--bf15fce2-8c21-4b0b-aef5-a3ff7fb04c4d": {
+            "on_completion": "if-condition--cf4a58f1-2cd4-45ac-bb84-743fcc4c206d",
+            "type": "start"
+        },
+        "if-condition--cf4a58f1-2cd4-45ac-bb84-743fcc4c206d": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--d80b6c70-87b4-4b29-b79b-29a31e9f123e",
+            "on_false": "action--1c50f4c1-f9b1-4a8d-8cdf-3f918caa3de9"
+        },
+        "action--d80b6c70-87b4-4b29-b79b-29a31e9f123e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious script processes running on the host.",
+            "on_completion": "action--1c50f4c1-f9b1-4a8d-8cdf-3f918caa3de9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f maliciousscript"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1c50f4c1-f9b1-4a8d-8cdf-3f918caa3de9": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate host-22 to prevent further unauthorized access.",
+            "on_completion": "while-condition--920104bd-cfce-4b9f-b5a7-061a3c1c7d99",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "curl -X POST http://network-control/api/isolate?host=host-22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--920104bd-cfce-4b9f-b5a7-061a3c1c7d99": {
+            "name": "Run malware scan until clean",
+            "description": "Perform malware scan and repeat until there are no threats detected.",
+            "on_completion": "end--f70e1f7e-c12b-42f7-ab6c-9d72ed3b18b7",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--f5159c27-73bb-4a3f-ab5a-d5998e6a474a"
+        },
+        "action--f5159c27-73bb-4a3f-ab5a-d5998e6a474a": {
+            "name": "Run malware scan",
+            "description": "Scan the user home directory for malware.",
+            "on_completion": "while-condition--920104bd-cfce-4b9f-b5a7-061a3c1c7d99",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scanner --scan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f70e1f7e-c12b-42f7-ab6c-9d72ed3b18b7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_exists": {
+            "type": "boolean",
+            "value": "true",
+            "description": "Indicates if a malicious process is running."
+        },
+        "scan_clean": {
+            "type": "boolean",
+            "value": "false",
+            "description": "Indicates whether the malware scan has resulted in a clean state."
+        }
+    }
+}

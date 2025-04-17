@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3c8f2d2-72f1-4a22-bdc9-edf43a8dbcdf",
+    "name": "Playbook for PowerShell Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed suspicious PowerShell commands, leading to possible data exfiltration. The playbook includes steps to mitigate the situation by terminating the malicious processes, isolating affected hosts, and scanning for signs of compromise.",
+    "created_by": "identity--d1b5e377-1b68-4ae3-bf1b-1c63885afa7e",
+    "created": "2023-10-10T10:00:00Z",
+    "modified": "2023-10-10T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1fbf9f0-72c6-4c23-a31c-6d350c723203",
+    "workflow": {
+        "start--d1fbf9f0-72c6-4c23-a31c-6d350c723203": {
+            "on_completion": "if-condition--85694799-f3df-4590-bf10-b798c89758f5",
+            "type": "start"
+        },
+        "if-condition--85694799-f3df-4590-bf10-b798c89758f5": {
+            "name": "Check for existing PowerShell processes",
+            "type": "if-condition",
+            "condition": "$(pgrep powershell)",
+            "on_true": "action--d3e8b0f2-6490-4c57-b7e2-08ba02cb1a69",
+            "on_false": "action--f7a3f663-1ab8-4f2e-8162-c10b56f6e9e5"
+        },
+        "action--d3e8b0f2-6490-4c57-b7e2-08ba02cb1a69": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any existing malicious PowerShell process.",
+            "on_completion": "parallel--1b73e489-1b7e-46a1-b3db-5552740c3208",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f7a3f663-1ab8-4f2e-8162-c10b56f6e9e5": {
+            "name": "Isolate affected hosts from the network",
+            "description": "Down the network interfaces of affected hosts to prevent further compromise.",
+            "on_completion": "parallel--1b73e489-1b7e-46a1-b3db-5552740c3208",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down; ifconfig host-30 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--1b73e489-1b7e-46a1-b3db-5552740c3208": {
+            "name": "Next steps after isolating hosts",
+            "description": "Initiate scanning for signs of compromise after handling immediate threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e1b43d5c-ca8f-4b14-aa18-bb1ab16e8703"
+            ]
+        },
+        "action--e1b43d5c-ca8f-4b14-aa18-bb1ab16e8703": {
+            "name": "Scan network for signs of compromise",
+            "description": "Continuously monitor for suspicious PowerShell scripts indicative of compromise.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while [ \"$(find / -name '*.ps1' -type f -exec grep -l 'Invoke-WebRequest' {} +)\" ]; do sleep 30; done; echo 'Monitoring complete'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--ae39f401-f889-4559-b5fc-b4d8cef3e09a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b837e80-0d46-42c2-bb78-26f8aa8b3d26",
+    "name": "Mitigation Playbook for Unauthorized Command Execution",
+    "description": "This playbook outlines the steps to mitigate an incident where an attacker executed unauthorized commands via a scripting interpreter on a compromised server.",
+    "created_by": "identity--07f68f14-89e4-4de6-ada5-4c935dcfbeb0",
+    "created": "2023-10-10T15:00:00.000Z",
+    "modified": "2023-10-10T15:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d2c69c6f-0d86-4949-bd5a-1db5967390ee",
+    "workflow": {
+        "start--d2c69c6f-0d86-4949-bd5a-1db5967390ee": {
+            "on_completion": "action--d86fdee1-d3bf-41bd-8f61-2ec28bd4c3e1",
+            "type": "start"
+        },
+        "action--d86fdee1-d3bf-41bd-8f61-2ec28bd4c3e1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--e303b2eb-0fbb-45a3-98ed-46492dd67f71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e303b2eb-0fbb-45a3-98ed-46492dd67f71": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious script file dropped in the temporary directory.",
+            "on_completion": "while-condition--aff48c5d-b24d-43c1-b59b-ef587ff1c4d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--aff48c5d-b24d-43c1-b59b-ef587ff1c4d4": {
+            "name": "Run security audit",
+            "description": "Perform security audit until successful.",
+            "on_completion": "end--8bd6b7e7-0b67-4f33-a3e1-e09121b3b794",
+            "type": "while-condition",
+            "condition": "audit_success == false",
+            "on_true": "action--run_audit",
+            "on_false": "end--8bd6b7e7-0b67-4f33-a3e1-e09121b3b794"
+        },
+        "action--run_audit": {
+            "name": "Run audit tool",
+            "description": "Execute the audit tool to verify system integrity.",
+            "on_completion": "if-condition--install_audit_tool",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_audit_tool.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "audit_success": {
+                    "type": "boolean",
+                    "description": "Indicates if the audit was successful",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--install_audit_tool": {
+            "name": "Check if audit tool is installed",
+            "type": "if-condition",
+            "condition": "audit_tool_installed != true",
+            "on_true": "action--install_audit_tool",
+            "on_false": "while-condition--aff48c5d-b24d-43c1-b59b-ef587ff1c4d4"
+        },
+        "action--install_audit_tool": {
+            "name": "Install audit tool",
+            "description": "Installing the audit tool if it is missing.",
+            "on_completion": "while-condition--aff48c5d-b24d-43c1-b59b-ef587ff1c4d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "install.audit_tool"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--8bd6b7e7-0b67-4f33-a3e1-e09121b3b794": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

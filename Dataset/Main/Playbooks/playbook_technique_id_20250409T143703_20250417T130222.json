@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--678f5235-63ed-4f80-85c4-ef21d5dcf02c",
+    "name": "Mitigation Playbook for Compromised User Account Incident",
+    "description": "This playbook addresses the incident of a compromised user account used to exfiltrate sensitive data over HTTPS to an external server.",
+    "created_by": "identity--4c20cb1d-dee5-4ed4-8325-b6d391d3631e",
+    "created": "2023-10-04T12:50:00Z",
+    "modified": "2023-10-04T12:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--de84e3e9-ae10-48b8-bc3d-15505b0bb493",
+    "workflow": {
+        "start--de84e3e9-ae10-48b8-bc3d-15505b0bb493": {
+            "on_completion": "action--c1eeced6-7d71-4b68-a5e2-d08423e5408c",
+            "type": "start"
+        },
+        "action--c1eeced6-7d71-4b68-a5e2-d08423e5408c": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Prevent data exfiltration by blocking outbound traffic to the identified malicious IP address.",
+            "on_completion": "if-condition--afdd7787-2b02-4425-b720-d526b7644af1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--afdd7787-2b02-4425-b720-d526b7644af1": {
+            "name": "Check user for unauthorized access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--afdd7787-2b02-4425-b720-d526b7644af1",
+            "on_false": "action--7f897b54-2026-49fe-b3dc-547bcb5b8481"
+        },
+        "action--afdd7787-2b02-4425-b720-d526b7644af1": {
+            "name": "Reset compromised user password",
+            "description": "Reset the password for the compromised user account to prevent further access.",
+            "on_completion": "action--7f897b54-2026-49fe-b3dc-547bcb5b8481",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd jdoe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7f897b54-2026-49fe-b3dc-547bcb5b8481": {
+            "name": "Conduct a full malware scan on host",
+            "description": "Scan the user's home directory for malware and move any detected threats to quarantine.",
+            "on_completion": "loop--4f1d4c46-d5c3-4ccf-b74b-a0660b04dca4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/jdoe/ --move=/quarantine/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--4f1d4c46-d5c3-4ccf-b74b-a0660b04dca4": {
+            "name": "Repeat malware scan until clean",
+            "description": "Continue scanning until the system is confirmed to be clean.",
+            "on_true": "action--7f897b54-2026-49fe-b3dc-547bcb5b8481",
+            "condition": "scan_results != 'clean'",
+            "type": "while-condition"
+        },
+        "end--384b1e2e-3295-4c42-9e90-e0ca50e5dbcc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

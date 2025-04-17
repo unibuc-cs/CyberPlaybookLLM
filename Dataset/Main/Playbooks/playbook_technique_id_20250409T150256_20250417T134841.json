@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e17f9c58-bdc9-4d3f-9b78-bc12f10a3eb9",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the corporate network and executed malicious scripts, resulting in unauthorized data access.",
+    "created_by": "identity--5fd1c0f3-1e52-4d9d-b31e-e2d02accac1a",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--57dff6b8-b90c-4b7b-a021-5a3f8abf7350",
+    "workflow": {
+        "start--57dff6b8-b90c-4b7b-a021-5a3f8abf7350": {
+            "on_completion": "action--f11e1c55-6c70-4f5f-a894-4e13f45441ba",
+            "type": "start"
+        },
+        "action--f11e1c55-6c70-4f5f-a894-4e13f45441ba": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script responsible for unauthorized actions.",
+            "on_completion": "if-condition--a7b3b1eb-049f-4934-a0e7-9bc9ebb8e32f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a7b3b1eb-049f-4934-a0e7-9bc9ebb8e32f": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "host_status == 'compromised'",
+            "on_true": "action--a7b3b1eb-049f-4934-a0e7-9bc9ebb8e32f",
+            "on_false": "action--b9254556-2bfe-4423-933e-bbe2bf1ddec7"
+        },
+        "action--a7b3b1eb-049f-4934-a0e7-9bc9ebb8e32f": {
+            "name": "Isolate affected host",
+            "description": "Block incoming connections from the attacker's IP.",
+            "on_completion": "parallel--b9254556-2bfe-4423-933e-bbe2bf1ddec7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b9254556-2bfe-4423-933e-bbe2bf1ddec7": {
+            "name": "Conduct security scan",
+            "description": "Perform a security scan on the affected host.",
+            "on_completion": "while-condition--scan_result_check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --target host-22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan_result_check": {
+            "name": "Check if scan results are clean",
+            "description": "Repeat security scan until results are clean.",
+            "type": "while-condition",
+            "condition": "scan_result == 'dirty'",
+            "on_true": "action--b9254556-2bfe-4423-933e-bbe2bf1ddec7"
+        },
+        "end--e275877e-8348-4b99-a1e9-64534857119f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

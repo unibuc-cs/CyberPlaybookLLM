@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1d3f8c1-4f55-47d5-b600-3e685038e65c",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident involving a PowerShell script executed via phishing, leading to data exfiltration.",
+    "created_by": "identity--1f2c4a6b-26a6-477c-8e45-1043eddd48d5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:05:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--10a1b2c3-d4e5-6f7g-8h9i-j0k1l2m3n4o5",
+    "workflow": {
+        "start--10a1b2c3-d4e5-6f7g-8h9i-j0k1l2m3n4o5": {
+            "on_completion": "action--d5b1edc7-7fb6-4c8e-9efe-da77ba65f14c",
+            "type": "start"
+        },
+        "action--d5b1edc7-7fb6-4c8e-9efe-da77ba65f14c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing the malicious script.",
+            "on_completion": "decision--process-exists-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--process-exists-check": {
+            "name": "Check if PowerShell processes exist",
+            "type": "if-condition",
+            "condition": "process_exists == true",
+            "on_true": "action--bc6d4e12-5453-4674-9d8e-4c0b55f61a01",
+            "on_false": "action--ed7b65ff-b3c8-4b64-b11c-242f40fbf26d"
+        },
+        "action--bc6d4e12-5453-4674-9d8e-4c0b55f61a01": {
+            "name": "Isolate affected host from network",
+            "description": "Isolate host-22 to prevent further exfiltration of data.",
+            "on_completion": "action--ff14f7e5-8f5c-403c-b5d2-b548f663a7af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ff14f7e5-8f5c-403c-b5d2-b548f663a7af": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Perform repeated malware scans on affected hosts until clean.",
+            "on_completion": "loop--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-malware-scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--scan-until-clean": {
+            "name": "Perform Malware Scan Loop",
+            "description": "Repeat scanning until the scan result is clean.",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--ff14f7e5-8f5c-403c-b5d2-b548f663a7af",
+            "on_false": "action--b2cb56ef-60a1-4750-981f-75b894d1b79e"
+        },
+        "action--b2cb56ef-60a1-4750-981f-75b894d1b79e": {
+            "name": "Review log files for suspicious activity",
+            "description": "Analyze auth log files for any suspicious actions.",
+            "on_completion": "action--ed7b65ff-b3c8-4b64-b11c-242f40fbf26d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep suspicious"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ed7b65ff-b3c8-4b64-b11c-242f40fbf26d": {
+            "name": "Notify security team of the incident",
+            "description": "Send an alert to the security team about the ongoing incident.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email security@organization.com 'Incident Alert'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "network_access_found == true"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

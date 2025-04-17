@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7a9f2e4-fa2e-4e98-b894-8ac4d6f29b1e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute remote commands and exfiltrate sensitive data.",
+    "created_by": "identity--12345678-abcd-4e56-8c3e-123456789abc",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d7a9f2e4-fa2e-4e98-b894-8ac4d6f29b1e",
+    "workflow": {
+        "start--d7a9f2e4-fa2e-4e98-b894-8ac4d6f29b1e": {
+            "on_completion": "action--13e1a91c-ad86-41b2-9a4c-d21f09c333a5",
+            "type": "start"
+        },
+        "action--13e1a91c-ad86-41b2-9a4c-d21f09c333a5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes running on the system.",
+            "on_completion": "action--b253f3a2-6af1-42db-b4cc-4ab6a8f49579",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM malicious.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b253f3a2-6af1-42db-b4cc-4ab6a8f49579": {
+            "name": "Remove malicious script",
+            "description": "Delete the downloaded malicious script from the system.",
+            "on_completion": "action--8c8794b7-4f54-4be4-a5d4-91539ca1b637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Temp\\malicious.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8c8794b7-4f54-4be4-a5d4-91539ca1b637": {
+            "name": "Terminate network connections to malicious IP",
+            "description": "Block any network connections to the attacker's IP address.",
+            "on_completion": "if-condition--25f64729-b6ce-40f6-8c1a-9c2f69f8c211",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-NetTCPConnection -RemoteAddress 192.168.1.100 | Remove-NetTCPConnection"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--25f64729-b6ce-40f6-8c1a-9c2f69f8c211": {
+            "name": "Check remote execution policy",
+            "type": "if-condition",
+            "condition": "remote_execution_enabled == true",
+            "on_true": "action--25f64729-b6ce-40f6-8c1a-9c2f69f8c211",
+            "on_false": "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf"
+        },
+        "action--25f64729-b6ce-40f6-8c1a-9c2f69f8c211": {
+            "name": "Disable remote script execution",
+            "description": "Restrict the execution of remote scripts to prevent further exploitation.",
+            "on_completion": "loop--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf": {
+            "name": "Scan for additional threats",
+            "description": "Perform a full system scan for any lingering threats. Repeat until a clean scan is achieved.",
+            "on_completion": "end--abc12345-67de-4fgh-89ij-123456789xyz",
+            "type": "while-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "end--abc12345-67de-4fgh-89ij-123456789xyz",
+            "on_false": "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf"
+        },
+        "action--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf": {
+            "name": "Execute full system scan",
+            "on_completion": "loop--c8edb2eb-872e-4a70-b4fa-aa98d003a1cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--abc12345-67de-4fgh-89ij-123456789xyz": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

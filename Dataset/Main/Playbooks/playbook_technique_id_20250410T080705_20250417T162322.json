@@ -1,0 +1,143 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c9e0fed3-e1c7-4df6-8025-f53a68383032",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an adversary executed unauthorized scripts to enumerate internal resources and exfiltrate data.",
+    "created_by": "identity--d44b1e45-3ae8-46d9-8430-cc6fa9e4ee3b",
+    "created": "2025-04-10T08:07:05.000Z",
+    "modified": "2025-04-10T08:07:05.000Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-1234-1234-1234-123456789012",
+    "workflow": {
+        "start--12345678-1234-1234-1234-123456789012": {
+            "on_completion": "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165",
+            "type": "start"
+        },
+        "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Kill the PowerShell process executing unauthorized scripts.",
+            "on_completion": "action--3127acee-575c-4dcb-8c43-8722c82e1e0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -F $(pgrep powershell)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3127acee-575c-4dcb-8c43-8722c82e1e0f": {
+            "name": "Restrict PowerShell execution policy",
+            "description": "Set the execution policy to restricted to prevent unauthorized script execution.",
+            "on_completion": "if-condition--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa": {
+            "name": "Check for confirmed compromise",
+            "description": "Determine if compromise is confirmed based on incident details.",
+            "type": "if-condition",
+            "condition": "confirmed_compromise == true",
+            "on_true": "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa",
+            "on_false": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc"
+        },
+        "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa": {
+            "name": "Change compromised user credentials",
+            "description": "Change the password for the compromised user account.",
+            "on_completion": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user new_password123"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc": {
+            "name": "Monitor and block suspicious outbound traffic",
+            "description": "Block any suspicious outbound traffic to prevent further data exfiltration.",
+            "on_completion": "loop--1edf9d54-b379-44e5-af9e-91c8b465d7ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 12345 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--1edf9d54-b379-44e5-af9e-91c8b465d7ce": {
+            "name": "Run antivirus scan until clean",
+            "description": "Run a full antivirus scan and repeat until the system is confirmed clean.",
+            "on_completion": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce",
+            "on_false": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9"
+        },
+        "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce": {
+            "name": "Run full antivirus scan",
+            "description": "Perform a full scan of the system.",
+            "on_completion": "set-scan-result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-scan-result": {
+            "name": "Set scan result",
+            "description": "Set the scan result from antivirus scan output.",
+            "on_completion": "loop--1edf9d54-b379-44e5-af9e-91c8b465d7ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_result=$(check_scan_output)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9": {
+            "name": "Check if firewall is disabled",
+            "description": "Ensure that the firewall is enabled to protect the system.",
+            "type": "if-condition",
+            "condition": "is_firewall_disabled == true",
+            "on_true": "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9",
+            "on_false": "end--ad5f0bf9-1f53-4e87-835f-b5b2f4cb59ea"
+        },
+        "action--4b8c55a2-b1ae-4519-b0ac-6eaefc2e5ff9": {
+            "name": "Update system firewall rules",
+            "description": "Activate the system firewall.",
+            "on_completion": "end--ad5f0bf9-1f53-4e87-835f-b5b2f4cb59ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state on"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--ad5f0bf9-1f53-4e87-835f-b5b2f4cb59ea": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

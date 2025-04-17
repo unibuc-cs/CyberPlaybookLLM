@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3e238bda-7df5-43e1-91c7-6ae5ab2e8ef2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained shell access and used a scripting interpreter for automated data exfiltration.",
+    "created_by": "identity--abc12345-6789-4abc-bcde-1234567890ab",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b9a10592-42c9-4f8b-b82b-f7d5c075b52a",
+    "workflow": {
+        "start--b9a10592-42c9-4f8b-b82b-f7d5c075b52a": {
+            "on_completion": "action--f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "type": "start"
+        },
+        "action--f47ac10b-58cc-4372-a567-0e02b2c3d479": {
+            "name": "Terminate malicious shell process",
+            "description": "Terminate the evil shell process if it's running.",
+            "on_completion": "if-condition--a26bca9e-b7fd-462c-ad0d-e2eea4e929d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[e]vil_shell' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a26bca9e-b7fd-462c-ad0d-e2eea4e929d7": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599",
+            "on_false": "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd"
+        },
+        "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599": {
+            "name": "Audit and monitor all executed scripts",
+            "description": "Audit the script logs for any sensitive data handling.",
+            "on_completion": "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'sensitive_data' /var/log/script_logs > /tmp/suspected_scripts.log"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "log_location": {
+                    "type": "string",
+                    "description": "Path to script logs for auditing.",
+                    "value": "/var/log/script_logs",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd": {
+            "name": "Initiate network traffic analysis",
+            "description": "Capture suspicious network traffic until the amount of suspicious traffic reaches zero.",
+            "on_completion": "while-condition--a1f250bc-8473-4d1b-b97f-4f143ad2a5f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'host not trusted_ip' -w /tmp/suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--a1f250bc-8473-4d1b-b97f-4f143ad2a5f0": {
+            "name": "Capture Traffic Loop",
+            "description": "Keep capturing traffic until suspicious traffic is zero.",
+            "on_completion": "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123",
+            "type": "while-condition",
+            "condition": "suspicious_traffic > 0",
+            "on_true": "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd"
+        },
+        "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123": {
+            "name": "Update network intrusion detection rules",
+            "description": "Update network security to protect against similar incidents.",
+            "on_completion": "if-condition--12c8236f-cec1-45ab-9d91-7a945c550cdd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "suricata-update && systemctl restart suricata"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--12c8236f-cec1-45ab-9d91-7a945c550cdd": {
+            "name": "Check if data integrity compromised",
+            "type": "if-condition",
+            "condition": "data_integrity == compromised",
+            "on_true": "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd",
+            "on_false": "end--b61d854e-9798-4d72-85aa-b8378ddd8c69"
+        },
+        "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd": {
+            "name": "Roll back database to restore point",
+            "description": "Restore the database to prevent data corruption.",
+            "on_completion": "end--b61d854e-9798-4d72-85aa-b8378ddd8c69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/db_restore --point=2023-09-30"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "end--b61d854e-9798-4d72-85aa-b8378ddd8c69": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "LogManagementSystem"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "DatabaseManagementSystem"
+        }
+    }
+}

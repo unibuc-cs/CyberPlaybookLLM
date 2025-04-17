@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3dcb7c4-d91c-4e44-8db2-60aecaff4320",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "A playbook to mitigate the incident where an attacker deployed a remote access tool using a script executed via a command interpreter.",
+    "created_by": "identity--0b5e43f8-e7b0-4c4c-8bba-b735b1182554",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc123456789",
+    "workflow": {
+        "start--abc123456789": {
+            "on_completion": "action--4cb7e3f6-1054-4f1e-bff7-b32079a0617b",
+            "type": "start"
+        },
+        "action--4cb7e3f6-1054-4f1e-bff7-b32079a0617b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious remote access tool process.",
+            "on_completion": "action--0a4d0e27-930a-4eed-b9b3-1e7a024d4325",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f rat-tool.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--0a4d0e27-930a-4eed-b9b3-1e7a024d4325": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious payload file from the system.",
+            "on_completion": "loop--56b0c3da-00f2-42f8-bcbe-4c5c87cbbdb0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/rat-tool.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--56b0c3da-00f2-42f8-bcbe-4c5c87cbbdb0": {
+            "name": "Check for persistence mechanisms",
+            "description": "Check for any persistence mechanisms set by the malicious script and remove them.",
+            "on_completion": "end--e2b9b29a-5ef0-4476-b4a5-40aa30375c38",
+            "type": "while-condition",
+            "condition": "crontab_contains_rat_tool",
+            "on_true": "action--check_crontab",
+            "on_false": "end--e2b9b29a-5ef0-4476-b4a5-40aa30375c38"
+        },
+        "action--check_crontab": {
+            "name": "Verify and update crontab",
+            "description": "Check if rat-tool is in crontab and remove it if present.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if crontab -l | grep 'rat-tool'; then crontab -l | grep -v 'rat-tool' | crontab -; fi"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--56b0c3da-00f2-42f8-bcbe-4c5c87cbbdb0"
+        },
+        "end--e2b9b29a-5ef0-4476-b4a5-40aa30375c38": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "crontab_contains_rat_tool": {
+            "type": "boolean",
+            "description": "Check if crontab has persistence entries for rat-tool.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        }
+    }
+}

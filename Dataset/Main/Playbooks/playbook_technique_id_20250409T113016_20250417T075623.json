@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0b3f5a2a-e5fb-4d9b-8425-123456789abc",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on the organization's server, gaining unauthorized access to sensitive data.",
+    "created_by": "identity--abc12345-6789-4def-0123-456789abcdef",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "incident_id": "2d4ee703-64f4-4b56-b66d-1d50e63a8bb9",
+    "workflow_start": "start--c9271c81-1cdf-4c56-921b-6d89b0f12345",
+    "workflow": {
+        "start--c9271c81-1cdf-4c56-921b-6d89b0f12345": {
+            "on_completion": "action--7a9fa11c-c5b6-427d-8bdf-a0f48620ea29",
+            "type": "start",
+            "name": "Initiate Workflow",
+            "description": "Start the mitigation actions for the incident."
+        },
+        "action--7a9fa11c-c5b6-427d-8bdf-a0f48620ea29": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--d6287141-44c6-4bda-bfe8-1c9249e18f9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d6287141-44c6-4bda-bfe8-1c9249e18f9c": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming traffic from the affected host.",
+            "on_completion": "loop--cdb767e4-8abc-4e8a-94f8-661e9a2f7046",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--cdb767e4-8abc-4e8a-94f8-661e9a2f7046": {
+            "name": "Run malware scan until complete",
+            "description": "Perform a malware scan on the temporary directory. Repeat until scan is clean.",
+            "type": "while-condition",
+            "condition": "malware_scan_status != 'clean'",
+            "on_true": "action--cdb767e4-8abc-4e8a-94f8-661e9a2f7046",
+            "on_false": "end--181c924e-2afe-4a83-8465-811dc66b1e09"
+        },
+        "action--cdb767e4-8abc-4e8a-94f8-661e9a2f7046": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan on the temporary directory.",
+            "on_completion": "loop--cdb767e4-8abc-4e8a-94f8-661e9a2f7046",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malwarescan --path /tmp; sleep 10;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--181c924e-2afe-4a83-8465-811dc66b1e09": {
+            "name": "End Workflow",
+            "description": "Complete the mitigation workflow.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

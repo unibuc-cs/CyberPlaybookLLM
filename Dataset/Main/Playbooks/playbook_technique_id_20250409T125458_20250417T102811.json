@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c92ac0a4-2506-46c5-8c69-6ab7f02c9755",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script from a phishing attack, leading to data exfiltration.",
+    "created_by": "identity--c1b09ee0-4b6e-4523-8658-b9a0d9a089d5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--29f64d6b-1a8f-44ac-a890-f2c5c87b8e3e",
+    "workflow": {
+        "start--29f64d6b-1a8f-44ac-a890-f2c5c87b8e3e": {
+            "on_completion": "if-condition--e91d17b8-8b3c-41fc-b495-955538157237",
+            "type": "start"
+        },
+        "if-condition--e91d17b8-8b3c-41fc-b495-955538157237": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "ProcessExists('powershell')",
+            "on_true": "action--f0c1a9e3-6b74-4c9b-a5a9-1f3c63b4e0a0",
+            "on_false": "action--d3f08261-faca-4c0f-90c0-302d1d4c924c"
+        },
+        "action--f0c1a9e3-6b74-4c9b-a5a9-1f3c63b4e0a0": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing the malicious script.",
+            "on_completion": "action--d3f08261-faca-4c0f-90c0-302d1d4c924c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d3f08261-faca-4c0f-90c0-302d1d4c924c": {
+            "name": "Block outbound traffic to suspicious IPs",
+            "description": "Prevent further data exfiltration by blocking outbound connections to known suspicious IPs.",
+            "on_completion": "while-condition--b5db73bf-e4f7-4d29-9643-404917723637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--b5db73bf-e4f7-4d29-9643-404917723637": {
+            "name": "Initiate Full System Scan",
+            "description": "Run a system scan and repeat until there are no threats detected.",
+            "on_completion": "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b5db73bf-e4f7-4d29-9643-404917723637"
+        },
+        "action--b5db73bf-e4f7-4d29-9643-404917723637": {
+            "name": "Initiate a full system scan",
+            "on_completion": "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054": {
+            "name": "Review logs for unauthorized access",
+            "description": "Check system logs for any unauthorized access incidents.",
+            "on_completion": "action--13b4b0c3-cfcd-4678-a44b-384c6c47b56d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--13b4b0c3-cfcd-4678-a44b-384c6c47b56d": {
+            "name": "Update threat intelligence feeds",
+            "description": "Fetch the latest threat intelligence to enhance security posture.",
+            "on_completion": "end--f4c0e7e0-b69f-459e-9847-6e0802f7b278",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_threat_feeds"
+                }
+            ],
+            "step_variables": {
+                "feed_sources": {
+                    "type": "array",
+                    "description": "List of sources for threat intelligence feeds.",
+                    "value": "['source1', 'source2']",
+                    "constant": false
+                }
+            },
+            "agent": "organization--abc"
+        },
+        "end--f4c0e7e0-b69f-459e-9847-6e0802f7b278": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

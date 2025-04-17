@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e72e2b7-e3f0-4e6b-ac58-1343f7ed2efd",
+    "name": "Mitigation Playbook for Unauthorized RDP Access",
+    "description": "This playbook addresses the incident of unauthorized access to the network via Remote Desktop Protocol (RDP) by managing access controls, terminating sessions, and auditing configurations.",
+    "created_by": "identity--xyz-1234-5678-90ab-cdef12345678",
+    "created": "2023-10-05T10:20:00Z",
+    "modified": "2023-10-05T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--uuid-1",
+    "workflow": {
+        "start--uuid-1": {
+            "on_completion": "if-condition--uuid-2",
+            "type": "start",
+            "name": "Start Mitigation Work",
+            "description": "Initiate the workflow to address RDP breach."
+        },
+        "if-condition--uuid-2": {
+            "name": "Check RDP Status",
+            "type": "if-condition",
+            "condition": "RDP_ENABLED == true",
+            "on_true": "action--uuid-3",
+            "on_false": "end--uuid-5"
+        },
+        "action--uuid-3": {
+            "name": "Restrict RDP Access",
+            "description": "Modify firewall rules to restrict RDP access.",
+            "on_completion": "action--uuid-4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='RDP Restriction' dir=in action=allow protocol=TCP localport=3389 remoteip=<trusted_ip>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--uuid-4": {
+            "name": "Kill Unauthorized RDP Sessions",
+            "description": "Terminate any unauthorized RDP sessions identified on the host.",
+            "on_completion": "action--uuid-6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "query session | findstr /C:Active | for /F 'tokens=3' %i in ('more') do logoff %i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--uuid-6": {
+            "name": "Run RDP Configuration Audit",
+            "description": "Perform a security audit on the RDP configuration.",
+            "on_completion": "end--uuid-5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./audit_rdp.sh"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "RDP_CONFIG_STATUS": {
+                    "type": "string",
+                    "description": "Flag indicating that RDP configuration has been audited.",
+                    "value": "checked",
+                    "constant": false
+                }
+            }
+        },
+        "end--uuid-5": {
+            "type": "end",
+            "description": "End of the RDP mitigation playbook."
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "RDP_ENABLED": {
+            "type": "boolean",
+            "description": "Flag indicating whether RDP is enabled.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

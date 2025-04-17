@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8bfbdf8-ccf8-4a73-8e63-cd241e48dac8",
+    "name": "Response Playbook for Malicious Script Execution and Data Exfiltration",
+    "description": "This playbook handles incidents where a malicious script has been executed on a server and initiates steps to mitigate the threat, including killing the malicious process, scanning for vulnerabilities, and blocking outbound traffic.",
+    "created_by": "identity--abc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ed7f352b-6b42-4b1b-bb5c-e1b02e26779a",
+    "workflow": {
+        "start--ed7f352b-6b42-4b1b-bb5c-e1b02e26779a": {
+            "on_completion": "parallel--19d107c0-dbb6-4278-85bb-1c34c62ac8e7",
+            "type": "start"
+        },
+        "parallel--19d107c0-dbb6-4278-85bb-1c34c62ac8e7": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate response actions in parallel to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bde9f390-d8bb-49df-b887-e8c589d68c8f",
+                "loop--6de437a3-34ba-4745-a4d0-6a57c758d69c",
+                "if-condition--e7f41d29-9c1a-4f43-9962-dbee5e05450e"
+            ]
+        },
+        "action--bde9f390-d8bb-49df-b887-e8c589d68c8f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "loop--6de437a3-34ba-4745-a4d0-6a57c758d69c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--6de437a3-34ba-4745-a4d0-6a57c758d69c": {
+            "name": "Scan for malware",
+            "description": "Repeatedly scan the system for vulnerabilities and malware until none are found.",
+            "type": "loop",
+            "condition": "malware_found == true",
+            "on_true": "action--6de437a3-34ba-4745-a4d0-6a57c758d69c",
+            "next_steps": [
+                "action--6de437a3-34ba-4745-a4d0-6a57c758d69c"
+            ]
+        },
+        "action--6de437a3-34ba-4745-a4d0-6a57c758d69c": {
+            "name": "Scan the host for vulnerabilities and malware",
+            "on_completion": "update_malware_found",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--e7f41d29-9c1a-4f43-9962-dbee5e05450e": {
+            "name": "Block outbound traffic to suspicious IP",
+            "type": "if-condition",
+            "condition": "detected_suspicious_ip == true",
+            "on_true": "action--e7f41d29-9c1a-4f43-9962-dbee5e05450e",
+            "on_false": "end--e7f41d29-9c1a-4f43-9962-dbee5e05450e"
+        },
+        "action--e7f41d29-9c1a-4f43-9962-dbee5e05450e": {
+            "name": "Block outbound traffic",
+            "description": "Block all outbound traffic to the identified suspicious IP address.",
+            "on_completion": "end--b51b678e-3e68-4ca6-aa77-c80090cde197",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b51b678e-3e68-4ca6-aa77-c80090cde197": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_found": {
+            "type": "boolean",
+            "description": "Flag to indicate if malware has been found during the scan.",
+            "value": true,
+            "constant": false
+        },
+        "detected_suspicious_ip": {
+            "type": "boolean",
+            "description": "Flag to indicate if the suspicious IP has been detected.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

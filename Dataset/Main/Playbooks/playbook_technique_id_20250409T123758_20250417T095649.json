@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--29a2043d-1f3d-4f59-a8e5-d3580e7f7910",
+    "name": "Mitigation Playbook for Internal Employee Malicious Script Execution",
+    "description": "This playbook addresses an internal employee executing a malicious PowerShell script that led to unauthorized data access and potential data exfiltration.",
+    "created_by": "identity--cabc15f3-df18-4b73-8345-af444cb15a81",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d14a1fd4-efc8-4893-b5da-ff7e673ed0d6",
+    "workflow": {
+        "start--d14a1fd4-efc8-4893-b5da-ff7e673ed0d6": {
+            "on_completion": "parallel--3bace4df-64f2-4b52-8cc6-dc258aafda3a",
+            "type": "start"
+        },
+        "parallel--3bace4df-64f2-4b52-8cc6-dc258aafda3a": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e9bde222-7f64-4c0f-a127-2a894be77a29",
+                "action--a6f63fb5-2dd1-4b9e-a3fd-9b963f00f8d3",
+                "action--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58"
+            ]
+        },
+        "action--e9bde222-7f64-4c0f-a127-2a894be77a29": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--a6f63fb5-2dd1-4b9e-a3fd-9b963f00f8d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a6f63fb5-2dd1-4b9e-a3fd-9b963f00f8d3": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent further outgoing connections to the identified malicious IP address.",
+            "on_completion": "action--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s hostile_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58": {
+            "name": "Perform incident response scan",
+            "description": "Run a security scan to identify residual threats from the malicious activity.",
+            "on_completion": "loop--2aae5b37-d4c1-4e8f-b204-72024913f308",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_security_scan.sh"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Store the result of the security scan",
+                    "value": "threat_found",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "loop--2aae5b37-d4c1-4e8f-b204-72024913f308": {
+            "name": "Repeat incident response scan until clear",
+            "description": "Continue to run security scans until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_result == 'threat_found'",
+            "on_true": "action--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58",
+            "on_false": "end--8c08c863-44f1-45bd-bba4-20cb62b9cf37"
+        },
+        "end--8c08c863-44f1-45bd-bba4-20cb62b9cf37": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

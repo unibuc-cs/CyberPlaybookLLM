@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2b96aa2-fe67-4f32-9c5b-57cf60c2d7d1",
+    "name": "Mitigation Playbook for Malicious PowerShell Use",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell commands to exfiltrate sensitive data.",
+    "created_by": "identity--xyz-1cda-47ef-904a-94e61652b551",
+    "created": "2023-10-20T15:50:00Z",
+    "modified": "2023-10-20T15:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--1c103e53-e2a5-4d40-bdc2-a8073a98f0c2",
+    "workflow": {
+        "start--1c103e53-e2a5-4d40-bdc2-a8073a98f0c2": {
+            "on_completion": "parallel--b2489e1c-e936-475e-b29b-fcd1a942ce11",
+            "type": "start"
+        },
+        "parallel--b2489e1c-e936-475e-b29b-fcd1a942ce11": {
+            "name": "Execute Mitigations",
+            "description": "Trigger isolation, process termination, and initiate scanning.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f6c69f49-7535-49e0-ae56-e88c592d5da7",
+                "action--0aba9c76-5c84-4af5-b3d7-57a0caac104b",
+                "loop--99e3d356-pe2f-4ed8-80fb-d3601147e3a3"
+            ]
+        },
+        "action--f6c69f49-7535-49e0-ae56-e88c592d5da7": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-14 from the network",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-14' ]; then isolate-host; fi"
+                }
+            ],
+            "on_completion": "action--0aba9c76-5c84-4af5-b3d7-57a0caac104b"
+        },
+        "action--0aba9c76-5c84-4af5-b3d7-57a0caac104b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell instances.",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "on_completion": "loop--99e3d356-pe2f-4ed8-80fb-d3601147e3a3"
+        },
+        "loop--99e3d356-pe2f-4ed8-80fb-d3601147e3a3": {
+            "name": "Run malware scanner until clear",
+            "description": "Conduct malware scans repeatedly until the affected host is clean.",
+            "type": "loop",
+            "condition": "scan_result != 'clean'",
+            "next_steps": [
+                "action--run-scanner"
+            ]
+        },
+        "action--run-scanner": {
+            "name": "Run malware scanner on affected host",
+            "description": "Execute the malware scanner on host-14.",
+            "type": "action",
+            "agent": "organization--xyz",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scanner host-14"
+                }
+            ],
+            "on_completion": "loop--99e3d356-pe2f-4ed8-80fb-d3601147e3a3"
+        },
+        "end--b45f65e6-482f-4bc6-bcba-bf668cc67747": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0084aa5-2b5d-4a7d-a164-ec1c94cd54ef",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker leveraged a command-line interface to execute malicious scripts on a target system.",
+    "created_by": "identity--abc12345",
+    "created": "2023-10-05T14:40:00Z",
+    "modified": "2023-10-05T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--b9c65edb-1a69-4893-b935-2c7d7337c1f5",
+    "workflow": {
+        "start--b9c65edb-1a69-4893-b935-2c7d7337c1f5": {
+            "on_completion": "action--cd4d4e3b-5a81-43d1-ae9c-8755ba33d695",
+            "type": "start"
+        },
+        "action--cd4d4e3b-5a81-43d1-ae9c-8755ba33d695": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "if-condition--b321425e-82e7-4a45-b61b-cf509f058f05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b321425e-82e7-4a45-b61b-cf509f058f05": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "test -f /home/user/suspicious_file.txt",
+            "on_true": "action--a043187b-b5c5-4b66-8424-fb858d1d9131",
+            "on_false": "loop--b26765c9-bc9e-4f7f-bce5-9caceb45c320"
+        },
+        "action--a043187b-b5c5-4b66-8424-fb858d1d9131": {
+            "name": "Delete dropped malicious file",
+            "description": "Remove the malicious payload dropped in the user directory.",
+            "on_completion": "loop--b26765c9-bc9e-4f7f-bce5-9caceb45c320",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /home/user/suspicious_file.txt"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--b26765c9-bc9e-4f7f-bce5-9caceb45c320": {
+            "name": "Initiate full system scan loop",
+            "description": "Perform a full system scan, repeating until the scan reports no threats.",
+            "on_completion": "if-condition--8ebc8c2c-7ed9-4737-a9fc-5c2f507041ca",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e1f44b9b-7a1c-4387-909e-e765e7c5ea8f"
+        },
+        "action--e1f44b9b-7a1c-4387-909e-e765e7c5ea8f": {
+            "name": "Initiate full system scan",
+            "description": "Perform a scan of the system to find other possible threats.",
+            "on_completion": "loop--b26765c9-bc9e-4f7f-bce5-9caceb45c320",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the system scan",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--fa464c4c-7b74-4895-bc36-5d6dce0d2ed2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

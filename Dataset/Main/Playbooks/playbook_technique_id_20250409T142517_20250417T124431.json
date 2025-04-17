@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9615f5e-7c99-4e94-bc2e-8f514c8c8c80",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed unauthorized scripts via command-line, detected through unusual script execution patterns on multiple hosts.",
+    "created_by": "identity--sample-organization",
+    "created": "2023-10-14T12:00:00Z",
+    "modified": "2023-10-14T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d3b70f60-e4c2-4f4b-9fa3-addf3d4ed9f",
+    "workflow": {
+        "start--d3b70f60-e4c2-4f4b-9fa3-addf3d4ed9f": {
+            "on_completion": "action--f5b1c5b4-9d05-493e-8622-a84388fefc13",
+            "type": "start"
+        },
+        "action--f5b1c5b4-9d05-493e-8622-a84388fefc13": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized script processes running on the host.",
+            "on_completion": "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e": {
+            "name": "Check for existing outbound connection",
+            "type": "if-condition",
+            "condition": "exists_outbound_connection",
+            "on_true": "loop--block_outbound_connection",
+            "on_false": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd"
+        },
+        "loop--block_outbound_connection": {
+            "name": "Block outbound connection loop",
+            "description": "Repeatedly block any existing malicious outbound connections until none exists.",
+            "on_completion": "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "type": "while-condition",
+            "condition": "exists_outbound_connection == true",
+            "on_true": "action--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "on_false": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd"
+        },
+        "action--e88e8bc6-7b0c-4891-b8d0-bc34af56731e": {
+            "name": "Block outbound connection",
+            "description": "Use iptables to drop any existing outbound connections to malicious IP.",
+            "on_completion": "loop--block_outbound_connection",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd": {
+            "name": "Conduct system scan",
+            "description": "Scan the entire system for malware and log results.",
+            "on_completion": "loop--scan_until_clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scanner --scan / --log scan_results.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan_until_clean": {
+            "name": "Scan clean loop",
+            "description": "Continue scanning until the scan results are clean.",
+            "on_completion": "end--complete-scan",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd",
+            "on_false": "end--complete-scan"
+        },
+        "end--complete-scan": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

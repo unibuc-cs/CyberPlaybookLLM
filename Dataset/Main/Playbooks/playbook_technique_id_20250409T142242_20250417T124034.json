@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--87fcec76-58c2-4c62-84fe-58de47363289",
+    "name": "Playbook for Malicious Script Execution Incident Mitigation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute a malicious script that exfiltrated sensitive data.",
+    "created_by": "identity--0b635e55-9e49-47e3-8fd2-037d5c0d9a78",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d53fb546-33ec-4b77-ba1f-69c5b2a57a5b",
+    "workflow": {
+        "start--d53fb546-33ec-4b77-ba1f-69c5b2a57a5b": {
+            "on_completion": "action--3b2f2f58-08c9-4f66-b732-1ae763bc05b1",
+            "type": "start"
+        },
+        "action--3b2f2f58-08c9-4f66-b732-1ae763bc05b1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--c4c9a074-3d8c-47d4-b38d-ccd8e1ed2f90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c4c9a074-3d8c-47d4-b38d-ccd8e1ed2f90": {
+            "name": "Identify executed scripts",
+            "description": "Search the logs for other instances of the malicious script.",
+            "on_completion": "while-condition--loop-check-scripts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_script.sh' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--loop-check-scripts": {
+            "name": "Check for more instances of executed scripts",
+            "description": "Repeat the log check until no further instances of the malicious script are found.",
+            "on_true": "action--c4c9a074-3d8c-47d4-b38d-ccd8e1ed2f90",
+            "on_false": "action--e8e735c9-4c8a-4a7b-841e-e74f63407be4",
+            "type": "while-condition",
+            "condition": "grep 'malicious_script.sh' /var/log/syslog | wc -l > 0"
+        },
+        "action--e8e735c9-4c8a-4a7b-841e-e74f63407be4": {
+            "name": "Block outgoing traffic to suspicious IP",
+            "description": "Block any outgoing traffic to known suspicious IPs.",
+            "on_completion": "action--f91dfde5-75b6-4cac-9181-0f55549a4735",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "suspicious_ip": {
+                    "type": "string",
+                    "description": "The external IP address to block",
+                    "value": "<external-IP-address-here>",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--f91dfde5-75b6-4cac-9181-0f55549a4735": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a full system scan to check for any remaining threats.",
+            "on_completion": "loop-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop-condition--scan-check": {
+            "name": "Check if scan is clean",
+            "description": "Repeat the scan until the system is confirmed clean.",
+            "on_true": "end--a4d1e5b6-a8c8-4537-bf08-1ce94f9c99a5",
+            "on_false": "action--f91dfde5-75b6-4cac-9181-0f55549a4735",
+            "type": "while-condition",
+            "condition": "clamscan --quiet --infected | wc -l == 0"
+        },
+        "end--a4d1e5b6-a8c8-4537-bf08-1ce94f9c99a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

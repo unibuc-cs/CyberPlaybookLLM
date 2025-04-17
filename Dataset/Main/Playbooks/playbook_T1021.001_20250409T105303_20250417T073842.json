@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7b2fa64-ad74-4d55-8fab-4a77f37e1d28",
+    "name": "Mitigation Playbook for RDP Compromise Incident",
+    "description": "This playbook addresses an incident where an attacker exploited weak credentials to gain unauthorized access to a critical server via Remote Desktop Protocol, leading to data exfiltration attempts.",
+    "created_by": "identity--abcde12345-6789-0abc-defg-hijklmnopqrst",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1f62c93e-4f2e-4c36-8cb0-35d06e903e4f",
+    "workflow": {
+        "start--1f62c93e-4f2e-4c36-8cb0-35d06e903e4f": {
+            "on_completion": "action--e1eae9c0-04f8-4e01-9b83-3a1ea633d8c9",
+            "type": "start"
+        },
+        "action--e1eae9c0-04f8-4e01-9b83-3a1ea633d8c9": {
+            "name": "Revoke RDP access",
+            "description": "Removing access from the compromised user account to prevent further unauthorized access.",
+            "on_completion": "parallel--b3d95b60-9c94-4095-bfdf-da12a123f3e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user /delete suspicious_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--b3d95b60-9c94-4095-bfdf-da12a123f3e0": {
+            "name": "Monitor traffic and audit server",
+            "description": "Simultaneously monitor network traffic for unusual activity and conduct a full security audit on the affected server.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b3d95b60-9c94-4095-bfdf-da12a123f3e0",
+                "action--d5b79c4c-cd5e-4e27-99e4-ebd3f0db2163"
+            ]
+        },
+        "action--b3d95b60-9c94-4095-bfdf-da12a123f3e0": {
+            "name": "Monitor network traffic",
+            "description": "Monitoring for unusual outbound connections to detect data exfiltration attempts.",
+            "on_completion": "action--b3d95b60-9c94-4095-bfdf-da12a123f3e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n host external_server_ip"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_extensions": {
+                "loop": {
+                    "type": "while",
+                    "condition": "traffic_detected()",
+                    "interval": "5m",
+                    "on_true": "alert"
+                }
+            }
+        },
+        "action--d5b79c4c-cd5e-4e27-99e4-ebd3f0db2163": {
+            "name": "Initiate full security audit",
+            "description": "Conduct a full security audit on the affected server.",
+            "on_completion": "end--4f12e0f9-d451-490b-bf39-0905e8c20e22",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_audit_tool --server server-01 --output audit_report"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "audit_report": {
+                    "type": "string",
+                    "description": "Path where the audit report will be saved.",
+                    "value": "audit_report_location",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--4f12e0f9-d451-490b-bf39-0905e8c20e22": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

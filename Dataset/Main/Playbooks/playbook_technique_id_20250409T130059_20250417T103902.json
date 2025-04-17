@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b45a57d7-5866-4d3d-9315-bfcb01d728bd",
+    "name": "Mitigation Playbook for Web Shell Incident",
+    "description": "This playbook addresses an incident where an attacker executed arbitrary scripts on a server via a vulnerable web application.",
+    "created_by": "identity--fed7bb1b-c48f-4c5a-b1d6-f3b579c4c7e8",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--74376ef8-e54b-4a8a-84e0-80e495b941b1",
+    "workflow": {
+        "start--74376ef8-e54b-4a8a-84e0-80e495b941b1": {
+            "on_completion": "action--df88afa3-1d9b-44c2-93fc-350baaf3f9b5",
+            "type": "start"
+        },
+        "action--df88afa3-1d9b-44c2-93fc-350baaf3f9b5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious web shell.",
+            "on_completion": "action--fa2a3d23-e801-4ef9-a943-06be2cd77c9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f webshell.php"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fa2a3d23-e801-4ef9-a943-06be2cd77c9c": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete any lingering unauthorized scripts associated with the web shell attack.",
+            "on_completion": "while-condition--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/html -name 'webshell.php' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a": {
+            "name": "Scan for additional malicious files",
+            "description": "Perform ongoing scans for malicious files until the scan is clean.",
+            "on_true": "action--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "condition": "scan_result != 'clean'",
+            "type": "while-condition"
+        },
+        "action--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a": {
+            "name": "Execute scan for threats",
+            "description": "Run a recursive virus scan to identify any additional malicious files.",
+            "on_completion": "while-condition--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/www/html"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the scan indicating if it is clean.",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--2b663842-1557-4d7e-8da3-d6609cd36778": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

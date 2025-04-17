@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--17f83e34-c452-4609-a016-0cc40f731c97",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access via a script, allowing remote control of the system. The playbook encompasses multiple mitigations and decision-making processes based on detected threats.",
+    "created_by": "identity--abcd1234-ef56-78gh-90ij-klmnopqrstuv",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--c41647e2-4e2f-4bf8-873b-bc5b54ac0973",
+    "workflow": {
+        "start--c41647e2-4e2f-4bf8-873b-bc5b54ac0973": {
+            "on_completion": "action--bd80e4fb-4ae2-4b2f-9eb8-f9c6a23d5df8",
+            "type": "start"
+        },
+        "action--bd80e4fb-4ae2-4b2f-9eb8-f9c6a23d5df8": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--c2d43b1e-9c6e-4a2a-8e59-b2af77d56e05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c2d43b1e-9c6e-4a2a-8e59-b2af77d56e05": {
+            "name": "Restore modified system files from backup",
+            "description": "Replace modified files with backups to ensure system integrity.",
+            "on_completion": "while-condition--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/system_files /system_files"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0": {
+            "name": "Scan for additional scripts",
+            "description": "Scan the system for additional potentially malicious scripts.",
+            "on_completion": "decision--d47c91ee-7c04-418c-9a62-45d8e0498cc8",
+            "type": "while-condition",
+            "condition": "suspicious_scripts_found",
+            "on_true": "action--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0",
+            "on_false": "action--dd0b4d57-742b-4500-b1bf-d348b296574f"
+        },
+        "action--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0": {
+            "name": "Find additional malicious scripts",
+            "on_completion": "while-condition--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--d47c91ee-7c04-418c-9a62-45d8e0498cc8": {
+            "name": "Check for unauthorized connections",
+            "type": "if-condition",
+            "condition": "unauthorized_connections_detected",
+            "on_true": "action--d47c91ee-7c04-418c-9a62-45d8e0498cc8",
+            "on_false": "action--dd0b4d57-742b-4500-b1bf-d348b296574f"
+        },
+        "action--d47c91ee-7c04-418c-9a62-45d8e0498cc8": {
+            "name": "Deploy network monitoring agents",
+            "description": "Install monitoring agents to track network activity.",
+            "on_completion": "action--dd0b4d57-742b-4500-b1bf-d348b296574f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deploy-monitoring-agent --approve"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--dd0b4d57-742b-4500-b1bf-d348b296574f": {
+            "name": "Restrict script interpreter permissions",
+            "description": "Ensure the script interpreter has restricted permissions.",
+            "on_completion": "action--51cbfda4-aa9f-4ad2-bfdb-ba3e44f7ae66",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod 750 ${interpreter_path}"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "interpreter_path": {
+                    "type": "string",
+                    "description": "Path to the script interpreter to restrict permissions",
+                    "value": "/usr/bin/interpreter",
+                    "constant": false
+                }
+            }
+        },
+        "action--51cbfda4-aa9f-4ad2-bfdb-ba3e44f7ae66": {
+            "name": "Update all interpreter applications",
+            "description": "Ensure all interpreter applications are up to date.",
+            "on_completion": "end--f0276436-afd7-4799-b93f-beef147b132c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f0276436-afd7-4799-b93f-beef147b132c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

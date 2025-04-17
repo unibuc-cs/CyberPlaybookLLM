@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4ab9455-64b6-45ce-9c58-618c1e8e6161",
+    "name": "Playbook for Command and Scripting Interpreter Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a script vulnerability to execute arbitrary commands on the server.",
+    "created_by": "identity--default-identity",
+    "created": "2023-10-10T14:40:00Z",
+    "modified": "2023-10-10T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--1e4d1f47-3104-4c68-b838-ab5db99b8b98",
+    "workflow": {
+        "start--1e4d1f47-3104-4c68-b838-ab5db99b8b98": {
+            "on_completion": "action--e3524a44-bdca-4b9d-9a2f-b562b7e55b58",
+            "type": "start"
+        },
+        "action--e3524a44-bdca-4b9d-9a2f-b562b7e55b58": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--4c5f31b1-c913-40fb-8995-9bcd456d6551",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4c5f31b1-c913-40fb-8995-9bcd456d6551": {
+            "name": "Monitor network for further suspicious activities",
+            "description": "Capture network traffic to identify further anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc",
+            "next_steps": [
+                "condition--abnormal_network_traffic"
+            ]
+        },
+        "condition--abnormal_network_traffic": {
+            "name": "Check for abnormal network traffic",
+            "type": "if-condition",
+            "condition": "network_traffic_abnormal == true",
+            "on_true": "loop--monitor_network",
+            "on_false": "action--f4900f15-b9c8-4913-8b06-192348a2e248"
+        },
+        "loop--monitor_network": {
+            "name": "Network Monitoring Loop",
+            "description": "Repeat monitoring every 10 minutes until no anomalies detected.",
+            "on_completion": "condition--abnormal_network_traffic",
+            "type": "while-condition",
+            "condition": "network_traffic_abnormal == true",
+            "on_true": "action--4c5f31b1-c913-40fb-8995-9bcd456d6551"
+        },
+        "action--f4900f15-b9c8-4913-8b06-192348a2e248": {
+            "name": "Conduct a full system scan for malware",
+            "description": "Perform a full system scan to detect malware and other threats.",
+            "on_completion": "end--a99a1023-ec4a-4fc5-9885-8f3429da5c92",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r ${TARGET_DIR} --bell -i"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "TARGET_DIR": {
+                    "type": "string",
+                    "value": "/",
+                    "constant": true
+                }
+            }
+        },
+        "end--a99a1023-ec4a-4fc5-9885-8f3429da5c92": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

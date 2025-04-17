@@ -1,0 +1,127 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2e8f7a4c-423e-49a2-bb36-3d5c8e3c5678",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook is designed to address incidents where attackers have leveraged command and scripting interpreters to execute malicious scripts and exfiltrate data remotely.",
+    "created_by": "identity--xyz",
+    "created": "2023-10-13T15:00:00Z",
+    "modified": "2023-10-13T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f2b9d2a4-cf67-4b3b-8b6a-d5d0e4e12345",
+    "workflow": {
+        "start--f2b9d2a4-cf67-4b3b-8b6a-d5d0e4e12345": {
+            "on_completion": "parallel--3b9d1c2f-4eaf-45c8-8e1b-5e0f7b8a9b6e",
+            "type": "start"
+        },
+        "parallel--3b9d1c2f-4eaf-45c8-8e1b-5e0f7b8a9b6e": {
+            "name": "Parallel Execution of Initial Mitigations",
+            "description": "Execute immediate mitigation steps in parallel to ensure swift response.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--7c13b2d9-5b2f-4296-9f00-5e1d67a7b5a6",
+                "action--1f9f2b9b-d7ab-4b68-8e64-5e0f5a0954b2"
+            ]
+        },
+        "if-condition--7c13b2d9-5b2f-4296-9f00-5e1d67a7b5a6": {
+            "name": "Check if Suspicious Script is Running",
+            "description": "Determine if the suspicious script is running before attempting to terminate.",
+            "type": "if-condition",
+            "condition": "script_running == true",
+            "on_true": "action--terminate-script-7c13b2d9",
+            "on_false": "action--scan-systems-5e7a8b2a"
+        },
+        "action--terminate-script-7c13b2d9": {
+            "name": "Terminate Malicious Scripts",
+            "description": "Terminate any instances of the suspicious script.",
+            "on_completion": "action--scan-systems-5e7a8b2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1f9f2b9b-d7ab-4b68-8e64-5e0f5a0954b2": {
+            "name": "Block Outbound Traffic",
+            "description": "Block outbound traffic to the suspicious domain to prevent further data exfiltration.",
+            "on_completion": "action--deploy-monitoring-8e7c3b2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--scan-systems-5e7a8b2a": {
+            "name": "Scan Systems for Remaining Threats",
+            "description": "Scan systems to identify any remaining threats.",
+            "on_completion": "action--restore-systems-3f9b1c2d",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "scan-execution-loop",
+            "on_false": "action--restore-systems-3f9b1c2d",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "True if the scan finds no additional threats.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "scan-execution-loop": {
+            "name": "Execution Loop for Scans",
+            "description": "Execute scans until systems are found clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --infected"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--scan-systems-5e7a8b2a"
+        },
+        "action--restore-systems-3f9b1c2d": {
+            "name": "Restore Systems to Last Known Good State",
+            "description": "Restore systems to the last known good state to ensure any compromised components are reverted.",
+            "on_completion": "action--deploy-monitoring-8e7c3b2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "recovery_tool --restore --date=2023-10-12"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--deploy-monitoring-8e7c3b2f": {
+            "name": "Deploy Enhanced Monitoring",
+            "description": "Deploy enhanced monitoring configurations to detect future incidents.",
+            "on_completion": "end--f5e8c3b2-1a9e-4d0f-959c-7f5e6d8a5e4f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deploy_monitoring_tool --config=enhanced"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f5e8c3b2-1a9e-4d0f-959c-7f5e6d8a5e4f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        }
+    }
+}

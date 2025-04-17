@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e48c0f41-e47d-45e6-b9c3-2057cb3b71df",
+    "name": "Mitigation Playbook for WMI Exploitation Incident",
+    "description": "This playbook automates responses to an incident involving exploitation of Windows Management Instrumentation (WMI) for unauthorized access.",
+    "created_by": "identity--0da2fa20-4b4f-4c8a-b61e-f1a7a4314b63",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e5f67660-4c8f-4cb3-aa80-f2f12f5f7404",
+    "workflow": {
+        "start--e5f67660-4c8f-4cb3-aa80-f2f12f5f7404": {
+            "on_completion": "parallel--2b05b75c-f77d-4ed3-bc43-8e713758af0a",
+            "type": "start"
+        },
+        "parallel--2b05b75c-f77d-4ed3-bc43-8e713758af0a": {
+            "name": "Mitigate WMI Exploit",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f6723b3a-a5d7-4dac-bf72-ef23b2ffa7c7",
+                "action--c7acdb75-644a-4e69-b3f2-1a763919cbab",
+                "action--f2b6e462-d53c-4c6b-82ba-94d4f2ca4bbd",
+                "action--9c14c104-e865-4d87-9aaf-3c87e7d7f3bb",
+                "if-condition--cde3e634-b121-4f27-a489-0fc0e2e0d44d"
+            ]
+        },
+        "action--f6723b3a-a5d7-4dac-bf72-ef23b2ffa7c7": {
+            "name": "Identify and terminate WMI-related malicious processes",
+            "description": "Terminate malicious processes that are executed via WMI.",
+            "on_completion": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "wmic process where \"name='malicious_process.exe'\" delete"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c7acdb75-644a-4e69-b3f2-1a763919cbab": {
+            "name": "Run integrity checks on critical files",
+            "description": "Check critical files for integrity using MD5 checksums.",
+            "on_completion": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "md5sum /path/to/critical/file | grep -q $(cat /path/to/expected/md5)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f2b6e462-d53c-4c6b-82ba-94d4f2ca4bbd": {
+            "name": "Monitor WMI traffic for anomalies",
+            "description": "Capture WMI traffic to analyze for malicious activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 port 135 -w wmi_traffic.pcap"
+                }
+            ],
+            "agent": "organization--xyz",
+            "next_steps": "loop--while-monitoring"
+        },
+        "loop--while-monitoring": {
+            "type": "while-condition",
+            "condition": "analysis_complete == false",
+            "on_true": "action--f2b6e462-d53c-4c6b-82ba-94d4f2ca4bbd",
+            "on_false": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd"
+        },
+        "action--9c14c104-e865-4d87-9aaf-3c87e7d7f3bb": {
+            "name": "Audit event logs for unauthorized access",
+            "description": "Extract event logs related to unauthorized access.",
+            "on_completion": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-WinEvent -LogName Security | Where-Object {$_.Id -eq '4624'} | Export-Csv -Path ./logs/audit.csv"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--cde3e634-b121-4f27-a489-0fc0e2e0d44d": {
+            "name": "Check for unauthorized accounts",
+            "type": "if-condition",
+            "condition": "unauthorized_accounts_found == true",
+            "on_true": "action--cde3e634-b121-4f27-a489-0fc0e2e0d44d",
+            "on_false": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd"
+        },
+        "action--cde3e634-b121-4f27-a489-0fc0e2e0d44d": {
+            "name": "Disable WMI for unauthorized accounts",
+            "description": "Remove unauthorized accounts from the Remote Management Users group.",
+            "on_completion": "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net localgroup \"Remote Management Users\" username /delete"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--dbe27748-1c0e-4d0f-bb15-b1afc80a35cd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Security Operations Center"
+        }
+    }
+}

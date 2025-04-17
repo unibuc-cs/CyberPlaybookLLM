@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b934cd3-7dee-4e5e-a646-61498eafec0a",
+    "name": "Response Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker leveraged the command line to execute malicious scripts that exfiltrated sensitive data. The playbook outlines steps to mitigate the threat.",
+    "created_by": "identity--b55f5332-4c5f-4cf2-9f6e-f8b0abf7e2a6",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b7e613af-22bd-4a4c-9514-e5d174570f77",
+    "workflow": {
+        "start--b7e613af-22bd-4a4c-9514-e5d174570f77": {
+            "on_completion": "parallel--1cb7f638-d900-4fa2-bb58-7eadbd0240c5",
+            "type": "start"
+        },
+        "parallel--1cb7f638-d900-4fa2-bb58-7eadbd0240c5": {
+            "name": "Execute Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d68b440d-feb6-4e47-b15f-8bc8f59c57db",
+                "action--e1c5ed30-1d07-4e67-8037-d0b208172fd4",
+                "action--c51e3bab-2b3a-4719-b62f-db896c799b2b"
+            ]
+        },
+        "action--d68b440d-feb6-4e47-b15f-8bc8f59c57db": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the malicious scripts.",
+            "on_completion": "action--05342f51-c12f-4e1d-bdf0-fc1c75c3f6da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e1c5ed30-1d07-4e67-8037-d0b208172fd4": {
+            "name": "Block External Server Access",
+            "description": "Prevent outbound connections to the suspected server.",
+            "on_completion": "action--b667c654-2b3b-42f4-ab3e-eabd3b767832",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d suspicious-server.com -j REJECT"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c51e3bab-2b3a-4719-b62f-db896c799b2b": {
+            "name": "Reset Admin Passwords",
+            "description": "Reset passwords for all administrative users.",
+            "on_completion": "action--05342f51-c12f-4e1d-bdf0-fc1c75c3f6da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat admin_users.txt); do passwd $user; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--05342f51-c12f-4e1d-bdf0-fc1c75c3f6da": {
+            "name": "Scan System for Malware",
+            "description": "Perform a comprehensive scan of the system to identify and remove malware.",
+            "on_completion": "loop--7e4db055-e250-4e9c-9d52-8c677b557df3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--7e4db055-e250-4e9c-9d52-8c677b557df3": {
+            "name": "Monitor Malware Scan",
+            "description": "Continue to scan until the system is clean of malware.",
+            "on_completion": "action--b667c654-2b3b-42f4-ab3e-eabd3b767832",
+            "type": "while-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--05342f51-c12f-4e1d-bdf0-fc1c75c3f6da"
+        },
+        "action--b667c654-2b3b-42f4-ab3e-eabd3b767832": {
+            "name": "Review Logs for Suspicious Activities",
+            "description": "Check system logs for any suspicious actions that may indicate further compromises.",
+            "on_completion": "end--e15fccc4-bd7c-4dc5-9fc5-2375bae30fd2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/syslog | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e15fccc4-bd7c-4dc5-9fc5-2375bae30fd2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

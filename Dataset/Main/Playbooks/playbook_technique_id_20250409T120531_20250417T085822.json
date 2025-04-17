@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fd839a4b-1a5b-46ff-973a-f46cee64b222",
+    "name": "Mitigation Playbook for PowerShell Command Abuse Incident",
+    "description": "Addresses a security incident involving the execution of malicious PowerShell commands on internal servers.",
+    "created_by": "identity--60ec646b-e2d7-4485-b4ea-c3bc1a0785e3",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--ec45708c-5300-4f80-bdd3-7e1cb458b89c",
+    "workflow": {
+        "start--ec45708c-5300-4f80-bdd3-7e1cb458b89c": {
+            "on_completion": "action--c1737847-e44c-40e9-a53c-e98b2d295237",
+            "type": "start"
+        },
+        "action--c1737847-e44c-40e9-a53c-e98b2d295237": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious commands.",
+            "on_completion": "action--7f58d82c-6c3d-45f8-9f21-df6940a9e07a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7f58d82c-6c3d-45f8-9f21-df6940a9e07a": {
+            "name": "Isolate affected hosts from the network",
+            "description": "Prevent affected hosts from communicating with the network.",
+            "on_completion": "loop--9817c27f-fb82-4311-9c31-efc7e843fdd0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--9817c27f-fb82-4311-9c31-efc7e843fdd0": {
+            "name": "Scan for additional malicious files",
+            "description": "Repeatedly scan the system for malicious files until no threats are found.",
+            "on_completion": "if-clean--clean-check",
+            "type": "while-condition",
+            "condition": "scan_status == 'unclean'",
+            "on_true": "action--9817c27f-fb82-4311-9c31-efc7e843fdd0",
+            "on_false": "end--00000000-0000-0000-0000-000000000000"
+        },
+        "action--9817c27f-fb82-4311-9c31-efc7e843fdd0": {
+            "name": "Scan for malicious files",
+            "description": "Find and scan all executable files across the network.",
+            "on_completion": "action--check-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.exe' -exec /usr/bin/clamav {} \\;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--check-scan-status": {
+            "name": "Check scan status",
+            "description": "Set the condition variable based on the scan result.",
+            "on_completion": "loop--9817c27f-fb82-4311-9c31-efc7e843fdd0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(clamav_status) == 'clean' ]; then echo 'clean'; else echo 'unclean'; fi"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan result",
+                    "value": "unclean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--00000000-0000-0000-0000-000000000000": {
+            "name": "End of mitigation process",
+            "description": "All actions completed.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,143 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b0e069b5-0ded-40eb-9472-de837b7f86e1",
+    "name": "Mitigation Playbook for Malicious Command Execution",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application, executed malicious scripts, escalated privileges, and established a foothold on the server.",
+    "created_by": "identity--f1a0c5c1-726f-478f-8b49-ad78d40bda6b",
+    "created": "2023-10-13T09:27:45Z",
+    "modified": "2023-10-13T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1b1c56e-4b39-4ec4-81bc-226607c77223",
+    "workflow": {
+        "start--d1b1c56e-4b39-4ec4-81bc-226607c77223": {
+            "on_completion": "action--27e12a44-441e-431f-a696-a055eafe1301",
+            "type": "start"
+        },
+        "action--27e12a44-441e-431f-a696-a055eafe1301": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "on_completion": "decision--abcde12f-3456-4c78-abcd-efghij123456",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--abcde12f-3456-4c78-abcd-efghij123456": {
+            "name": "Check user privileges",
+            "type": "if-condition",
+            "condition": "if usermod -l | grep 'admin'",
+            "on_true": "action--78fa7c3e-a59a-4efc-b465-7d8eca17c156",
+            "on_false": "action--e5cb3821-9827-4654-ab6e-1a6e7e3f933a"
+        },
+        "action--78fa7c3e-a59a-4efc-b465-7d8eca17c156": {
+            "name": "Reset escalated user privileges",
+            "description": "Reset privileges of the escalated user back to regular user.",
+            "on_completion": "parallel--restart-actions",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -G users regular_user"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--e5cb3821-9827-4654-ab6e-1a6e7e3f933a": {
+            "name": "Block malicious outgoing IP connections",
+            "description": "Block outbound connections to known malicious IPs.",
+            "on_completion": "parallel--restart-actions",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--restart-actions": {
+            "name": "Continue with remaining actions",
+            "description": "Run full AV scan and apply web application patch if available.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f92474b0-7c22-4f1f-9c3e-c80e845ed988",
+                "decision--check-patch-availability"
+            ]
+        },
+        "action--f92474b0-7c22-4f1f-9c3e-c80e845ed988": {
+            "name": "Run full system AV scan until clean",
+            "description": "Conduct a full system AV scan and repeat until no threats are detected.",
+            "on_completion": "while-condition--repeat-av-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/bin/avscan --full"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the AV scan",
+                    "value": "scan_output()",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--repeat-av-scan": {
+            "name": "Loop until system is clean",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "decision--check-patch-availability",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f92474b0-7c22-4f1f-9c3e-c80e845ed988"
+        },
+        "decision--check-patch-availability": {
+            "name": "Check if patch for web app is available",
+            "type": "if-condition",
+            "condition": "if is_patch_available()",
+            "on_true": "action--0ad824f3-346e-4e42-98b6-c5a7e78b2c15",
+            "on_false": "end--finalise-response"
+        },
+        "action--0ad824f3-346e-4e42-98b6-c5a7e78b2c15": {
+            "name": "Patch vulnerable web application",
+            "description": "Apply the latest patch to the vulnerable web application.",
+            "on_completion": "end--finalise-response",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-web-app --apply-patch"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "end--finalise-response": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization_A"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganization_B"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization_C"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "ClientOrganization_D"
+        }
+    }
+}

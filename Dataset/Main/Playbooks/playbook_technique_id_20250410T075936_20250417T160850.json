@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5c1f5ce-70b1-4cdd-a366-b8eaf4905384",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook executes a series of mitigations to respond to the execution of a PowerShell script that acted as a backdoor on compromised servers.",
+    "created_by": "identity--e78f6f80-2c2d-4ee8-b849-11c83132645a",
+    "created": "2025-04-10T08:55:30.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "if-condition--process_found_check",
+            "type": "start"
+        },
+        "if-condition--process_found_check": {
+            "name": "Check if suspicious process exists",
+            "type": "if-condition",
+            "condition": "process_found",
+            "on_true": "action--kill_process",
+            "on_false": "parallel--execute_other_mitigations"
+        },
+        "action--kill_process": {
+            "name": "Kill Malicious Process",
+            "on_completion": "action--clear_temp_files",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--execute_other_mitigations": {
+            "name": "Execute Other Mitigations",
+            "description": "Update firewall rules and enhance script execution policies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--update_firewall",
+                "action--enhance_execution_policy"
+            ]
+        },
+        "action--update_firewall": {
+            "name": "Update Firewall Rules",
+            "on_completion": "action--rescan_system",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.168.100.100"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--enhance_execution_policy": {
+            "name": "Audit and Enhance Script Execution Policies",
+            "on_completion": "action--rescan_system",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--rescan_system": {
+            "name": "Re-scan System Until Clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "on_completion": "while-condition--check_infection"
+        },
+        "while-condition--check_infection": {
+            "name": "Check For Infection",
+            "description": "Loop until the system is clean.",
+            "type": "while-condition",
+            "condition": "infected",
+            "on_true": "action--rescan_system",
+            "on_false": "end--playbook_complete"
+        },
+        "action--clear_temp_files": {
+            "name": "Clear Temporary Script Files",
+            "on_completion": "end--playbook_complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious*"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "file_location": {
+                    "type": "string",
+                    "description": "Location of temporary malicious files",
+                    "value": "/tmp/"
+                }
+            }
+        },
+        "end--playbook_complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

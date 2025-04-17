@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b56782-3f42-4c9b-9b1e-46f0342b27f3",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the web server to execute a malicious script, attempting to create a reverse shell.",
+    "created_by": "identity--45a04e73-2628-4678-b8c1-f29749e909e4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--a4d5df5d-bfd6-4435-a4b8-a9c614b7969c",
+            "type": "start"
+        },
+        "action--a4d5df5d-bfd6-4435-a4b8-a9c614b7969c": {
+            "name": "Terminate malicious process",
+            "description": "Terminate the malicious script if it is running.",
+            "on_completion": "action--f42b9d3d-7f37-4b3a-8c1e-63c9632e2994",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f42b9d3d-7f37-4b3a-8c1e-63c9632e2994": {
+            "name": "Block outbound connections from suspected host",
+            "description": "Prevent any outbound connections to the suspected malicious domain.",
+            "on_completion": "parallel--561eea92-21bb-485e-8e29-1249fe910f3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d evil-domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--561eea92-21bb-485e-8e29-1249fe910f3d": {
+            "name": "Post-Malicious Process Mitigation",
+            "description": "Conduct further mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d3c6b4a1-e39e-4f2f-b745-0fcf2439e5c8",
+                "action--eccf0430-4a3d-44ba-94c7-6b92b41db627"
+            ]
+        },
+        "action--d3c6b4a1-e39e-4f2f-b745-0fcf2439e5c8": {
+            "name": "Conduct a scan of the host",
+            "description": "Scan the host for malware and remove detected threats.",
+            "on_completion": "action--ea82a7a8-8d2f-4d9d-a6f5-f3f3a709bc6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --remove"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "no_infection_detected"
+            }
+        },
+        "action--eccf0430-4a3d-44ba-94c7-6b92b41db627": {
+            "name": "Evaluate server logs for redundancy",
+            "description": "Check for any relevant logs that might give insight into the incidents.",
+            "on_completion": "action--ea82a7a8-8d2f-4d9d-a6f5-f3f3a709bc6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'error' /var/log/httpd/access_log"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "for each incident"
+            }
+        },
+        "action--ea82a7a8-8d2f-4d9d-a6f5-f3f3a709bc6b": {
+            "name": "Restore backup and patch vulnerability",
+            "description": "Restore the web server from a backup and apply the necessary patches.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup/webserver/ /var/www/html/ && apt-get install --only-upgrade vulnerable-package"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if vulnerability_assessed"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

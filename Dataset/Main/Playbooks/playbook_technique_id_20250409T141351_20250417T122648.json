@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fbd1af8e-bfd3-4eda-b185-a77dbca52238",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Incident",
+    "description": "This playbook addresses an incident involving unauthorized access and data exfiltration through a malicious PowerShell script.",
+    "created_by": "identity--abc12345-6789-40cd-9e12-34567890abcdef",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1efc1233-585c-4f3d-8b99-bec37a589012",
+    "workflow": {
+        "start--1efc1233-585c-4f3d-8b99-bec37a589012": {
+            "on_completion": "action--cde413d4-3ee5-4c51-bb75-782bcf6de29f",
+            "type": "start"
+        },
+        "action--cde413d4-3ee5-4c51-bb75-782bcf6de29f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "if-condition--567d8eab-9a98-478c-b551-12c0b9b76f50",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--567d8eab-9a98-478c-b551-12c0b9b76f50": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running(powershell)",
+            "on_true": "action--458bdb9b-d44c-4119-b125-3d3348eb2cf0",
+            "on_false": "action--d2041e6f-94f3-4110-a06e-9695d005d179"
+        },
+        "action--458bdb9b-d44c-4119-b125-3d3348eb2cf0": {
+            "name": "Isolate affected host",
+            "description": "Disable network access for the affected host to prevent further data loss.",
+            "on_completion": "action--d2041e6f-94f3-4110-a06e-9695d005d179",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d2041e6f-94f3-4110-a06e-9695d005d179": {
+            "name": "Run malware scan",
+            "description": "Scan the entire system for malware and repeat until the scan is clean.",
+            "on_completion": "while-condition--a6fa251e-6eff-4055-a1ac-283f9f8c6de4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "runmalware -scan / --recursive"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--a6fa251e-6eff-4055-a1ac-283f9f8c6de4": {
+            "name": "Repeat malware scan if necessary",
+            "description": "Continue scanning until no malware is detected.",
+            "on_completion": "action--b886fdaa-d149-4d07-b47f-5ab773c7d736",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--d2041e6f-94f3-4110-a06e-9695d005d179"
+        },
+        "action--b886fdaa-d149-4d07-b47f-5ab773c7d736": {
+            "name": "Review logs for suspicious activities",
+            "description": "Analyze system logs for unauthorized access attempts.",
+            "on_completion": "action--8d1c69d6-992e-4e8a-a185-b4d3f30e39ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'Unauthorized Access' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8d1c69d6-992e-4e8a-a185-b4d3f30e39ee": {
+            "name": "Change credentials of affected users",
+            "description": "Update credentials for affected users to enhance security.",
+            "on_completion": "end--0a25eebc-f97a-48a6-9e03-1b447e99cf57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user123"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0a25eebc-f97a-48a6-9e03-1b447e99cf57": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

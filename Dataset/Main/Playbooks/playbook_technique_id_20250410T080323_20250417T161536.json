@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4a1a10b-fc6e-4f7a-b7a4-3f0a0956d524",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where a PowerShell script was used to execute unauthorized commands, allowing access to sensitive data and data exfiltration.",
+    "created_by": "identity--abc-1234",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3",
+            "type": "start"
+        },
+        "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3": {
+            "name": "Check for running PowerShell process",
+            "type": "if-condition",
+            "condition": "powershell_process_running",
+            "on_true": "action--4edc4a6b-6751-4e02-bab5-4850e6a9f418",
+            "on_false": "action--bf7763c4-552e-444a-a0e2-3ee679b4f247"
+        },
+        "action--4edc4a6b-6751-4e02-bab5-4850e6a9f418": {
+            "name": "Terminate unauthorized PowerShell process",
+            "description": "Stop any running unauthorized PowerShell process to prevent further actions.",
+            "on_completion": "action--bf7763c4-552e-444a-a0e2-3ee679b4f247",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bf7763c4-552e-444a-a0e2-3ee679b4f247": {
+            "name": "Isolate the affected host from the network",
+            "description": "Prevent further network access to the compromised host.",
+            "on_completion": "action--bde4d0b7-57bc-45a2-9b31-26b67438e4b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "netsh interface set interface \"Ethernet\" admin=disable"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bde4d0b7-57bc-45a2-9b31-26b67438e4b2": {
+            "name": "Conduct a forensic scan to identify persistence mechanisms",
+            "description": "Perform a forensic scan to determine how the adversary maintained access.",
+            "type": "loop",
+            "loop_until": "scan_clean",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-ForensicScan -AllUsers -Verbose"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "action--dd574c58-2b9a-4f8a-ae5e-0251f5b2264e"
+        },
+        "action--dd574c58-2b9a-4f8a-ae5e-0251f5b2264e": {
+            "name": "Update endpoint protection with latest definitions",
+            "description": "Ensure endpoint protection is updated to prevent further incidents.",
+            "on_completion": "action--7b0b3120-bb45-42c6-af1b-500b403cb3bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Update-MpSignature"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7b0b3120-bb45-42c6-af1b-500b403cb3bd": {
+            "name": "Reset credentials for all affected accounts",
+            "description": "Reset credentials for affected users to ensure accounts are secure.",
+            "on_completion": "end--e4a1a10b-fc6e-4f7a-b7a4-3f0a0956d524",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-CredentialReset -User \"user1\""
+                },
+                {
+                    "type": "powershell",
+                    "command": "Invoke-CredentialReset -User \"user2\""
+                },
+                {
+                    "type": "powershell",
+                    "command": "Invoke-CredentialReset -User \"user3\""
+                }
+            ],
+            "agent": "organization--abc",
+            "targets": [
+                "user1",
+                "user2",
+                "user3"
+            ]
+        },
+        "end--e4a1a10b-fc6e-4f7a-b7a4-3f0a0956d524": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "condition_variables": {
+        "powershell_process_running": {
+            "type": "boolean",
+            "description": "Indicates if there is a running PowerShell process.",
+            "value": true
+        },
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Indicates if the forensic scan is clean.",
+            "value": false
+        }
+    }
+}

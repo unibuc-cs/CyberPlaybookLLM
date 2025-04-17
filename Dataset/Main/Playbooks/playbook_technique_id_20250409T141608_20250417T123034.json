@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7d5d18c-1e4c-4d50-8e44-e54b8a82d5c0",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed suspicious scripts on a vulnerable server, leading to potential privilege escalation.",
+    "created_by": "identity--abc12345-67de-89ab-cdef-1234567890ab",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--0fa8a3c2-2dab-4dc1-8f88-344ebc5f3f76",
+    "workflow": {
+        "start--0fa8a3c2-2dab-4dc1-8f88-344ebc5f3f76": {
+            "on_completion": "action--f0ff4a3c-dd5f-4c60-9b99-16368c6f31c1",
+            "type": "start"
+        },
+        "action--f0ff4a3c-dd5f-4c60-9b99-16368c6f31c1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing suspicious commands.",
+            "on_completion": "action--689b8db2-ff0d-423f-aa32-d1e56ce6f703",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--689b8db2-ff0d-423f-aa32-d1e56ce6f703": {
+            "name": "Isolate the infected system from the network",
+            "description": "Disconnect the affected system from the network to prevent further damage.",
+            "on_completion": "if-condition--scan-tool-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--scan-tool-check": {
+            "name": "Check for scan_tool presence",
+            "type": "if-condition",
+            "condition": "scan_tool_exists == false",
+            "on_true": "action--install-scan-tool",
+            "on_false": "loop--scan-loop"
+        },
+        "action--install-scan-tool": {
+            "name": "Install scan tool",
+            "description": "Install the scan tool if it is not already present.",
+            "on_completion": "loop--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get install scan_tool"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan-loop": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan until the system is clean.",
+            "type": "loop",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--scan-system",
+            "next_steps": "end--final-step"
+        },
+        "action--scan-system": {
+            "name": "Execute Full System Scan",
+            "description": "Scan the affected host for any malicious files.",
+            "on_completion": "loop--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan --target host-22"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the scan operation.",
+                    "value": "scan_tool.result",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--final-step": {
+            "name": "End Mitigation Process",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

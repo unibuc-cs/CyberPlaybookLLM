@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3bc6505-1c85-4e22-8dc3-4fe7678c8a37",
+    "name": "Mitigation Playbook for Web Server Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web server vulnerability to execute unauthorized commands and download a malicious payload.",
+    "created_by": "identity--12345678-abcd-90ef-ghij-klmnopqrstuv",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1f87b89-90c0-4649-acc9-7c69a05f92ae",
+    "workflow": {
+        "start--a1f87b89-90c0-4649-acc9-7c69a05f92ae": {
+            "on_completion": "action--f4b7d116-5f10-4e2c-a5ae-32b337f4f946",
+            "type": "start"
+        },
+        "action--f4b7d116-5f10-4e2c-a5ae-32b337f4f946": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process spawned by the malicious payload.",
+            "on_completion": "action--299e0b3f-7644-4a62-95b8-7203d28e6b9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--299e0b3f-7644-4a62-95b8-7203d28e6b9a": {
+            "name": "Remove downloaded payload",
+            "description": "Delete the malicious payload that has been downloaded.",
+            "on_completion": "if-condition--73d9c2b7-3f23-4725-a929-1141c5c8fa1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/downloaded/payload"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--73d9c2b7-3f23-4725-a929-1141c5c8fa1d": {
+            "name": "Check if web server upgrade is needed",
+            "type": "if-condition",
+            "condition": "server_version < required_version",
+            "on_true": "action--73d9c2b7-3f23-4725-a929-1141c5c8fa1d",
+            "on_false": "action--d813fc93-75eb-4b5e-af56-40f1f95c2f3f"
+        },
+        "action--73d9c2b7-3f23-4725-a929-1141c5c8fa1d": {
+            "name": "Update web server security patches",
+            "description": "Upgrade the web server package to the latest version.",
+            "on_completion": "action--d813fc93-75eb-4b5e-af56-40f1f95c2f3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get install --only-upgrade webserver-package"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d813fc93-75eb-4b5e-af56-40f1f95c2f3f": {
+            "name": "Scan for additional malicious files",
+            "description": "Search and remove any additional malicious files.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.malware' -delete"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan for malicious files loop",
+            "description": "Continue scanning and deleting malicious files until none are found.",
+            "on_completion": "action--d9e6a659-69e9-4cb8-814e-8f62d1d7f5be",
+            "type": "while-condition",
+            "condition": "no_more_files_found == false",
+            "on_true": "action--d813fc93-75eb-4b5e-af56-40f1f95c2f3f"
+        },
+        "action--d9e6a659-69e9-4cb8-814e-8f62d1d7f5be": {
+            "name": "Run full system antivirus scan",
+            "description": "Perform a comprehensive antivirus scan on the system.",
+            "on_completion": "end--e5d9b5b9-3fe5-4a1f-bc42-ca5b9b45e3c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Capture the result of the antivirus scan",
+                    "value": "",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e5d9b5b9-3fe5-4a1f-bc42-ca5b9b45e3c1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

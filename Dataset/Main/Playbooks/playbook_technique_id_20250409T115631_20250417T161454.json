@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d48f7e3a-4be4-44d9-b16f-9d76f6a7da77",
+    "name": "Response Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook automates the response process to a PowerShell script execution incident leading to data exfiltration, including terminating processes, blocking connections, and running memory scans.",
+    "created_by": "identity--b777e51e-9d3e-4b36-92a6-746ba4da69ab",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e7f543c1-dc89-4e4f-b022-6deb32eb0d4f",
+    "workflow": {
+        "start--e7f543c1-dc89-4e4f-b022-6deb32eb0d4f": {
+            "on_completion": "action--c64f7c39-97a8-4c26-9c86-b87948bb59b3",
+            "type": "start"
+        },
+        "action--c64f7c39-97a8-4c26-9c86-b87948bb59b3": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that are executing.",
+            "on_completion": "action--f0bc510b-2b78-4bd1-b458-6c7185aeabb7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f0bc510b-2b78-4bd1-b458-6c7185aeabb7": {
+            "name": "Block outbound connection to suspicious IP",
+            "description": "Create a firewall rule to block outbound connections to suspicious IP.",
+            "on_completion": "while-condition--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Suspicious IP' -Direction Outbound -RemoteAddress '<Suspicious_IP>' -Action Block"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278": {
+            "name": "Memory Scan Loop",
+            "description": "Repeat the memory scan until no malicious content is found.",
+            "on_completion": "end--c2d51436-52b6-45a6-b76b-798ce9005f53",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278",
+            "on_false": "end--c2d51436-52b6-45a6-b76b-798ce9005f53"
+        },
+        "action--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278": {
+            "name": "Run memory scan on host-22",
+            "description": "Execute a memory scan to detect remnants of the malicious activity.",
+            "on_completion": "while-condition--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Sleep -Seconds 5; Invoke-Expression 'Run-MemoryScan -Host host-22'"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the last memory scan.",
+                    "value": "unknown",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--c2d51436-52b6-45a6-b76b-798ce9005f53": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "CompanyXYZ"
+        }
+    }
+}

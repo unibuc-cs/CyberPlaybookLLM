@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6fbd151-cfe9-4a2e-9c06-1fcc2d4d07f6",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses the incident of unauthorized script execution and data exfiltration in the internal network.",
+    "created_by": "identity--xyz",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b6fbd151-cfe9-4a2e-9c06-1fcc2d4d07f6",
+    "workflow": {
+        "start--b6fbd151-cfe9-4a2e-9c06-1fcc2d4d07f6": {
+            "on_completion": "if-condition--02e2af0a-6ae4-4408-9d0e-29c2ab829c29",
+            "type": "start"
+        },
+        "if-condition--02e2af0a-6ae4-4408-9d0e-29c2ab829c29": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--730f3103-d8a5-4522-8e1d-9e542a841e0e",
+            "on_false": "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29"
+        },
+        "action--730f3103-d8a5-4522-8e1d-9e542a841e0e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes related to the attack.",
+            "on_completion": "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29": {
+            "name": "Remove dropped scripts",
+            "description": "Delete any PowerShell scripts that were dropped on the machines.",
+            "on_completion": "while-condition--d2278c73-0e17-492c-9054-19b60eecb2d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home -name '*.ps1' -delete"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--d2278c73-0e17-492c-9054-19b60eecb2d1": {
+            "name": "Monitor outbound traffic",
+            "description": "Monitor and analyze outbound network traffic until it is normalized.",
+            "on_completion": "end--b4e31a64-89b5-494b-b368-dc90168a1de3",
+            "type": "while-condition",
+            "condition": "traffic_normalized == false",
+            "on_true": "action--d2278c73-0e17-492c-9054-19b60eecb2d1",
+            "on_false": "end--b4e31a64-89b5-494b-b368-dc90168a1de3"
+        },
+        "end--b4e31a64-89b5-494b-b368-dc90168a1de3": {
+            "type": "end"
+        },
+        "action--d2278c73-0e17-492c-9054-19b60eecb2d1": {
+            "name": "Monitor outbound traffic with Suricata",
+            "description": "Run Suricata to monitor outbound traffic.",
+            "on_completion": "update_traffic_normalization",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "suricata -c /etc/suricata/suricata.yaml -i eth0"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "update_traffic_normalization": {
+            "name": "Update traffic normalization status",
+            "description": "Update the traffic_normalized variable based on the monitoring results.",
+            "on_completion": "if-condition--02e2af0a-6ae4-4408-9d0e-29c2ab829c29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_traffic_normalization"
+                }
+            ],
+            "agent": "organization--xyz"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

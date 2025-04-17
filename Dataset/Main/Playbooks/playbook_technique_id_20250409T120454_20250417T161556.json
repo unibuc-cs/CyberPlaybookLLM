@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--96c4a4b6-b349-4c07-aba2-06c131c244f7",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts to exfiltrate sensitive data and install backdoors.",
+    "created_by": "identity--2e7bebe7-5926-4bb1-81f5-d75b1c658353",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f15ab7a2-0026-4a5a-a333-6cad4574534b",
+    "workflow": {
+        "start--f15ab7a2-0026-4a5a-a333-6cad4574534b": {
+            "on_completion": "action--1a65bfef-e1f3-4b7c-af7b-6f2f7651c838",
+            "type": "start"
+        },
+        "action--1a65bfef-e1f3-4b7c-af7b-6f2f7651c838": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing malicious scripts.",
+            "on_completion": "action--2e070b2d-6e7e-48ab-9ffc-57d7c7eecf2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f malicious_script.sh)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2e070b2d-6e7e-48ab-9ffc-57d7c7eecf2a": {
+            "name": "Check for dropped payload files",
+            "description": "Remove any dropped files related to the payload.",
+            "on_completion": "while-condition--f0b64c5d-005f-4d63-820f-dc4662b25c85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /tmp/payload_file ]; then rm -f /tmp/payload_file; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f0b64c5d-005f-4d63-820f-dc4662b25c85": {
+            "name": "Check for remaining payload files",
+            "description": "Repeat until no more payload files are detected.",
+            "on_completion": "action--3d7b28e5-463b-478c-b81f-4ea48e0a2f76",
+            "type": "while-condition",
+            "condition": "[ -f /tmp/payload_file ]",
+            "on_true": "action--2e070b2d-6e7e-48ab-9ffc-57d7c7eecf2a"
+        },
+        "action--3d7b28e5-463b-478c-b81f-4ea48e0a2f76": {
+            "name": "Disconnect from network",
+            "description": "Take the host offline to prevent further communication.",
+            "on_completion": "action--e9c3b1d1-7f7c-472d-8095-fb6b54990106",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e9c3b1d1-7f7c-472d-8095-fb6b54990106": {
+            "name": "Run full system scan",
+            "description": "Perform a comprehensive scan of the system to detect any remaining threats.",
+            "on_completion": "while-condition--3f9cea55-9a47-4418-9722-5075719bb344",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--3f9cea55-9a47-4418-9722-5075719bb344": {
+            "name": "System scan until clean",
+            "description": "Continue scanning until the system is deemed clean.",
+            "on_completion": "end--e6a0b8d6-9e99-4fa4-9367-1672f818b41b",
+            "type": "while-condition",
+            "condition": "scan_result != 0",
+            "on_true": "action--e9c3b1d1-7f7c-472d-8095-fb6b54990106"
+        },
+        "end--e6a0b8d6-9e99-4fa4-9367-1672f818b41b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3c09578-2df0-4e10-b1c0-3b56a00ef68f",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized scripts were executed on host-22, leading to privilege escalation and backdoor installation.",
+    "created_by": "identity--4565f9c0-716e-4cc9-a61f-5b1c7db35b0d",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c34e861f-9b8f-444e-83d9-55887da98d08",
+    "workflow": {
+        "start--c34e861f-9b8f-444e-83d9-55887da98d08": {
+            "on_completion": "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070",
+            "type": "start"
+        },
+        "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the unauthorized script.",
+            "on_completion": "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7": {
+            "name": "Remove backdoor files",
+            "description": "Delete any backdoor files if they exist.",
+            "on_completion": "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -e /tmp/backdoor ]; then rm -rf /tmp/backdoor; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5": {
+            "name": "Revert configuration changes",
+            "description": "Restore changed configuration files to a secure state.",
+            "on_completion": "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -R /etc/config"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490": {
+            "name": "Update firewall rules",
+            "description": "Block the attacker's IP address.",
+            "on_completion": "while-condition--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f": {
+            "name": "Scan system for additional threats",
+            "description": "Run a system scan for any remaining threats until none are found.",
+            "on_completion": "action--fe5bd426-bb75-4575-a44e-2321c3a83901",
+            "type": "while-condition",
+            "condition": "threat_found",
+            "on_true": "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f",
+            "on_false": "action--fe5bd426-bb75-4575-a44e-2321c3a83901"
+        },
+        "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f": {
+            "name": "Scan system for threats",
+            "description": "Perform a scan of the system to find additional potential threats.",
+            "on_completion": "while-condition--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--fe5bd426-bb75-4575-a44e-2321c3a83901": {
+            "name": "Notify IT security team",
+            "description": "Send an incident report to the IT security team.",
+            "on_completion": "end--b1e9d6e5-fa80-4c4c-85f1-26b3f60df96a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mail -s 'Security Incident Report' it-security@organization.com"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b1e9d6e5-fa80-4c4c-85f1-26b3f60df96a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

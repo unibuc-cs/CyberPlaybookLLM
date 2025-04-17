@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3b112a2-678c-4897-b78e-b0746154c7b1",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited an application layer protocol to exfiltrate sensitive data from the corporate network. It performs multiple mitigating actions in parallel with conditions and loops.",
+    "created_by": "identity--5fd434a6-52ba-4f3a-8ced-a0b1efc3147b",
+    "created": "2025-10-27T12:30:00Z",
+    "modified": "2025-10-27T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--d15ae9a6-f7f0-4c3b-bd1e-4b56df235ed2",
+    "workflow": {
+        "start--d15ae9a6-f7f0-4c3b-bd1e-4b56df235ed2": {
+            "on_completion": "parallel--e63ecbe7-bc15-4e6e-bd60-9c5210c9923d",
+            "type": "start"
+        },
+        "parallel--e63ecbe7-bc15-4e6e-bd60-9c5210c9923d": {
+            "name": "Mitigation Actions",
+            "description": "Execute all mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a813d2bd-2b04-4a20-9fd1-2b28c092b2c2",
+                "if-condition--b530d100-cd03-4a96-b8a2-ec1d1d6a40b5",
+                "action--b637d634-5053-4640-8e38-ef079e6c4e4d"
+            ]
+        },
+        "action--a813d2bd-2b04-4a20-9fd1-2b28c092b2c2": {
+            "name": "Terminate unauthorized network connection",
+            "description": "Block outbound connections to unauthorized external server.",
+            "on_completion": "end--f474a6bc-f9f7-4c21-b9a2-e953936b9e87",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -I OUTPUT -d <unauthorized_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--b530d100-cd03-4a96-b8a2-ec1d1d6a40b5": {
+            "name": "Check if suspicious process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep <suspicious_application> > /dev/null && echo true || echo false)",
+            "on_true": "action--f530d100-cd03-4a96-b8a2-ec1d1d6a40b5",
+            "on_false": "end--f474a6bc-f9f7-4c21-b9a2-e953936b9e87"
+        },
+        "action--f530d100-cd03-4a96-b8a2-ec1d1d6a40b5": {
+            "name": "Kill suspicious process",
+            "description": "Terminate the suspicious application that is being used for data exfiltration.",
+            "on_completion": "end--f474a6bc-f9f7-4c21-b9a2-e953936b9e87",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <suspicious_application>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b637d634-5053-4640-8e38-ef079e6c4e4d": {
+            "name": "Perform network scan",
+            "description": "Scan the network for any other potential vulnerabilities or unauthorized devices.",
+            "on_completion": "if-condition--f7843241-bc25-4933-9738-e71f72e5f69c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--f7843241-bc25-4933-9738-e71f72e5f69c": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--b637d634-5053-4640-8e38-ef079e6c4e4d",
+            "on_false": "end--f474a6bc-f9f7-4c21-b9a2-e953936b9e87"
+        },
+        "end--f474a6bc-f9f7-4c21-b9a2-e953936b9e87": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

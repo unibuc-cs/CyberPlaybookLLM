@@ -1,0 +1,72 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--080e3b93-553d-4678-a2c8-3bc36bafa29d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data and establish persistence in the network.",
+    "created_by": "identity--754e6746-24e3-4f9b-bdef-246f8dbc0087",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--abd63c1b-6a44-419b-ba2f-4724c57762e4",
+    "workflow": {
+        "start--abd63c1b-6a44-419b-ba2f-4724c57762e4": {
+            "on_completion": "action--b9781cdc-123f-4b32-8e73-8bdb9b630e3a",
+            "type": "start"
+        },
+        "action--b9781cdc-123f-4b32-8e73-8bdb9b630e3a": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--c3f75e45-dda4-4ea4-9d12-92a9638e388a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c3f75e45-dda4-4ea4-9d12-92a9638e388a": {
+            "name": "Scan the host for remnants of the attack",
+            "description": "Continuously scan the system for signs of malicious activity until a clean scan is achieved.",
+            "on_completion": "action--a9db251c-935b-4cc1-8ee8-d47e8d55d6e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! $(clamav_scan --recursive /); do sleep 10; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a9db251c-935b-4cc1-8ee8-d47e8d55d6e9": {
+            "name": "Remove scheduled tasks created by the attacker",
+            "description": "Delete any scheduled tasks identified as created by the attacker.",
+            "on_completion": "end--c0f9d2b1-d8a4-4ba3-b41e-a4e641b4ad45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for task in $(schtasks /query /fo csv | grep 'AttackerTask' | cut -d ',' -f 1); do schtasks /delete /tn \"$task\" /f; done"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": {
+                "type": "if-condition",
+                "condition": "exists $(schtasks /query /fo csv | grep 'AttackerTask')",
+                "on_true": "end--c0f9d2b1-d8a4-4ba3-b41e-a4e641b4ad45",
+                "on_false": "end--c0f9d2b1-d8a4-4ba3-b41e-a4e641b4ad45"
+            }
+        },
+        "end--c0f9d2b1-d8a4-4ba3-b41e-a4e641b4ad45": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

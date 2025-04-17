@@ -25,8 +25,8 @@
    - Aggregated samples (ground truth) from Atomic Red Team (`dataset_humain_in_the_loop.json`) 
    - GPT-generated samples merged between (`dataset_synthetic.json`)
    - Aggregated, final dataset used for training and evaluation (`dataset_merged.json`)
- 
-
+   - The script `Dataset/dataset_analyzer.py` can be used to analyze the dataset and generate statistics, merge samples, and filter them based on specific criteria.
+ - 
 ### Training
  - The fine-tuning scripts and configurations are located in the `Training` folder. The training process involves fine-tuning the LLaMA model on the playbook dataset using PyTorch and Hugging Face Transformers.
  - Using SFT module from HuggingFace on the mentioned dataset above 

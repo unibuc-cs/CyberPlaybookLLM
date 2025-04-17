@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e36c54b3-9fd0-45b9-8c72-9adc294fcf54",
+    "name": "Mitigation Playbook for Malicious Script and Reverse Shell Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a misconfigured web application to execute a malicious script that created a reverse shell on the compromised host.",
+    "created_by": "identity--b450eb9c-e755-4c3b-905d-409e29eb73e8",
+    "created": "2025-04-10T09:00:00.000Z",
+    "modified": "2025-04-10T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--81b26498-020b-4035-9bdd-ce55c4abff37",
+    "workflow": {
+        "start--81b26498-020b-4035-9bdd-ce55c4abff37": {
+            "on_completion": "action--bcf0c4e4-58d6-4a6e-bfd6-a94e4bc9c1e9",
+            "type": "start"
+        },
+        "action--bcf0c4e4-58d6-4a6e-bfd6-a94e4bc9c1e9": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process executing the script.",
+            "on_completion": "action--f58e427a-ab99-45c0-bc07-e2c8b8f1b9e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f58e427a-ab99-45c0-bc07-e2c8b8f1b9e1": {
+            "name": "Block outbound traffic to attacker's IP",
+            "description": "Prevent any outbound network connections to the attacker's server.",
+            "on_completion": "while-condition--7a65fd53-13e3-4e78-8f64-0dfebd24b8c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--7a65fd53-13e3-4e78-8f64-0dfebd24b8c0": {
+            "name": "Scan and clean until no threats found",
+            "description": "Scan the host for malicious artifacts, repeating until the scan is clean.",
+            "on_completion": "end--8c1125f9-b0c3-49de-b4b4-1437db0f24ae",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--e5c04806-bef3-4b95-bf4d-16a23ec61717",
+            "on_false": "end--8c1125f9-b0c3-49de-b4b4-1437db0f24ae"
+        },
+        "action--e5c04806-bef3-4b95-bf4d-16a23ec61717": {
+            "name": "Run scan for malware",
+            "description": "Execute a scan to identify and remove any remaining malicious files.",
+            "on_completion": "check-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_clamav_scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "check-scan-status": {
+            "name": "Check scan result",
+            "description": "Determine if the scan was successful and if it cleaned all artifacts.",
+            "on_completion": "while-condition--7a65fd53-13e3-4e78-8f64-0dfebd24b8c0",
+            "type": "decision",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--8c1125f9-b0c3-49de-b4b4-1437db0f24ae",
+            "on_false": "action--e5c04806-bef3-4b95-bf4d-16a23ec61717"
+        },
+        "end--8c1125f9-b0c3-49de-b4b4-1437db0f24ae": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

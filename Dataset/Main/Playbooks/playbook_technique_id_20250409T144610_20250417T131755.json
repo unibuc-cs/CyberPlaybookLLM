@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a15612e6-8b32-4c52-aae2-de1ca2fcaaf4",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script on an internal network.",
+    "created_by": "identity--c9b9e5c6-b6a1-4973-8c4f-4b2288458123",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "workflow_start": "start--ca5e45e2-4b65-4f88-8c4e-5e174e3ed0c3",
+    "workflow": {
+        "start--ca5e45e2-4b65-4f88-8c4e-5e174e3ed0c3": {
+            "on_completion": "if-condition--1a7bf5e7-e1e0-4d9e-9cb2-5ee92ea1f61c",
+            "type": "start"
+        },
+        "if-condition--1a7bf5e7-e1e0-4d9e-9cb2-5ee92ea1f61c": {
+            "name": "Check for Malicious PowerShell Process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists",
+            "on_true": "action--a61fffbc-ef53-4c45-9a3f-e3a6df7cde03",
+            "on_false": "action--76f84bbd-cc26-49d7-b28b-4a9f90fb0a0a"
+        },
+        "action--a61fffbc-ef53-4c45-9a3f-e3a6df7cde03": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are identified as malicious.",
+            "on_completion": "action--76f84bbd-cc26-49d7-b28b-4a9f90fb0a0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--76f84bbd-cc26-49d7-b28b-4a9f90fb0a0a": {
+            "name": "Isolate affected host from network",
+            "description": "Block all incoming connections from the affected host to prevent further compromise.",
+            "on_completion": "while-condition--f43dc5ec-7875-4a38-9c4d-4852c5e8eaa2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f43dc5ec-7875-4a38-9c4d-4852c5e8eaa2": {
+            "name": "Perform system scan loop",
+            "description": "Repeat the system scan until the scan results are clean.",
+            "on_completion": "end--e272f4d7-b49d-473a-85a1-e38c8683c5fb",
+            "type": "while-condition",
+            "condition": "scan_results_not_clean",
+            "on_true": "action--7f11219b-5000-43ba-b4f2-4b95285c36c5",
+            "on_false": "end--e272f4d7-b49d-473a-85a1-e38c8683c5fb"
+        },
+        "action--7f11219b-5000-43ba-b4f2-4b95285c36c5": {
+            "name": "Perform full system scan",
+            "description": "Execute a full system scan to check for any remaining threats.",
+            "on_completion": "while-condition--f43dc5ec-7875-4a38-9c4d-4852c5e8eaa2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e272f4d7-b49d-473a-85a1-e38c8683c5fb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

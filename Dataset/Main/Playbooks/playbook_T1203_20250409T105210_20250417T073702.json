@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2e34f52-79cb-4dc4-a3c1-882b44b27aa8",
+    "name": "Playbook for Exploitation for Client Execution Incident",
+    "description": "This playbook addresses an incident where an employee was tricked into opening a malicious document, leading to unauthorized execution of scripts and the download of malware.",
+    "created_by": "identity--be5d1cb6-bb66-4548-9dd9-4f87f231d20b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f3a01a51-c12e-4a7f-bdc2-dcc18ae98765",
+    "workflow": {
+        "start--f3a01a51-c12e-4a7f-bdc2-dcc18ae98765": {
+            "on_completion": "action--12c38ab3-3a2b-45e6-b40b-11abc11e624f",
+            "type": "start"
+        },
+        "action--12c38ab3-3a2b-45e6-b40b-11abc11e624f": {
+            "name": "Isolate affected system from the network",
+            "description": "Disabling network interface to prevent further communication.",
+            "on_completion": "action--4abcb255-7c79-4c39-9f47-6e4601b3b308",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--4abcb255-7c79-4c39-9f47-6e4601b3b308": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious activity.",
+            "on_completion": "while-condition--e2ba12ef-4230-4006-bb43-3ccf155d4b36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "while-condition--e2ba12ef-4230-4006-bb43-3ccf155d4b36": {
+            "name": "Repeat full system scan until clean",
+            "description": "Conduct a full system scan, repeating until no threats are found.",
+            "on_true": "action--e2ba12ef-4230-4006-bb43-3ccf155d4b36",
+            "condition": "scan_status == 'dirty'",
+            "on_completion": "end--c1a23a51-c12e-4a7f-abc2-dcc18ae98765",
+            "type": "while-condition"
+        },
+        "action--e2ba12ef-4230-4006-bb43-3ccf155d4b36": {
+            "name": "Run a full system scan",
+            "description": "Perform a recursive scan of the entire system for malware.",
+            "on_completion": "while-condition--e2ba12ef-4230-4006-bb43-3ccf155d4b36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive / && echo 'scan_status=clean' || echo 'scan_status=dirty'; sleep 5"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "end--c1a23a51-c12e-4a7f-abc2-dcc18ae98765": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

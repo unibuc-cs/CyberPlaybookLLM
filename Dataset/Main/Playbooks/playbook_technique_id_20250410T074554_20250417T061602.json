@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--32b5576c-4ae5-4e69-b6f5-19227d9a7e6e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access through a vulnerable web server and executed malicious scripts.",
+    "created_by": "identity--c73bf9e4-ed6a-4f51-8720-b14daf311b95",
+    "created": "2025-04-10T08:55:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f9c12312-1234-1234-1234-123456789abc",
+    "workflow": {
+        "start--f9c12312-1234-1234-1234-123456789abc": {
+            "on_completion": "parallel--7febb057-bebe-4bb9-99ba-65cfcf6266a3",
+            "type": "start"
+        },
+        "parallel--7febb057-bebe-4bb9-99ba-65cfcf6266a3": {
+            "name": "Execute Mitigation Steps",
+            "description": "Execute steps to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080",
+                "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25",
+                "action--e9855c96-c70c-41fb-813b-14ca36be325e"
+            ]
+        },
+        "action--c45a9a2e-8e6d-498d-8f9e-1b07cf1d8080": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f 'suspicious_script')"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--8f8bc9ab-7398-40c2-9103-3b37fd9a9f25": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Block any outbound connections to the known malicious C2 server.",
+            "on_true": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6",
+            "type": "if-condition",
+            "condition": "if [ $(whoami) == 'root' ]; then true; else false; fi",
+            "on_false": "end--8e56af26-5f88-4d73-bc3e-5b55b232344e"
+        },
+        "action--b3a58fed-db5f-41ac-bf87-be368a8319c6": {
+            "name": "Scan and clean infected host",
+            "description": "Perform a scan to find and remove any remaining threats.",
+            "on_completion": "if-condition--c229b13c-8fdb-45bb-8de0-ee82c0aa644d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan /"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "if-condition--c229b13c-8fdb-45bb-8de0-ee82c0aa644d": {
+            "name": "Check if scan is clean",
+            "description": "Check the output of the antivirus scan.",
+            "type": "while-condition",
+            "condition": "scan_output == 'clean'",
+            "on_true": "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef",
+            "on_false": "action--b3a58fed-db5f-41ac-bf87-be368a8319c6"
+        },
+        "action--a231073b-e95d-4af2-b7f2-b09ecbf680ef": {
+            "name": "Monitor for repeated access attempts",
+            "description": "Monitor logs for repeated attempts of access from the known malicious host.",
+            "on_completion": "end--8e56af26-5f88-4d73-bc3e-5b55b232344e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep 'failed password'"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "MALICIOUS_HOST": {
+                    "type": "string",
+                    "description": "The known malicious host",
+                    "value": "198.51.100.45",
+                    "constant": true
+                }
+            }
+        },
+        "action--e9855c96-c70c-41fb-813b-14ca36be325e": {
+            "name": "Patch vulnerable web server",
+            "description": "Update all packages to patch vulnerabilities.",
+            "on_completion": "end--8e56af26-5f88-4d73-bc3e-5b55b232344e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "end--8e56af26-5f88-4d73-bc3e-5b55b232344e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

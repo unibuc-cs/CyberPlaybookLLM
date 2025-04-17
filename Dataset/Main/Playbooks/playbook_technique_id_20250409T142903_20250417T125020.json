@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--82e595dd-b955-4eab-bfd9-5eae6690b9dc",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook addresses an incident where an attacker used a PowerShell script to download malware onto a vulnerable server, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--7fd2584d-3fee-4682-a7e0-74ef87b2c4c7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "workflow_start": "start--aa112233-4455-6677-8899-aabbccddeeff",
+    "workflow": {
+        "start--aa112233-4455-6677-8899-aabbccddeeff": {
+            "on_completion": "if-condition--bbb12345-6789-abcde-fghij-klmnopqrstu",
+            "type": "start"
+        },
+        "if-condition--bbb12345-6789-abcde-fghij-klmnopqrstu": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--b7f7a1c6-a08e-4db2-9c67-9d6c3cef74fc",
+            "on_false": "action--ec0a16ae-6c1f-4e52-b535-ebe8ff70cd69"
+        },
+        "action--b7f7a1c6-a08e-4db2-9c67-9d6c3cef74fc": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "parallel--eee2cde3-4455-6789-abcde-fghij-klmnopqrstu",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ec0a16ae-6c1f-4e52-b535-ebe8ff70cd69": {
+            "name": "Quarantine downloaded malware file",
+            "description": "Move malware files to quarantine directory. Repeat until all instances are moved.",
+            "on_completion": "action--d0a5b2d0-cd34-4f85-8efa-192ac305d1c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/malware /quarantine/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d0a5b2d0-cd34-4f85-8efa-192ac305d1c3": {
+            "name": "Scan the system for additional threats",
+            "description": "Perform a scan to detect additional threats in the system.",
+            "on_completion": "while-condition--fff6g7h8-9123-abcde-fghij-klmnopqrstu",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "SCAN_RESULT=$(clamscan -r /path/to/scan)"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "SCAN_RESULT": {
+                    "type": "string",
+                    "description": "The results of the clam scan.",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--fff6g7h8-9123-abcde-fghij-klmnopqrstu": {
+            "name": "Threat detection loop",
+            "description": "Check scan results and loop until no further threats are detected.",
+            "on_completion": "action--end--token",
+            "type": "while-condition",
+            "condition": "SCAN_RESULT != \u2018No threats found\u2019",
+            "on_true": "action--d0a5b2d0-cd34-4f85-8efa-192ac305d1c3"
+        },
+        "end--token": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

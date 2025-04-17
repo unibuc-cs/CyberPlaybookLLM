@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--eae9b661-5c57-4d33-b9b4-884a5af9eea0",
+    "name": "Playbook for Windows Command Shell Data Exfiltration Incident",
+    "description": "This playbook addresses a data exfiltration incident where a malicious actor executed commands via Windows Command Shell.",
+    "created_by": "identity--3bc55342-4700-41a3-9b05-248fcbdc7339",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a3eea5db-9636-4d4c-a342-41d4cbd56480",
+    "workflow": {
+        "start--a3eea5db-9636-4d4c-a342-41d4cbd56480": {
+            "on_completion": "action--d1ef402e-0917-4e59-a19c-1905d476b964",
+            "type": "start"
+        },
+        "action--d1ef402e-0917-4e59-a19c-1905d476b964": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes that were identified.",
+            "on_completion": "action--52056a5b-56da-4d04-ba00-3c5a7e5e73c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM suspicious_process.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--52056a5b-56da-4d04-ba00-3c5a7e5e73c6": {
+            "name": "Check for active threats",
+            "description": "Verify if there are ongoing threats in the network.",
+            "on_completion": "parallel--a90108b6-007f-426b-ae66-b0b8e7da1180",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Checking for active threats...'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--a90108b6-007f-426b-ae66-b0b8e7da1180": {
+            "name": "Conduct Mitigation Steps",
+            "description": "Simultaneously apply mitigation strategies to prevent data exfiltration.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--82698ddd-118b-4dbf-82c6-342ee2559465",
+                "action--8ea49c24-9631-4ea9-8bce-1895ab2575a2"
+            ]
+        },
+        "if-condition--82698ddd-118b-4dbf-82c6-342ee2559465": {
+            "name": "Check for outgoing traffic",
+            "type": "if-condition",
+            "condition": "traffic_detected",
+            "on_true": "action--e400b62a-ff6d-4976-8b6d-03a03cb2074b",
+            "on_false": "action--b75de4e1-db5e-4006-b601-53e03ac45abc"
+        },
+        "action--e400b62a-ff6d-4976-8b6d-03a03cb2074b": {
+            "name": "Block outgoing traffic to external IP",
+            "description": "Prevent unauthorized data from being sent to external servers.",
+            "on_completion": "loop--6c869e08-89ed-4073-b46e-8e78c799b89e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Data Exfiltration' -Direction Outbound -RemoteAddress <external_ip> -Action Block"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b75de4e1-db5e-4006-b601-53e03ac45abc": {
+            "name": "Conduct network scan",
+            "description": "Run a network scan to detect any active threats.",
+            "on_completion": "loop--6c869e08-89ed-4073-b46e-8e78c799b89e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--6c869e08-89ed-4073-b46e-8e78c799b89e": {
+            "name": "Repeat until no threats found",
+            "description": "Continue scanning the network until no active threats are detected.",
+            "on_completion": "end--3a5eab2b-bc51-420c-a5cc-f2b56e5d735f",
+            "type": "while-condition",
+            "condition": "active_threats_found == true",
+            "on_true": [
+                {
+                    "next_steps": [
+                        "action--b75de4e1-db5e-4006-b601-53e03ac45abc"
+                    ]
+                }
+            ]
+        },
+        "end--3a5eab2b-bc51-420c-a5cc-f2b56e5d735f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

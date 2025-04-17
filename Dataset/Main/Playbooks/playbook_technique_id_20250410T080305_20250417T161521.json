@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d55c21f2-77d4-4f20-8804-3ec9b1c78971",
+    "name": "Mitigation Playbook for Phishing and Malicious Script Execution Incident",
+    "description": "This playbook addresses a phishing attack that resulted in the execution of a malicious script allowing data exfiltration.",
+    "created_by": "identity--XYZ",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d5e",
+    "workflow": {
+        "start--1a2b3c4d5e": {
+            "on_completion": "action--monitor_block_suspicious_ip",
+            "type": "start"
+        },
+        "action--monitor_block_suspicious_ip": {
+            "name": "Monitor and block outbound traffic to the suspicious IP",
+            "description": "Block all outbound traffic to the suspicious IP detected during the incident.",
+            "on_completion": "parallel--terminate_scripts_and_monitoring",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to suspicious_ip_address"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--terminate_scripts_and_monitoring": {
+            "name": "Terminate Scripts and Implement Monitoring",
+            "description": "Terminate any malicious scripts running and check for enhanced monitoring.",
+            "type": "parallel",
+            "next_steps": [
+                "action--terminate_malicious_scripts",
+                "action--check_install_monitoring"
+            ]
+        },
+        "action--terminate_malicious_scripts": {
+            "name": "Terminate malicious scripts running on the host",
+            "description": "Terminate any instances of the malicious script detected.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "while-condition--check_script_presence"
+        },
+        "while-condition--check_script_presence": {
+            "name": "Check if malicious scripts still running",
+            "description": "Loop until the malicious script is no longer detected.",
+            "on_true": "action--terminate_malicious_scripts",
+            "condition": "script_present == true",
+            "on_false": "action--implement_monitoring"
+        },
+        "action--check_install_monitoring": {
+            "name": "Check if enhanced endpoint monitoring is installed",
+            "description": "Install the new monitoring agent if it is not already installed.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "install_new_monitoring_agent"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--reset_user_credentials"
+        },
+        "action--reset_user_credentials": {
+            "name": "Reset credentials for affected user accounts",
+            "description": "Reset credentials for users potentially affected by the attack.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reset_user_credentials user_1"
+                },
+                {
+                    "type": "bash",
+                    "command": "reset_user_credentials user_2"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "loop--deploy_av_scans"
+        },
+        "loop--deploy_av_scans": {
+            "name": "Deploy endpoint antivirus scans for affected users",
+            "description": "Run antivirus scans on each affected user's system.",
+            "type": "loop",
+            "condition": "each user in user_list",
+            "next_steps": [
+                {
+                    "type": "action",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "run_av_scan user"
+                        }
+                    ],
+                    "agent": "organization--xyz"
+                }
+            ],
+            "on_completion": "action--apply_firewall_updates"
+        },
+        "action--apply_firewall_updates": {
+            "name": "Update firewall rules to prevent future attacks",
+            "description": "Apply necessary firewall updates to block future attacks.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_firewall_updates"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "end--complete_playbook"
+        },
+        "end--complete_playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b5a230b4-2a52-4c72-b8a1-fca405c5e0eb",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts on the organization's internal servers, gaining unauthorized access to sensitive data.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--d6c3e9b4-bf36-47ee-b7b0-af448d3bfbf4",
+            "type": "start"
+        },
+        "action--d6c3e9b4-bf36-47ee-b7b0-af448d3bfbf4": {
+            "name": "Terminate Malicious PowerShell Sessions",
+            "description": "Identify and terminate malicious PowerShell sessions on affected systems.",
+            "on_completion": "parallel--4c5329e3-ebc8-4d25-8e23-6a4bddbc7592",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.Name -eq 'powershell' } | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3d3fce16-1f75-4520-9c54-2b1d1b51f90c": {
+            "name": "Isolate Affected Systems",
+            "description": "Isolate affected systems from the network to prevent further data exfiltration.",
+            "on_completion": "action--8fb742c1-9c36-4f3b-9a7e-d6e800e4aa94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-NetworkIsolation -Target 'host-01', 'host-02'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8fb742c1-9c36-4f3b-9a7e-d6e800e4aa94": {
+            "name": "Run Full System Scan",
+            "description": "Run a full system scan to detect and remove any remaining malicious scripts.",
+            "on_completion": "decision--8fbd674a-bac2-4c7e-a55d-5be7d18aad8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Scan -Path 'C:\\' -Type 'Full' -Output 'results.json'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--4c5329e3-ebc8-4d25-8e23-6a4bddbc7592": {
+            "type": "parallel",
+            "name": "Execute Mitigations",
+            "description": "Run multiple mitigation steps in parallel.",
+            "next_steps": [
+                "action--3d3fce16-1f75-4520-9c54-2b1d1b51f90c",
+                "action--8fb742c1-9c36-4f3b-9a7e-d6e800e4aa94"
+            ]
+        },
+        "decision--8fbd674a-bac2-4c7e-a55d-5be7d18aad8c": {
+            "name": "Check Threat Scan Results",
+            "type": "if-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--8fb742c1-9c36-4f3b-9a7e-d6e800e4aa94",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

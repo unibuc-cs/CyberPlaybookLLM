@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1c314f0-477e-41a3-bb68-809181ac6eb6",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script to exfiltrate sensitive data. It includes steps to terminate the malicious process, block outbound traffic, perform a full system scan, collect forensic logs, and notify the security team.",
+    "created_by": "identity--abc1234-5678-90ab-cdef-1234567890gh",
+    "created": "2023-10-12T11:00:00Z",
+    "modified": "2023-10-12T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1c7e12d-e0af-4b9c-b93f-efb904d61b05",
+    "workflow": {
+        "start--b1c7e12d-e0af-4b9c-b93f-efb904d61b05": {
+            "on_completion": "if-condition--cb5d85fb-a5f7-4c8b-9362-bf7b98aedc57",
+            "type": "start"
+        },
+        "if-condition--cb5d85fb-a5f7-4c8b-9362-bf7b98aedc57": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--a11e7a56-304b-4b67-83c3-fa908fda8d94",
+            "on_false": "action--f33c5c45-b2fe-4d2f-ae04-0c02e05a8034"
+        },
+        "action--a11e7a56-304b-4b67-83c3-fa908fda8d94": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--f33c5c45-b2fe-4d2f-ae04-0c02e05a8034",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f33c5c45-b2fe-4d2f-ae04-0c02e05a8034": {
+            "name": "Block outbound traffic to known malicious IPs",
+            "description": "Block any outbound connections to known malicious IPs.",
+            "on_completion": "action--9675f314-6299-4c5a-9c94-b3d65ed77f1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9675f314-6299-4c5a-9c94-b3d65ed77f1f": {
+            "name": "Initiate full system scan",
+            "description": "Run a comprehensive scan of the system to find and eliminate any remaining threats.",
+            "type": "action",
+            "on_completion": "while-condition--b4e12acd-8e48-487c-9121-bc594e0aba1e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan-dir / --log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--b4e12acd-8e48-487c-9121-bc594e0aba1e": {
+            "name": "Repeat system scan until no threats found",
+            "on_completion": "action--b8e3ffe4-ef93-4eae-bd12-84fb5e21feb1",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--9675f314-6299-4c5a-9c94-b3d65ed77f1f"
+        },
+        "action--b8e3ffe4-ef93-4eae-bd12-84fb5e21feb1": {
+            "name": "Collect forensic logs from the affected host",
+            "description": "Backup the system log files for forensic analysis.",
+            "type": "action",
+            "on_completion": "action--6f787c95-fdc2-4e77-a5ec-7681c2f22285",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /var/log/syslog /forensics/syslog.backup"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--6f787c95-fdc2-4e77-a5ec-7681c2f22285": {
+            "name": "Notify security team",
+            "description": "Send an alert to the security team regarding the incident.",
+            "type": "action",
+            "on_completion": "end--c1d198be-95f4-4da6-9bd7-133d7076cb22",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security breach detected' | mail -s 'Alert' security_team@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--c1d198be-95f4-4da6-9bd7-133d7076cb22": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

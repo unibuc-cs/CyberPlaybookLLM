@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0b43bc59-43ba-474d-9251-786ca7bb12a3",
+    "name": "Mitigation of Script-Based Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script to exfiltrate sensitive data.",
+    "created_by": "identity--0476f497-b285-467e-84e3-8e0f54e2e1e4",
+    "created": "2025-10-15T12:00:00.000Z",
+    "modified": "2025-10-15T12:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--2c3e17d4-e2d4-4f8c-a3e8-716f7ff73be8",
+    "workflow": {
+        "start--2c3e17d4-e2d4-4f8c-a3e8-716f7ff73be8": {
+            "on_completion": "parallel--b7e9c089-3f1c-4a40-802b-f4aa1d14c891",
+            "type": "start"
+        },
+        "parallel--b7e9c089-3f1c-4a40-802b-f4aa1d14c891": {
+            "name": "Concurrent Mitigation Actions",
+            "description": "Initiate concurrent actions to mitigate the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a3eeb97b-50f9-4a40-9792-ae6b5c04c837",
+                "action--56b7eeb6-3fcf-4b8b-9d74-ab0bbd573b1b"
+            ]
+        },
+        "action--a3eeb97b-50f9-4a40-9792-ae6b5c04c837": {
+            "name": "Kill malicious process",
+            "description": "Terminate the script that is exfiltrating data.",
+            "on_completion": "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--56b7eeb6-3fcf-4b8b-9d74-ab0bbd573b1b": {
+            "name": "Isolate affected host from network",
+            "description": "Block the malicious IP to prevent further data exfiltration.",
+            "on_completion": "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s [malicious_ip] -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6": {
+            "name": "Scan for persistence methods",
+            "description": "Run a scan for any persistence mechanisms that may have been established by the attacker.",
+            "on_completion": "while-condition--fa1e69e1-0471-4519-b87e-50dc46b3524f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_persistence_scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--fa1e69e1-0471-4519-b87e-50dc46b3524f": {
+            "name": "Check scan results",
+            "description": "Loop until the scan shows no findings.",
+            "on_completion": "end--2450f2b3-de3c-48b2-9278-ecb3dc53900f",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6"
+        },
+        "end--2450f2b3-de3c-48b2-9278-ecb3dc53900f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8ef82fa-5fd2-4bf7-ab5c-47a790228ab5",
+    "name": "Mitigation Playbook for Command Interpreter Exploit Incident",
+    "description": "This playbook mitigates an incident where an attacker exploited a vulnerability in the web application to execute arbitrary commands.",
+    "created_by": "identity--f3ab0d51-a0b2-4d69-ba4d-96c0bb233774",
+    "created": "2023-10-02T10:00:00.000Z",
+    "modified": "2023-10-02T10:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-e5f6-7g8h-9i10-j11k12l13m14",
+    "workflow": {
+        "start--1a2b3c4d-e5f6-7g8h-9i10-j11k12l13m14": {
+            "on_completion": "action--0a1d5073-995f-4b58-ad59-4bc072c1de11",
+            "type": "start"
+        },
+        "action--0a1d5073-995f-4b58-ad59-4bc072c1de11": {
+            "name": "Kill malicious process",
+            "description": "Terminate the reverse shell script launched by the attacker.",
+            "on_completion": "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Check if dropped payload exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/suspicious_payload",
+            "on_true": "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "on_false": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3"
+        },
+        "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Remove dropped payload",
+            "description": "Delete the suspicious payload from the /tmp directory.",
+            "on_completion": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3": {
+            "name": "Scan system for other anomalies",
+            "description": "Repeatedly run a security scan until the scan results are clean.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the last scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "description": "Count of how many scans have been run",
+                    "value": 0,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan Until Clean",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3",
+            "on_false": "end--final-state",
+            "loop": true
+        },
+        "end--final-state": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

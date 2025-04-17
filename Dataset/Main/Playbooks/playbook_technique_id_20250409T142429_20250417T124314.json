@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e23be69b-8ff6-4914-8a25-fcc1e5ef1caa",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "Addressing an incident where an attacker executed command line scripts to install backdoor malware.",
+    "created_by": "identity--c26ba54e-902a-45ad-91c2-c581b0d70698",
+    "created": "2023-10-09T10:00:00Z",
+    "modified": "2023-10-09T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1ad9e7d3-b19d-4ba9-bd20-4ec3e1acca05",
+    "workflow": {
+        "start--1ad9e7d3-b19d-4ba9-bd20-4ec3e1acca05": {
+            "on_completion": "parallel--fbb8c540-01f0-4d54-b4cd-670a5e8da2ef",
+            "type": "start"
+        },
+        "action--619eb10d-18d1-4cc8-9125-8ad194c556fa": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process of the known malicious executable.",
+            "on_completion": "loop--6f73a305-0883-4ca5-b0c0-9a34e6889837",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_executable.bin"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--6f73a305-0883-4ca5-b0c0-9a34e6889837": {
+            "name": "Remove dropped malicious files",
+            "description": "Repeat removal until no malicious files remain.",
+            "on_completion": "action--ddb398e0-4118-4aae-a06b-506d422061fe",
+            "type": "loop",
+            "condition": "malicious_files_remaining",
+            "on_true": "action--c67323d8-b960-4156-b192-6b519f5f29e8",
+            "on_false": "action--a2772f9f-e76f-4695-b407-63588b5ba509"
+        },
+        "action--c67323d8-b960-4156-b192-6b519f5f29e8": {
+            "name": "Remove malware executables",
+            "description": "Delete the dropped malware executable.",
+            "on_completion": "loop--6f73a305-0883-4ca5-b0c0-9a34e6889837",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malware_executable"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a2772f9f-e76f-4695-b407-63588b5ba509": {
+            "name": "Update firewall rules to block external IP",
+            "description": "Block all outgoing connections to the suspicious external IP address.",
+            "on_completion": "end--8adf9a6b-5e77-4cec-9b8c-766d95d2ac68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--fbb8c540-01f0-4d54-b4cd-670a5e8da2ef": {
+            "name": "Mitigation Operations",
+            "description": "Perform multiple mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--619eb10d-18d1-4cc8-9125-8ad194c556fa",
+                "action--a2772f9f-e76f-4695-b407-63588b5ba509"
+            ]
+        },
+        "end--8adf9a6b-5e77-4cec-9b8c-766d95d2ac68": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

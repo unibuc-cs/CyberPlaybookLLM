@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7fc62f4-7e5b-4d6c-a58a-3584378e2f10",
+    "name": "Incident Response Playbook for Remote Command Execution",
+    "description": "This playbook responds to an incident where an attacker remotely executed commands to deploy a malicious payload and access sensitive data.",
+    "created_by": "identity--67e4befb-b61f-4f6b-9146-ff9790a09860",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--0a5db3de-ba29-469d-92c0-5da1cf06736f",
+    "workflow": {
+        "start--0a5db3de-ba29-469d-92c0-5da1cf06736f": {
+            "on_completion": "parallel--fdc0fd27-0a83-479c-87d7-c89d9f1b0a80",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initiate the response to the detected incident."
+        },
+        "parallel--fdc0fd27-0a83-479c-87d7-c89d9f1b0a80": {
+            "name": "Execute Mitigation Steps",
+            "description": "Simultaneously execute multiple mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b2a7bcd5-d19b-4ddb-9be0-4d10de8b612a",
+                "action--f537a86b-31f5-42b8-8415-0fd3a17949cb",
+                "action--a83f586a-b1d4-4e61-9a19-1bdb45a8f4cb",
+                "loop--6dfcc71f-144e-4e39-a7be-82bc261aafff"
+            ]
+        },
+        "action--b2a7bcd5-d19b-4ddb-9be0-4d10de8b612a": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious process that is executing.",
+            "on_completion": "action--f537a86b-31f5-42b8-8415-0fd3a17949cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f537a86b-31f5-42b8-8415-0fd3a17949cb": {
+            "name": "Terminate Network Connections",
+            "description": "Block the malicious IP to prevent further communication.",
+            "on_completion": "action--a83f586a-b1d4-4e61-9a19-1bdb45a8f4cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a83f586a-b1d4-4e61-9a19-1bdb45a8f4cb": {
+            "name": "Monitor Logs for Anomalies",
+            "description": "Continuously monitor logs for any further suspicious activity.",
+            "on_completion": "loop--6dfcc71f-144e-4e39-a7be-82bc261aafff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--6dfcc71f-144e-4e39-a7be-82bc261aafff": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Perform a full system scan until the system is clean.",
+            "type": "loop",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--ab82e177-dde8-45f9-8b05-9e3a16bc9abf",
+            "on_false": "action--e3fbc700-1173-4a60-83c6-e7020b22eaa9",
+            "next_steps": [
+                "action--e3fbc700-1173-4a60-83c6-e7020b22eaa9"
+            ]
+        },
+        "action--e3fbc700-1173-4a60-83c6-e7020b22eaa9": {
+            "name": "Run Full System Scan",
+            "description": "Initiate a full system scan for malware and other threats.",
+            "on_completion": "loop--6dfcc71f-144e-4e39-a7be-82bc261aafff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--ab82e177-dde8-45f9-8b05-9e3a16bc9abf": {
+            "name": "End Incident Response",
+            "description": "Complete the incident response process.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

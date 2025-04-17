@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8657e65-3c7b-4627-8a0f-6f037d7fe33c",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of an unauthorized script that altered system configurations and initiated data exfiltration.",
+    "created_by": "identity--abcdef12-3456-7890-abcd-ef1234567890",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcde123-f456-7890-abcd-efabcdef1234",
+    "workflow": {
+        "start--abcde123-f456-7890-abcd-efabcdef1234": {
+            "on_completion": "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd",
+            "type": "start"
+        },
+        "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the unauthorized script.",
+            "on_completion": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7": {
+            "name": "Revert system configurations",
+            "description": "Restore system settings to the previous state.",
+            "on_completion": "loop--123abcde-456f-7890-abcd-efabcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -Rv /etc"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--123abcde-456f-7890-abcd-efabcdef1234": {
+            "name": "Repeat until no anomalies detected",
+            "description": "Continue monitoring the system for anomalies until resolved.",
+            "type": "loop",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "on_false": "action--da56e2c8-d5b4-4112-b048-1c8035d0423"
+        },
+        "action--da56e2c8-d5b4-4112-b048-1c8035d0423": {
+            "name": "Analyze and isolate compromised account",
+            "description": "Lock the compromised user account to prevent further access.",
+            "on_completion": "action--d8245e66-c943-45e9-9279-b0faef813ced",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d8245e66-c943-45e9-9279-b0faef813ced": {
+            "name": "Monitor network for suspicious activities",
+            "description": "Capture and analyze traffic to detect malicious actions.",
+            "on_completion": "if-condition--abcd1234-ef56-7890-abcd-efabcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host 192.0.2.1"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "description": "IP address of the detected malicious source",
+                    "value": "192.0.2.1",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--abcd1234-ef56-7890-abcd-efabcdef1234": {
+            "name": "Check for alerts from monitoring",
+            "type": "if-condition",
+            "condition": "alert_detected == true",
+            "on_true": "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0",
+            "on_false": "end--abcd1234-ef56-7890-abcd-efabcdef1234"
+        },
+        "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0": {
+            "name": "Update firewall rules to block outgoing traffic",
+            "description": "Modify firewall settings to block traffic to the malicious IP address.",
+            "on_completion": "end--abcd1234-ef56-7890-abcd-efabcdef1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--abcd1234-ef56-7890-abcd-efabcdef1234": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

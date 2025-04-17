@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1b5d3e5-de12-4a45-a1dc-4ccf8b77b444",
+    "name": "Mitigation Playbook for Unauthorized Access with PowerShell",
+    "description": "This playbook outlines mitigation actions to respond to an incident where an attacker executed a PowerShell script to gain unauthorized access and exfiltrate sensitive data.",
+    "created_by": "identity--2eaa2dfc-abc4-4465-8c73-8c5d20aa6f10",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d8f6e008-39d2-4c5a-82da-09afc007b6c5",
+    "workflow": {
+        "start--d8f6e008-39d2-4c5a-82da-09afc007b6c5": {
+            "on_completion": "action--532c4abc-0284-4ba6-a322-d4d341f34905",
+            "type": "start"
+        },
+        "action--532c4abc-0284-4ba6-a322-d4d341f34905": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script that was executed.",
+            "on_completion": "if-condition--isolate-machine-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--isolate-machine-check": {
+            "name": "Check if machine should be isolated",
+            "type": "if-condition",
+            "condition": "NetworkActivity == true",
+            "on_true": "action--da3c2f88-1884-4d93-bc98-2bdbc48455b1",
+            "on_false": "loop--repeat-scan"
+        },
+        "action--da3c2f88-1884-4d93-bc98-2bdbc48455b1": {
+            "name": "Isolate affected machine",
+            "description": "Shut down the network interface of the impacted host.",
+            "on_completion": "loop--repeat-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--repeat-scan": {
+            "name": "Conduct Full System Scan",
+            "description": "Run a complete system scan to check for additional threats.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--4f218ce8-0404-47e4-85b3-f6ae92b71272",
+            "on_false": "end--completion-status"
+        },
+        "action--4f218ce8-0404-47e4-85b3-f6ae92b71272": {
+            "name": "Conduct a full system scan",
+            "description": "Execute the scanning script to detect any further compromises.",
+            "on_completion": "loop--repeat-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan.sh --all"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--completion-status": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

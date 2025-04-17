@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8f45f88-08ca-4a93-a339-943e848d27ab",
+    "name": "Mitigation Playbook for Phishing Attack Incident",
+    "description": "This playbook addresses an incident where an employee opened a malicious document from a phishing email, resulting in malware execution and data exfiltration.",
+    "created_by": "identity--your-identity-id",
+    "created": "2025-04-12T10:00:00.000Z",
+    "modified": "2025-04-12T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e573bf73-98e5-48e5-bf29-62b024c689e2",
+    "workflow": {
+        "start--e573bf73-98e5-48e5-bf29-62b024c689e2": {
+            "on_completion": "if-condition--823e0432-be35-4ace-b4fc-7e992634dede",
+            "type": "start"
+        },
+        "if-condition--823e0432-be35-4ace-b4fc-7e992634dede": {
+            "name": "Check for malware detection",
+            "type": "if-condition",
+            "condition": "malware_detected == true",
+            "on_true": "action--f9a885e7-68aa-4421-baab-5b289d8e4f32",
+            "on_false": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577"
+        },
+        "action--f9a885e7-68aa-4421-baab-5b289d8e4f32": {
+            "name": "Quarantine infected host",
+            "description": "Deny access to the malicious IP from the infected machine.",
+            "on_completion": "action--e80b2cfc-f663-4b50-bac9-bcdf8dba0a3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw deny from <malicious_ip>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--e80b2cfc-f663-4b50-bac9-bcdf8dba0a3f": {
+            "name": "Terminate malicious process",
+            "description": "Terminate any processes related to the malicious activity.",
+            "on_completion": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577": {
+            "name": "Run full system scan",
+            "description": "Perform a complete scan of the system to identify any other potential threats.",
+            "on_completion": "while-condition--935b9e54-b59a-43ac-90fa-d899eae57ee1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scanning -o > scan_report.txt"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--935b9e54-b59a-43ac-90fa-d899eae57ee1": {
+            "name": "Checking scan status",
+            "description": "Repeat scanning until no more threats are detected.",
+            "on_completion": "end--1bfa1134-31b2-4d24-acb0-3c52e8423e66",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577"
+        },
+        "end--1bfa1134-31b2-4d24-acb0-3c52e8423e66": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_detected": {
+            "type": "boolean",
+            "description": "Indicates if malware has been detected on the host.",
+            "value": "true"
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Current status of the system scan.",
+            "value": "not_yet_clean"
+        }
+    }
+}

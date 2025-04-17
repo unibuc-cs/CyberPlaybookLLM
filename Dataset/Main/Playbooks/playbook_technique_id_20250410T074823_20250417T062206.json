@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--98c1d646-d0fa-4efc-9a6c-084c9e024b3b",
+    "name": "Response to Remote Command Execution Incident",
+    "description": "This playbook implements a multi-faceted response to a remote command execution incident on a web server, addressing mitigations such as killing malicious processes, patching vulnerabilities, and monitoring for unusual activities.",
+    "created_by": "identity--9c6e6381-d23c-4c6e-8683-92dc5d023e74",
+    "created": "2025-04-10T07:48:23.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c5f3bde9-be8f-4f2b-9d45-da06e43778a4",
+    "workflow": {
+        "start--c5f3bde9-be8f-4f2b-9d45-da06e43778a4": {
+            "on_completion": "action--c5f7029c-e2c7-447e-bdbb-9268dd13e154",
+            "type": "start"
+        },
+        "action--c5f7029c-e2c7-447e-bdbb-9268dd13e154": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "action--a7b0bc64-e8d0-4f0f-9c64-65b6333f5589",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a7b0bc64-e8d0-4f0f-9c64-65b6333f5589": {
+            "name": "Patch web server vulnerability",
+            "description": "Update the web server to patch known vulnerabilities.",
+            "on_completion": "loop--f17e495c-8cf3-4bfa-b854-2b2ef261f829",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade apache2"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f17e495c-8cf3-4bfa-b854-2b2ef261f829": {
+            "name": "Conduct full system scan",
+            "description": "Perform a comprehensive scan of the system for further threats.",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--f17e495c-8cf3-4bfa-b854-2b2ef261f829",
+            "next_steps": [
+                {
+                    "action_id": "action--614b001c-79db-44e8-b3a5-b1dd0d2cac75",
+                    "on_completion": "loop--f17e495c-8cf3-4bfa-b854-2b2ef261f829"
+                }
+            ]
+        },
+        "action--f17e495c-8cf3-4bfa-b854-2b2ef261f829": {
+            "name": "Run full system scan",
+            "description": "Execute a full scan to detect any remaining vulnerabilities.",
+            "on_completion": "decision--614b001c-79db-44e8-b3a5-b1dd0d2cac75",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "decision--614b001c-79db-44e8-b3a5-b1dd0d2cac75": {
+            "name": "Monitor for unusual user activity",
+            "type": "if-condition",
+            "condition": "grep 'sudo' /var/log/auth.log | wc -l > 0",
+            "on_true": "action--d8b274d9-6df0-4d3e-90d0-de41da322a23",
+            "on_false": "end--a2c0b3c2-2fb9-44f1-bd25-12f63c767381"
+        },
+        "action--d8b274d9-6df0-4d3e-90d0-de41da322a23": {
+            "name": "Disable compromised user accounts",
+            "description": "Lock down user accounts that have been compromised.",
+            "on_completion": "end--a2c0b3c2-2fb9-44f1-bd25-12f63c767381",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "end--a2c0b3c2-2fb9-44f1-bd25-12f63c767381": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "ThreatResponseTeam"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "AccountManagementTeam"
+        }
+    }
+}

@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f4e1b319-7588-4ab8-87e4-a399c3281e78",
+    "name": "Response Playbook for RDP Exploitation Incident",
+    "description": "This playbook automates responses to detect and mitigate unauthorized RDP access incidents, focusing on disconnecting sessions, changing RDP settings, and running security scans.",
+    "created_by": "identity--d8975da3-8f5c-4901-a478-a4d6743b8a9b",
+    "created": "2025-04-10T09:00:00.000Z",
+    "modified": "2025-04-10T09:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1c7309db-e29e-46b1-8666-1c42b7e991e7",
+    "workflow": {
+        "start--1c7309db-e29e-46b1-8666-1c42b7e991e7": {
+            "on_completion": "decision--9a47d970-5bda-4824-9a07-d3de1f53f61e",
+            "type": "start"
+        },
+        "decision--9a47d970-5bda-4824-9a07-d3de1f53f61e": {
+            "name": "Check for unauthorized RDP sessions",
+            "type": "if-condition",
+            "condition": "unauthorized_RDP_session_exists",
+            "on_true": "action--e0d17c42-f8f6-4d62-af0b-d463ae2ad508",
+            "on_false": "action--75d5b946-ef39-4a71-8c1b-f05c02e00fe2"
+        },
+        "action--e0d17c42-f8f6-4d62-af0b-d463ae2ad508": {
+            "name": "Disconnect unauthorized RDP sessions",
+            "description": "Terminate any unauthorized RDP sessions.",
+            "on_completion": "action--4e67d729-c938-4632-acc5-912a1a1632fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net session | findstr /C:\"<USERNAME>\" | for /F \"tokens=2\" %i in ('findstr \"host-22\"') do logoff %i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--75d5b946-ef39-4a71-8c1b-f05c02e00fe2": {
+            "name": "Change RDP port and enforce strong passwords",
+            "description": "Change the RDP port and configure strong password policies.",
+            "on_completion": "action--4e67d729-c938-4632-acc5-912a1a1632fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='RDP Change Port' protocol=TCP dir=in localport=<NEW_PORT> action=allow"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4e67d729-c938-4632-acc5-912a1a1632fa": {
+            "name": "Run security scans on affected hosts",
+            "description": "Perform security scans on the affected hosts until the scans are clean.",
+            "on_completion": "end--d81c6ed3-0b1b-4731-b782-b218345c3721",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while (scan_status == 'running') { start-scan --host=host-22 }"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d81c6ed3-0b1b-4731-b782-b218345c3721": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

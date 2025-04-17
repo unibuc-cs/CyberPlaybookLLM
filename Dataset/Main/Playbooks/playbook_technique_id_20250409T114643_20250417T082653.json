@@ -1,0 +1,76 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8d9b428-e95f-4dea-940e-1f7b92dd60b2",
+    "name": "Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where a PowerShell script was used to exfiltrate sensitive data from the network. It includes actions to kill the malicious process, monitor outgoing connections, and perform a full system antivirus scan.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--da6c72e0-a26d-4f81-8055-a5437ab3ee9f",
+    "workflow": {
+        "start--da6c72e0-a26d-4f81-8055-a5437ab3ee9f": {
+            "on_completion": "action--5f6c3b2b-e623-4b8d-8e67-460654c5f968",
+            "type": "start"
+        },
+        "action--5f6c3b2b-e623-4b8d-8e67-460654c5f968": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that may be exfiltrating data.",
+            "on_completion": "if-condition--4e47ccf5-3750-42c8-b4b6-d145f53be663",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--4e47ccf5-3750-42c8-b4b6-d145f53be663": {
+            "name": "Monitor outgoing connections for unusual activity",
+            "description": "Decision point to monitor network traffic if suspicious connections are found.",
+            "on_true": "loop--d43b4a3-603f-41fa-92d7-a7c5c37f8b79",
+            "on_false": "end--a7a85611-6948-4c87-81ec-8c840e8a1d5e",
+            "type": "if-condition",
+            "condition": "if process found"
+        },
+        "loop--d43b4a3-603f-41fa-92d7-a7c5c37f8b79": {
+            "name": "Monitor Unusual Activity Loop",
+            "description": "Repeat monitoring outgoing connections every 5 minutes.",
+            "on_complete": "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79",
+            "type": "loop",
+            "loop_condition": "repeat every 5 minutes"
+        },
+        "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79": {
+            "name": "Run a full system antivirus scan",
+            "description": "Perform a complete antivirus scan for any potential threats.",
+            "on_completion": "if-condition--check-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--check-scan-status": {
+            "name": "Check Scan Status",
+            "description": "Check the status of the scan to determine if it is clean.",
+            "on_true": "end--a7a85611-6948-4c87-81ec-8c840e8a1d5",
+            "on_false": "loop--d43b4a3-603f-41fa-92d7-a7c5c37f8b79",
+            "type": "if-condition",
+            "condition": "if suspicious activity detected"
+        },
+        "end--a7a85611-6948-4c87-81ec-8c840e8a1d5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

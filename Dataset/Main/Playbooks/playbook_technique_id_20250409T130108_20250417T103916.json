@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4a0aefe-2b1c-4746-92b2-0b20f71424a6",
+    "name": "Response Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate unauthorized script execution and potential data exfiltration incidents.",
+    "created_by": "identity--b8f360cc-9d90-4bee-a5aa-8a7169b2e494",
+    "created": "2023-10-09T10:00:00Z",
+    "modified": "2023-10-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--cba9ba4b-4c73-4fc9-bb90-de7bbf5fac7d",
+    "workflow": {
+        "start--cba9ba4b-4c73-4fc9-bb90-de7bbf5fac7d": {
+            "name": "Initiate Incident Response",
+            "on_completion": "action--9e0b5f16-cb47-4c58-b62e-674473a2393b",
+            "type": "start"
+        },
+        "action--9e0b5f16-cb47-4c58-b62e-674473a2393b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script process immediately.",
+            "on_completion": "action--79a652db-54f2-4b29-a44a-7e050bbf265f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--79a652db-54f2-4b29-a44a-7e050bbf265f": {
+            "name": "Remove unauthorized files",
+            "description": "Check if the unauthorized temporary file exists and remove it.",
+            "on_completion": "decision--check-file-existence",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--check-file-existence": {
+            "name": "Check if file exists",
+            "type": "if-condition",
+            "condition": "$(test -e /tmp/suspicious_file && echo true || echo false)",
+            "on_true": "action--114d723e-0a72-4bcb-a0c8-7457f155546d",
+            "on_false": "action--5c229399-d6cf-4b0b-a962-4e2c4f08d2b3"
+        },
+        "action--114d723e-0a72-4bcb-a0c8-7457f155546d": {
+            "name": "Isolate compromised host",
+            "description": "Isolate the compromised host from the network.",
+            "on_completion": "loop--repeat-until-resolved",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--repeat-until-resolved": {
+            "name": "Repeat isolation check",
+            "type": "while-condition",
+            "condition": "Alert raised",
+            "on_true": "action--114d723e-0a72-4bcb-a0c8-7457f155546d",
+            "on_false": "action--5c229399-d6cf-4b0b-a962-4e2c4f08d2b3"
+        },
+        "action--5c229399-d6cf-4b0b-a962-4e2c4f08d2b3": {
+            "name": "Audit system logs",
+            "description": "Examine the latest system logs for suspicious activity.",
+            "on_completion": "end--ea31e18c-47fb-2954-b9cc-2c3038d7c7e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/syslog"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "log_count": {
+                    "type": "integer",
+                    "value": 100
+                }
+            }
+        },
+        "end--ea31e18c-47fb-2954-b9cc-2c3038d7c7e9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

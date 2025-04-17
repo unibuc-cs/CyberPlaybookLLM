@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f9b3e6cd-8f99-4718-b614-fbdac71b8b1c",
+    "name": "Mitigation Playbook for Unauthorized Command Execution via PowerShell",
+    "description": "This playbook handles an incident where an attacker executed malicious PowerShell scripts to gain unauthorized access, manipulate configurations, and gather sensitive data.",
+    "created_by": "identity--abcde12345-bf67-8903-cdef-4567890abcdef",
+    "created": "2023-10-10T12:45:00Z",
+    "modified": "2023-10-10T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1f3e6e5-12cd-434b-a78c-2f3e67babcde",
+    "workflow": {
+        "start--a1f3e6e5-12cd-434b-a78c-2f3e67babcde": {
+            "on_completion": "if-condition--b2f3c99a-3456-4c78-89fa-51a29c785efc",
+            "type": "start",
+            "name": "Initiate Mitigation Process",
+            "description": "Start the process to mitigate malicious script execution."
+        },
+        "if-condition--b2f3c99a-3456-4c78-89fa-51a29c785efc": {
+            "name": "Check for running PowerShell process",
+            "type": "if-condition",
+            "condition": "check_process('powershell') == true",
+            "on_true": "action--e845f99e-c3e4-4b7e-ada2-affc0c767bb8",
+            "on_false": "parallel--10f19a4c-94a9-493d-8527-d60ea44e0bfd"
+        },
+        "action--e845f99e-c3e4-4b7e-ada2-affc0c767bb8": {
+            "name": "Terminate PowerShell processes",
+            "description": "Terminate the PowerShell process running the script.",
+            "on_completion": "parallel--10f19a4c-94a9-493d-8527-d60ea44e0bfd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--10f19a4c-94a9-493d-8527-d60ea44e0bfd": {
+            "name": "Execute Outbound Blocking & Scanning",
+            "description": "Simultaneously block suspicious IP and scan hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c2116f70-5eb6-49ba-be71-9c28deef8c84",
+                "action--b062289c-cfa2-4184-92d7-b659f4c6cf12"
+            ]
+        },
+        "action--c2116f70-5eb6-49ba-be71-9c28deef8c84": {
+            "name": "Block outgoing connections",
+            "description": "Block outgoing connections to the suspicious IP address.",
+            "on_completion": "while-condition--5f4c7bad-226c-4d96-b175-cce56b21e4c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--5f4c7bad-226c-4d96-b175-cce56b21e4c7": {
+            "name": "Monitor Outbound Connection Blocking",
+            "description": "Check if the suspicious IP address is still being contacted based on previous actions.",
+            "on_true": "action--c2116f70-5eb6-49ba-be71-9c28deef8c84",
+            "on_false": "action--b062289c-cfa2-4184-92d7-b659f4c6cf12",
+            "type": "while-condition",
+            "condition": "connection_to_suspicious_ip_exists == true"
+        },
+        "action--b062289c-cfa2-4184-92d7-b659f4c6cf12": {
+            "name": "Scan affected hosts",
+            "description": "Scan the affected hosts for signs of infection.",
+            "on_completion": "end--b1d6e5a4-6a84-4f99-bb89-fd5c8c84dec0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --path /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--b1d6e5a4-6a84-4f99-bb89-fd5c8c84dec0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8a5d3a66-b25d-4e06-b5d6-81680e7a4509",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving an attacker gaining access to the network and executing malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--4567ef14-0bcb-44d1-844c-1a27ed07309c",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:10:01.123Z",
+    "revoked": false,
+    "workflow_start": "start--f1014121-4c90-4782-b3a8-f266b76c8d6c",
+    "workflow": {
+        "start--f1014121-4c90-4782-b3a8-f266b76c8d6c": {
+            "on_completion": "action--b41214d2-5610-4c92-b469-54158c39e8e3",
+            "type": "start"
+        },
+        "action--b41214d2-5610-4c92-b469-54158c39e8e3": {
+            "name": "Kill malicious script processes",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "parallel--e1dff22c-c43f-43b2-aa5f-0da60a9623af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--e1dff22c-c43f-43b2-aa5f-0da60a9623af": {
+            "name": "Monitor and Scan",
+            "description": "Monitor external communications and perform antivirus scan on compromised hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c587d304-1bad-4937-86c8-4d50d1106b46",
+                "action--b119d9b6-3540-470a-a950-bf97b5cf970f"
+            ]
+        },
+        "action--c587d304-1bad-4937-86c8-4d50d1106b46": {
+            "name": "Monitor external IP communication for anomalies",
+            "description": "Monitor network traffic for any data exfiltration attempts to external IP addresses.",
+            "on_completion": "action--b119d9b6-3540-470a-a950-bf97b5cf970f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any host <external_ip>"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if external_ip found"
+        },
+        "action--b119d9b6-3540-470a-a950-bf97b5cf970f": {
+            "name": "Run antivirus scan on host-01",
+            "description": "Perform an antivirus scan on the affected host until it is clean.",
+            "on_completion": "end--e94ef7cc-ea6b-4e81-9996-ee3ab82516b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! antivirus_scan_clean; do run_antivirus; done"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "antivirus_scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicator of whether the antivirus scan has returned a clean state.",
+                    "value": "FALSE",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e94ef7cc-ea6b-4e81-9996-ee3ab82516b5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

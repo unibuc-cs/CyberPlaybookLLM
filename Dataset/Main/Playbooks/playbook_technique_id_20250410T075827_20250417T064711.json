@@ -1,0 +1,138 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--931c4f8b-5c03-4e0e-bd37-5f1161b0f469",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where malicious scripts were executed through a vulnerable web application. It addresses the termination of malicious commands, scans for remaining scripts, blocks exfiltration attempts, identifies users, and resets their credentials.",
+    "created_by": "identity--abcdefg12345",
+    "created": "2023-10-23T15:00:00Z",
+    "modified": "2023-10-23T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1234567-cdef-4a2a-b1c2-12345678abcd",
+    "workflow": {
+        "start--b1234567-cdef-4a2a-b1c2-12345678abcd": {
+            "on_completion": "action--a6f52f71-2124-4b6c-bbda-65467b9a8cd2",
+            "type": "start"
+        },
+        "action--a6f52f71-2124-4b6c-bbda-65467b9a8cd2": {
+            "name": "Terminate the malicious command",
+            "description": "Terminate any processes associated with the suspicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "parallel--f98765ee-5c03-4e0e-bd37-5e1161b0f999"
+        },
+        "parallel--f98765ee-5c03-4e0e-bd37-5e1161b0f999": {
+            "name": "Execute parallel mitigations",
+            "description": "Run system scans and block exfiltration attempts in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c4892bcc-b99e-46e4-a5d9-73a6e6dd052f",
+                "action--dc13aa63-87c9-42f7-bf44-0951ae5cdf10",
+                "action--f85e6ea7-7b57-44d4-82ec-f9b3de7e1bc9"
+            ]
+        },
+        "action--c4892bcc-b99e-46e4-a5d9-73a6e6dd052f": {
+            "name": "Scan the system for remaining malicious scripts",
+            "description": "Scan the entire system for any remaining malicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'suspicious pattern' {} +"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "while-condition--dbc5d78c-645c-4460-8e9e-b5f40a8cde88"
+        },
+        "while-condition--dbc5d78c-645c-4460-8e9e-b5f40a8cde88": {
+            "name": "Check for remaining malicious scripts",
+            "description": "Repeat the scan until no malicious scripts are found.",
+            "on_completion": "action--dc13aa63-87c9-42f7-bf44-0951ae5cdf10",
+            "type": "while-condition",
+            "condition": "remaining_malicious_scripts == true",
+            "on_true": "action--c4892bcc-b99e-46e4-a5d9-73a6e6dd052f"
+        },
+        "action--dc13aa63-87c9-42f7-bf44-0951ae5cdf10": {
+            "name": "Block external IP used for data exfiltration",
+            "description": "Block outbound traffic to the external IP associated with data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to 192.168.1.100"
+                }
+            ],
+            "agent": "organization--def",
+            "on_completion": "action--f85e6ea7-7b57-44d4-82ec-f9b3de7e1bc9"
+        },
+        "action--f85e6ea7-7b57-44d4-82ec-f9b3de7e1bc9": {
+            "name": "Identify user responsible for script execution",
+            "description": "Identify the user who executed the suspicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps -aux | grep suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--ghi",
+            "on_completion": "if-condition--dabc12ff-765e-4bab-abc2-789012345678",
+            "step_variables": {
+                "user_identified": {
+                    "type": "string",
+                    "description": "The user who executed the suspicious script.",
+                    "value": "none",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--dabc12ff-765e-4bab-abc2-789012345678": {
+            "name": "Check if user identified",
+            "type": "if-condition",
+            "condition": "user_identified != none",
+            "on_true": "action--bfb1d02e-534b-4100-8a68-6f0b5b6d0d9a",
+            "on_false": "end--cba12345-89ab-47e7-8fbb-d3d494ef5643"
+        },
+        "action--bfb1d02e-534b-4100-8a68-6f0b5b6d0d9a": {
+            "name": "Reset compromised user credentials",
+            "description": "Reset the password of the user identified.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_password' | passwd user_identified --stdin"
+                }
+            ],
+            "agent": "organization--ghi",
+            "on_completion": "end--cba12345-89ab-47e7-8fbb-d3d494ef5643"
+        },
+        "end--cba12345-89ab-47e7-8fbb-d3d494ef5643": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "MaliciousCommandTerminator"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "SystemScanner"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "FirewallManager"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "UserManagement"
+        }
+    }
+}

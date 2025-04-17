@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7b790cf8-60e4-4d06-88de-3be1f8634be1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script via phishing, establishing a backdoor for remote commands.",
+    "created_by": "identity--52cfeaf4-b3ca-45d1-a705-e54e68814dfb",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d2d2a741-d15e-4ca6-b3b0-007fbee7eec5",
+    "workflow": {
+        "start--d2d2a741-d15e-4ca6-b3b0-007fbee7eec5": {
+            "on_completion": "if-condition--a1cdd3c5-7efb-4e16-8831-d5ff0d7d45cb",
+            "type": "start"
+        },
+        "if-condition--a1cdd3c5-7efb-4e16-8831-d5ff0d7d45cb": {
+            "name": "Check for suspicious PowerShell processes",
+            "type": "if-condition",
+            "condition": "process_is_unrecognized",
+            "on_true": "action--b1d2a445-11fe-4fc2-b163-d4936f03edc3",
+            "on_false": "action--9f6f3a5b-7a82-4dcf-839b-d762ae304ae6"
+        },
+        "action--b1d2a445-11fe-4fc2-b163-d4936f03edc3": {
+            "name": "Terminate suspicious PowerShell process",
+            "description": "Terminate any unrecognized PowerShell processes that are currently running.",
+            "on_completion": "action--c471f715-1f23-4273-8cc8-04c592356b23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c471f715-1f23-4273-8cc8-04c592356b23": {
+            "name": "Run full antivirus scan",
+            "description": "Perform a complete system scan to identify and eliminate threats.",
+            "on_completion": "if-condition--a1d1c23f-1d1e-4a12-a234-effb3fbc5660",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--a1d1c23f-1d1e-4a12-a234-effb3fbc5660": {
+            "name": "Check if the system is clean",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--b3e1d568-744e-4fd4-b334-dcdc1dfd5f32",
+            "on_false": "action--c471f715-1f23-4273-8cc8-04c592356b23"
+        },
+        "action--9f6f3a5b-7a82-4dcf-839b-d762ae304ae6": {
+            "name": "Remove malicious scripts from system",
+            "description": "Delete any detected malicious scripts from the host.",
+            "on_completion": "action--c471f715-1f23-4273-8cc8-04c592356b23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_script.ps1' -delete"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b3e1d568-744e-4fd4-b334-dcdc1dfd5f32": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

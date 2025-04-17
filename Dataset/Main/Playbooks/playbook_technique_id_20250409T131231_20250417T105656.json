@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3b1c151-12da-4ddb-8e37-b1f264f3bb2f",
+    "name": "Response to PowerShell-Based Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the internal network and executed a PowerShell script that exfiltrated sensitive data.",
+    "created_by": "identity--f473a13f-a62b-43b1-b5bc-ac67d6fdc964",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b2f5494b-4f8f-4eaf-873d-89abcd1273ab",
+    "workflow": {
+        "start--b2f5494b-4f8f-4eaf-873d-89abcd1273ab": {
+            "on_completion": "if-condition--c4a8b85a-5f4a-4d58-a4e7-05defffe72a9",
+            "type": "start"
+        },
+        "if-condition--c4a8b85a-5f4a-4d58-a4e7-05defffe72a9": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--4a7e5e90-e7c8-4ee4-bf7e-c381f67ef01c",
+            "on_false": "action--ebc5c092-a0e8-4742-872c-0e896c9bcb4b"
+        },
+        "action--4a7e5e90-e7c8-4ee4-bf7e-c381f67ef01c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process immediately.",
+            "on_completion": "action--ebc5c092-a0e8-4742-872c-0e896c9bcb4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--ebc5c092-a0e8-4742-872c-0e896c9bcb4b": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Block all outbound connections to a predefined suspicious IP.",
+            "on_completion": "parallel--b7f4bc71-d3c7-4670-ready-9f57-d420a253dfb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--b7f4bc71-d3c7-4670-ready-9f57-d420a253dfb5": {
+            "name": "Mitigation Steps",
+            "description": "Run simultaneous mitigation actions including a security scan and review user access permissions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--38ce4c4e-e618-4db2-bcf0-3e81f1d6bd4b",
+                "action--b4cf5861-0207-484e-8d3f-5dc5126a6929"
+            ]
+        },
+        "action--38ce4c4e-e618-4db2-bcf0-3e81f1d6bd4b": {
+            "name": "Run security scan",
+            "description": "Perform a comprehensive security scan to identify any remaining threats.",
+            "on_completion": "while-condition--b4b479be-567e-45e3-90ad-424f3dec023b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan / --recursive"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--b4b479be-567e-45e3-90ad-424f3dec023b": {
+            "name": "Scan Cleaning Loop",
+            "description": "Repeat the security scan until a clean result is obtained.",
+            "on_completion": "action--b4cf5861-0207-484e-8d3f-5dc5126a6929",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--38ce4c4e-e618-4db2-bcf0-3e81f1d6bd4b"
+        },
+        "action--b4cf5861-0207-484e-8d3f-5dc5126a6929": {
+            "name": "Review user access permissions",
+            "description": "Check user access permissions to ensure no unnecessary access.",
+            "on_completion": "action--f1ffc19a-83ef-4fb4-8df4-fb8384ee74f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo getent passwd | grep -E 'user1|user2'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f1ffc19a-83ef-4fb4-8df4-fb8384ee74f1": {
+            "name": "Update firewall rules based on threat intelligence",
+            "description": "Adjust firewall rules to reject traffic from a known threat IP.",
+            "on_completion": "end--d4b0002f-5307-452e-9077-a1b3841ed91a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=\"ipv4\" source address='1.2.3.4' reject'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d4b0002f-5307-452e-9077-a1b3841ed91a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

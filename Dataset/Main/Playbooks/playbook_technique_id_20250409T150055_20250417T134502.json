@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bc777e61-8bc2-4acb-9423-4345bbee317d",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook automates responses to an incident where an attacker exploited a vulnerability, executed a malicious PowerShell script, and exfiltrated sensitive data.",
+    "created_by": "identity--3bd1dd1c-530e-4b2e-af68-fec4611d643d",
+    "created": "2023-10-16T10:00:00Z",
+    "modified": "2023-10-16T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcde12345-67890-abcde12345",
+    "workflow": {
+        "start--abcde12345-67890-abcde12345": {
+            "on_completion": "parallel--ffabc6789-1234-5678-90ab-cdefghijklmnop",
+            "type": "start"
+        },
+        "parallel--ffabc6789-1234-5678-90ab-cdefghijklmnop": {
+            "name": "Mitigation Actions",
+            "description": "Executing mitigation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8e7c9f4a-4ce1-48bc-b9fa-bba8992a7f30",
+                "action--d59f136b-2a89-46d8-9eed-21c3c3a5a690"
+            ]
+        },
+        "action--8e7c9f4a-4ce1-48bc-b9fa-bba8992a7f30": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process if it is running.",
+            "on_completion": "if-condition--process-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--process-check": {
+            "name": "Check if PowerShell process was successfully terminated",
+            "type": "if-condition",
+            "condition": "process_is_running('powershell') == false",
+            "on_true": "action--f178b440-d93e-4717-bac7-d4c9008c0eae",
+            "on_false": "end--complete-check"
+        },
+        "action--d59f136b-2a89-46d8-9eed-21c3c3a5a690": {
+            "name": "Review system logs for unauthorized access",
+            "on_completion": "if-condition--logs-checked",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized_access' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--logs-checked": {
+            "name": "Determine log review results",
+            "type": "if-condition",
+            "condition": "log_entries_found() == true",
+            "on_true": "action--f178b440-d93e-4717-bac7-d4c9008c0eae",
+            "on_false": "loop--scan-until-clean"
+        },
+        "loop--scan-until-clean": {
+            "name": "Conduct a full system scan for malware",
+            "description": "Continue scanning until the system scan is clean.",
+            "on_completion": "if-condition--scan-results",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--f178b440-d93e-4717-bac7-d4c9008c0eae"
+        },
+        "action--f178b440-d93e-4717-bac7-d4c9008c0eae": {
+            "name": "Conduct a full system scan for malware",
+            "description": "Perform a comprehensive scan to detect and remove threats.",
+            "on_completion": "loop--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/ --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--complete-check": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

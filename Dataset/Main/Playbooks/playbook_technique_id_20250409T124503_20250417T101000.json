@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4b4c8b8-0ef9-4b41-9711-3efb8948e0fb",
+    "name": "Mitigation Playbook for Malicious Startup Executable",
+    "description": "This playbook addresses the incident of a malicious executable added to the startup folder. It removes the executable, monitors the startup folder, and checks the registry for unauthorized entries.",
+    "created_by": "identity--a0c8f8ca-bf73-4ed4-9c43-3e2f75eca11c",
+    "created": "2023-10-09T08:55:35.498Z",
+    "modified": "2023-10-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-1234-5678-1234-567812345678",
+    "workflow": {
+        "start--12345678-1234-5678-1234-567812345678": {
+            "on_completion": "action--dffdd0ab-1f8b-4cbb-a5a5-864176b175d6",
+            "type": "start"
+        },
+        "action--dffdd0ab-1f8b-4cbb-a5a5-864176b175d6": {
+            "name": "Remove malicious executable from startup folder",
+            "description": "Deleting the malicious executable to stop its persistence.",
+            "on_completion": "parallel--aa123456-1234-5678-1234-567812345678",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/startup/folder/malicious.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--aa123456-1234-5678-1234-567812345678": {
+            "name": "Monitor and Check Registry",
+            "description": "Continuous monitoring of the startup folder and checks the registry for unauthorized entries.",
+            "type": "parallel",
+            "next_steps": [
+                "action--11d3e5bb-ef1d-4c5a-afe6-146ed4b28c98",
+                "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22"
+            ]
+        },
+        "action--11d3e5bb-ef1d-4c5a-afe6-146ed4b28c98": {
+            "name": "Monitor startup folder for unauthorized changes",
+            "description": "Watch the startup folder for unauthorized file changes.",
+            "on_completion": "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "watch -n 60 'ls /path/to/startup/folder/'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22": {
+            "name": "Check registry for unauthorized entries",
+            "description": "Query the registry for potential malicious entries in run keys.",
+            "on_completion": "if-condition--credential-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--credential-check": {
+            "name": "Check for unauthorized registry entries",
+            "type": "if-condition",
+            "condition": "unauthorized_entry_found",
+            "on_true": "action--remove-unauthorized-entry",
+            "on_false": "end--completed-playbook"
+        },
+        "action--remove-unauthorized-entry": {
+            "name": "Delete unauthorized registry entry",
+            "description": "Removing unauthorized entries discovered in the registry.",
+            "on_completion": "end--completed-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v <name_of_unauthorized_entry> /f"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--completed-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

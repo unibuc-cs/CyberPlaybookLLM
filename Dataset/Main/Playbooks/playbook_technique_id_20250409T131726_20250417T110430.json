@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e71c3d-3351-45dc-b6b2-e01f89e7cc04",
+    "name": "Mitigation Playbook for PDF Exploitation Incident",
+    "description": "This playbook handles the incident where an employee opened a malicious PDF that exploited a vulnerability, leading to unauthorized actions on the network.",
+    "created_by": "identity--7f5b648c-20dd-4f53-ba58-5c37826bf8f8",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d2c02b1e-6e88-4e4e-817b-bb22603168f6",
+    "workflow": {
+        "start--d2c02b1e-6e88-4e4e-817b-bb22603168f6": {
+            "on_completion": "action--4e517fb7-b95b-4ae2-9f95-acafa327bf48",
+            "type": "start"
+        },
+        "action--4e517fb7-b95b-4ae2-9f95-acafa327bf48": {
+            "name": "Isolate affected host from network",
+            "description": "Immediately disconnect the compromised host from the network.",
+            "on_completion": "action--5f1f4947-d6f0-4645-bc72-09d05f4736ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5f1f4947-d6f0-4645-bc72-09d05f4736ec": {
+            "name": "Run antivirus scan on the affected system",
+            "description": "Perform a thorough antivirus scan to check for any malware.",
+            "on_completion": "decision--scan-complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_av_scan host-45"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_not_done": {
+                    "type": "boolean",
+                    "description": "variable to check if the scan is complete",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "decision--scan-complete": {
+            "name": "Check if scan is completed",
+            "type": "if-condition",
+            "condition": "scan_not_done == false",
+            "on_true": "action--f2358b3a-4e1e-47c8-a36c-e6bbf0e62902",
+            "on_false": "action--5f1f4947-d6f0-4645-bc72-09d05f4736ec"
+        },
+        "action--f2358b3a-4e1e-47c8-a36c-e6bbf0e62902": {
+            "name": "Review logs for suspicious activity",
+            "description": "Inspect system logs for any signs of suspicious activity post-exploitation.",
+            "on_completion": "end--13a28c1d-4987-45f6-a689-d9976ce95de9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "suspicious_activity": {
+                    "type": "string",
+                    "description": "logs entries of suspicious activity",
+                    "value": "",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--13a28c1d-4987-45f6-a689-d9976ce95de9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}
