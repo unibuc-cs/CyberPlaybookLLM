@@ -39,6 +39,11 @@
    - **Mitigation planning**: The model's ability to generate detailed and actionable mitigation plans for specific incidents ()
    - **Synthetic data generation**: The model's ability to generate realistic and useful synthetic data for training and testing purposes.
 
+## Test
+- Currently some tests are provided in the `Test` folder.
+- Run them with `pytest tests/test_training_state.py`
+
 ## TODO/Future work:
 - Use CACAO's SOAR interface to execute playbooks for faster adoption and integration.
 - **Playbook Execution**: Execute playbooks and provide step-by-step guidance for incident response.
+
