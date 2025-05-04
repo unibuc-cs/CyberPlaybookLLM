@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d550c78e-b8a1-4c87-b306-7e7b4931e276",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of a malicious script via PowerShell that created a backdoor on the targeted host.",
+    "created_by": "identity--7788cf21-91c3-44b4-8d1a-c2f86971a428",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1c588ac6-17de-4545-9cd6-fc5ab925f2f7",
+    "workflow": {
+        "action--cde4fa91-ab54-4a29-a0ae-b1c7539fc9df": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executed maliciously.",
+            "on_completion": "parallel--be5b1019-ccc5-4006-9a03-3a225b8a1e8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--7e48afb3-1651-4d0e-b285-fb586e54299d"
+        },
+        "action--f7ac3022-8e54-4a18-9f8d-af6c1ff85793": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate the affected host to prevent further exploitation.",
+            "on_completion": "parallel--be5b1019-ccc5-4006-9a03-3a225b8a1e8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--7e48afb3-1651-4d0e-b285-fb586e54299d"
+        },
+        "action--766f50f1-33f5-4b57-97f9-fee3cce5def0": {
+            "name": "Conduct full malware scan",
+            "description": "Run a comprehensive malware scan to detect and remove any malicious files.",
+            "on_completion": "while-condition--e5223e92-a59a-4330-8ee4-1cec08978d3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--7e48afb3-1651-4d0e-b285-fb586e54299d"
+        },
+        "start--1c588ac6-17de-4545-9cd6-fc5ab925f2f7": {
+            "on_completion": "if-condition--42f3d37f-861b-45e2-b24c-9a3f7a92b2ce",
+            "type": "start"
+        },
+        "if-condition--42f3d37f-861b-45e2-b24c-9a3f7a92b2ce": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "ps -aux | grep '[p]owershell' > /dev/null",
+            "on_true": "action--cde4fa91-ab54-4a29-a0ae-b1c7539fc9df",
+            "on_false": "action--f7ac3022-8e54-4a18-9f8d-af6c1ff85793"
+        },
+        "parallel--be5b1019-ccc5-4006-9a03-3a225b8a1e8d": {
+            "name": "Conduct simultaneous actions for mitigation",
+            "type": "parallel",
+            "next_steps": [
+                "action--766f50f1-33f5-4b57-97f9-fee3cce5def0"
+            ]
+        },
+        "while-condition--e5223e92-a59a-4330-8ee4-1cec08978d3a": {
+            "name": "Repeat scan until no threats are detected",
+            "description": "Continue scanning until no threats are found.",
+            "on_completion": "end--dad8a5d7-3892-49e8-95b5-4fd3926506c0",
+            "type": "while-condition",
+            "condition": "scan_results =: 'No threats found'",
+            "on_true": "end--dad8a5d7-3892-49e8-95b5-4fd3926506c0",
+            "on_false": "action--766f50f1-33f5-4b57-97f9-fee3cce5def0"
+        },
+        "end--dad8a5d7-3892-49e8-95b5-4fd3926506c0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7e48afb3-1651-4d0e-b285-fb586e54299d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,153 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b5c77a2-a2d3-4c2b-b8cb-3d795c922c8f",
+    "name": "Incident Response for Command and Scripting Interpreter",
+    "description": "This playbook addresses an incident involving the execution of a PowerShell script that downloaded a payload and executed unauthorized commands to escalate privileges.",
+    "created_by": "identity--a3e65798-9c7a-4da3-bf2e-b265f58406ae",
+    "created": "2023-10-10T08:00:00Z",
+    "modified": "2023-10-10T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcde123-f456-7890-abcd-1234567890ef",
+    "workflow": {
+        "start--abcde123-f456-7890-abcd-1234567890ef": {
+            "on_completion": "action--e3ab18d6-a5ef-4e9c-8901-1e209817f24b",
+            "type": "start"
+        },
+        "action--e3ab18d6-a5ef-4e9c-8901-1e209817f24b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process running on the host.",
+            "on_completion": "parallel--killblock-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep -i powershell | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "parallel--killblock-scan": {
+            "type": "parallel",
+            "name": "Concurrent Mitigation Actions",
+            "description": "Perform concurrent actions to block IPs, remove users, and initiate system scans.",
+            "next_steps": [
+                "loop--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f",
+                "decision--28123e4a-0a45-414f-a894-31a921f8c104",
+                "loop--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3"
+            ]
+        },
+        "loop--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f": {
+            "type": "loop",
+            "name": "Block associated IP addresses",
+            "description": "Iterating through malicious IPs to block each one.",
+            "condition": "ip in malicious-ip-list",
+            "on_completion": "end--f3f5d919-d2b7-41a8-a4b3-finished",
+            "on_iteration": "action--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f"
+        },
+        "action--f3f5d919-d2b7-41a8-a4b3-e1845f9b012f": {
+            "name": "Block IP",
+            "description": "Blocks an individual malicious IP.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d {ip} -j DROP"
+                }
+            ],
+            "agent": "organization--def",
+            "step_variables": {
+                "ip": {
+                    "type": "string",
+                    "description": "An IP address determined to be malicious.",
+                    "value": "None",
+                    "constant": false
+                }
+            }
+        },
+        "decision--28123e4a-0a45-414f-a894-31a921f8c104": {
+            "type": "if-condition",
+            "name": "Check for unauthorized users",
+            "description": "Remove unauthorized user accounts if they exist.",
+            "condition": "[ $(grep 'suspicious-user' /etc/passwd) ]",
+            "on_true": "action--28123e4a-0a45-414f-a894-31a921f8c104",
+            "on_false": "end--28123e4a-0a45-414f-a894-finished"
+        },
+        "action--28123e4a-0a45-414f-a894-31a921f8c104": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Executes command to delete suspicious user if present.",
+            "type": "action",
+            "on_completion": "end--28123e4a-0a45-414f-a894-finished",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deluser suspicious-user"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "loop--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3": {
+            "type": "loop",
+            "name": "Scan for residual malware",
+            "description": "Continuously scans until no malware is detected.",
+            "condition": "[ ! -z $(malware-scan --all --quiet) ]",
+            "on_true": "action--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3"
+        },
+        "action--ece128f5-ef2b-43c8-ba88-3af90c4ba3c3": {
+            "name": "Malware Scan",
+            "description": "Performs a malware scan and generates a report.",
+            "type": "action",
+            "on_completion": "end--ece128f5-ef2b-43c8-ba88-loop-finished",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --all --report"
+                }
+            ],
+            "agent": "organization--jkl"
+        },
+        "end--f3f5d919-d2b7-41a8-a4b3-finished": {
+            "type": "end"
+        },
+        "end--28123e4a-0a45-414f-a894-finished": {
+            "type": "end"
+        },
+        "end--ece128f5-ef2b-43c8-ba88-loop-finished": {
+            "type": "end"
+        },
+        "action--b749d6a8-6ed1-41d1-828c-bb589fd6921b": {
+            "name": "Validate System Integrity",
+            "description": "Executes checks for rootkits and verifies system integrity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit && rkhunter --check"
+                }
+            ],
+            "agent": "organization--mno",
+            "on_completion": "end--b749d6a8-6ed1-41d1-828c-finished"
+        },
+        "end--b749d6a8-6ed1-41d1-828c-finished": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--def": {
+            "type": "organization",
+            "name": "DefensiveSecurityAgency"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "UserAccountMgmt"
+        },
+        "organization--jkl": {
+            "type": "organization",
+            "name": "MalwareScanCompany"
+        },
+        "organization--mno": {
+            "type": "organization",
+            "name": "IntegrityChecksOrg"
+        }
+    }
+}

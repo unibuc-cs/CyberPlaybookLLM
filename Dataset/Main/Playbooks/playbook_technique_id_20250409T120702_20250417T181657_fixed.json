@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8d6c59a-db29-4cc0-abc8-5709f2ab6ead",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access and executed a malicious PowerShell script.",
+    "created_by": "identity--a1fcd88b-bf37-4896-80f2-59aa0e3c0f9c",
+    "created": "2025-04-09T08:55:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e5d62e7a-e71b-4dc6-b1b7-587b9b99ed56",
+    "workflow": {
+        "start--e5d62e7a-e71b-4dc6-b1b7-587b9b99ed56": {
+            "on_completion": "action--cc242a86-8933-4258-8d66-d466288b85ac",
+            "type": "start"
+        },
+        "while-condition--f4567890-c34f-48e2-8a7a-bcdef0123456": {
+            "name": "Check scan completion",
+            "description": "Continue scanning until no threats are detected.",
+            "on_true": "end--23b07bb2-3237-4413-b6c5-d4db1ec91f8a",
+            "on_false": "action--904fdbbc-f9f9-410a-8056-b71459e6f350",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'"
+        },
+        "action--cc242a86-8933-4258-8d66-d466288b85ac": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes running in the system.",
+            "on_completion": "if-condition--5bdd765f-f976-403e-946e-d76eb7db0aaf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'malicious_process_name')"
+                }
+            ],
+            "agent": "organization--605e67a8-500a-43ff-ad4a-35a250fef203"
+        },
+        "if-condition--5bdd765f-f976-403e-946e-d76eb7db0aaf": {
+            "name": "Check for scheduled tasks",
+            "type": "if-condition",
+            "condition": "task_exists('MaliciousTaskName')",
+            "on_true": "action--aea6d37a-38fa-44bf-bf4e-69f5854eec52",
+            "on_false": "action--904fdbbc-f9f9-410a-8056-b71459e6f350"
+        },
+        "action--aea6d37a-38fa-44bf-bf4e-69f5854eec52": {
+            "name": "Remove scheduled tasks created by attacker",
+            "description": "Delete any scheduled tasks created by the attacker.",
+            "on_completion": "action--904fdbbc-f9f9-410a-8056-b71459e6f350",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn 'MaliciousTaskName' /f"
+                }
+            ],
+            "agent": "organization--605e67a8-500a-43ff-ad4a-35a250fef203"
+        },
+        "action--904fdbbc-f9f9-410a-8056-b71459e6f350": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a full system scan to detect and eliminate any remaining threats.",
+            "type": "action",
+            "loop": "repeat until scan_status == 'clean'",
+            "on_completion": "while-condition--f4567890-c34f-48e2-8a7a-bcdef0123456",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --full"
+                }
+            ],
+            "agent": "organization--605e67a8-500a-43ff-ad4a-35a250fef203",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the current scan.",
+                    "value": "not_clean",
+                    "constant": false
+                }
+            }
+        },
+        "end--23b07bb2-3237-4413-b6c5-d4db1ec91f8a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--605e67a8-500a-43ff-ad4a-35a250fef203": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

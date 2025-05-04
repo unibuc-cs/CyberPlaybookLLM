@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1451afa3-3f89-473a-8ed6-f9b4f0c926d4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via a command interpreter to exfiltrate sensitive data.",
+    "created_by": "identity--45c29194-9ac7-4f2b-9794-f33e446fc546",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--91c18d6a-0804-466f-9b82-de125220d139",
+    "workflow": {
+        "start--91c18d6a-0804-466f-9b82-de125220d139": {
+            "on_completion": "action--c27d88a4-1a66-490b-bc77-0b9b690b21e5",
+            "type": "start"
+        },
+        "action--c27d88a4-1a66-490b-bc77-0b9b690b21e5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that is running.",
+            "on_completion": "if-condition--a6a520f7-b48b-46ec-986a-8af1a61be8aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--c4b6a383-16bd-413f-865f-5c419a11d265"
+        },
+        "action--ff71977b-dc71-4c23-8e9b-07a2662a2c60": {
+            "name": "Disconnect from the network",
+            "description": "Disconnect the affected host from the network to prevent further data exfiltration.",
+            "on_completion": "parallel--7e9a55bf-0cf5-486e-b2b7-b7c9a247fd45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--c4b6a383-16bd-413f-865f-5c419a11d265"
+        },
+        "action--a0cc8891-847b-4b9f-b10f-90d5748eb65e": {
+            "name": "Scan system for other threats",
+            "description": "Continue scanning the system until the scan is clear.",
+            "type": "action",
+            "step_variables": {
+                "scan_completed": {
+                    "type": "boolean",
+                    "description": "Indicates whether the security scan has completed successfully.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--37364516-de85-4627-af2e-57a9f4799185",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_av_scan"
+                }
+            ],
+            "agent": "organization--c4b6a383-16bd-413f-865f-5c419a11d265"
+        },
+        "if-condition--a6a520f7-b48b-46ec-986a-8af1a61be8aa": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--ff71977b-dc71-4c23-8e9b-07a2662a2c60",
+            "on_false": "action--a0cc8891-847b-4b9f-b10f-90d5748eb65e"
+        },
+        "parallel--7e9a55bf-0cf5-486e-b2b7-b7c9a247fd45": {
+            "name": "Initiate threat scanning",
+            "description": "Run a system scan for additional threats while ensuring no further data exfiltration occurs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a0cc8891-847b-4b9f-b10f-90d5748eb65e"
+            ]
+        },
+        "while-condition--37364516-de85-4627-af2e-57a9f4799185": {
+            "name": "Threat scan loop",
+            "description": "Repeat scanning process until threats are cleared from the system.",
+            "condition": "scan_completed == false",
+            "on_true": "action--a0cc8891-847b-4b9f-b10f-90d5748eb65e",
+            "on_false": "end--c878533c-a237-4bab-8bcd-79b168985069",
+            "type": "if-condition"
+        },
+        "end--c878533c-a237-4bab-8bcd-79b168985069": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c4b6a383-16bd-413f-865f-5c419a11d265": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

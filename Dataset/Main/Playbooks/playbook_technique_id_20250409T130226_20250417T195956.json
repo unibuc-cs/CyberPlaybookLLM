@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ec27f77a-d8d2-4e61-b66d-f7d69151675d",
+    "name": "Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident involving the exploitation of a vulnerability leading to unauthorized PowerShell command execution and data exfiltration.",
+    "created_by": "identity--abc12345-def6-7890-gh12-ijklmnopqrs",
+    "created": "2025-04-10T12:00:00.000Z",
+    "modified": "2025-04-10T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-ef01-2345-6789abcdef01",
+    "workflow": {
+        "start--12345678-abcd-ef01-2345-6789abcdef01": {
+            "on_completion": "action--f9d41ace-eb71-4f70-bb7e-d1090982d81c",
+            "type": "start"
+        },
+        "action--f9d41ace-eb71-4f70-bb7e-d1090982d81c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process executing malicious commands.",
+            "on_completion": "if-condition--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4": {
+            "name": "Check connection to suspicious IP",
+            "type": "if-condition",
+            "condition": "suspicious_connection_exists == true",
+            "on_true": "action--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4",
+            "on_false": "action--de50d90e-d4e5-429e-b034-abc173951681"
+        },
+        "action--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4": {
+            "name": "Block outbound connection to suspicious IP",
+            "description": "Block any outbound connection to the identified suspicious IP.",
+            "on_completion": "action--de50d90e-d4e5-429e-b034-abc173951681",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to [suspicious_ip]"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--de50d90e-d4e5-429e-b034-abc173951681": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --bell -i /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan Loop",
+            "description": "Repeat the scan until the system is clean.",
+            "on_completion": "end--operation-complete",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--de50d90e-d4e5-429e-b034-abc173951681"
+        },
+        "end--operation-complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "DefensiveOrg"
+        }
+    },
+    "external_variables": {
+        "suspicious_connection_exists": {
+            "type": "boolean",
+            "value": true
+        },
+        "suspicious_ip": {
+            "type": "string",
+            "value": "192.0.2.1"
+        },
+        "scan_status": {
+            "type": "string",
+            "value": "unknown"
+        }
+    }
+}

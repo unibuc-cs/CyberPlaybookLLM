@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5e8f4d2-b582-43b3-8f91-6ac0b9f30e9f",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook handles an incident where an attacker exploited command line access to run malicious scripts for data exfiltration and persistence.",
+    "created_by": "identity--5e112440-d4ee-4680-85e0-2c8e8913aa5d",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--8541f78e-3eba-42a2-a77e-aa639fdf00d5",
+    "workflow": {
+        "action--1cbf87bd-d1f0-4f51-a70d-79d2fbd4f34a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts that are currently running.",
+            "on_completion": "action--e4fb2d02-23a4-4c91-8cdb-5abbf4fcf60b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f maliciousProcess"
+                }
+            ],
+            "agent": "organization--cf78a3e3-79e8-483e-9c20-e0998f857171"
+        },
+        "action--e4fb2d02-23a4-4c91-8cdb-5abbf4fcf60b": {
+            "name": "Update firewall rules",
+            "description": "Block connection to suspicious IP address.",
+            "on_completion": "action--88f3d8c1-5969-4f51-a404-567234f6325f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip -j DROP"
+                }
+            ],
+            "agent": "organization--cf78a3e3-79e8-483e-9c20-e0998f857171"
+        },
+        "action--88f3d8c1-5969-4f51-a404-567234f6325f": {
+            "name": "Remove dropped files",
+            "description": "Remove any malicious payloads left on the system.",
+            "on_completion": "while-condition--203f6c5e-1422-4d57-8c89-32d29e6ba9ff",
+            "type": "if-condition",
+            "condition": "files_exist",
+            "on_true": "action--88f3d8c1-5969-4f51-a404-567234f6325f",
+            "on_false": "action--203f6c5e-1422-4d57-8c89-32d29e6ba9ff"
+        },
+        "while-condition--203f6c5e-1422-4d57-8c89-32d29e6ba9ff": {
+            "name": "Run integrity scan",
+            "description": "Perform a scan of the system for potential threats.",
+            "on_completion": "end--83a70d18-ff46-4090-8e9e-b8e0bb6b7fab",
+            "type": "while-condition",
+            "condition": "scan_is_not_clean",
+            "on_true": "action--203f6c5e-1422-4d57-8c89-32d29e6ba9ff",
+            "next_steps": [
+                "action--203f6c5e-1422-4d57-8c89-32d29e6ba9ff"
+            ]
+        },
+        "action--203f6c5e-1422-4d57-8c89-32d29e6ba9ff": {
+            "name": "Run integrity scan",
+            "description": "Perform a full integrity scan of the system.",
+            "on_completion": "end--83a70d18-ff46-4090-8e9e-b8e0bb6b7fab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--cf78a3e3-79e8-483e-9c20-e0998f857171"
+        },
+        "action--b2eef6f7-6532-4ccf-a55f-c23b251d6738": {
+            "name": "Notify security team",
+            "description": "Alert the security team of the incident.",
+            "on_completion": "end--83a70d18-ff46-4090-8e9e-b8e0bb6b7fab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-22' | mail -s 'Security Alert' security@organization.com"
+                }
+            ],
+            "agent": "organization--cf78a3e3-79e8-483e-9c20-e0998f857171"
+        },
+        "start--8541f78e-3eba-42a2-a77e-aa639fdf00d5": {
+            "on_completion": "action--1cbf87bd-d1f0-4f51-a70d-79d2fbd4f34a",
+            "type": "start"
+        },
+        "end--83a70d18-ff46-4090-8e9e-b8e0bb6b7fab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cf78a3e3-79e8-483e-9c20-e0998f857171": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

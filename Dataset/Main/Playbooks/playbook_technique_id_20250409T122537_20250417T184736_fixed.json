@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e421d9f0-0123-4a56-89bc-1234567abcde",
+    "name": "Mitigation Playbook for Backdoor Installation via Command Line Execution",
+    "description": "This playbook addresses an incident where an attacker executed scripts via the command line leading to the installation of a backdoor.",
+    "created_by": "identity--ef166012-58b8-4dd0-bca5-d77a31c6f940",
+    "created": "2023-10-01T12:00:00.000Z",
+    "modified": "2023-10-01T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--123948c0-8123-45f6-a12b-123456789abc",
+    "workflow": {
+        "start--123948c0-8123-45f6-a12b-123456789abc": {
+            "on_completion": "action--de33c50b-e8fd-4beb-9d9b-5a05ee037c82",
+            "type": "start"
+        },
+        "action--de33c50b-e8fd-4beb-9d9b-5a05ee037c82": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are executing suspicious commands.",
+            "on_completion": "if-condition--914ab2f4-39a7-41a4-b94f-8460850d9784",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--7b5899d6-8c24-4575-9c68-e53612f49bfa"
+        },
+        "if-condition--914ab2f4-39a7-41a4-b94f-8460850d9784": {
+            "name": "Check if process is still running",
+            "type": "if-condition",
+            "condition": "ps -ef | grep powershell | grep -v grep",
+            "on_true": "action--914ab2f4-39a7-41a4-b94f-8460850d9784",
+            "on_false": "action--ad76c8e4-b2b8-459c-9ac3-33c3e5a5e1e0"
+        },
+        "action--914ab2f4-39a7-41a4-b94f-8460850d9784": {
+            "name": "Remove dropped backdoor script",
+            "description": "Remove the malicious backdoor script dropped on the system.",
+            "on_completion": "action--ad76c8e4-b2b8-459c-9ac3-33c3e5a5e1e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/dropped/script"
+                }
+            ],
+            "agent": "organization--7b5899d6-8c24-4575-9c68-e53612f49bfa"
+        },
+        "action--ad76c8e4-b2b8-459c-9ac3-33c3e5a5e1e0": {
+            "name": "Perform a full system scan",
+            "description": "Conduct a full scan of the system until no threats are detected.",
+            "on_completion": "while-condition--0d0e8ab1-c14a-42c7-8d65-1dc7d1ff90b7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan"
+                }
+            ],
+            "agent": "organization--7b5899d6-8c24-4575-9c68-e53612f49bfa"
+        },
+        "end--360c3f0c-4882-4a3e-bb78-eccfc9de401f": {
+            "type": "end"
+        },
+        "while-condition--0d0e8ab1-c14a-42c7-8d65-1dc7d1ff90b7": {
+            "name": "Threat Detection Loop",
+            "description": "Repeat the system scan until it is clean.",
+            "on_completion": "action--end--360c3f0c-4882-4a3e-bb78-eccfc9de401f",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--ad76c8e4-b2b8-459c-9ac3-33c3e5a5e1e0",
+            "on_false": "end--360c3f0c-4882-4a3e-bb78-eccfc9de401f",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the system scan is complete and clean",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--7b5899d6-8c24-4575-9c68-e53612f49bfa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

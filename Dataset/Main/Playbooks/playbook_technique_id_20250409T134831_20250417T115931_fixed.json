@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e82ace4b-bca6-4d95-8f47-1a3eab32f56a",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized PowerShell scripts to establish backdoor access.",
+    "created_by": "identity--e7f7c97b-54d5-4cf4-bba8-f5adeb2c25d1",
+    "created": "2023-10-06T08:00:00Z",
+    "modified": "2023-10-06T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fdec5ab4-c3b7-4764-b8ae-505541c0c76a",
+    "workflow": {
+        "start--fdec5ab4-c3b7-4764-b8ae-505541c0c76a": {
+            "on_completion": "if-condition--6da4026b-6459-45fe-a2ad-759115485b64",
+            "type": "start"
+        },
+        "if-condition--6da4026b-6459-45fe-a2ad-759115485b64": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--34ca1adf-1045-40e7-8ac2-fe28790390eb",
+            "on_false": "action--c7d4b13c-4bba-454c-bb75-f751f0ed6381"
+        },
+        "action--34ca1adf-1045-40e7-8ac2-fe28790390eb": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--93c55198-3172-4547-9963-00abb620d978",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--3044f213-ef86-4aaf-b376-39d791c6c37d"
+        },
+        "action--c7d4b13c-4bba-454c-bb75-f751f0ed6381": {
+            "name": "Remove unauthorized scripts from user directories",
+            "description": "Delete any remaining malicious scripts on affected hosts.",
+            "on_completion": "while-loop--a7774c5b-954b-436b-b7f5-640d22ca3665",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /home/*/malicious.ps1"
+                }
+            ],
+            "agent": "organization--3044f213-ef86-4aaf-b376-39d791c6c37d"
+        },
+        "while-loop--a7774c5b-954b-436b-b7f5-640d22ca3665": {
+            "name": "Check for malicious script deletion",
+            "description": "Repeat removal until the malicious script is deleted.",
+            "type": "while-condition",
+            "condition": "! (test -e /home/*/malicious.ps1)",
+            "on_true": "action--93c55198-3172-4547-9963-00abb620d978",
+            "on_false": "while-loop--a7774c5b-954b-436b-b7f5-640d22ca3665"
+        },
+        "action--93c55198-3172-4547-9963-00abb620d978": {
+            "name": "Isolate compromised hosts from network",
+            "description": "Block network access to compromised hosts.",
+            "on_completion": "end--5da8578d-4e06-4c02-9a57-fcfe0ef4032a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-45 -j DROP"
+                }
+            ],
+            "agent": "organization--3044f213-ef86-4aaf-b376-39d791c6c37d"
+        },
+        "end--5da8578d-4e06-4c02-9a57-fcfe0ef4032a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3044f213-ef86-4aaf-b376-39d791c6c37d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates if any malicious PowerShell process is currently running.",
+            "value": true,
+            "constant": false,
+            "external": true
+        }
+    }
+}

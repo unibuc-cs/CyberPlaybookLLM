@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3fb8f04-3df1-4ba2-b983-7da1fcfef234",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script that leads to unauthorized data exfiltration.",
+    "created_by": "identity--d2b2c16b-4c7d-4012-877c-5de691bb7e99",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b785fed5-6352-4213-a3b3-675837cb92a4",
+    "workflow": {
+        "start--b785fed5-6352-4213-a3b3-675837cb92a4": {
+            "on_completion": "if-condition--92c8cbc7-2f3e-4f92-9c15-cc9a7f591f02",
+            "type": "start"
+        },
+        "if-condition--92c8cbc7-2f3e-4f92-9c15-cc9a7f591f02": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--a3b5b370-25dc-4a21-8b50-dfc9536b6154",
+            "on_false": "action--b75582ef-0ad0-4381-ab11-0c6c3e271b36"
+        },
+        "action--a3b5b370-25dc-4a21-8b50-dfc9536b6154": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--b75582ef-0ad0-4381-ab11-0c6c3e271b36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--4d8ab40d-10d5-4f6c-989f-4de84fcfee93"
+        },
+        "action--b75582ef-0ad0-4381-ab11-0c6c3e271b36": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent further network access.",
+            "type": "while-condition",
+            "on_completion": "action--ec980807-7d93-46e3-b653-7c63681366a4",
+            "condition": "network_is_not_secure",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set dev host-22 down"
+                }
+            ],
+            "agent": "organization--4d8ab40d-10d5-4f6c-989f-4de84fcfee93"
+        },
+        "action--ec980807-7d93-46e3-b653-7c63681366a4": {
+            "name": "Conduct full system scan",
+            "description": "Perform a complete malware scan on the affected host.",
+            "on_completion": "end--bd3fc20d-d961-4c2d-b7a2-784b54ac7cc1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --full --host host-22"
+                }
+            ],
+            "agent": "organization--4d8ab40d-10d5-4f6c-989f-4de84fcfee93",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan",
+                    "value": "initial-response",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--bd3fc20d-d961-4c2d-b7a2-784b54ac7cc1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4d8ab40d-10d5-4f6c-989f-4de84fcfee93": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

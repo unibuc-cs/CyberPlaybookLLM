@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8c59a55-f924-4673-825b-542ae7396b75",
+    "name": "Mitigation Playbook for Command Execution via Script Vulnerability",
+    "description": "This playbook addresses an incident where an attacker exploited a script vulnerability to execute arbitrary commands on the server.",
+    "created_by": "identity--b4ae23be-85cf-440a-8bd5-4f8da82010e1",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b4ab9455-64b6-45ce-9c58-618c1e8e6161",
+    "workflow": {
+        "start--b4ab9455-64b6-45ce-9c58-618c1e8e6161": {
+            "on_completion": "action--e3524a44-bdca-4b9d-9a2f-b562b7e55b58",
+            "type": "start"
+        },
+        "action--e3524a44-bdca-4b9d-9a2f-b562b7e55b58": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "parallel--4c5f31b1-c913-40fb-8995-9bcd456d6551",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--922772f1-91ca-4da3-a847-2bee782c56af"
+        },
+        "parallel--4c5f31b1-c913-40fb-8995-9bcd456d6551": {
+            "name": "Monitor for Suspicious Activity",
+            "description": "Monitor network for further suspicious activities.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4c5f31b1-c913-40fb-8995-9bcd456d6551",
+                "action--f4900f15-b9c8-4913-8b06-192348a2e248"
+            ]
+        },
+        "action--4c5f31b1-c913-40fb-8995-9bcd456d6551": {
+            "name": "Monitor Network Traffic",
+            "description": "Capture suspicious traffic for further analysis.",
+            "on_completion": "action--f4900f15-b9c8-4913-8b06-192348a2e248",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--922772f1-91ca-4da3-a847-2bee782c56af",
+            "loop": {
+                "condition": "network traffic abnormal",
+                "repeat_every": "10m"
+            }
+        },
+        "action--f4900f15-b9c8-4913-8b06-192348a2e248": {
+            "name": "Conduct Full System Scan for Malware",
+            "description": "Perform a scan of the entire system for malware.",
+            "on_completion": "end--6bdec167-204c-4f09-b78f-3b27f739f2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r ${TARGET_DIR} --bell -i"
+                }
+            ],
+            "agent": "organization--922772f1-91ca-4da3-a847-2bee782c56af",
+            "step_variables": {
+                "TARGET_DIR": {
+                    "type": "string",
+                    "description": "Directory to scan for malware",
+                    "value": "/",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--6bdec167-204c-4f09-b78f-3b27f739f2d0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--922772f1-91ca-4da3-a847-2bee782c56af": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3c168da-6615-49e6-85f9-f35f1949c861",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--7c207906-52b9-40cb-a29d-0f4f50a622d1",
+    "created": "2025-10-01T08:30:00.000Z",
+    "modified": "2025-10-01T08:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b8e4e6a5-f2ae-497e-93ec-7ab62d3025c8",
+    "workflow": {
+        "start--b8e4e6a5-f2ae-497e-93ec-7ab62d3025c8": {
+            "on_completion": "action--d1f3e4e0-7c62-4e60-b6a1-7ceaf1540380",
+            "type": "start"
+        },
+        "action--d1f3e4e0-7c62-4e60-b6a1-7ceaf1540380": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes suspected of malicious activity.",
+            "on_completion": "if-condition--3e322d14-5e0b-485e-b338-43e2fd109b45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--3e322d14-5e0b-485e-b338-43e2fd109b45": {
+            "name": "Check for malicious scheduled task",
+            "type": "if-condition",
+            "condition": "check_if_task_exists('MaliciousTask')",
+            "on_true": "action--3e322d14-5e0b-485e-b338-43e2fd109b45",
+            "on_false": "loop--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82"
+        },
+        "action--3e322d14-5e0b-485e-b338-43e2fd109b45": {
+            "name": "Remove suspicious scheduled tasks",
+            "description": "Delete any scheduled tasks that may be executing malicious scripts.",
+            "on_completion": "loop--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /TN 'MaliciousTask' /F"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the host and repeat until clean.",
+            "on_completion": "end--e8ea410a-60ec-4a6e-91cb-3542be0e0834",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82",
+            "on_false": "end--e8ea410a-60ec-4a6e-91cb-3542be0e0834"
+        },
+        "action--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82": {
+            "name": "Run malware scan on host",
+            "description": "Perform a recursive scan to identify any malicious files.",
+            "on_completion": "loop--f0794a84-b5b7-408f-8a96-bd2e4e6dbe82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e8ea410a-60ec-4a6e-91cb-3542be0e0834": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

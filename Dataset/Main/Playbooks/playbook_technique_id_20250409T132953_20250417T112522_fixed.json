@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e5a417e-b74c-4e2d-95b5-023f987b16c6",
+    "name": "Mitigation Playbook for C2 Data Exfiltration Incident",
+    "description": "This playbook executes a series of actions to mitigate the impact of an incident involving data exfiltration over a command and control channel.",
+    "created_by": "identity--e5b3f4fc-3e21-4b2b-9a75-0c9088a09e68",
+    "created": "2025-10-20T14:00:00Z",
+    "modified": "2025-10-20T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f8dfcb92-a1a1-4c73-b85d-36038c81ca9c",
+    "workflow": {
+        "start--f8dfcb92-a1a1-4c73-b85d-36038c81ca9c": {
+            "on_completion": "action--ab6f65a4-7bc2-404f-a9cc-e015b5f4e751",
+            "type": "start"
+        },
+        "action--ab6f65a4-7bc2-404f-a9cc-e015b5f4e751": {
+            "name": "Identify and block the malicious C2 server",
+            "description": "Block all outbound connections to the identified C2 server.",
+            "on_completion": "parallel--e0d1e9c7-06f9-4bfa-b049-ae9b79547349",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <C2_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--36bdceab-e961-46a0-ac45-d03dfc03fe00"
+        },
+        "action--b65fd5c0-0467-4a6b-b7d0-16a12bc8f9cb": {
+            "name": "Monitor for abnormal outbound traffic",
+            "description": "Monitor network traffic for suspicious activity until normal traffic is restored.",
+            "type": "while-condition",
+            "condition": "traffic_normal == false",
+            "step_variables": {
+                "traffic_normal": {
+                    "type": "boolean",
+                    "description": "Indicates whether traffic is normal.",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--36bdceab-e961-46a0-ac45-d03dfc03fe00",
+            "on_completion": "action--1d63e4c8-2644-4aad-b957-90a4552874a6"
+        },
+        "action--1d63e4c8-2644-4aad-b957-90a4552874a6": {
+            "name": "Kill malicious processes identified by the endpoint detection",
+            "description": "Terminate any processes recognized as malicious.",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_process_name>"
+                }
+            ],
+            "agent": "organization--36bdceab-e961-46a0-ac45-d03dfc03fe00",
+            "on_completion": "end--d9a20f47-78a3-419e-bbe2-8afa17fcda2c",
+            "condition": "process_detected == true"
+        },
+        "parallel--e0d1e9c7-06f9-4bfa-b049-ae9b79547349": {
+            "name": "Parallel Mitigations",
+            "description": "Execute monitoring and killing processes in parallel to reduce time to mitigate threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b65fd5c0-0467-4a6b-b7d0-16a12bc8f9cb",
+                "action--1d63e4c8-2644-4aad-b957-90a4552874a6"
+            ]
+        },
+        "end--d9a20f47-78a3-419e-bbe2-8afa17fcda2c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--36bdceab-e961-46a0-ac45-d03dfc03fe00": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

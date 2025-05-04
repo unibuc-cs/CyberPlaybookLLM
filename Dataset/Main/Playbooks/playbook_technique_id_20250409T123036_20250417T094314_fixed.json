@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7c3d2e14-e7c6-4c5c-8222-cb2c54c78453",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script on a compromised server, which allowed them to gather sensitive information and establish a backdoor.",
+    "created_by": "identity--0f8b2b7b-ae2f-4d2e-bbf9-264d4e920c37",
+    "created": "2023-10-25T13:00:00Z",
+    "modified": "2023-10-25T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f21b541b-312e-4fd0-97b7-6227bbaeef69",
+    "workflow": {
+        "start--f21b541b-312e-4fd0-97b7-6227bbaeef69": {
+            "on_completion": "action--c20d2a1f-5b08-4803-b433-7e22c8c8836f",
+            "type": "start"
+        },
+        "action--c20d2a1f-5b08-4803-b433-7e22c8c8836f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--ff5191f2-843b-4710-bef6-a1b111ff8a2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--8f0654ea-e304-4c25-93f6-504fa9660a40"
+        },
+        "if-condition--ff5191f2-843b-4710-bef6-a1b111ff8a2b": {
+            "name": "Check if backdoor.exe is found",
+            "type": "if-condition",
+            "condition": "backdoor_exe_found == true",
+            "on_true": "action--ff5191f2-843b-4710-bef6-a1b111ff8a2b",
+            "on_false": "action--ea320b47-30df-490d-b711-02f314c82ab1"
+        },
+        "action--ff5191f2-843b-4710-bef6-a1b111ff8a2b": {
+            "name": "Remove unauthorized files",
+            "description": "Delete the detected backdoor executable.",
+            "on_completion": "action--ea320b47-30df-490d-b711-02f314c82ab1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/backdoor.exe"
+                }
+            ],
+            "agent": "organization--8f0654ea-e304-4c25-93f6-504fa9660a40"
+        },
+        "action--ea320b47-30df-490d-b711-02f314c82ab1": {
+            "name": "Scan for residual threats",
+            "description": "Perform a security scan of the compromised server.",
+            "on_completion": "decision--02e9a09b-9b88-42e8-bbda-6d8e1c093e88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scanner --host host-22"
+                }
+            ],
+            "agent": "organization--8f0654ea-e304-4c25-93f6-504fa9660a40",
+            "loop": {
+                "condition": "scan_status != 'clean'",
+                "action": "action--ea320b47-30df-490d-b711-02f314c82ab1"
+            }
+        },
+        "decision--02e9a09b-9b88-42e8-bbda-6d8e1c093e88": {
+            "name": "Block attacker IP",
+            "description": "Block any connections from the detected malicious IP.",
+            "type": "action",
+            "on_completion": "end--d6e2e6a7-ed25-4bc9-99cc-5ceeb7d3ef89",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s ${malicious_IP} -j DROP"
+                }
+            ],
+            "agent": "organization--8f0654ea-e304-4c25-93f6-504fa9660a40"
+        },
+        "action--dc251c5d-4c69-4c39-a883-d22bd1237f71": {
+            "name": "Update firewall rules",
+            "description": "Update firewall rules to prevent future access from the malicious IP.",
+            "on_completion": "end--d6e2e6a7-ed25-4bc9-99cc-5ceeb7d3ef89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from ${malicious_IP}"
+                }
+            ],
+            "agent": "organization--8f0654ea-e304-4c25-93f6-504fa9660a40"
+        },
+        "end--d6e2e6a7-ed25-4bc9-99cc-5ceeb7d3ef89": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8f0654ea-e304-4c25-93f6-504fa9660a40": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "backdoor_exe_found": {
+            "type": "boolean",
+            "description": "Indicates if backdoor.exe has been found.",
+            "value": true,
+            "constant": false,
+            "external": false
+        },
+        "malicious_IP": {
+            "type": "string",
+            "description": "The detected malicious IP address that needs blocking.",
+            "value": "[result from IP detection]",
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Indicates if the security scan has been completed and if the system is clean.",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

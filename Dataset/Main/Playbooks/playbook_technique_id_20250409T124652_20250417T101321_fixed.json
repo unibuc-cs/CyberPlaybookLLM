@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1f1d3cd-5f9f-4aad-9f68-1e2c215ac87a",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses the incident where an attacker utilized a script to download and execute malware on the organization's server. It focuses on killing the malicious process, scanning for additional threats, and blocking malicious IP addresses.",
+    "created_by": "identity--231d1153-0292-4c85-af7f-a99952b55c0e",
+    "created": "2023-10-11T08:30:00Z",
+    "modified": "2023-10-11T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e8d5c515-c0ea-4a3c-8e13-e5a4e982b3c7",
+    "workflow": {
+        "start--e8d5c515-c0ea-4a3c-8e13-e5a4e982b3c7": {
+            "on_completion": "action--2fa84b4e-8a03-4b6b-8612-8f0f83614c89",
+            "type": "start"
+        },
+        "action--2fa84b4e-8a03-4b6b-8612-8f0f83614c89": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes identified as malicious to mitigate immediate threat.",
+            "on_completion": "parallel--a4d3c60f-6317-4382-8124-82b7eae0a39a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--83a53f50-c21b-4561-906d-016ce6ee0771"
+        },
+        "action--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948": {
+            "name": "Scan for additional malware",
+            "description": "Perform a scan of the specified directory to identify any additional malware.",
+            "on_completion": "loop--c87e9bda-b2f1-4db3-bc7a-fc07974e54c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /path/to/scan"
+                }
+            ],
+            "agent": "organization--83a53f50-c21b-4561-906d-016ce6ee0771"
+        },
+        "action--6e5d3c3a-fd6e-4656-80f6-b09ca12d05f9": {
+            "name": "Block external IP address",
+            "description": "Block the external IP address identified as malicious to prevent further access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.1 -j DROP"
+                }
+            ],
+            "agent": "organization--83a53f50-c21b-4561-906d-016ce6ee0771"
+        },
+        "parallel--a4d3c60f-6317-4382-8124-82b7eae0a39a": {
+            "name": "Execute parallel mitigation actions",
+            "description": "Kill process and scan for additional malware while preparing to block external IP.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948",
+                "action--6e5d3c3a-fd6e-4656-80f6-b09ca12d05f9"
+            ]
+        },
+        "end--0f29a60e-77fa-4fc0-b4dd-2e07ae5e0280": {
+            "type": "end"
+        },
+        "loop--c87e9bda-b2f1-4db3-bc7a-fc07974e54c1": {
+            "name": "Scan loop",
+            "description": "Continue scanning until no additional malware is found.",
+            "on_true": "action--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948",
+            "on_false": "end--0f29a60e-77fa-4fc0-b4dd-2e07ae5e0280",
+            "type": "while-condition",
+            "condition": "scan_results != clean"
+        }
+    },
+    "agent_definitions": {
+        "organization--83a53f50-c21b-4561-906d-016ce6ee0771": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f44b74f0-c340-4891-b63a-af21aa5d14a1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates the impacts of a malicious script execution that resulted in unauthorized data access and potential data exfiltration.",
+    "created_by": "identity--0f3e6b56-e69e-48db-a1c4-7a0b8b4c62fe",
+    "created": "2023-10-01T10:00:00Z",
+    "modified": "2023-10-01T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--0b40a7c9-f63e-4ae4-a052-07ea9e8c1c7e",
+    "workflow": {
+        "start--0b40a7c9-f63e-4ae4-a052-07ea9e8c1c7e": {
+            "on_completion": "parallel--f50b92e0-6a3e-46bb-818a-8e35d846f0f9",
+            "type": "start"
+        },
+        "parallel--f50b92e0-6a3e-46bb-818a-8e35d846f0f9": {
+            "name": "Execute Mitigations",
+            "description": "Executing parallel actions to mitigate the effects of the malicious script execution.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d3f7649c-3e0e-437a-8ee4-7885bf2507e8",
+                "action--122b0737-233e-46d0-a89b-83fa702912fa",
+                "action--12daf4bc-fe1f-4624-81d2-5fd8299ddd5c"
+            ]
+        },
+        "action--d3f7649c-3e0e-437a-8ee4-7885bf2507e8": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process executing the suspicious script.",
+            "on_completion": "action--122b0737-233e-46d0-a89b-83fa702912fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--ddf030b0-873a-4cbd-8960-86e52b5d4d5e"
+        },
+        "action--122b0737-233e-46d0-a89b-83fa702912fa": {
+            "name": "Isolate affected host from network",
+            "description": "Drop any incoming packets from the suspicious host to isolate it from the network.",
+            "on_completion": "action--12daf4bc-fe1f-4624-81d2-5fd8299ddd5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--ddf030b0-873a-4cbd-8960-86e52b5d4d5e"
+        },
+        "action--12daf4bc-fe1f-4624-81d2-5fd8299ddd5c": {
+            "name": "Conduct forensic investigation on logs",
+            "description": "Examine logs to identify potentially impacted files and errors related to the malicious script.",
+            "on_completion": "end--fdf95579-d750-4142-ac18-661cc7c758b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_script.sh' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--ddf030b0-873a-4cbd-8960-86e52b5d4d5e",
+            "loop": {
+                "type": "foreach",
+                "variable": "line",
+                "condition": "if the line contains 'ERROR'",
+                "on_completion": "action--fdf95579-d750-4142-ac18-661cc7c758b4"
+            }
+        },
+        "end--fdf95579-d750-4142-ac18-661cc7c758b4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ddf030b0-873a-4cbd-8960-86e52b5d4d5e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

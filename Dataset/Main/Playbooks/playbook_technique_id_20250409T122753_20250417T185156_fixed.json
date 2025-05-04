@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--efc37d8d-c2c3-4ce2-8312-5a578dd12c7c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to establish backdoors on multiple key servers.",
+    "created_by": "identity--6c16635d-4d31-4186-a6e5-bd99ac6de86b",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d5e84aa2-1234-4567-89ab-123456789def",
+    "workflow": {
+        "start--d5e84aa2-1234-4567-89ab-123456789def": {
+            "on_completion": "parallel--19876128-1234-4567-89ab-123456789abc",
+            "type": "start"
+        },
+        "parallel--19876128-1234-4567-89ab-123456789abc": {
+            "name": "Execute Initial Mitigations",
+            "description": "Perform initial mitigation steps in parallel to quickly respond to the breach.",
+            "type": "parallel",
+            "next_steps": [
+                "action--39b771bd-a204-4ecb-a0cd-a39dcb1380ef",
+                "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738",
+                "action--a4b78f36-e89d-4a28-8c4f-f7f725f8ad06"
+            ]
+        },
+        "action--39b771bd-a204-4ecb-a0cd-a39dcb1380ef": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--ebc56de3-3edf-4862-8e0f-64891271d52a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--15d67839-17ba-43f1-b311-def3168cfba9"
+        },
+        "action--ebc56de3-3edf-4862-8e0f-64891271d52a": {
+            "name": "Scan for additional malicious files",
+            "description": "Scan the system for any other malicious files and remove them.",
+            "on_completion": "while-condition--b59df3b5-1234-4567-89ab-123456789abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --remove=yes"
+                }
+            ],
+            "agent": "organization--15d67839-17ba-43f1-b311-def3168cfba9"
+        },
+        "while-condition--b59df3b5-1234-4567-89ab-123456789abc": {
+            "name": "Check for clean scan",
+            "description": "Continue scanning until no threats are detected.",
+            "type": "while-condition",
+            "condition": "last_scan_output != 'No threats found'",
+            "on_true": "action--ebc56de3-3edf-4862-8e0f-64891271d52a",
+            "on_false": "action--1f9a79a4-ca4e-4e17-bf6f-1ec2c424760d"
+        },
+        "action--1f9a79a4-ca4e-4e17-bf6f-1ec2c424760d": {
+            "name": "Review firewall logs",
+            "description": "Check firewall logs for suspicious activity related to the affected systems.",
+            "on_completion": "action--2f4a5e1d-1234-4567-89ab-123456789abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/firewall.log | grep 'host-01'"
+                }
+            ],
+            "agent": "organization--15d67839-17ba-43f1-b311-def3168cfba9"
+        },
+        "action--fc0ec3f1-7949-4c32-b93b-82e312cb0738": {
+            "name": "Isolate affected machines",
+            "description": "Block incoming and outgoing traffic to the compromised hosts.",
+            "on_completion": "action--2f4a5e1d-1234-4567-89ab-123456789abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-01 -j DROP; iptables -A OUTPUT -d host-01 -j DROP"
+                }
+            ],
+            "agent": "organization--15d67839-17ba-43f1-b311-def3168cfba9"
+        },
+        "action--a4b78f36-e89d-4a28-8c4f-f7f725f8ad06": {
+            "name": "Update system and application patches",
+            "description": "Ensure systems are up to date to prevent further exploitation.",
+            "on_completion": "end--373c3538-1234-4567-89ab-123456789abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--15d67839-17ba-43f1-b311-def3168cfba9"
+        },
+        "end--373c3538-1234-4567-89ab-123456789abc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--15d67839-17ba-43f1-b311-def3168cfba9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

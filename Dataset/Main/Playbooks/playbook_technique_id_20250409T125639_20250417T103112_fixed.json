@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f74a4d60-e641-4d59-95de-4aa1cc9c2f67",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook executes mitigation actions for an incident involving unauthorized execution of commands using a scripting interpreter.",
+    "created_by": "identity--4365f04a-7b5e-4d47-8425-b15984cbe7a4",
+    "created": "2023-10-10T12:15:00Z",
+    "modified": "2023-10-10T12:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--2bed870f-4858-4b12-a211-037753b87882",
+    "workflow": {
+        "action--963c8f13-d0f1-4f90-bd2a-5e9c2d72f03b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "parallel--1a38c191-cbc0-499e-ab41-dd8703eb034a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--67eb16d4-0d34-4445-9777-3a7751cb6a20"
+        },
+        "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a": {
+            "name": "Scan for malicious files",
+            "description": "Perform a scan of the Temp directory for any remaining malicious files.",
+            "on_completion": "loop--bc25aaec-af9c-4e5b-ba26-4d4e2a228ed0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /home/user/Temp"
+                }
+            ],
+            "agent": "organization--67eb16d4-0d34-4445-9777-3a7751cb6a20"
+        },
+        "action--db9e4fb5-8730-4ff6-9ae3-28a872ed009e": {
+            "name": "Remove unauthorized access",
+            "description": "Lock the admin user to prevent unauthorized access.",
+            "on_completion": "end--6bdbfa00-e244-4886-aefd-c35edefbafc8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L admin"
+                }
+            ],
+            "agent": "organization--67eb16d4-0d34-4445-9777-3a7751cb6a20"
+        },
+        "start--2bed870f-4858-4b12-a211-037753b87882": {
+            "on_completion": "action--963c8f13-d0f1-4f90-bd2a-5e9c2d72f03b",
+            "type": "start"
+        },
+        "parallel--1a38c191-cbc0-499e-ab41-dd8703eb034a": {
+            "name": "Initiate File Scanning and User Locking",
+            "description": "Run the file scan and lock the user simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a",
+                "action--db9e4fb5-8730-4ff6-9ae3-28a872ed009e"
+            ]
+        },
+        "loop--bc25aaec-af9c-4e5b-ba26-4d4e2a228ed0": {
+            "name": "Check Scan Results",
+            "description": "Repeat scanning until the directory is clean.",
+            "on_completion": "action--db9e4fb5-8730-4ff6-9ae3-28a872ed009e",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a"
+        },
+        "end--6bdbfa00-e244-4886-aefd-c35edefbafc8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--67eb16d4-0d34-4445-9777-3a7751cb6a20": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

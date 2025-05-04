@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7fd73122-91b9-4c88-8628-3b9033cee3af",
+    "name": "Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts and established unauthorized outbound connections.",
+    "created_by": "identity--d7a69491-7121-4715-84a0-f3c216e35f95",
+    "created": "2023-10-01T10:30:00Z",
+    "modified": "2023-10-01T10:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--bffe63b2-4083-45ed-8874-f6c33d64cb4b",
+    "workflow": {
+        "start--bffe63b2-4083-45ed-8874-f6c33d64cb4b": {
+            "on_completion": "action--9884b2e4-a1a4-40a0-aef7-b9b52cdb1cf4",
+            "type": "start"
+        },
+        "action--9884b2e4-a1a4-40a0-aef7-b9b52cdb1cf4": {
+            "name": "Terminate the suspicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that could be executing malicious commands.",
+            "on_completion": "action--dce0dee4-ade7-4d85-b68c-c4a82e3e9518",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--bf2306a0-9165-4cf5-8720-4a26b02febff"
+        },
+        "action--dce0dee4-ade7-4d85-b68c-c4a82e3e9518": {
+            "name": "Remove the malicious file from user directory",
+            "description": "Delete the suspicious file that was dropped in the user's directory.",
+            "on_completion": "loop--6d74ba2b-f0d9-47b5-b72b-bcb0b672f9fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /home/user/suspicious_file.exe"
+                }
+            ],
+            "agent": "organization--bf2306a0-9165-4cf5-8720-4a26b02febff"
+        },
+        "loop--6d74ba2b-f0d9-47b5-b72b-bcb0b672f9fc": {
+            "name": "Run antivirus scan until clean",
+            "description": "Perform a full system scan and continue until no threats are found.",
+            "on_true": "action--6d74ba2b-f0d9-47b5-b72b-bcb0b672f9fc",
+            "on_false": "end--e82b85ab-06b1-4f78-82cf-e5c104e21669",
+            "type": "while-condition",
+            "condition": "threats_found == true"
+        },
+        "action--6d74ba2b-f0d9-47b5-b72b-bcb0b672f9fc": {
+            "name": "Run full system antivirus scan",
+            "description": "Execute an antivirus scan to find and quarantine any remaining threats on the system.",
+            "on_completion": "loop--6d74ba2b-f0d9-47b5-b72b-bcb0b672f9fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --remove /"
+                }
+            ],
+            "agent": "organization--bf2306a0-9165-4cf5-8720-4a26b02febff",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any threats were found during the scan",
+                    "value": "check_if_threats_present"
+                }
+            }
+        },
+        "end--e82b85ab-06b1-4f78-82cf-e5c104e21669": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bf2306a0-9165-4cf5-8720-4a26b02febff": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

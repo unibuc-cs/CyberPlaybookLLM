@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1b697c2-b050-4f68-b52e-43ade0af1ab4",
+    "name": "Malicious Script Execution Incident Response",
+    "description": "This playbook responds to an incident where unauthorized scripts were executed, leading to data compromise.",
+    "created_by": "identity--181c632e-d789-4b1c-9135-a31466b1e4cf",
+    "created": "2023-10-10T08:30:00Z",
+    "modified": "2023-10-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--51a91981-79fa-4040-8d90-0e69194f1880",
+    "workflow": {
+        "action--b17f8b98-63f4-4d1d-9c57-d0d5a4e1f80a": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process of the suspicious Powershell script.",
+            "on_completion": "action--c73d029e-20ef-4dc5-b996-56beb241905c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--99a54c34-d052-4583-8ca4-7f77fae1483e"
+        },
+        "action--c73d029e-20ef-4dc5-b996-56beb241905c": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect the affected host from the network to prevent further data loss.",
+            "on_completion": "while-condition--ff3cd254-6b74-40da-b1ac-55064ae15c5e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-23 down"
+                }
+            ],
+            "agent": "organization--99a54c34-d052-4583-8ca4-7f77fae1483e"
+        },
+        "while-condition--ff3cd254-6b74-40da-b1ac-55064ae15c5e": {
+            "name": "Scan for additional malware",
+            "description": "Repeat scanning until the system is clean.",
+            "on_completion": "action--04b50116-20f3-4ffa-8ed9-f6dd1052a4a4",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--ff3cd254-6b74-40da-b1ac-55064ae15c5e",
+            "on_false": "action--04b50116-20f3-4ffa-8ed9-f6dd1052a4a4"
+        },
+        "action--ff3cd254-6b74-40da-b1ac-55064ae15c5e": {
+            "name": "Run malware scan",
+            "description": "Perform a scan for any additional malware on the host.",
+            "on_completion": "while-condition--ff3cd254-6b74-40da-b1ac-55064ae15c5e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh --target host-23"
+                }
+            ],
+            "agent": "organization--99a54c34-d052-4583-8ca4-7f77fae1483e"
+        },
+        "action--04b50116-20f3-4ffa-8ed9-f6dd1052a4a4": {
+            "name": "Review logs for unauthorized access",
+            "description": "Check system logs for any signs of unauthorized access or additional malicious activity.",
+            "on_completion": "action--5313b4d8-ef92-4e74-b216-71884180c9e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'unauthorized' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--99a54c34-d052-4583-8ca4-7f77fae1483e"
+        },
+        "action--5313b4d8-ef92-4e74-b216-71884180c9e9": {
+            "name": "Collect and analyze forensic data",
+            "description": "Gather forensic data for analysis.",
+            "on_completion": "end--36480d0f-1f26-499a-8f78-2aafb65c6a40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /var/log/auth.log /forensics/"
+                }
+            ],
+            "agent": "organization--99a54c34-d052-4583-8ca4-7f77fae1483e"
+        },
+        "start--51a91981-79fa-4040-8d90-0e69194f1880": {
+            "on_completion": "action--b17f8b98-63f4-4d1d-9c57-d0d5a4e1f80a",
+            "type": "start"
+        },
+        "end--36480d0f-1f26-499a-8f78-2aafb65c6a40": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--99a54c34-d052-4583-8ca4-7f77fae1483e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

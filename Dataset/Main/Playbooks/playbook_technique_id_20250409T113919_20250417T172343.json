@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2b2ed29-8960-4e1a-92f8-2cebf452dcab",
+    "name": "Mitigation Playbook for Exploited Web Application Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application leading to unauthorized access to sensitive files.",
+    "created_by": "identity--abc12345-6789-0abc-def1-234567890abc",
+    "created": "2025-04-09T09:30:00.000Z",
+    "modified": "2025-04-09T09:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1e4e2a1-b5c0-4a12-b2c8-d378a42e5a67",
+    "workflow": {
+        "start--f1e4e2a1-b5c0-4a12-b2c8-d378a42e5a67": {
+            "on_completion": "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530",
+            "type": "start"
+        },
+        "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530": {
+            "name": "Execute Mitigation Actions",
+            "description": "Simultaneously execute multiple mitigation actions to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c56c682f-b5ae-4425-95d7-3d4e78a3926c",
+                "action--abd4876a-d5e3-45b4-b013-e1a87da0346f",
+                "loop--1ff4f37b-45c2-4b60-b1ea-5cffbdc3bb05",
+                "action--f0c5e315-3b6f-4c1d-af32-b02c0e912d47",
+                "action--ea39b33c-f5bb-44ac-904b-af2649a080b8"
+            ]
+        },
+        "action--c56c682f-b5ae-4425-95d7-3d4e78a3926c": {
+            "name": "Kill malicious process",
+            "on_completion": "action--abd4876a-d5e3-45b4-b013-e1a87da0346f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--abd4876a-d5e3-45b4-b013-e1a87da0346f": {
+            "name": "Disconnect compromised host from network",
+            "on_completion": "loop--1ff4f37b-45c2-4b60-b1ea-5cffbdc3bb05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "if process is malicious"
+        },
+        "loop--1ff4f37b-45c2-4b60-b1ea-5cffbdc3bb05": {
+            "name": "Initiate full system scan",
+            "description": "Repeat system scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--1ff4f37b-45c2-4b60-b1ea-5cffbdc3bb05",
+            "on_completion": "action--f0c5e315-3b6f-4c1d-af32-b02c0e912d47"
+        },
+        "action--1ff4f37b-45c2-4b60-b1ea-5cffbdc3bb05": {
+            "name": "Initiate full system scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f0c5e315-3b6f-4c1d-af32-b02c0e912d47": {
+            "name": "Update all critical software and patches",
+            "on_completion": "action--ea39b33c-f5bb-44ac-904b-af2649a080b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "software_list": {
+                    "type": "string",
+                    "description": "The software list to be updated",
+                    "value": "critical_software",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--ea39b33c-f5bb-44ac-904b-af2649a080b8": {
+            "name": "Review user access logs for anomalies",
+            "on_completion": "end--d9f9b1f2-ee5b-48fb-b610-d841a9a769bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'failed login' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--d9f9b1f2-ee5b-48fb-b610-d841a9a769bc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

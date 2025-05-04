@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5d6bde1-f4c9-4906-b7b3-6949179ba837",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to a server, executing arbitrary commands, establishing persistence, and exfiltrating sensitive data.",
+    "created_by": "identity--81af61bf-d3fc-4959-912d-647b88b5fd95",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d3e5f87f-5f93-48f2-9c4b-39ee78c65cbb",
+    "workflow": {
+        "start--d3e5f87f-5f93-48f2-9c4b-39ee78c65cbb": {
+            "on_completion": "parallel--2d0043bc-8a5b-4b9f-bf58-06f48af628ef",
+            "type": "start"
+        },
+        "parallel--2d0043bc-8a5b-4b9f-bf58-06f48af628ef": {
+            "name": "Execute responses in parallel",
+            "description": "Kill malicious processes and isolate affected host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b8c9eeb8-05ea-4a0f-aa9d-59f493bcf37f",
+                "action--c4f2073e-602d-4bbb-949d-eb2830e5e39f"
+            ]
+        },
+        "action--b8c9eeb8-05ea-4a0f-aa9d-59f493bcf37f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes detected.",
+            "on_completion": "loop--d0b8525e-e60b-442b-9b29-8e89464cf3c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--5b6d44d9-3112-4b4c-ac57-2a5634fd74be"
+        },
+        "action--c4f2073e-602d-4bbb-949d-eb2830e5e39f": {
+            "name": "Isolate affected host",
+            "description": "Block all outgoing traffic from the affected host.",
+            "on_completion": "loop--d0b8525e-e60b-442b-9b29-8e89464cf3c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--5b6d44d9-3112-4b4c-ac57-2a5634fd74be"
+        },
+        "loop--d0b8525e-e60b-442b-9b29-8e89464cf3c7": {
+            "name": "Initiate system scan",
+            "description": "Run a system scan until it is clean.",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--d0b8525e-e60b-442b-9b29-8e89464cf3c7",
+            "next_steps": [
+                "action--d0b8525e-e60b-442b-9b29-8e89464cf3c7"
+            ]
+        },
+        "action--d0b8525e-e60b-442b-9b29-8e89464cf3c7": {
+            "name": "Run system scan",
+            "description": "Perform a system scan to check for remaining threats.",
+            "on_completion": "check-scan-status--1f29a394-5a05-4e0c-bc5b-56fefa9c7da9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--5b6d44d9-3112-4b4c-ac57-2a5634fd74be"
+        },
+        "check-scan-status--1f29a394-5a05-4e0c-bc5b-56fefa9c7da9": {
+            "on_completion": "end--4e93c1de-8071-43e1-91f5-559a15d165b9",
+            "type": "if-condition",
+            "condition": "scan_clean == true",
+            "on_true": "end--4e93c1de-8071-43e1-91f5-559a15d165b9",
+            "on_false": "action--d0b8525e-e60b-442b-9b29-8e89464cf3c7"
+        },
+        "end--4e93c1de-8071-43e1-91f5-559a15d165b9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5b6d44d9-3112-4b4c-ac57-2a5634fd74be": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Indicates if the system scan is clean.",
+            "value": "false"
+        }
+    }
+}

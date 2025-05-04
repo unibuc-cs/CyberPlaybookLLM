@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d43f670a-6f72-43d8-88c2-5f3a504010da",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker deployed a malicious script leveraging command and scripting interpreters to execute commands remotely.",
+    "created_by": "identity--64ead9c4-2fcd-4307-b639-e06393acc8b4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--2e61f4b5-2136-4fe3-8d5d-3ca52931b113",
+    "workflow": {
+        "start--2e61f4b5-2136-4fe3-8d5d-3ca52931b113": {
+            "on_completion": "action--b43b26d1-8ebd-499d-b03f-fc3e4d399b6f",
+            "type": "start"
+        },
+        "action--b43b26d1-8ebd-499d-b03f-fc3e4d399b6f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--f8a659ad-2c63-4582-bbc1-d55498e7c832",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--ed5c0731-37cf-41bc-b0df-b89d220afad9"
+        },
+        "if-condition--f8a659ad-2c63-4582-bbc1-d55498e7c832": {
+            "name": "Check for unknown IP traffic",
+            "type": "if-condition",
+            "condition": "network_traffic_to_unknown_IP == true",
+            "on_true": "action--f8a659ad-2c63-4582-bbc1-d55498e7c832",
+            "on_false": "action--8be9dc7c-45bb-4231-b952-edbc445cd6d6"
+        },
+        "action--f8a659ad-2c63-4582-bbc1-d55498e7c832": {
+            "name": "Block outbound connections",
+            "description": "Block any outbound traffic to the unknown IP address.",
+            "on_completion": "action--8be9dc7c-45bb-4231-b952-edbc445cd6d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <unknown_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--ed5c0731-37cf-41bc-b0df-b89d220afad9"
+        },
+        "action--8be9dc7c-45bb-4231-b952-edbc445cd6d6": {
+            "name": "Conduct forensic analysis",
+            "description": "Perform a forensic analysis to identify further compromise.",
+            "on_completion": "while-condition--ca722a7f-3cb3-4834-8ea5-fa15cf11a604",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_forensic_tool.sh"
+                }
+            ],
+            "agent": "organization--ed5c0731-37cf-41bc-b0df-b89d220afad9"
+        },
+        "end--e4e1bcf4-6732-4b74-b2e7-89b6eb82a013": {
+            "type": "end"
+        },
+        "while-condition--ca722a7f-3cb3-4834-8ea5-fa15cf11a604": {
+            "name": "Forensic Analysis Loop",
+            "description": "Repeat the forensic analysis until complete.",
+            "on_completion": "end--e4e1bcf4-6732-4b74-b2e7-89b6eb82a013",
+            "type": "while-condition",
+            "condition": "forensic_analysis_complete == false",
+            "on_true": "action--8be9dc7c-45bb-4231-b952-edbc445cd6d6",
+            "on_false": "end--e4e1bcf4-6732-4b74-b2e7-89b6eb82a013"
+        }
+    },
+    "agent_definitions": {
+        "organization--ed5c0731-37cf-41bc-b0df-b89d220afad9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,136 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7f5f9e1-3d30-455a-8108-9dbd12ea92b3",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident involving unauthorized script execution detected on host-22.",
+    "created_by": "identity--a1798b3b-a713-4d90-9c58-e231f1ea061e",
+    "created": "2023-09-15T15:00:00Z",
+    "modified": "2023-09-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a6f5c78-2b01-4a76-9341-7f2aa049b7a7",
+    "workflow": {
+        "start--1a6f5c78-2b01-4a76-9341-7f2aa049b7a7": {
+            "on_completion": "if-condition--b915aedd-ae87-4396-aba3-d7e5f431bce3",
+            "type": "start"
+        },
+        "if-condition--b915aedd-ae87-4396-aba3-d7e5f431bce3": {
+            "name": "Check Network Status",
+            "type": "if-condition",
+            "condition": "network_status == 'compromised'",
+            "on_true": "action--0ea5ac7b-4344-4e5e-9f2f-6a3f54449d3b",
+            "on_false": "parallel--6da324e9-abeb-4b9a-a173-1e92b03475f1"
+        },
+        "action--0ea5ac7b-4344-4e5e-9f2f-6a3f54449d3b": {
+            "name": "Isolate Affected System",
+            "description": "Execute command to isolate the affected system from the network.",
+            "on_completion": "parallel--6da324e9-abeb-4b9a-a173-1e92b03475f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifdown eth0"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "parallel--6da324e9-abeb-4b9a-a173-1e92b03475f1": {
+            "name": "Execute Parallel Actions",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "while-condition--e4b16fdd-4a57-431c-a249-8e2cc9b1d3d6",
+                "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f",
+                "if-condition--3d7c8fed-f3b2-4b83-8653-7d9c2c4e678d"
+            ]
+        },
+        "while-condition--e4b16fdd-4a57-431c-a249-8e2cc9b1d3d6": {
+            "name": "Kill Malicious Process Loop",
+            "description": "Iterate until the malicious process is no longer running.",
+            "type": "while-condition",
+            "condition": "process_not_running == false",
+            "on_true": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8",
+            "on_completion": "action--d55c9cab-8b7b-4733-b094-a82e9829f28a"
+        },
+        "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the running malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script'"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f": {
+            "name": "Block Malicious IP",
+            "description": "Add a rule to block all traffic to/from the malicious IP.",
+            "on_completion": "end--d3cfe8f0-57e1-4cea-9f32-b078dc85e9f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.11 -j DROP"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "if-condition--3d7c8fed-f3b2-4b83-8653-7d9c2c4e678d": {
+            "name": "Check Logging Status",
+            "type": "if-condition",
+            "condition": "logging_status == 'disabled'",
+            "on_true": "action--f0123456-7b8c-491c-b9c1-d8eabcde9098",
+            "on_false": "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da",
+            "on_completion": "end--d3cfe8f0-57e1-4cea-9f32-b078dc85e9f4"
+        },
+        "action--f0123456-7b8c-491c-b9c1-d8eabcde9098": {
+            "name": "Enable Enhanced Logging",
+            "description": "Restart the rsyslog service to enable enhanced logging.",
+            "on_completion": "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo service rsyslog restart"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "action--d55c9cab-8b7b-4733-b094-a82e9829f28a": {
+            "name": "Deploy Antivirus Scan",
+            "description": "Execute an antivirus scan on all listed hosts.",
+            "on_completion": "end--d3cfe8f0-57e1-4cea-9f32-b078dc85e9f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat hosts.txt); do ssh $host 'run_antivirus_scan'; done"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da": {
+            "name": "Restore Files from Backup",
+            "description": "Restore files from the backup to the restore directory.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --progress /backup/ /restore/"
+                }
+            ],
+            "agent": "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f"
+        },
+        "end--d3cfe8f0-57e1-4cea-9f32-b078dc85e9f4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f20813b3-b8cc-4e5c-bc64-a3352a2bd29f": {
+            "type": "organization",
+            "name": "TargetOrganization"
+        }
+    }
+}

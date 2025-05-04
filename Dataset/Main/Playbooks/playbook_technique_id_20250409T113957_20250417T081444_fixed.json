@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d473b82f-e10c-4d1b-b9c4-e8479158d89e",
+    "name": "Mitigation Playbook for Web Server Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the web server and executed a malicious script that exfiltrated data.",
+    "created_by": "identity--d473b82f-e10c-4d1b-b9c4-e8479158d89e",
+    "created": "2023-10-23T14:32:00Z",
+    "modified": "2023-10-23T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--69de6093-dbb8-4202-b089-254fece78e54",
+    "workflow": {
+        "action--a56b3e82-e45e-48a2-b996-5c0c843c12c9": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that was executed via the command interpreter.",
+            "on_completion": "parallel--bc1f6e0a-cb3f-4852-abf7-30b7001c6e47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6"
+        },
+        "parallel--bc1f6e0a-cb3f-4852-abf7-30b7001c6e47": {
+            "name": "Mitigation Actions in Parallel",
+            "description": "Execute isolation and logs review actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bc1f6e0a-cb3f-4852-abf7-30b7001c6e47",
+                "action--259066b2-9d1d-4c21-864c-170f8b9823e6"
+            ]
+        },
+        "action--bc1f6e0a-cb3f-4852-abf7-30b7001c6e47": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the network interface of the affected host to prevent further data exfiltration.",
+            "on_completion": "action--05d6ba89-0ebc-4d02-bbfc-d0f9cb5cb39b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-45' ]; then nmcli dev disconnect eth0; fi"
+                }
+            ],
+            "agent": "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6"
+        },
+        "action--259066b2-9d1d-4c21-864c-170f8b9823e6": {
+            "name": "Review outbound traffic logs",
+            "description": "Examine outbound traffic logs to identify data exfiltration attempts.",
+            "on_completion": "action--05d6ba89-0ebc-4d02-bbfc-d0f9cb5cb39b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/traffic.log | grep 'host-45'"
+                }
+            ],
+            "agent": "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6"
+        },
+        "action--05d6ba89-0ebc-4d02-bbfc-d0f9cb5cb39b": {
+            "name": "Perform full system scan",
+            "description": "Run a complete system scan to detect and mitigate any malware.",
+            "on_completion": "action--17b1e630-983b-45c3-bc84-34f5839631a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Scanning system...'; while [ $(grep -c 'malware' /var/log/scan.log) -eq 0 ]; do run_scan_command; done"
+                }
+            ],
+            "agent": "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6"
+        },
+        "action--17b1e630-983b-45c3-bc84-34f5839631a1": {
+            "name": "Change compromised credentials",
+            "description": "Update any compromised user credentials identified during the incident.",
+            "on_completion": "end--7463fd8d-9d6f-4e80-8718-ae0899421504",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Changing password for user'; change_password_command"
+                }
+            ],
+            "agent": "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6"
+        },
+        "start--69de6093-dbb8-4202-b089-254fece78e54": {
+            "on_completion": "action--a56b3e82-e45e-48a2-b996-5c0c843c12c9",
+            "type": "start"
+        },
+        "end--7463fd8d-9d6f-4e80-8718-ae0899421504": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bf29eb14-cb3c-47b5-8c92-e6abafc754c6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f896b491-0879-48cd-bb30-4d26e7cf394c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to steal credentials and exfiltrate sensitive data.",
+    "created_by": "identity--a78f1d9c-6be1-4108-bd6a-15e1511e0e19",
+    "created": "2023-10-01T12:37:00Z",
+    "modified": "2023-10-01T12:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--d2e1a9c4-19b1-469c-b40d-8594de143d37",
+    "workflow": {
+        "start--d2e1a9c4-19b1-469c-b40d-8594de143d37": {
+            "on_completion": "parallel--b2b17d40-34a3-4950-8d1b-ddf15cf23b75",
+            "type": "start"
+        },
+        "parallel--b2b17d40-34a3-4950-8d1b-ddf15cf23b75": {
+            "name": "Parallel Mitigation Steps",
+            "description": "Execute simultaneous mitigation actions to contain and remediate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--d93cf4f5-2188-47cb-bc93-d453458cf4c5",
+                "action--f9c35872-659c-4d85-a1f5-f65bea604fc1"
+            ]
+        },
+        "if-condition--d93cf4f5-2188-47cb-bc93-d453458cf4c5": {
+            "name": "Check Status of Malicious Process",
+            "type": "if-condition",
+            "condition": "process_running == true",
+            "on_true": "action--f9c35872-659c-4d85-a1f5-f65bea604fc1",
+            "on_false": "action--483cf67f-92c3-4e8f-867b-3f3a24add8c2"
+        },
+        "action--f9c35872-659c-4d85-a1f5-f65bea604fc1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process executing the script.",
+            "on_completion": "action--483cf67f-92c3-4e8f-867b-3f3a24add8c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--674bca5e-ad14-4fe8-b37e-6d97d88f2896"
+        },
+        "action--483cf67f-92c3-4e8f-867b-3f3a24add8c2": {
+            "name": "Delete dropped payload file",
+            "description": "Remove the malicious payload file from the temporary directory.",
+            "on_completion": "while-condition--a9e7f8aa-0a83-4678-9e48-4b5dcf5f540f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/payload_file"
+                }
+            ],
+            "agent": "organization--674bca5e-ad14-4fe8-b37e-6d97d88f2896"
+        },
+        "while-condition--a9e7f8aa-0a83-4678-9e48-4b5dcf5f540f": {
+            "name": "Repeat until file no longer exists",
+            "description": "Ensure the payload file is completely removed.",
+            "on_true": "action--483cf67f-92c3-4e8f-867b-3f3a24add8c2",
+            "condition": "file_exists('/tmp/payload_file')",
+            "on_completion": "if-condition--e54692c2-39f7-468b-91c5-313fe02a8346",
+            "type": "if-condition"
+        },
+        "if-condition--e54692c2-39f7-468b-91c5-313fe02a8346": {
+            "name": "Check if network access is restored",
+            "type": "if-condition",
+            "condition": "network_access == true",
+            "on_true": "action--3421e6c5-6f60-4465-94dc-98c3b57fb232",
+            "on_false": "end--c64de607-ab4c-4f4d-9aa1-b2f92b66d59e"
+        },
+        "action--3421e6c5-6f60-4465-94dc-98c3b57fb232": {
+            "name": "Scan for other vulnerabilities",
+            "description": "Run a vulnerability scan to identify any remaining threats.",
+            "on_completion": "end--c64de607-ab4c-4f4d-9aa1-b2f92b66d59e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scanner"
+                }
+            ],
+            "agent": "organization--674bca5e-ad14-4fe8-b37e-6d97d88f2896"
+        },
+        "end--c64de607-ab4c-4f4d-9aa1-b2f92b66d59e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--674bca5e-ad14-4fe8-b37e-6d97d88f2896": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

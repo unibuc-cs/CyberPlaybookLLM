@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--37443ea5-90fd-420b-b04f-bc05386cc94a",
+    "name": "Malicious Script Execution Incident Mitigation Playbook",
+    "description": "This playbook addresses incidents where an attacker executed a malicious script leading to unauthorized data retrieval. The playbook includes actions to mitigate the threat and prevent further data exfiltration.",
+    "created_by": "identity--11182df7-e621-41bc-bf1a-3151958f3994",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--58cd9a4b-e81a-463c-a341-7fdbfd67b50c",
+    "workflow": {
+        "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "if-condition--b207e9c6-46ae-4da9-97cc-f7d56a3f29ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--cb46db8e-be05-4134-a0b4-989b8a8da9cc"
+        },
+        "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76": {
+            "name": "Block outbound connections",
+            "description": "Block outbound connections to prevent further data exfiltration.",
+            "on_completion": "action--d907e673-68bb-4c64-a681-32c68767c4ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -m comment --comment 'Block exfiltration attempts' -j DROP"
+                }
+            ],
+            "agent": "organization--cb46db8e-be05-4134-a0b4-989b8a8da9cc"
+        },
+        "action--d907e673-68bb-4c64-a681-32c68767c4ab": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a system scan to find additional threats.",
+            "on_completion": "while-condition--f6f40cf4-1fc5-4139-8439-313e92cfa767",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --detect-pua=yes --recursive"
+                }
+            ],
+            "agent": "organization--cb46db8e-be05-4134-a0b4-989b8a8da9cc"
+        },
+        "action--faa2aa9d-cb10-414e-8566-bf5608ac4853": {
+            "name": "Update host firewall rules",
+            "description": "Update firewall rules to block known malicious IP.",
+            "on_completion": "end--835d3bce-50b9-49ea-94f0-d8335de9aab0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.200"
+                }
+            ],
+            "agent": "organization--cb46db8e-be05-4134-a0b4-989b8a8da9cc"
+        },
+        "start--58cd9a4b-e81a-463c-a341-7fdbfd67b50c": {
+            "on_completion": "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b",
+            "type": "start"
+        },
+        "if-condition--b207e9c6-46ae-4da9-97cc-f7d56a3f29ee": {
+            "name": "Check if data exfiltration detected",
+            "type": "if-condition",
+            "condition": "data_exfiltration_detected",
+            "on_true": "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76",
+            "on_false": "action--d907e673-68bb-4c64-a681-32c68767c4ab"
+        },
+        "while-condition--f6f40cf4-1fc5-4139-8439-313e92cfa767": {
+            "name": "Check if the scan is clean",
+            "description": "Repeat the scan until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_results_found",
+            "on_true": "action--d907e673-68bb-4c64-a681-32c68767c4ab",
+            "on_false": "action--faa2aa9d-cb10-414e-8566-bf5608ac4853"
+        },
+        "end--835d3bce-50b9-49ea-94f0-d8335de9aab0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cb46db8e-be05-4134-a0b4-989b8a8da9cc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

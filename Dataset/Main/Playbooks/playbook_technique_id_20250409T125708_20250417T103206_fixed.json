@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--723a3f20-5c43-4ba6-b8bb-347161f3b8a7",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a compromised user account and executed PowerShell commands to exfiltrate sensitive data.",
+    "created_by": "identity--d796c1e4-6d73-4e6e-8608-1bf5d81f8b3e",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--6bdff69e-e37a-4f91-bbe4-b5f67212b5c4",
+    "workflow": {
+        "start--6bdff69e-e37a-4f91-bbe4-b5f67212b5c4": {
+            "on_completion": "parallel--5f596e49-4a61-473c-9bda-5aaffbdcb9af",
+            "type": "start",
+            "name": "Initiate Incident Response",
+            "description": "Start the incident response workflow."
+        },
+        "parallel--5f596e49-4a61-473c-9bda-5aaffbdcb9af": {
+            "name": "Mitigation Steps",
+            "description": "Perform parallel mitigation steps to handle the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5e0c8a61-84e0-4fbc-9199-a692c28b0ed8",
+                "action--f9f26d96-bcd0-4821-a66d-b0292c4dbddc"
+            ]
+        },
+        "action--5e0c8a61-84e0-4fbc-9199-a692c28b0ed8": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be involved in the incident.",
+            "on_completion": "action--2ff0381d-6f8b-40ef-8439-fb74b43af654",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--101a2642-ce5f-44b9-8733-f83cb5404087"
+        },
+        "action--f9f26d96-bcd0-4821-a66d-b0292c4dbddc": {
+            "name": "Isolate compromised host",
+            "description": "Bring down the network interface of the compromised host to prevent further exfiltration.",
+            "on_completion": "action--2ff0381d-6f8b-40ef-8439-fb74b43af654",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = 'host-22' ]; then ifconfig eth0 down; fi"
+                }
+            ],
+            "agent": "organization--101a2642-ce5f-44b9-8733-f83cb5404087"
+        },
+        "action--2ff0381d-6f8b-40ef-8439-fb74b43af654": {
+            "name": "Monitor outbound network traffic",
+            "description": "Start monitoring for outbound network traffic from the compromised host for anomalies.",
+            "on_completion": "while-condition--2c83c728-37c0-4ed6-b5eb-b86ef0b9726d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host suspicious-ip -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--101a2642-ce5f-44b9-8733-f83cb5404087"
+        },
+        "while-condition--2c83c728-37c0-4ed6-b5eb-b86ef0b9726d": {
+            "name": "Monitor Network Anomaly Loop",
+            "description": "Loop to continuously monitor outbound traffic until there is no abnormal traffic detected.",
+            "type": "while-condition",
+            "condition": "network_anomaly_detected == true",
+            "on_true": "action--2ff0381d-6f8b-40ef-8439-fb74b43af654",
+            "on_false": "end--f16b36b6-bb1b-4e70-9e63-cae431b3b796"
+        },
+        "end--f16b36b6-bb1b-4e70-9e63-cae431b3b796": {
+            "type": "end",
+            "name": "Complete Incident Response",
+            "description": "The incident response activities have been completed."
+        }
+    },
+    "agent_definitions": {
+        "organization--101a2642-ce5f-44b9-8733-f83cb5404087": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

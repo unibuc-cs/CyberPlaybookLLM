@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b213d7ff-cadf-40b8-9afc-9035fcb5350b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the organization's network and executed PowerShell commands to exfiltrate sensitive data.",
+    "created_by": "identity--cfbc4c92-d28f-4cd5-8f51-2f64fbe581da",
+    "created": "2023-10-10T12:51:00Z",
+    "modified": "2023-10-10T12:51:00Z",
+    "revoked": false,
+    "workflow_start": "start--456d7b7d-6c1a-40f5-ba3f-d4b18ab9a391",
+    "workflow": {
+        "start--456d7b7d-6c1a-40f5-ba3f-d4b18ab9a391": {
+            "on_completion": "action--d91f9732-c4b1-4b1b-a45a-3ce930910d66",
+            "type": "start"
+        },
+        "action--d91f9732-c4b1-4b1b-a45a-3ce930910d66": {
+            "name": "Alert security personnel of the incident",
+            "description": "Notify security team about the incident details.",
+            "on_completion": "decision--0a6a7895-1610-4c1c-99f1-f0a7c517183b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --incident_id e0fc1a2b-4c5d-4c52-b46f-775fa2babaef"
+                }
+            ],
+            "agent": "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813"
+        },
+        "decision--0a6a7895-1610-4c1c-99f1-f0a7c517183b": {
+            "name": "Check threat level",
+            "type": "if-condition",
+            "condition": "threat_level == high",
+            "on_true": "action--0a6a7895-1610-4c1c-99f1-f0a7c517183b",
+            "on_false": "action--d68e7bff-ffae-4e5e-abe8-74d4b441d7d3"
+        },
+        "action--0a6a7895-1610-4c1c-99f1-f0a7c517183b": {
+            "name": "Isolate affected machine from the network",
+            "description": "Take affected machine offline to prevent further exfiltration.",
+            "on_completion": "parallel--operation--2f7ff5f7-299a-4a3b-ab54-b34202d4cb85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-18 down"
+                }
+            ],
+            "agent": "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813"
+        },
+        "action--d68e7bff-ffae-4e5e-abe8-74d4b441d7d3": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process identified.",
+            "on_completion": "parallel--operation--2f7ff5f7-299a-4a3b-ab54-b34202d4cb85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813"
+        },
+        "parallel--operation--2f7ff5f7-299a-4a3b-ab54-b34202d4cb85": {
+            "name": "Perform Additional Mitigation Actions",
+            "description": "Run malware scan and block outbound traffic.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f320d1e6-9f14-4b0a-8a36-c05ad4fa0037",
+                "action--4ecb60f5-1fb6-47c3-a20e-cff647af291e"
+            ]
+        },
+        "action--f320d1e6-9f14-4b0a-8a36-c05ad4fa0037": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Prevent further data exfiltration by blocking malicious IP.",
+            "on_completion": "end--9f4ff95e-ec48-4ad9-8f39-1e8b345e5bdf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j REJECT"
+                }
+            ],
+            "agent": "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813"
+        },
+        "action--4ecb60f5-1fb6-47c3-a20e-cff647af291e": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Execute a malware scan to ensure system integrity.",
+            "on_completion": "end--9f4ff95e-ec48-4ad9-8f39-1e8b345e5bdf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! malware_scan --check; do sleep 60; done"
+                }
+            ],
+            "agent": "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813"
+        },
+        "end--9f4ff95e-ec48-4ad9-8f39-1e8b345e5bdf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ceccc705-94ea-41ad-b564-c0f6ad3b2813": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

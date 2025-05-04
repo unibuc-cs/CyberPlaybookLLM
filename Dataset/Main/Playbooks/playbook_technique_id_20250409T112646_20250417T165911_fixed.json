@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--123e4567-e89b-12d3-a456-426614174000",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "Mitigation steps for unauthorized script execution leading to backdoor installation.",
+    "created_by": "identity--f591a34a-eb61-413a-8b12-57c0444efd6f",
+    "created": "2025-04-08T10:00:00.000Z",
+    "modified": "2025-04-08T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--4d64b836-8375-4870-af87-1809817035a0",
+            "type": "start"
+        },
+        "action--4d64b836-8375-4870-af87-1809817035a0": {
+            "name": "Kill all suspicious scripts",
+            "description": "Terminate the execution of any malicious script.",
+            "on_completion": "action--222d64d5-d81f-482a-b046-ff94d7e0c510",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa"
+        },
+        "action--222d64d5-d81f-482a-b046-ff94d7e0c510": {
+            "name": "Isolate affected host for investigation",
+            "description": "Prevent further access by disabling the host interface.",
+            "on_completion": "parallel--23590b82-bd21-405d-a939-cb517bc93a8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa"
+        },
+        "parallel--23590b82-bd21-405d-a939-cb517bc93a8c": {
+            "name": "Conduct additional isolations for investigation",
+            "description": "Perform further investigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--751eb52d-cb6e-4a96-8e51-8a37545651b5",
+                "action--00ef3bd7-d4f9-4081-b534-32163cb6cd5b"
+            ]
+        },
+        "action--751eb52d-cb6e-4a96-8e51-8a37545651b5": {
+            "name": "Conduct a full malware scan",
+            "description": "Scan the entire system for malware and potential threats.",
+            "on_completion": "action--a1622c8d-1823-492d-97ea-3a1751315dbd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa"
+        },
+        "action--00ef3bd7-d4f9-4081-b534-32163cb6cd5b": {
+            "name": "Review command history for anomalies",
+            "description": "Check the command history for suspicious activities.",
+            "on_completion": "if-condition--06dde316-f506-4226-a32c-46d71bd87b34",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /home/user/.bash_history | grep -i 'suspicious'"
+                }
+            ],
+            "agent": "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa"
+        },
+        "if-condition--06dde316-f506-4226-a32c-46d71bd87b34": {
+            "name": "Check for suspicious entries in command history",
+            "type": "if-condition",
+            "condition": "anomalies_found == true",
+            "on_true": "action--a1622c8d-1823-492d-97ea-3a1751315dbd",
+            "on_false": "end--70d2dfe7-c5a9-450c-bbac-8892be52e417"
+        },
+        "action--a1622c8d-1823-492d-97ea-3a1751315dbd": {
+            "name": "Restore files from backup if necessary",
+            "description": "Restore user files from backup after confirming malicious activity.",
+            "on_completion": "end--70d2dfe7-c5a9-450c-bbac-8892be52e417",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a --delete /backup/path /home/user/"
+                }
+            ],
+            "agent": "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa",
+            "step_variables": {
+                "backup_path": {
+                    "type": "string",
+                    "description": "Path to backup files",
+                    "value": "/backup/path"
+                },
+                "target_path": {
+                    "type": "string",
+                    "description": "Target path to restore files",
+                    "value": "/home/user/"
+                }
+            }
+        },
+        "end--70d2dfe7-c5a9-450c-bbac-8892be52e417": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--56cca0a7-82a0-442c-b500-0ba3e75daeaa": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

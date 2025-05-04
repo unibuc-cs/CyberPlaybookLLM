@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d53b9225-7bca-4d37-bd6c-cfa32482fb1f",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to exfiltrate sensitive data across multiple hosts.",
+    "created_by": "identity--d9d2bb22-8b7d-44cb-bbf4-123865e10a13",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--d4f56a7f-d1c1-4325-bc9f-4bfe9ed0755f",
+    "workflow": {
+        "start--d4f56a7f-d1c1-4325-bc9f-4bfe9ed0755f": {
+            "on_completion": "action--389451a3-3345-4e54-b68e-4d55bd082101",
+            "type": "start"
+        },
+        "action--389451a3-3345-4e54-b68e-4d55bd082101": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes running on the network.",
+            "on_completion": "if-condition--4b8d25bb-8d7f-4fdb-9278-0d1c53af78a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--fad74a2a-8838-4cc6-b9ed-cf8f063ba0fa"
+        },
+        "if-condition--4b8d25bb-8d7f-4fdb-9278-0d1c53af78a7": {
+            "name": "Check if malicious process was detected",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "loop--fae333bb-2d37-4f29-8100-58a527d529be",
+            "on_false": "action--763403e8-9de0-4bcf-8c36-b714d62e7b58"
+        },
+        "loop--fae333bb-2d37-4f29-8100-58a527d529be": {
+            "name": "Isolate affected hosts",
+            "description": "Disconnect affected hosts from the network until the issue is resolved.",
+            "on_completion": "if-condition--3e6b1b6f-f1fb-4b28-8c62-d8b253206d34",
+            "type": "while-condition",
+            "condition": "critical_alerts_resolved == false",
+            "on_true": "action--b2d69c45-40a7-45eb-9cda-8d51d513e375"
+        },
+        "action--b2d69c45-40a7-45eb-9cda-8d51d513e375": {
+            "name": "Disconnect host-05",
+            "description": "Isolate host-05 to prevent further data exfiltration.",
+            "on_completion": "loop--fae333bb-2d37-4f29-8100-58a527d529be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli device disconnect host-05"
+                }
+            ],
+            "agent": "organization--fad74a2a-8838-4cc6-b9ed-cf8f063ba0fa"
+        },
+        "action--763403e8-9de0-4bcf-8c36-b714d62e7b58": {
+            "name": "Scan for additional threats using antivirus",
+            "description": "Perform a scan for any additional threats on the network.",
+            "on_completion": "end--f3006efa-a1e3-412b-aaff-ae00bdd445f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--fad74a2a-8838-4cc6-b9ed-cf8f063ba0fa",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "description": "The path to scan for threats",
+                    "value": "/path/to/scan",
+                    "constant": false,
+                    "external": true
+                },
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scan",
+                    "value": "result",
+                    "constant": false
+                }
+            }
+        },
+        "end--f3006efa-a1e3-412b-aaff-ae00bdd445f5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fad74a2a-8838-4cc6-b9ed-cf8f063ba0fa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

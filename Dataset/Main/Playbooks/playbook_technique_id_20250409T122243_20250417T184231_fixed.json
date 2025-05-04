@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--94a52093-723a-46d0-aa1c-a2ac38ec6398",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute scripts on a compromised host, leading to unauthorized access and a backdoor establishment.",
+    "created_by": "identity--937e6285-a86a-4953-bec1-310c6b609fda",
+    "created": "2023-10-23T12:00:00Z",
+    "modified": "2023-10-23T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e3c85e72-7e7c-4c6c-9d63-96a0e3cfa18f",
+    "workflow": {
+        "start--e3c85e72-7e7c-4c6c-9d63-96a0e3cfa18f": {
+            "on_completion": "if-condition--5f2b9d58-5a4c-4330-bf46-1806c4466612",
+            "type": "start"
+        },
+        "if-condition--5f2b9d58-5a4c-4330-bf46-1806c4466612": {
+            "name": "Check for Malicious PowerShell Process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--428c211f-7af4-471a-8c67-060c63c07559",
+            "on_false": "action--aaaccdf6-f23d-401f-aff0-fe18a6731c6e"
+        },
+        "action--428c211f-7af4-471a-8c67-060c63c07559": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--aaaccdf6-f23d-401f-aff0-fe18a6731c6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9d7e87ce-ad01-437d-9457-c1efb445205a"
+        },
+        "action--aaaccdf6-f23d-401f-aff0-fe18a6731c6e": {
+            "name": "Remove dropped files from temp directory",
+            "description": "Delete any malicious files dropped in the temp directory.",
+            "on_completion": "while-condition--fb36a56f-0e3b-4a92-9c4e-0f0fe9c2bbbe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/*malicious*"
+                }
+            ],
+            "agent": "organization--9d7e87ce-ad01-437d-9457-c1efb445205a"
+        },
+        "while-condition--fb36a56f-0e3b-4a92-9c4e-0f0fe9c2bbbe": {
+            "name": "Run Antivirus Scan Loop",
+            "description": "Repeatedly run the antivirus scan until no threats are found.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--27166b3c-f6b0-44da-a6c1-5df357e1d89e",
+            "on_false": "end--d0dcd364-181b-4189-ae11-ae465a81bd80"
+        },
+        "action--27166b3c-f6b0-44da-a6c1-5df357e1d89e": {
+            "name": "Run antivirus scan on compromised host",
+            "description": "Perform a thorough antivirus scan to detect any remaining threats.",
+            "on_completion": "action--24d06682-c98c-48e2-ae14-aa0315b57200",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan /path/to/scan --recursive"
+                }
+            ],
+            "agent": "organization--9d7e87ce-ad01-437d-9457-c1efb445205a"
+        },
+        "action--24d06682-c98c-48e2-ae14-aa0315b57200": {
+            "name": "Check for threats after scan",
+            "steps_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Variable indicating if threats were found during the last scan",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "while-condition--fb36a56f-0e3b-4a92-9c4e-0f0fe9c2bbbe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_for_threats"
+                }
+            ],
+            "agent": "organization--9d7e87ce-ad01-437d-9457-c1efb445205a"
+        },
+        "end--d0dcd364-181b-4189-ae11-ae465a81bd80": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9d7e87ce-ad01-437d-9457-c1efb445205a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

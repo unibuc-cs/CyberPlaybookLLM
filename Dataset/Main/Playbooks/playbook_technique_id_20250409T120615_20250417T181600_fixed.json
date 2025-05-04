@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9f6c579-6a35-4fbc-9c02-cb5e2d4eee57",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook initiates actions to mitigate an incident involving malicious PowerShell script execution to manipulate system configurations and install backdoors.",
+    "created_by": "identity--7a226dfd-9105-444a-b117-61f8edb65a75",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5ac00b5c-5ff4-46ff-aaf7-f1ec6da2bea0",
+    "workflow": {
+        "action--b7f3c141-7f97-4c30-bc20-f5f844388ff4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that were executed.",
+            "on_completion": "if-condition--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--39da8b66-c6e2-4056-9bbf-6ef10a32f4bb"
+        },
+        "if-condition--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47": {
+            "name": "Check for backup file",
+            "type": "if-condition",
+            "condition": "backup_file.ps1 exists",
+            "on_true": "action--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47",
+            "on_false": "action--c88dfe17-6b24-49f4-bf41-a8a85f793124"
+        },
+        "action--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47": {
+            "name": "Revert system changes",
+            "description": "Revert any changes made by malicious scripts using a backup file.",
+            "on_completion": "action--c88dfe17-6b24-49f4-bf41-a8a85f793124",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-Expression -Command 'Get-Content backup_file.ps1 | Invoke-Expression'"
+                }
+            ],
+            "agent": "organization--39da8b66-c6e2-4056-9bbf-6ef10a32f4bb"
+        },
+        "action--c88dfe17-6b24-49f4-bf41-a8a85f793124": {
+            "name": "Scan for additional threats",
+            "description": "Continually scan the system for other potential threats until cleared.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! (scan_is_clean); do run_security_scan; done"
+                }
+            ],
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the security scan is clean",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "agent": "organization--39da8b66-c6e2-4056-9bbf-6ef10a32f4bb"
+        },
+        "end--d5e5f4d3-c5b2-4e4e-97ab-12ddeefe8cb6": {
+            "type": "end"
+        },
+        "start--5ac00b5c-5ff4-46ff-aaf7-f1ec6da2bea0": {
+            "on_completion": "action--b7f3c141-7f97-4c30-bc20-f5f844388ff4",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--39da8b66-c6e2-4056-9bbf-6ef10a32f4bb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

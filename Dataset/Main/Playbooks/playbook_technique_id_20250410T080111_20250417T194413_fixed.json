@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--72f1d5fc-8d4b-4a4e-9683-a37c84f97b9c",
+    "name": "Mitigation Playbook for Command and Scripting Exploitation Incident",
+    "description": "This playbook addresses an incident involving malicious command execution, privilege escalation, and data exfiltration.",
+    "created_by": "identity--e038de9e-013d-468f-903f-4cb4934f844a",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--15b0b31b-7ab4-4c16-833d-db4097ae6649",
+    "workflow": {
+        "start--15b0b31b-7ab4-4c16-833d-db4097ae6649": {
+            "on_completion": "parallel--1e30e3b2-8460-4ddd-9428-7f4c512c8c2d",
+            "type": "start"
+        },
+        "parallel--1e30e3b2-8460-4ddd-9428-7f4c512c8c2d": {
+            "name": "Initial Response",
+            "description": "Execute multiple actions in parallel to mitigate the attack quickly.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e8f43cb1-4137-48a0-8fdf-91889d2c1ad4",
+                "action--27f4de0a-fac2-4fc7-9d9c-2bdcd1a755ca"
+            ]
+        },
+        "action--e8f43cb1-4137-48a0-8fdf-91889d2c1ad4": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious process identified during the attack.",
+            "on_completion": "while-condition--0957e4b6-2b50-43c1-bbff-d49697c80092",
+            "type": "action",
+            "agent": "organization--7d1c7ecd-6590-4960-b863-f56531b96af9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ]
+        },
+        "action--27f4de0a-fac2-4fc7-9d9c-2bdcd1a755ca": {
+            "name": "Apply Security Patch",
+            "description": "Ensure the system is up-to-date by applying necessary patches.",
+            "type": "if-condition",
+            "agent": "organization--7d1c7ecd-6590-4960-b863-f56531b96af9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get install --only-upgrade vulnerable-package"
+                }
+            ],
+            "condition": "if package not up-to-date",
+            "on_completion": "while-condition--0957e4b6-2b50-43c1-bbff-d49697c80092"
+        },
+        "while-condition--0957e4b6-2b50-43c1-bbff-d49697c80092": {
+            "name": "Monitor Outbound Traffic",
+            "description": "Continuously monitor outbound traffic until it returns to normal.",
+            "type": "while-condition",
+            "condition": "traffic_is_normal == false",
+            "on_true": "action--3e54ad6a-6584-4983-8129-3bf9f3c771df",
+            "on_completion": "action--b1b02158-7ae3-4f6a-9339-ec4b8a7a6f83"
+        },
+        "action--3e54ad6a-6584-4983-8129-3bf9f3c771df": {
+            "name": "Traffic Monitoring",
+            "description": "Capture network traffic to analyze data exfiltration.",
+            "type": "action",
+            "agent": "organization--7d1c7ecd-6590-4960-b863-f56531b96af9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w exfiltration.pcap"
+                }
+            ],
+            "on_completion": "while-condition--0957e4b6-2b50-43c1-bbff-d49697c80092"
+        },
+        "action--b1b02158-7ae3-4f6a-9339-ec4b8a7a6f83": {
+            "name": "Check for Additional Malware",
+            "description": "Scan the system to ensure no additional malware is present.",
+            "type": "action",
+            "agent": "organization--7d1c7ecd-6590-4960-b863-f56531b96af9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the malware scan",
+                    "value": "clean",
+                    "constant": false
+                }
+            },
+            "on_completion": "if-condition--c92a856b-e8f8-4b38-937a-b1f2df561bda"
+        },
+        "if-condition--c92a856b-e8f8-4b38-937a-b1f2df561bda": {
+            "name": "Determine Next Action Based on Scan Result",
+            "description": "Decide what to do based on the scan result of the system.",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--8415fab7-983b-4af9-abde-efa78a495ae3",
+            "on_false": "end--6f5ddc91-24da-4010-8385-9aff6d0a3a97"
+        },
+        "action--8415fab7-983b-4af9-abde-efa78a495ae3": {
+            "name": "Audit System Commands Executed",
+            "description": "Audit system command executions for any suspicious activity.",
+            "type": "action",
+            "agent": "organization--7d1c7ecd-6590-4960-b863-f56531b96af9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ausearch -m EXECVE"
+                }
+            ],
+            "on_completion": "end--6f5ddc91-24da-4010-8385-9aff6d0a3a97"
+        },
+        "end--6f5ddc91-24da-4010-8385-9aff6d0a3a97": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7d1c7ecd-6590-4960-b863-f56531b96af9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

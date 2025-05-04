@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1ab4dcf-53d4-45ed-abb4-f908dc84e2c3",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident involving the execution of a PowerShell script that collected sensitive data and exfiltrated it out of the corporate network.",
+    "created_by": "identity--e981f16c-75bc-4c5f-beab-c9f3b0bcb9d1",
+    "created": "2023-10-15T14:00:00Z",
+    "modified": "2023-10-15T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c92759e6-f9cf-4ef8-9530-8d5aec1a8c1a",
+    "workflow": {
+        "start--c92759e6-f9cf-4ef8-9530-8d5aec1a8c1a": {
+            "on_completion": "if-condition--b32f18b5-789b-4c01-8b7c-7a3e5ca07940",
+            "type": "start"
+        },
+        "if-condition--b32f18b5-789b-4c01-8b7c-7a3e5ca07940": {
+            "name": "Check if PowerShell script is running",
+            "type": "if-condition",
+            "condition": "powerShell_script_running == true",
+            "on_true": "action--844d8417-bfe4-4d0a-aaa5-41c5358b16c9",
+            "on_false": "action--f544cfcd-3aee-4a83-b564-68b497bffee1"
+        },
+        "action--844d8417-bfe4-4d0a-aaa5-41c5358b16c9": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process running the malicious script.",
+            "on_completion": "action--f544cfcd-3aee-4a83-b564-68b497bffee1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--1fad969c-2bbb-4f10-9d8a-93d5bfd321e3"
+        },
+        "action--b85cfc80-2fc1-49b1-9b67-c2bff7b782c5": {
+            "name": "Run a full antivirus scan on affected host",
+            "description": "This action initiates a repetitive scan until the antivirus confirms the host is clean.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! antivirus scan host-17; do sleep 60; done"
+                }
+            ],
+            "agent": "organization--1fad969c-2bbb-4f10-9d8a-93d5bfd321e3"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "action--f544cfcd-3aee-4a83-b564-68b497bffee1": {
+            "name": "Isolate affected host from the network",
+            "description": "Deactivate the network interface of the affected host to prevent further data exfiltration.",
+            "on_completion": "action--b85cfc80-2fc1-49b1-9b67-c2bff7b782c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-17 down"
+                }
+            ],
+            "agent": "organization--1fad969c-2bbb-4f10-9d8a-93d5bfd321e3"
+        }
+    },
+    "agent_definitions": {
+        "organization--1fad969c-2bbb-4f10-9d8a-93d5bfd321e3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "powerShell_script_running": {
+            "type": "boolean",
+            "description": "Indicates if the malicious PowerShell script is currently running.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

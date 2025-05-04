@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b3e24a5-9873-4e13-b12a-b44fdb2d9c5b",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute commands remotely, leading to malware download and execution.",
+    "created_by": "identity--c483295f-bd78-4287-b0eb-3be0960540d0",
+    "created": "2025-04-09T12:37:20.000Z",
+    "modified": "2025-04-09T12:45:20.000Z",
+    "revoked": false,
+    "workflow_start": "start--4b47b77e-a09b-4e3f-bcdf-ca4d158d263e",
+    "workflow": {
+        "start--4b47b77e-a09b-4e3f-bcdf-ca4d158d263e": {
+            "on_completion": "action--7f8c5aec-dbe2-46be-b1ae-137454c5b9dc",
+            "type": "start"
+        },
+        "action--7f8c5aec-dbe2-46be-b1ae-137454c5b9dc": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that was spawned by PowerShell.",
+            "on_completion": "action--e7c1b3b3-5bdd-4127-9179-ec7aeeb5bcf2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--a37181fb-abcc-4891-a1b5-de5357808d54"
+        },
+        "action--e7c1b3b3-5bdd-4127-9179-ec7aeeb5bcf2": {
+            "name": "Isolate affected host",
+            "description": "Block the affected host from the network to prevent further damage.",
+            "on_completion": "while-condition--634c591a-f200-4a5d-8a6b-d1f11c337f5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--a37181fb-abcc-4891-a1b5-de5357808d54"
+        },
+        "while-condition--634c591a-f200-4a5d-8a6b-d1f11c337f5f": {
+            "name": "Threat Scan Loop",
+            "description": "Repeat scanning for threats until the system is clean.",
+            "condition": "threats_found == true",
+            "on_true": "action--5f1c839d-89a3-4438-be6a-ffeba865d8a9",
+            "on_false": "end--b75512e7-d58f-4c79-bd23-888481e84c9c",
+            "type": "while-condition"
+        },
+        "action--5f1c839d-89a3-4438-be6a-ffeba865d8a9": {
+            "name": "Scan for additional threats",
+            "description": "Initiate a scan to find and log any additional threats on the system.",
+            "on_completion": "while-condition--634c591a-f200-4a5d-8a6b-d1f11c337f5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_threat_scan"
+                }
+            ],
+            "agent": "organization--a37181fb-abcc-4891-a1b5-de5357808d54",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Indicates if threats were found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--b75512e7-d58f-4c79-bd23-888481e84c9c": {
+            "name": "End Playbook",
+            "description": "The playbook has completed processing.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a37181fb-abcc-4891-a1b5-de5357808d54": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

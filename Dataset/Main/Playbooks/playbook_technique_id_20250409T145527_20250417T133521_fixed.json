@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9301310-b629-44cb-8b05-5867cbb3f14b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts on multiple hosts.",
+    "created_by": "identity--92c86360-3e6e-479c-b8f7-12ac12a6b522",
+    "created": "2023-10-12T12:00:00Z",
+    "modified": "2023-10-12T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--447bba87-d090-4518-b856-931124d8aabc",
+    "workflow": {
+        "start--447bba87-d090-4518-b856-931124d8aabc": {
+            "on_completion": "if-condition--ced3a5e4-a59e-4e17-94c8-c4c63f9e8bc7",
+            "type": "start"
+        },
+        "if-condition--ced3a5e4-a59e-4e17-94c8-c4c63f9e8bc7": {
+            "name": "Check for suspicious processes",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_script')",
+            "on_true": "action--b1c62b40-eade-433f-9a5f-1bdb9563c6ed",
+            "on_false": "action--145c5de9-5e0c-4f65-babc-ec6a4420c63e"
+        },
+        "action--b1c62b40-eade-433f-9a5f-1bdb9563c6ed": {
+            "name": "Kill malicious script processes",
+            "description": "Terminate all instances of the malicious script identified on the network.",
+            "on_completion": "parallel--2a39c92b-231d-4df0-a464-d62edd2d3410",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--2d14e29c-2487-4ed0-bc3e-d001018ca080"
+        },
+        "action--145c5de9-5e0c-4f65-babc-ec6a4420c63e": {
+            "name": "Disable PowerShell execution policy",
+            "description": "Set the PowerShell execution policy to restricted.",
+            "on_completion": "parallel--2a39c92b-231d-4df0-a464-d62edd2d3410",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-ExecutionPolicy Restricted -Force"
+                }
+            ],
+            "agent": "organization--2d14e29c-2487-4ed0-bc3e-d001018ca080"
+        },
+        "parallel--2a39c92b-231d-4df0-a464-d62edd2d3410": {
+            "name": "Initiate malware scanning",
+            "description": "Run malware scans on all hosts affected by the malicious scripts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e643146d-3412-4e61-bbcb-7ff2cdf4d594"
+            ]
+        },
+        "action--e643146d-3412-4e61-bbcb-7ff2cdf4d594": {
+            "name": "Scan all hosts for malware",
+            "description": "Perform malware scans on all hosts until no malware is found.",
+            "on_completion": "while-condition--68da64a3-e7ff-4857-8d69-3f2cc360b499",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-malware-scan"
+                }
+            ],
+            "agent": "organization--2d14e29c-2487-4ed0-bc3e-d001018ca080"
+        },
+        "while-condition--68da64a3-e7ff-4857-8d69-3f2cc360b499": {
+            "name": "Repeat scanning until clean",
+            "description": "Continue scanning until no malicious files are detected.",
+            "on_completion": "end--6e20c160-f3c2-49ee-95f7-29900257d6b1",
+            "type": "while-condition",
+            "condition": "malware_found == false",
+            "on_true": "action--e643146d-3412-4e61-bbcb-7ff2cdf4d594"
+        },
+        "end--6e20c160-f3c2-49ee-95f7-29900257d6b1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2d14e29c-2487-4ed0-bc3e-d001018ca080": {
+            "type": "organization",
+            "name": "XYZ Security Org"
+        }
+    }
+}

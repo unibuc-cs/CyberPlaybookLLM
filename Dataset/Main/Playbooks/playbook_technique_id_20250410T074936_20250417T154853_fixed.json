@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6f3a4c3-7f2b-4f24-9629-4bf875aa3fa4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access through a compromised email attachment and executed PowerShell scripts to establish a persistent backdoor connection.",
+    "created_by": "identity--52ae9abe-f3e1-496f-9d30-bde436c12b4e",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--79c27ef1-2b87-4046-9536-b66c0ee21202",
+    "workflow": {
+        "start--79c27ef1-2b87-4046-9536-b66c0ee21202": {
+            "on_completion": "action--b123dd4e-efc4-4f13-9b8b-527b981ad181",
+            "type": "start"
+        },
+        "action--b123dd4e-efc4-4f13-9b8b-527b981ad181": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes associated with the attack.",
+            "on_completion": "if-condition--4f3564b0-60df-4c1b-81ef-27e1b253808f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        },
+        "if-condition--4f3564b0-60df-4c1b-81ef-27e1b253808f": {
+            "name": "Check if PowerShell process was terminated",
+            "type": "if-condition",
+            "condition": "process_killed == false",
+            "on_true": "action--b123dd4e-efc4-4f13-9b8b-527b981ad181",
+            "on_false": "parallel--a069271a-9b0d-4f98-a5d6-d34d0768f28f"
+        },
+        "parallel--a069271a-9b0d-4f98-a5d6-d34d0768f28f": {
+            "name": "Execute follow-up actions",
+            "description": "Perform additional actions in parallel after killing the malicious process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--15f7aebe-f829-44c8-9490-3c1d734541d3",
+                "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb",
+                "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d",
+                "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43"
+            ]
+        },
+        "action--15f7aebe-f829-44c8-9490-3c1d734541d3": {
+            "name": "Block network connection to C2 server",
+            "description": "Block outbound connections to the command and control server.",
+            "on_completion": "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.45 -j DROP"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        },
+        "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb": {
+            "name": "Remove unauthorized administrative account",
+            "description": "Delete the unauthorized administrative account created by the attacker.",
+            "on_completion": "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo deluser --remove-home attacker_account"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        },
+        "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d": {
+            "name": "Scan for additional malicious scripts",
+            "description": "Perform a scan of the system to find any remaining malicious scripts.",
+            "on_completion": "if-condition--30017441-6af3-4da8-b0d7-0504fd1b2908",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --infected --recursive /"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        },
+        "if-condition--30017441-6af3-4da8-b0d7-0504fd1b2908": {
+            "name": "Check if malware found during scan",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--367cb9ac-0e63-40c6-813b-60f2ddba160f",
+            "on_false": "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c"
+        },
+        "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43": {
+            "name": "Strengthen email filtering rules",
+            "description": "Update email filtering to block suspicious attachments.",
+            "on_completion": "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_email_filtering_rules"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        },
+        "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c": {
+            "type": "end"
+        },
+        "action--367cb9ac-0e63-40c6-813b-60f2ddba160f": {
+            "name": "Remove infected files",
+            "description": "Delete files that were identified as infected during the scan.",
+            "on_completion": "end--f1c0e64f-fd60-4e2f-b8fc-f5710990075c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "remove_infected_files"
+                }
+            ],
+            "agent": "organization--85523dba-586b-4af5-b01b-df77f5413737"
+        }
+    },
+    "agent_definitions": {
+        "organization--85523dba-586b-4af5-b01b-df77f5413737": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

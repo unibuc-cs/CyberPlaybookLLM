@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d79b3c20-e7f2-4b68-b069-40a123567d04",
+    "name": "Mitigation Playbook for Reverse Shell Incident",
+    "description": "This playbook addresses an incident involving a reverse shell established from a malicious script execution. It includes commands to terminate the shell, remove malicious scripts, scan for malware, and update firewall rules.",
+    "created_by": "identity--47c550aa-34e4-441e-bd7c-518257b02de4",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1e3456a-5cfd-4e77-8a76-bb5e4474c947",
+    "workflow": {
+        "start--f1e3456a-5cfd-4e77-8a76-bb5e4474c947": {
+            "on_completion": "action--c1a60598-8593-4b52-a8b7-345d53b11235",
+            "type": "start"
+        },
+        "action--c1a60598-8593-4b52-a8b7-345d53b11235": {
+            "name": "Terminate reverse shell process",
+            "description": "Kill the reverse shell process to stop data exfiltration.",
+            "on_completion": "action--939c3f4e-0ff7-4c68-b0c3-8b86b02e5d7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'reverse shell' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--5184484c-fa88-4270-9f27-6701b752819b"
+        },
+        "action--939c3f4e-0ff7-4c68-b0c3-8b86b02e5d7d": {
+            "name": "Remove malicious script",
+            "description": "Delete the malicious script to prevent further execution.",
+            "on_completion": "parallel--f739fda8-7939-4696-a5d9-6e4da840bbb9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious/script.sh"
+                }
+            ],
+            "agent": "organization--5184484c-fa88-4270-9f27-6701b752819b"
+        },
+        "parallel--f739fda8-7939-4696-a5d9-6e4da840bbb9": {
+            "name": "Mitigations for Incident",
+            "description": "Conduct further mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3",
+                "action--1ed5e765-e2d9-4e1b-a3f4-54466f506e43",
+                "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea"
+            ]
+        },
+        "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3": {
+            "name": "Conduct malware scan on infected host",
+            "description": "Scan the host for remaining malware until the system is clean.",
+            "on_completion": "end--c5b89b9a-8dd2-4233-8401-5f6b7e370b06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove infected_files/*"
+                }
+            ],
+            "agent": "organization--ec7d68bf-fed5-40a5-b377-ffe6d2ea4177",
+            "loop": {
+                "condition": "scan_has_issues",
+                "on_true": "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3"
+            }
+        },
+        "action--1ed5e765-e2d9-4e1b-a3f4-54466f506e43": {
+            "name": "Update firewall rules to block C2 server IP",
+            "description": "Block outbound connection to the command and control server IP.",
+            "on_completion": "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.0.2.1"
+                }
+            ],
+            "agent": "organization--65d1481b-c0ac-424d-8fce-b8d42fd74a56",
+            "condition": "if network_not_compromised"
+        },
+        "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea": {
+            "name": "Reset credentials for all users",
+            "description": "Reset user credentials to prevent unauthorized access.",
+            "on_completion": "end--c5b89b9a-8dd2-4233-8401-5f6b7e370b06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forceshutdown auth --reset-credentials"
+                }
+            ],
+            "agent": "organization--ec7d68bf-fed5-40a5-b377-ffe6d2ea4177",
+            "variables": {
+                "user_list": {
+                    "type": "file",
+                    "description": "List of affected users",
+                    "value": "affected_users.txt",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--c5b89b9a-8dd2-4233-8401-5f6b7e370b06": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5184484c-fa88-4270-9f27-6701b752819b": {
+            "type": "organization",
+            "name": "Organization A"
+        },
+        "organization--ec7d68bf-fed5-40a5-b377-ffe6d2ea4177": {
+            "type": "organization",
+            "name": "Organization B"
+        },
+        "organization--65d1481b-c0ac-424d-8fce-b8d42fd74a56": {
+            "type": "organization",
+            "name": "Organization C"
+        }
+    }
+}

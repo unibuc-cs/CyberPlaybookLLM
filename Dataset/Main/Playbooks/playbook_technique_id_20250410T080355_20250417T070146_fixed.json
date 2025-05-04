@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dcd45871-3ff7-4d6c-a994-9db27a9a0c7c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable script on the server, leading to unauthorized access and manipulation of internal logs.",
+    "created_by": "identity--b1c6a123-7a0b-4119-a3b5-5da5d87b1b34",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8c0fed9b-d320-4748-999c-e3c60d8ce998",
+    "workflow": {
+        "start--8c0fed9b-d320-4748-999c-e3c60d8ce998": {
+            "on_completion": "parallel--35967290-98ea-48c6-923b-d5a86a2922bf",
+            "type": "start"
+        },
+        "action--1e0fb17b-8f3d-48d5-b9b3-529a4aa62afb": {
+            "name": "Terminate Suspicious Script Process",
+            "description": "Terminate any process executing the suspicious script.",
+            "on_completion": "action--250e2c29-ba4b-4821-b4ad-1679abc615b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--7ef362ec-f860-458a-97f5-a07c7faae07e"
+        },
+        "action--5f67a0e9-51d6-4d8c-837d-ad8f9c7f9f36": {
+            "name": "Cleanup Altered Logs",
+            "description": "Restore system logs if tampering was detected.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -R /var/log/"
+                }
+            ],
+            "agent": "organization--7ef362ec-f860-458a-97f5-a07c7faae07e",
+            "on_completion": "if-condition--26c655bc-99d6-4a5f-b339-4eb6be2220cc"
+        },
+        "action--250e2c29-ba4b-4821-b4ad-1679abc615b3": {
+            "name": "Conduct Full System Audit",
+            "description": "Perform a full system audit to check for remaining vulnerabilities.",
+            "on_completion": "while-condition--8149dde0-4487-49d9-98e2-46681fff814d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -e 1"
+                }
+            ],
+            "agent": "organization--7ef362ec-f860-458a-97f5-a07c7faae07e"
+        },
+        "action--f5ff0bfa-822f-4da4-87b0-bb1fdb4d0b93": {
+            "name": "Verify System Integrity",
+            "description": "Check the integrity of the system to ensure it hasn't been compromised.",
+            "on_completion": "action--c5a6951a-b7b6-47d7-87de-f5698ea952ba",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tripwire --check"
+                }
+            ],
+            "agent": "organization--7ef362ec-f860-458a-97f5-a07c7faae07e"
+        },
+        "action--c5a6951a-b7b6-47d7-87de-f5698ea952ba": {
+            "name": "Perform Security Patch Update",
+            "description": "Update system packages and security patches.",
+            "on_completion": "end--676242d0-346f-4c96-b293-d41d08c45f79",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--7ef362ec-f860-458a-97f5-a07c7faae07e",
+            "step_variables": {
+                "maintenance_window": {
+                    "type": "string",
+                    "description": "The scheduled time for maintenance",
+                    "value": "02:00 - 04:00 AM",
+                    "constant": false
+                }
+            }
+        },
+        "end--676242d0-346f-4c96-b293-d41d08c45f79": {
+            "type": "end"
+        },
+        "parallel--35967290-98ea-48c6-923b-d5a86a2922bf": {
+            "name": "Handle Incident",
+            "description": "Perform multiple actions in parallel to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1e0fb17b-8f3d-48d5-b9b3-529a4aa62afb",
+                "action--5f67a0e9-51d6-4d8c-837d-ad8f9c7f9f36",
+                "action--ce64a2c8-cf3c-468f-b6d3-b541f83749e1"
+            ]
+        },
+        "if-condition--26c655bc-99d6-4a5f-b339-4eb6be2220cc": {
+            "name": "Check for Tampered Logs",
+            "type": "if-condition",
+            "condition": "tampered_logs_detected == true",
+            "on_true": "action--ef108825-1904-4ece-afc7-0ecaf7eac5a1",
+            "on_false": "action--250e2c29-ba4b-4821-b4ad-1679abc615b3"
+        },
+        "while-condition--8149dde0-4487-49d9-98e2-46681fff814d": {
+            "name": "Audit Loop",
+            "description": "Repeat until there are no other vulnerabilities found.",
+            "on_completion": "if-condition--88410f77-04e1-4d1b-8c02-6fe8d4f2a495",
+            "condition": "no_other_vulnerabilities_found == false",
+            "on_true": "action--250e2c29-ba4b-4821-b4ad-1679abc615b3",
+            "type": "if-condition"
+        },
+        "if-condition--88410f77-04e1-4d1b-8c02-6fe8d4f2a495": {
+            "name": "Check for Vulnerabilities",
+            "type": "if-condition",
+            "condition": "resolved_vulnerabilities == false",
+            "on_true": "action--f5ff0bfa-822f-4da4-87b0-bb1fdb4d0b93",
+            "on_false": "end--676242d0-346f-4c96-b293-d41d08c45f79"
+        }
+    },
+    "agent_definitions": {
+        "organization--7ef362ec-f860-458a-97f5-a07c7faae07e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

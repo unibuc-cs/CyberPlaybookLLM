@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b3c5f5e-e99d-4d24-8e2e-e5b62bcd77a1",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute commands and exfiltrate sensitive data via HTTP requests.",
+    "created_by": "identity--abc12345-6789-def0-1234-56789abcdef0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d558c117-f739-4d0f-87f0-bdd053957b1f",
+    "workflow": {
+        "start--d558c117-f739-4d0f-87f0-bdd053957b1f": {
+            "on_completion": "action--0926fb39-54d4-472d-93b8-0534fbd3751d",
+            "type": "start"
+        },
+        "action--0926fb39-54d4-472d-93b8-0534fbd3751d": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Block any outgoing connections to known malicious IPs identified during the investigation.",
+            "on_completion": "action--0c0ebdca-3365-40f6-83c6-5d0deac57a88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--0c0ebdca-3365-40f6-83c6-5d0deac57a88": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the detected malicious activity.",
+            "on_completion": "action--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0": {
+            "name": "Perform forensic analysis of compromised host",
+            "description": "Conduct forensic analysis on host-101 to identify any lingering threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forensics-tool --scan host-101"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "while-condition--7ac6b0b0-e966-4a66-af22-526c1791325c"
+        },
+        "while-condition--7ac6b0b0-e966-4a66-af22-526c1791325c": {
+            "name": "Repeat forensic scan until clean",
+            "description": "Repeat the forensic scan until the host is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0",
+            "on_false": "action--5f0215d3-a167-4293-bb41-1635f44e36bc"
+        },
+        "action--5f0215d3-a167-4293-bb41-1635f44e36bc": {
+            "name": "Update web application firewall rules",
+            "description": "Update the WAF rules to block unwanted HTTP POST requests.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "waf-tool update rules --block http_post --target host-101"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "action--ec6a94b2-c73c-4324-a805-196bd2fc712b",
+            "condition": "if sensitive_data_exfiltrated"
+        },
+        "action--ec6a94b2-c73c-4324-a805-196bd2fc712b": {
+            "name": "Notify security team of incident",
+            "description": "Alert the security team regarding the incident on host-101.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email security@organization.com -subject 'Critical Incident' -body 'Incident detected at host-101.'"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "end--1f713627-1892-4452-89a8-4273f1f9d189"
+        },
+        "end--1f713627-1892-4452-89a8-4273f1f9d189": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

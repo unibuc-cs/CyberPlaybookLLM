@@ -1,0 +1,76 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6f6f689e-7d42-4ded-bb07-e7c2b72f675e",
+    "name": "Mitigation of Command and Scripting Interpreter Attack",
+    "description": "This playbook responds to an incident where an attacker used a command-line interface to execute malicious scripts across multiple systems.",
+    "created_by": "identity--19d8db95-5ade-4819-b39d-7a149f6b6e7c",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--bd92e43c-abd9-42f8-8444-a02ece9ecaa4",
+    "workflow": {
+        "action--de8b4fba-db85-4f19-a83e-73c89159c54e": {
+            "name": "Kill malicious script if running",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--f5ed2567-14fc-48d3-99c2-8dd268bafe2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--1af9480f-d354-4270-be7d-66cf1d728926"
+        },
+        "action--f5ed2567-14fc-48d3-99c2-8dd268bafe2c": {
+            "name": "Block outbound connections to known malicious IPs",
+            "description": "Block all outbound connections to the identified malicious IP address.",
+            "on_completion": "while-condition--170f3cb3-05c1-46cb-a361-c975db80996b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 1.2.3.4 -j DROP"
+                }
+            ],
+            "agent": "organization--1af9480f-d354-4270-be7d-66cf1d728926"
+        },
+        "action--978e1bb3-7753-4daf-a1c6-b4c871f0b4d5": {
+            "name": "Tail the auth log for suspicious login attempts",
+            "description": "Continuously monitor for failed login attempts and trigger alerts.",
+            "on_completion": "while-condition--170f3cb3-05c1-46cb-a361-c975db80996b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep 'Failed password'"
+                }
+            ],
+            "agent": "organization--1af9480f-d354-4270-be7d-66cf1d728926"
+        },
+        "start--bd92e43c-abd9-42f8-8444-a02ece9ecaa4": {
+            "on_completion": "action--de8b4fba-db85-4f19-a83e-73c89159c54e",
+            "type": "start"
+        },
+        "while-condition--170f3cb3-05c1-46cb-a361-c975db80996b": {
+            "name": "Monitor failed login attempts",
+            "description": "Continue monitoring login attempts and alert if suspicious activities are detected.",
+            "type": "while-condition",
+            "condition": "alerts_cleared == false",
+            "on_true": "action--978e1bb3-7753-4daf-a1c6-b4c871f0b4d5",
+            "next_steps": [
+                "action--978e1bb3-7753-4daf-a1c6-b4c871f0b4d5"
+            ]
+        },
+        "end--41d8f186-d0a9-41e5-bba8-988d3b4bf273": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1af9480f-d354-4270-be7d-66cf1d728926": {
+            "type": "organization",
+            "name": "ClientOrganization_XYZ"
+        }
+    }
+}

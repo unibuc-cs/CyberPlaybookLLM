@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5b1e106-e96e-4f7d-b72c-e8c14f12d3b2",
+    "name": "Mitigation Playbook for Suspicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a script on a compromised server, allowing for lateral movement and indicating potential data exfiltration attempts.",
+    "created_by": "identity--c3e9c942-f164-4694-bcf2-8c3a45677762",
+    "created": "2025-10-01T14:32:00Z",
+    "modified": "2025-10-01T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--ffb72da0-538b-4e58-a72b-77c8c7cd28e1",
+    "workflow": {
+        "start--ffb72da0-538b-4e58-a72b-77c8c7cd28e1": {
+            "on_completion": "action--fb72da0e-ec31-4c8b-b71e-4a7eddb004af",
+            "type": "start"
+        },
+        "action--fb72da0e-ec31-4c8b-b71e-4a7eddb004af": {
+            "name": "Terminate suspicious process running the script",
+            "description": "Terminate any processes executing the suspicious PowerShell script.",
+            "on_completion": "action--1b69c1c7-bf56-44c4-9e01-d0f1ace389cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f 'suspicious_script.ps1')"
+                }
+            ],
+            "agent": "organization--4af33218-ec18-4d0a-b81f-98c82a9c2a19"
+        },
+        "action--1b69c1c7-bf56-44c4-9e01-d0f1ace389cc": {
+            "name": "Block outbound connections to the malicious IP",
+            "description": "Block outbound connections to the identified malicious IP address.",
+            "on_completion": "while-condition--baff480e-2051-49c2-b4e7-bb1de9788a90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--4af33218-ec18-4d0a-b81f-98c82a9c2a19"
+        },
+        "while-condition--baff480e-2051-49c2-b4e7-bb1de9788a90": {
+            "name": "Scan for similar scripts",
+            "description": "Repeat scanning until no more suspicious scripts are found.",
+            "type": "while-condition",
+            "condition": "found_scripts > 0",
+            "on_true": "action--baff480e-2051-49c2-b4e7-bb1de9788a90",
+            "next_steps": "action--baff480e-2051-49c2-b4e7-bb1de9788a90"
+        },
+        "action--baff480e-2051-49c2-b4e7-bb1de9788a90": {
+            "name": "Scan all systems for similar scripts",
+            "description": "Searching for remaining suspicious scripts on the system.",
+            "on_completion": "update-found-scripts--feb73f64-2964-45fa-959a-a6bd2b7d37d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*suspicious_script*' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--4af33218-ec18-4d0a-b81f-98c82a9c2a19",
+            "step_variables": {
+                "found_scripts": {
+                    "type": "integer",
+                    "description": "Count of found suspicious scripts",
+                    "value": "0",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e69a3d1e-d12a-45e2-82dc-a6b648408e35": {
+            "type": "end"
+        },
+        "update-found-scripts--feb73f64-2964-45fa-959a-a6bd2b7d37d6": {
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "found_scripts=$(find / -name '*suspicious_script*' | wc -l)"
+                }
+            ],
+            "next_steps": "while-condition--baff480e-2051-49c2-b4e7-bb1de9788a90",
+            "agent": "organization--4af33218-ec18-4d0a-b81f-98c82a9c2a19"
+        }
+    },
+    "agent_definitions": {
+        "organization--4af33218-ec18-4d0a-b81f-98c82a9c2a19": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

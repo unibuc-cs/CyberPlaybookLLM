@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0f1694f-31f7-4c5e-8bd8-5dc57c9c6e3c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts using a command and scripting interpreter, leading to malicious payload deployments and unusual network activity.",
+    "created_by": "identity--d2d27ec0-23f6-4ed7-85c9-8b3cf6f58a12",
+    "created": "2025-04-10T08:30:00Z",
+    "modified": "2025-04-10T08:32:00Z",
+    "revoked": false,
+    "workflow_start": "start--760aa722-b889-4b29-aaa6-77c5cdb2de01",
+    "workflow": {
+        "start--760aa722-b889-4b29-aaa6-77c5cdb2de01": {
+            "on_completion": "action--9efa674b-9f95-4e9b-9183-52c85552b412",
+            "type": "start"
+        },
+        "action--9efa674b-9f95-4e9b-9183-52c85552b412": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530": {
+            "name": "Execute Cleanup Actions",
+            "description": "Perform subsequent clean-up actions associated with the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e2a9d44a-3a97-4d08-b2eb-2c1f37c60f50",
+                "action--16a4cc2f-4fb3-4cb7-bec9-56223ddb0f69",
+                "action--c544b2cb-9a1e-4d32-9bb7-dfe9eae2521b",
+                "action--c6aee62d-11e5-4f2a-9741-1744d7f56be8",
+                "action--bcd34c1b-21c9-49bb-a6ee-c1c2a5e5b195"
+            ]
+        },
+        "action--e2a9d44a-3a97-4d08-b2eb-2c1f37c60f50": {
+            "name": "Delete all temporary payload files",
+            "description": "Remove any malicious payload files from the temporary directory.",
+            "on_completion": "end--e00f0209-0f09-4dac-89eb-799b46a934b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /tmp/ -name 'malicious_payload_*' -delete"
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "action--16a4cc2f-4fb3-4cb7-bec9-56223ddb0f69": {
+            "name": "Block suspicious IP on firewall",
+            "description": "Add a rule to the firewall to block the suspected outbound IP address.",
+            "on_completion": "end--e00f0209-0f09-4dac-89eb-799b46a934b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.200 -j DROP"
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "action--c544b2cb-9a1e-4d32-9bb7-dfe9eae2521b": {
+            "name": "Review and clean script execution paths",
+            "description": "Audit the paths for any execution of suspicious scripts.",
+            "on_completion": "end--e00f0209-0f09-4dac-89eb-799b46a934b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/local/bin/ -p wa"
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "action--c6aee62d-11e5-4f2a-9741-1744d7f56be8": {
+            "name": "Rollback untrusted script changes",
+            "description": "Revert changes in the script repository, if any untrusted changes were made.",
+            "on_completion": "end--e00f0209-0f09-4dac-89eb-799b46a934b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "git checkout ."
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "action--bcd34c1b-21c9-49bb-a6ee-c1c2a5e5b195": {
+            "name": "Perform a full system scan",
+            "description": "Execute a complete system scan to check for remaining threats.",
+            "on_completion": "loop-condition--749b96bc-e6b3-4cef-95f4-9b0086e1512b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de"
+        },
+        "loop-condition--749b96bc-e6b3-4cef-95f4-9b0086e1512b": {
+            "name": "Full system scan loop",
+            "description": "Repeat the system scan until no threats are detected.",
+            "on_completion": "end--e00f0209-0f09-4dac-89eb-799b46a934b0",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--bcd34c1b-21c9-49bb-a6ee-c1c2a5e5b195"
+        },
+        "end--e00f0209-0f09-4dac-89eb-799b46a934b0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fba58fb3-4b61-41f2-971f-b4b55ee8f4de": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

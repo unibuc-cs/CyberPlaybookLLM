@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4b8a3b5-837f-4d6c-9963-148638871614",
+    "name": "Mitigation Playbook for Malicious PDF Exploitation",
+    "description": "This playbook responds to an incident where an employee opened a malicious PDF attachment that led to a remote code execution exploit.",
+    "created_by": "identity--abcde123-45f6-7890-abcd-ef1234567890",
+    "created": "2023-10-04T12:50:00.000Z",
+    "modified": "2023-10-04T12:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1f2d3f4a-5b6c-7d8e-9a0b-dc1e2f3e4a5b",
+    "workflow": {
+        "start--1f2d3f4a-5b6c-7d8e-9a0b-dc1e2f3e4a5b": {
+            "on_completion": "action--e8caa608-185e-4b54-8b87-a7d7e5c1593e",
+            "type": "start"
+        },
+        "action--e8caa608-185e-4b54-8b87-a7d7e5c1593e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the suspicious script executed from the malicious PDF.",
+            "on_completion": "action--c12f583b-1d97-4a8f-a5e4-58f7c22a56c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c12f583b-1d97-4a8f-a5e4-58f7c22a56c9": {
+            "name": "Isolate affected device from the network",
+            "description": "Block outbound network connections from the affected device to prevent further malicious activities.",
+            "on_completion": "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <affected_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3": {
+            "name": "Scan for additional infections",
+            "description": "Continually scan for infections until no additional threats are found.",
+            "type": "while-condition",
+            "condition": "infected == true",
+            "on_true": "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "on_false": "end--f1e2d6f8-7e4d-478a-8d1b-dc1e2f3c4a8",
+            "next_steps": [
+                "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3"
+            ]
+        },
+        "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3": {
+            "name": "Perform scan for viruses and malware",
+            "description": "Run a comprehensive scan on the user\u2019s home directory for any additional infections.",
+            "on_completion": "if-condition--check_infection",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--check_infection": {
+            "name": "Check if infected",
+            "type": "if-condition",
+            "condition": "scan_results != clean",
+            "on_true": "set_variable--set_infected_true",
+            "on_false": "set_variable--set_infected_false"
+        },
+        "set_variable--set_infected_true": {
+            "name": "Set infected variable to true",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "on_completion": "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "type": "action"
+        },
+        "set_variable--set_infected_false": {
+            "name": "Set infected variable to false",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "end--f1e2d6f8-7e4d-478a-8d1b-dc1e2f3c4a8",
+            "type": "action"
+        },
+        "end--f1e2d6f8-7e4d-478a-8d1b-dc1e2f3c4a8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f32a5e41-6eb1-4ebf-b78d-d0424cf60003",
+    "name": "Ransomware Mitigation Playbook",
+    "description": "This playbook handles an incident involving ransomware that encrypts critical files across multiple servers.",
+    "created_by": "identity--9c4e4f7e-7f89-41db-93d7-b2555b719946",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f3e43f07-5f23-4db3-a586-a2bcab421113",
+    "workflow": {
+        "start--f3e43f07-5f23-4db3-a586-a2bcab421113": {
+            "on_completion": "action--a67c0b27-4ee0-4c20-b8d1-5e0f3e53857a",
+            "type": "start"
+        },
+        "action--a67c0b27-4ee0-4c20-b8d1-5e0f3e53857a": {
+            "name": "Isolate infected systems",
+            "description": "Take infected systems offline to prevent further encryption.",
+            "on_completion": "action--6e8c2c64-c4ad-487b-8b46-0e81e5f13c36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--75e38ecf-b4b2-405f-9896-a8494823d3b1"
+        },
+        "action--6e8c2c64-c4ad-487b-8b46-0e81e5f13c36": {
+            "name": "Stop ransomware processes",
+            "description": "Terminate the ransomware processes running on affected systems.",
+            "on_completion": "if-condition--c4fcad45-9aba-4e3a-9ed9-1b81d16d9096",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f ransom_process"
+                }
+            ],
+            "agent": "organization--75e38ecf-b4b2-405f-9896-a8494823d3b1"
+        },
+        "if-condition--c4fcad45-9aba-4e3a-9ed9-1b81d16d9096": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists == true",
+            "on_true": "loop--7e3b6d0e-4619-4c9f-aef5-5c0909a6d7e4",
+            "on_false": "action--b31e820a-ea70-49d7-b949-fe338225d907"
+        },
+        "loop--7e3b6d0e-4619-4c9f-aef5-5c0909a6d7e4": {
+            "name": "Restore files from backup",
+            "description": "Restore files until all files are restored from backup.",
+            "on_completion": "end--1b5950ab-c8b5-4d21-897e-5c1e0dd9b9bf",
+            "type": "while-condition",
+            "condition": "all_files_restored == false",
+            "next_steps": [
+                "action--bcb8b59c-b40b-4045-bc62-6f81f3704a1c"
+            ]
+        },
+        "action--bcb8b59c-b40b-4045-bc62-6f81f3704a1c": {
+            "name": "Execute restoration",
+            "description": "Restore the files from backup to the restoration directory.",
+            "on_completion": "check-restore-status--f7fe2cc9-eb04-418c-bc37-4141d02db71f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backups/ ./restoration_directory/"
+                }
+            ],
+            "agent": "organization--75e38ecf-b4b2-405f-9896-a8494823d3b1"
+        },
+        "check-restore-status--f7fe2cc9-eb04-418c-bc37-4141d02db71f": {
+            "name": "Check restoration status",
+            "description": "Check if all files have been restored successfully.",
+            "type": "if-condition",
+            "condition": "check_if_all_files_restored() == true",
+            "on_true": "end--1b5950ab-c8b5-4d21-897e-5c1e0dd9b9bf",
+            "on_false": "loop--7e3b6d0e-4619-4c9f-aef5-5c0909a6d7e4"
+        },
+        "action--b31e820a-ea70-49d7-b949-fe338225d907": {
+            "name": "Inform team about missing backups",
+            "description": "Notify the response team that no backups are available for restoration.",
+            "on_completion": "end--1b5950ab-c8b5-4d21-897e-5c1e0dd9b9bf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'No backups available for restoration. Immediate action needed.'"
+                }
+            ],
+            "agent": "organization--75e38ecf-b4b2-405f-9896-a8494823d3b1"
+        },
+        "end--1b5950ab-c8b5-4d21-897e-5c1e0dd9b9bf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--75e38ecf-b4b2-405f-9896-a8494823d3b1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "backup_exists": {
+            "type": "boolean",
+            "description": "Flag to check if backup exists",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "all_files_restored": {
+            "type": "boolean",
+            "description": "Flag to determine if all files have been restored",
+            "value": false,
+            "constant": false
+        }
+    }
+}

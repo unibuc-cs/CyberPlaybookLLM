@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7a05bec5-deb3-4c26-931b-2e907a377234",
+    "name": "Mitigation Playbook for PowerShell Exploit",
+    "description": "This playbook addresses an incident involving a PowerShell script that executed unauthorized actions on host-22, including creating a backdoor for persistent access.",
+    "created_by": "identity--cef0053f-ed71-419d-9f91-03ae16ab8962",
+    "created": "2023-10-22T10:00:00.000Z",
+    "modified": "2023-10-22T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--594a8d9b-118b-4f11-9f34-44b79e52c4f1",
+    "workflow": {
+        "start--594a8d9b-118b-4f11-9f34-44b79e52c4f1": {
+            "on_completion": "parallel--4e5a1a5d-099c-4600-b845-7174cf6c88be",
+            "type": "start"
+        },
+        "parallel--4e5a1a5d-099c-4600-b845-7174cf6c88be": {
+            "name": "Execute Mitigation Steps in Parallel",
+            "description": "Parallel execution of mitigation steps: terminate PowerShell, block IP, and remove backdoor executable",
+            "type": "parallel",
+            "next_steps": [
+                "action--3a086ed6-f601-47b1-88b1-d5120303b9f8",
+                "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99",
+                "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa"
+            ]
+        },
+        "action--3a086ed6-f601-47b1-88b1-d5120303b9f8": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Stop any malicious PowerShell process that is running.",
+            "on_completion": "decision--b816f0d2-2e9f-42b6-8fa9-36b4ec51d9d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name 'powershell' -Force"
+                }
+            ],
+            "agent": "organization--24514e40-5f84-455f-9efa-12fca6af30a7"
+        },
+        "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block outbound connections to the known malicious IP address.",
+            "on_completion": "decision--b816f0d2-2e9f-42b6-8fa9-36b4ec51d9d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--24514e40-5f84-455f-9efa-12fca6af30a7"
+        },
+        "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa": {
+            "name": "Remove backdoor executable",
+            "description": "Remove any backdoor executable that was created.",
+            "on_completion": "decision--b816f0d2-2e9f-42b6-8fa9-36b4ec51d9d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.exe"
+                }
+            ],
+            "agent": "organization--24514e40-5f84-455f-9efa-12fca6af30a7"
+        },
+        "decision--b816f0d2-2e9f-42b6-8fa9-36b4ec51d9d1": {
+            "name": "Check for Unusual Activity",
+            "description": "Check system logs for evidence of unauthorized actions.",
+            "type": "if-condition",
+            "condition": "unauthorized_actions_detected",
+            "on_true": "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72",
+            "on_false": "loop--e1c730b5-9c8c-4b2d-81be-d8d2b66f9271"
+        },
+        "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72": {
+            "name": "Review system logs for unusual activity",
+            "description": "Review syslog for entries marked as suspicious.",
+            "on_completion": "loop--e1c730b5-9c8c-4b2d-81be-d8d2b66f9271",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--24514e40-5f84-455f-9efa-12fca6af30a7"
+        },
+        "loop--e1c730b5-9c8c-4b2d-81be-d8d2b66f9271": {
+            "name": "Scan and Clean until safe",
+            "description": "Continuously scan the system for threats until a clean state is reached.",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--92d33f69-f429-4131-b259-43cc4e4d638b",
+            "on_completion": "end--c8e2e7b4-64d4-4dd7-a1dc-dbdf212c4322"
+        },
+        "action--92d33f69-f429-4131-b259-43cc4e4d638b": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a deep scan of the system and remove detected threats.",
+            "on_completion": "decision--35dea970-b719-41ce-ab42-9007bc1174aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--24514e40-5f84-455f-9efa-12fca6af30a7",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Result of the scan: clean or infected",
+                    "value": "infected"
+                }
+            }
+        },
+        "end--c8e2e7b4-64d4-4dd7-a1dc-dbdf212c4322": {
+            "type": "end"
+        },
+        "decision--35dea970-b719-41ce-ab42-9007bc1174aa": {
+            "name": "Check scan results",
+            "description": "Determine if the system scan is clean.",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "end--c8e2e7b4-64d4-4dd7-a1dc-dbdf212c4322",
+            "on_false": "loop--e1c730b5-9c8c-4b2d-81be-d8d2b66f9271"
+        }
+    },
+    "agent_definitions": {
+        "organization--24514e40-5f84-455f-9efa-12fca6af30a7": {
+            "type": "organization",
+            "name": "CyberSecurity Operations Team"
+        }
+    }
+}

@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3d98b2a2-f06b-4bf4-a1a1-5c4e6a8165bc",
+    "name": "Playbook for PowerShell-based Attack Mitigation",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute malicious commands on a victim's machine.",
+    "created_by": "identity--7951ae8b-b0e5-4212-8d51-be475295d3ed",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--85e47ae4-1976-4110-b5dc-f485b5584e28",
+    "workflow": {
+        "action--3d1c6e7f-7274-42e0-990c-93da3bc7fa9f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes on the host.",
+            "on_completion": "if-condition--e17d6b2a-b32b-45de-85be-a45ec8403aef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.ProcessName -eq 'powershell' } | Stop-Process"
+                }
+            ],
+            "agent": "organization--2b33a586-b91b-4e21-abc3-bfe33ff6dda0"
+        },
+        "if-condition--e17d6b2a-b32b-45de-85be-a45ec8403aef": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "Get-Process | Where-Object { $_.ProcessName -eq 'powershell' } | Measure-Object | Select-Object -ExpandProperty Count -gt 0",
+            "on_true": "parallel--c00e1a1a-c21e-43b1-8ae7-bf3a03469dd5",
+            "on_false": "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d"
+        },
+        "parallel--c00e1a1a-c21e-43b1-8ae7-bf3a03469dd5": {
+            "name": "Parallel Attack Mitigation Steps",
+            "description": "Execute network isolation and forensic analysis concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d",
+                "action--f3b1e69b-bdaf-4554-9b59-9b218e2f7c53"
+            ]
+        },
+        "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d": {
+            "name": "Isolate affected host from the network",
+            "description": "Disable the network adapter to prevent further malicious actions.",
+            "on_completion": "loop--f88aa788-3a29-43d0-9783-7e6bbe10ea65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Disable-NetAdapter -Name 'Ethernet1'"
+                }
+            ],
+            "agent": "organization--2b33a586-b91b-4e21-abc3-bfe33ff6dda0"
+        },
+        "loop--f88aa788-3a29-43d0-9783-7e6bbe10ea65": {
+            "name": "Risk Assessment Loop",
+            "description": "Repeat the isolation process until risk assessment is flagged complete.",
+            "on_completion": "end--c2b70a6a-6f38-4330-a957-faa69855a18c",
+            "type": "while-condition",
+            "condition": "NotCompleteRiskAssessment",
+            "on_true": "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d"
+        },
+        "action--f3b1e69b-bdaf-4554-9b59-9b218e2f7c53": {
+            "name": "Conduct forensic analysis on affected files",
+            "description": "Perform a forensic investigation on critical files.",
+            "on_completion": "end--c2b70a6a-6f38-4330-a957-faa69855a18c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Investigation -Path 'C:\\CriticalFiles\\' -Output 'C:\\ForensicReports\\'"
+                }
+            ],
+            "agent": "organization--2b33a586-b91b-4e21-abc3-bfe33ff6dda0",
+            "step_variables": {
+                "investigationPath": {
+                    "type": "string",
+                    "description": "The path of files to investigate",
+                    "value": "C:\\CriticalFiles\\"
+                },
+                "reportPath": {
+                    "type": "string",
+                    "description": "The path to store the forensic report",
+                    "value": "C:\\ForensicReports\\"
+                }
+            }
+        },
+        "start--85e47ae4-1976-4110-b5dc-f485b5584e28": {
+            "on_completion": "action--3d1c6e7f-7274-42e0-990c-93da3bc7fa9f",
+            "type": "start",
+            "name": "Start Workflow"
+        },
+        "end--c2b70a6a-6f38-4330-a957-faa69855a18c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2b33a586-b91b-4e21-abc3-bfe33ff6dda0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

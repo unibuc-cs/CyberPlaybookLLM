@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c5b9e8b1-2b4f-4f45-8705-a0ccd227c8f1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed shell commands to establish persistence and exfiltrate data.",
+    "created_by": "identity--a3c6dc8e-cbd1-4f42-b66e-b867c54d2d40",
+    "created": "2023-10-03T14:32:00Z",
+    "modified": "2023-10-03T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1e4a4cc-0c83-4d25-bf10-abf94e4f4296",
+    "workflow": {
+        "start--f1e4a4cc-0c83-4d25-bf10-abf94e4f4296": {
+            "on_completion": "action--3b230b93-c26f-43e9-9bc6-4301ae9f1e79",
+            "type": "start"
+        },
+        "action--3b230b93-c26f-43e9-9bc6-4301ae9f1e79": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the suspicious script.",
+            "on_completion": "loop--c472ce3f-883a-4b88-8aad-17a1be28cb96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--2ca03586-a7f3-4836-9924-79da6eeed6a2"
+        },
+        "loop--c472ce3f-883a-4b88-8aad-17a1be28cb96": {
+            "name": "Check Host Connection",
+            "description": "Isolate affected host by checking connection status and disabling it if still active.",
+            "on_completion": "action--b3b53e57-0067-4a2d-b054-cefa7ef8471d",
+            "type": "while-condition",
+            "condition": "host-01_is_connected",
+            "on_true": "action--d0ec43e5-b7e7-41b6-9ce4-fc4f993f716c",
+            "on_false": "action--b3b53e57-0067-4a2d-b054-cefa7ef8471d"
+        },
+        "action--d0ec43e5-b7e7-41b6-9ce4-fc4f993f716c": {
+            "name": "Isolate affected host",
+            "description": "Bring down the affected host's network interface.",
+            "on_completion": "if-condition--ea195f70-a2bd-4b04-ac79-38f459627599",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--2ca03586-a7f3-4836-9924-79da6eeed6a2"
+        },
+        "if-condition--ea195f70-a2bd-4b04-ac79-38f459627599": {
+            "name": "Check if host-01 is still connected",
+            "type": "if-condition",
+            "condition": "host-01_is_connected",
+            "on_true": "loop--c472ce3f-883a-4b88-8aad-17a1be28cb96",
+            "on_false": "action--b790aac9-8964-4b5d-93db-1472484fd94c"
+        },
+        "action--b790aac9-8964-4b5d-93db-1472484fd94c": {
+            "name": "Conduct comprehensive malware scan",
+            "description": "Run a full malware scan to identify any remaining threats.",
+            "on_completion": "end--e5a83f23-b62e-408f-9a39-17873cffc47c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --full --report"
+                }
+            ],
+            "agent": "organization--2ca03586-a7f3-4836-9924-79da6eeed6a2",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the malware scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e5a83f23-b62e-408f-9a39-17873cffc47c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2ca03586-a7f3-4836-9924-79da6eeed6a2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variable_definitions": {
+        "host-01_is_connected": {
+            "type": "boolean",
+            "description": "Indicates if host-01 is still connected to the network.",
+            "value": "true",
+            "constant": false
+        }
+    }
+}

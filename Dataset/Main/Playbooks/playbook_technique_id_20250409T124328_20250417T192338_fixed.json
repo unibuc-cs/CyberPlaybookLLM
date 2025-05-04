@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ec148c04-0c92-4118-8d7e-d0623e865d79",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook provides a response plan for incidents involving unauthorized PowerShell script execution to exfiltrate sensitive data.",
+    "created_by": "identity--249dfb53-5d95-4c3d-9171-b780623e118f",
+    "created": "2023-10-05T11:00:00Z",
+    "modified": "2023-10-05T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--cbba5242-bb92-4ef2-b613-71b9c72354ab",
+    "workflow": {
+        "start--cbba5242-bb92-4ef2-b613-71b9c72354ab": {
+            "on_completion": "parallel--7783a315-715e-4457-a7bf-4063e0dca75c",
+            "type": "start"
+        },
+        "parallel--7783a315-715e-4457-a7bf-4063e0dca75c": {
+            "name": "Immediate Mitigation Actions",
+            "description": "Executing multiple immediate mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fa126aef-7507-41f9-a6c4-23ae1c28c2dc",
+                "action--bb819b62-66bd-4216-ae9a-1a89e139058d"
+            ]
+        },
+        "action--fa126aef-7507-41f9-a6c4-23ae1c28c2dc": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that was detected.",
+            "on_completion": "loop--1a262282-e004-4077-817c-7039ded44bac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--3a9bf7ac-179a-4c53-8efa-79e454af6502"
+        },
+        "action--bb819b62-66bd-4216-ae9a-1a89e139058d": {
+            "name": "Block outbound IP address",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "loop--1a262282-e004-4077-817c-7039ded44bac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--3a9bf7ac-179a-4c53-8efa-79e454af6502"
+        },
+        "loop--1a262282-e004-4077-817c-7039ded44bac": {
+            "name": "Perform full system scan loop",
+            "description": "Continue performing a full system scan until no malware is found.",
+            "on_completion": "decision--8353ed05-fdae-47b6-b966-0dd3365a7c24",
+            "type": "while-condition",
+            "condition": "malware_found",
+            "on_true": "action--f9854f28-2df4-4c65-93fa-9d0367b1a60e"
+        },
+        "action--f9854f28-2df4-4c65-93fa-9d0367b1a60e": {
+            "name": "Perform full system scan",
+            "description": "Conduct a complete system scan for malware.",
+            "on_completion": "loop--1a262282-e004-4077-817c-7039ded44bac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan --recursive /"
+                }
+            ],
+            "step_variables": {
+                "malware_found": {
+                    "type": "boolean",
+                    "description": "Indicates if malware was found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--3a9bf7ac-179a-4c53-8efa-79e454af6502"
+        },
+        "decision--8353ed05-fdae-47b6-b966-0dd3365a7c24": {
+            "name": "Check for malware presence",
+            "description": "Assess the presence of malware after the scan.",
+            "type": "if-condition",
+            "condition": "malware_found == false",
+            "on_true": "end--b2c4dfcc-9656-4855-861b-0ecad7e810d0",
+            "on_false": "loop--1a262282-e004-4077-817c-7039ded44bac"
+        },
+        "end--b2c4dfcc-9656-4855-861b-0ecad7e810d0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3a9bf7ac-179a-4c53-8efa-79e454af6502": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9208b2df-9829-46d4-abc4-f223c8261e9b",
+    "name": "Mitigation Playbook for Scheduled Task Malware Incident",
+    "description": "This playbook addresses an incident where a malicious scheduled task was created to execute a harmful script. It includes actions to delete the task, terminate the script process, and scan for further malicious scheduled tasks.",
+    "created_by": "identity--abc12345-3ae8-46d9-8430-cc6fa9e4ee3b",
+    "created": "2024-04-09T10:49:28.000Z",
+    "modified": "2024-04-09T10:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e1d94a60-9262-4a57-92fb-b1938cce3250",
+    "workflow": {
+        "start--e1d94a60-9262-4a57-92fb-b1938cce3250": {
+            "on_completion": "action--b92d8b37-2303-4a1e-8485-806bb11c4928",
+            "type": "start"
+        },
+        "action--b92d8b37-2303-4a1e-8485-806bb11c4928": {
+            "name": "Delete the malicious scheduled task",
+            "description": "Removes the malicious scheduled task from the system.",
+            "on_completion": "action--d51f5f7f-dea4-4ecb-8bc2-2e3e798f14c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn \"MaliciousTask\" /f"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d51f5f7f-dea4-4ecb-8bc2-2e3e798f14c8": {
+            "name": "Terminate the malicious script process",
+            "description": "Ends any running instance of the malicious script.",
+            "on_completion": "if-condition--caa7e22c-8739-453d-8e78-2a73369c3055",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--caa7e22c-8739-453d-8e78-2a73369c3055": {
+            "name": "Check for other malicious tasks",
+            "type": "if-condition",
+            "condition": "len(malicious_tasks) > 0",
+            "on_true": "loop--task_scan_loop",
+            "on_false": "end--b14bdee1-abf2-4e88-bfca-968013683970"
+        },
+        "loop--task_scan_loop": {
+            "name": "Loop until no more malicious tasks found",
+            "description": "Continuously check for malicious scheduled tasks and delete them if found.",
+            "on_completion": "action--caa7e22c-8739-453d-8e78-2a73369c3055",
+            "type": "loop",
+            "condition": "malicious_tasks != None",
+            "on_iteration": "action--caa7e22c-8739-453d-8e78-2a73369c3055"
+        },
+        "action--caa7e22c-8739-453d-8e78-2a73369c3055": {
+            "name": "Scan for other scheduled tasks / potential malware",
+            "description": "Look for any other tasks that may indicate potential malware.",
+            "on_completion": "if-condition--caa7e22c-8739-453d-8e78-2a73369c3055",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command \"Get-ScheduledTask | Where-Object {$_.Action -like '*malicious_script*'}\""
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "malicious_tasks": {
+                    "type": "list",
+                    "description": "List of potential malicious tasks"
+                }
+            }
+        },
+        "end--b14bdee1-abf2-4e88-bfca-968013683970": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

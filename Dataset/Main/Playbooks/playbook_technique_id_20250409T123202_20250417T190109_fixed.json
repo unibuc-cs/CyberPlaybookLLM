@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3c2f8b77-e342-4c7f-834c-211cb8e4a552",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts using PowerShell, modifying system files and establishing suspicious connections.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-15T08:55:35.498Z",
+    "modified": "2025-04-15T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--bff87485-11fa-4a04-b73a-e92d55ed1cdb",
+    "workflow": {
+        "action--d2f3b68a-6094-41e9-bc9d-1e09c14e57c5": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes that are potentially malicious.",
+            "on_completion": "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--69934bf9-aae6-46b8-b76c-8db3cec22f51"
+        },
+        "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2": {
+            "name": "Disconnect compromised host from network",
+            "description": "Disable the network interface of the compromised host to prevent further malicious activity.",
+            "on_completion": "while-condition--afb6cf0d-854b-4c46-abe0-670975e0beed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--69934bf9-aae6-46b8-b76c-8db3cec22f51"
+        },
+        "action--59e6f03e-e24f-4c9e-b4a4-ccf6ebc24b8f": {
+            "name": "Run antivirus scan",
+            "description": "Execute a comprehensive antivirus scan of the system.",
+            "on_completion": "set_variable--43c6bf2c-345f-4070-bff1-f17f3047556b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--69934bf9-aae6-46b8-b76c-8db3cec22f51"
+        },
+        "start--bff87485-11fa-4a04-b73a-e92d55ed1cdb": {
+            "on_completion": "if-condition--0d005aec-c4b7-4443-82e2-0038b1d6989e",
+            "type": "start"
+        },
+        "if-condition--0d005aec-c4b7-4443-82e2-0038b1d6989e": {
+            "name": "Check if malicious PowerShell processes are running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--d2f3b68a-6094-41e9-bc9d-1e09c14e57c5",
+            "on_false": "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2"
+        },
+        "while-condition--afb6cf0d-854b-4c46-abe0-670975e0beed": {
+            "name": "Run antivirus scan loop",
+            "description": "Repeatedly run antivirus scans until the system is confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_not_clean == true",
+            "on_true": "action--59e6f03e-e24f-4c9e-b4a4-ccf6ebc24b8f",
+            "next_steps": [
+                "if-condition--0d005aec-c4b7-4443-82e2-0038b1d6989e"
+            ]
+        },
+        "set_variable--43c6bf2c-345f-4070-bff1-f17f3047556b": {
+            "name": "Set scan status variable",
+            "type": "action",
+            "on_completion": "while-condition--afb6cf0d-854b-4c46-abe0-670975e0beed",
+            "step_variables": {
+                "scan_not_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the system scan is clean or not",
+                    "value": "check_scan_result()"
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set scan status variable:  "
+                }
+            ],
+            "agent": "organization--69934bf9-aae6-46b8-b76c-8db3cec22f51"
+        },
+        "end--9a411f81-6cae-4320-95a9-165c764f4f1e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--69934bf9-aae6-46b8-b76c-8db3cec22f51": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

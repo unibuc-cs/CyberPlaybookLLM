@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c4b747bc-0c35-4747-b9d0-bd078cb3d46b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command and scripting interpreter to execute malicious scripts on a compromised host. The workflow includes killing malicious scripts, quarantining affected files, blocking malicious IPs, and scanning for malware.",
+    "created_by": "identity--a8f10c6d-5d28-416d-897e-accd5a6ab3ee",
+    "created": "2025-10-15T10:00:00Z",
+    "modified": "2025-10-15T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--7e253254-70e5-4c85-9278-beeb832f14fb",
+    "workflow": {
+        "start--7e253254-70e5-4c85-9278-beeb832f14fb": {
+            "on_completion": "action--a1c8f451-fc3f-4f8a-ab8c-82a4e09f0a7a",
+            "type": "start"
+        },
+        "action--a1c8f451-fc3f-4f8a-ab8c-82a4e09f0a7a": {
+            "name": "Kill malicious script",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "if-condition--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d"
+        },
+        "if-condition--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d": {
+            "name": "Check if malicious script is found",
+            "type": "if-condition",
+            "condition": "suspicious_script.ps1 exists",
+            "on_true": "action--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d",
+            "on_false": "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5"
+        },
+        "action--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d": {
+            "name": "Quarantine affected files",
+            "description": "Move the malicious script to quarantine.",
+            "on_completion": "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv ~/user_profile/suspicious_script.ps1 ~/quarantine/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5": {
+            "name": "Review command logs",
+            "description": "Review the command execution logs for malicious activities.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/command.log"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "while-condition--loop-log-review"
+        },
+        "while-condition--loop-log-review": {
+            "name": "Review logs loop",
+            "description": "Loop until all logs are reviewed.",
+            "on_completion": "action--c70d42c4-ab75-401d-a438-937c8741d04b",
+            "condition": "remaining_logs > 0",
+            "on_true": "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5"
+        },
+        "action--c70d42c4-ab75-401d-a438-937c8741d04b": {
+            "name": "Block malicious IP",
+            "description": "Block outbound connections to the identified malicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "if-condition--52baf483-0eb8-4914-a0fc-00f4f20e8c3"
+        },
+        "if-condition--52baf483-0eb8-4914-a0fc-00f4f20e8c3": {
+            "name": "Check if quarantine is successful",
+            "type": "if-condition",
+            "condition": "quarantine_status == success",
+            "on_true": "action--52baf483-0eb8-4914-a0fc-00f4f20e8c3",
+            "on_false": "end--d4cb07cd-2a1d-4bbd-9494-d0b6036d4313"
+        },
+        "action--52baf483-0eb8-4914-a0fc-00f4f20e8c3": {
+            "name": "Run endpoint scan",
+            "description": "Run a security scan on the user profile directory.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan --recursive ~/user_profile/"
+                }
+            ],
+            "agent": "organization--xyz",
+            "on_completion": "end--d4cb07cd-2a1d-4bbd-9494-d0b6036d4313"
+        },
+        "end--d4cb07cd-2a1d-4bbd-9494-d0b6036d4313": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

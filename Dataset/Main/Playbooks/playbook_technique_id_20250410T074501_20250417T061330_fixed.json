@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8c79b7f2-ed9e-4af2-86ef-2f36f1d4faee",
+    "name": "Malicious Script Execution Response Playbook",
+    "description": "This playbook addresses incidents where attackers leveraged a scripting interpreter to run malicious scripts, leading to data extraction.",
+    "created_by": "identity--f84e1c01-66bc-4978-a7ef-dc62439e6875",
+    "created": "2025-04-10T09:00:00Z",
+    "modified": "2025-04-10T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b227b583-b14f-4ca5-a181-5d59c62f0050",
+    "workflow": {
+        "start--b227b583-b14f-4ca5-a181-5d59c62f0050": {
+            "on_completion": "if-condition--a4c9b20d-91ab-4ae6-91be-638bafde1f72",
+            "type": "start"
+        },
+        "if-condition--a4c9b20d-91ab-4ae6-91be-638bafde1f72": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "maliciousProcessDetected",
+            "on_true": "action--f1c779ae-cb85-4a5c-a6d6-159d1ac4be56",
+            "on_false": "action--cbef0235-edf2-4007-92e8-bc9c1f0c6f5b"
+        },
+        "action--f1c779ae-cb85-4a5c-a6d6-159d1ac4be56": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell processes.",
+            "on_completion": "action--cbef0235-edf2-4007-92e8-bc9c1f0c6f5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--9afe2d84-dc01-4586-8d05-39655ce31ff3"
+        },
+        "action--cbef0235-edf2-4007-92e8-bc9c1f0c6f5b": {
+            "name": "Delete temporary script files",
+            "description": "Remove temporary malicious script files.",
+            "on_completion": "parallel--c0e38e3d-d0e7-4eca-8f29-4eb28520e4de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del /F /Q C:\\Windows\\System32\\temp_script.ps1"
+                }
+            ],
+            "agent": "organization--7d8c3781-d713-4851-9931-d0f16e9fdf2e"
+        },
+        "parallel--c0e38e3d-d0e7-4eca-8f29-4eb28520e4de": {
+            "name": "Parallel Recovery Actions",
+            "description": "Conduct scans and block outbound connections.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f9a3a8b4-7634-4e16-baaa-535657edc693",
+                "action--5041d4f8-cf83-4ce1-b786-2d9cbdbdf860",
+                "action--eab429f8-5e60-4904-b3a1-e1b7ad5e9f4b"
+            ]
+        },
+        "action--f9a3a8b4-7634-4e16-baaa-535657edc693": {
+            "name": "Scan and isolate affected systems",
+            "description": "Perform a quick scan until affected systems are clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-MpScan -ScanType QuickScan"
+                }
+            ],
+            "agent": "organization--7d8c3781-d713-4851-9931-d0f16e9fdf2e",
+            "on_completion": "while-condition--eecb765c-709c-4a91-9fdc-320b6d47b2a1"
+        },
+        "while-condition--eecb765c-709c-4a91-9fdc-320b6d47b2a1": {
+            "name": "Verify Scan Result",
+            "description": "Repeat scanning until clean results are obtained.",
+            "type": "while-condition",
+            "condition": "scanResult != 'clean'",
+            "on_true": "action--f9a3a8b4-7634-4e16-baaa-535657edc693"
+        },
+        "action--5041d4f8-cf83-4ce1-b786-2d9cbdbdf860": {
+            "name": "Block outbound connections to suspicious IPs",
+            "description": "Prevent any outgoing connections to identified suspicious IP addresses.",
+            "on_completion": "action--eab429f8-5e60-4904-b3a1-e1b7ad5e9f4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Malicious IP' -Direction Outbound -RemoteAddress 192.168.1.100 -Action Block"
+                }
+            ],
+            "agent": "organization--e35571f8-2930-4e91-980e-84452c79142a"
+        },
+        "action--eab429f8-5e60-4904-b3a1-e1b7ad5e9f4b": {
+            "name": "Deploy enhanced monitoring on command execution",
+            "description": "Enable enhanced monitoring on specific hosts.",
+            "on_completion": "end--d53f4b8f-b3f2-42d8-847a-f5ba632c127e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-SecurityMonitoring -Enable true -Target host-22 host-34"
+                }
+            ],
+            "agent": "organization--9afe2d84-dc01-4586-8d05-39655ce31ff3",
+            "variables": {
+                "monitoredHosts": [
+                    "host-22",
+                    "host-34"
+                ]
+            }
+        },
+        "end--d53f4b8f-b3f2-42d8-847a-f5ba632c127e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9afe2d84-dc01-4586-8d05-39655ce31ff3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--7d8c3781-d713-4851-9931-d0f16e9fdf2e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--e35571f8-2930-4e91-980e-84452c79142a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

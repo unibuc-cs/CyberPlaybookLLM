@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c83ce176-c2f4-4ad0-8d51-de944db9a256",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command-line interface to execute a malicious script.",
+    "created_by": "identity--5ecf883d-09c4-494b-8a8a-60edb53aac09",
+    "created": "2025-10-02T10:00:00Z",
+    "modified": "2025-10-02T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5f859d9d-858f-4b22-a23c-e37f0f5c6c8b",
+    "workflow": {
+        "start--5f859d9d-858f-4b22-a23c-e37f0f5c6c8b": {
+            "on_completion": "parallel--b1558bfe-4f8b-4a9b-b4d7-48ad9259a5e3",
+            "type": "start"
+        },
+        "parallel--b1558bfe-4f8b-4a9b-b4d7-48ad9259a5e3": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute mitigation actions to address the detected threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b",
+                "if-condition--7bb8e429-31f5-445b-9d34-fcb4a0f34f62"
+            ]
+        },
+        "action--120f06b1-a5a3-4d49-b9ea-c6b75369603b": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "loop--88c8c4a0-eebb-4901-b575-5b6d3448e3c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--9733f434-067b-4658-b440-8bb7a906b4d7"
+        },
+        "if-condition--7bb8e429-31f5-445b-9d34-fcb4a0f34f62": {
+            "name": "Check for Data Exfiltration",
+            "description": "Determine if data exfiltration was attempted.",
+            "type": "if-condition",
+            "condition": "data_exfiltration_detected == true",
+            "on_true": "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76",
+            "on_false": "action--faa2aa9d-cb10-414e-8566-bf5608ac4853"
+        },
+        "action--7a94aa4c-5628-4b85-b0cd-45a2d1f7ff76": {
+            "name": "Block Outbound Connections",
+            "description": "Block any potential exfiltration traffic.",
+            "on_completion": "action--faa2aa9d-cb10-414e-8566-bf5608ac4853",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -m comment --comment 'Block exfiltration attempts' -j DROP"
+                }
+            ],
+            "agent": "organization--9733f434-067b-4658-b440-8bb7a906b4d7"
+        },
+        "action--faa2aa9d-cb10-414e-8566-bf5608ac4853": {
+            "name": "Update Host Firewall Rules",
+            "description": "Update firewall rules to deny traffic from the known malicious IP address.",
+            "on_completion": "end--c3736743-48f8-443e-8a59-0c3228a34784",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from $malicious_ip"
+                }
+            ],
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "description": "The known malicious IP address",
+                    "value": "192.168.1.200",
+                    "constant": true
+                }
+            },
+            "agent": "organization--9733f434-067b-4658-b440-8bb7a906b4d7"
+        },
+        "loop--88c8c4a0-eebb-4901-b575-5b6d3448e3c5": {
+            "name": "Scan System Until Clean",
+            "description": "Repeat system scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--d907e673-68bb-4c64-a681-32c68767c4ab",
+            "on_false": "end--c3736743-48f8-443e-8a59-0c3228a34784"
+        },
+        "action--d907e673-68bb-4c64-a681-32c68767c4ab": {
+            "name": "Scan System for Additional Threats",
+            "description": "Perform a comprehensive scan to detect additional threats.",
+            "on_completion": "loop--88c8c4a0-eebb-4901-b575-5b6d3448e3c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --detect-pua=yes --recursive"
+                }
+            ],
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Set to true once the scan is clean",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "agent": "organization--9733f434-067b-4658-b440-8bb7a906b4d7"
+        },
+        "end--c3736743-48f8-443e-8a59-0c3228a34784": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9733f434-067b-4658-b440-8bb7a906b4d7": {
+            "type": "organization",
+            "name": "InternalSecurityTeam"
+        }
+    }
+}

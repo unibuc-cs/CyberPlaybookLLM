@@ -1,0 +1,154 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ad891c2c-19ec-472c-8f3c-dfc0e28c1b77",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook addresses an incident involving the use of PowerShell scripts to establish unauthorized access, along with creating an administrative account and network connections to a C&C server.",
+    "created_by": "identity--3f426ed3-313b-4a38-b6b8-abefbbaad0ce",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "workflow_start": "start--11da1af2-c345-4e65-9c35-8f2c3dcb9e1f",
+    "workflow": {
+        "start--11da1af2-c345-4e65-9c35-8f2c3dcb9e1f": {
+            "on_completion": "parallel--c3a1d719-4a77-4e8a-abc1-9c1dfd253f1d",
+            "type": "start"
+        },
+        "parallel--c3a1d719-4a77-4e8a-abc1-9c1dfd253f1d": {
+            "name": "Execute Multiple Mitigation Steps",
+            "description": "Kill PowerShell processes, block C&C connection, and remove unauthorized accounts in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--b123dd4e-efc4-4f13-9b8b-527b981ad181",
+                "action--15f7aebe-f829-44c8-9490-3c1d734541d3",
+                "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb"
+            ]
+        },
+        "loop--b123dd4e-efc4-4f13-9b8b-527b981ad181": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Continuously attempt to terminate malicious PowerShell processes.",
+            "type": "while-condition",
+            "condition": "process_status != 'killed'",
+            "on_true": "action--b123dd4e-efc4-4f13-9b8b-527b981ad181"
+        },
+        "action--b123dd4e-efc4-4f13-9b8b-527b981ad181": {
+            "name": "Terminate PowerShell Processes",
+            "description": "Kill all running PowerShell processes.",
+            "step_variables": {
+                "process_status": {
+                    "type": "string",
+                    "value": "running"
+                }
+            },
+            "on_completion": "end--2a752083-f466-4398-bf0d-ec2ef01f41a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "action--15f7aebe-f829-44c8-9490-3c1d734541d3": {
+            "name": "Block Network Connection to C&C Server",
+            "description": "Block outbound communications to the identified C&C server IP.",
+            "on_completion": "end--20c53f56-1e9e-4e47-a984-149e3ed60e9d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.45 -j DROP"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "action--cf4fe212-bc9d-471c-af6c-3357c82d43cb": {
+            "name": "Remove Unauthorized Administrative Account",
+            "description": "Delete the unauthorized administrative account from the system.",
+            "on_completion": "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo deluser --remove-home attacker_account"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "action--95316459-c98f-4b3d-9b6c-2dae4b75ba7d": {
+            "name": "Scan for Additional Malicious Scripts",
+            "description": "Perform a system-wide scan for malicious scripts.",
+            "on_completion": "decision--9ec790f2-e68a-4c8d-9fe2-a6cb39ca5290",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --infected --recursive /"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43": {
+            "name": "Strengthen Email Filtering Rules",
+            "description": "Update email filtering to block suspicious attachments and improve email security.",
+            "on_completion": "end--3e15a4ff-18ba-409c-9d41-e2efc16baea2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Update email filtering to block suspicious attachments"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "end--2a752083-f466-4398-bf0d-ec2ef01f41a2": {
+            "name": "PowerShell Processes Killed",
+            "description": "Confirmation that PowerShell processes have been killed.",
+            "type": "end",
+            "step_variables": {
+                "process_status": {
+                    "type": "string",
+                    "value": "killed"
+                }
+            }
+        },
+        "end--20c53f56-1e9e-4e47-a984-149e3ed60e9d": {
+            "type": "end",
+            "name": "Network Blocked",
+            "description": "Successfully blocked network connection to C&C server."
+        },
+        "decision--9ec790f2-e68a-4c8d-9fe2-a6cb39ca5290": {
+            "name": "Evaluate Scan Results",
+            "description": "Determine if any malware was found during the scan.",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--f049df63-239f-4f15-8175-dd3898efc922",
+            "on_false": "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43"
+        },
+        "action--f049df63-239f-4f15-8175-dd3898efc922": {
+            "name": "Remove Infected Files",
+            "description": "Remove any detected malicious files from the system.",
+            "on_completion": "action--bb1032a7-7012-4e3c-b469-6fc3f855ea43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove /path/to/infected/files"
+                }
+            ],
+            "agent": "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0"
+        },
+        "end--3e15a4ff-18ba-409c-9d41-e2efc16baea2": {
+            "type": "end",
+            "name": "Email Security Enhanced",
+            "description": "Email filtering rules have been strengthened."
+        }
+    },
+    "agent_definitions": {
+        "organization--ff52112c-b019-4cf7-98f8-72b1b8bfccf0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "target_definitions": {}
+}

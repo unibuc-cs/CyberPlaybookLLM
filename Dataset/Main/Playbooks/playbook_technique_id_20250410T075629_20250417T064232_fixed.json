@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1b2a5d4-b2c1-44f5-bbc0-88b317a5e897",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution that resulted in the download of malicious payloads.",
+    "created_by": "identity--fcac5153-c8eb-413b-ba6c-371096eb4b6f",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1bc9f9f8-ea31-4ba3-84cf-b123456789ab",
+    "workflow": {
+        "start--1bc9f9f8-ea31-4ba3-84cf-b123456789ab": {
+            "on_completion": "action--f8faa9e3-9f05-462a-bc33-eadb156aaaaa",
+            "type": "start"
+        },
+        "action--f8faa9e3-9f05-462a-bc33-eadb156aaaaa": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script running on the system.",
+            "on_completion": "action--1d2e7c8f-5f70-4141-8f25-c6de78bbcccc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--aa0fada8-19c1-454a-b891-7629743e99ea"
+        },
+        "action--1d2e7c8f-5f70-4141-8f25-c6de78bbcccc": {
+            "name": "Block external IP",
+            "description": "Prevent further communication with the malicious external IP.",
+            "on_completion": "loop--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.1 -j DROP"
+                }
+            ],
+            "agent": "organization--aa0fada8-19c1-454a-b891-7629743e99ea"
+        },
+        "loop--ac9fb418-01d5-4aba-90bc-d36e1578bbbb": {
+            "name": "Scan for additional threats",
+            "description": "Perform a scan for additional threats until no threats are found.",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "on_false": "action--380c88fd-d6c4-4299-af84-8cbb5e3dcccc"
+        },
+        "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb": {
+            "name": "Execute threat scan",
+            "description": "Perform a scan to identify any additional threats on the system.",
+            "on_completion": "if-condition--e4f61dcf-947a-474c-b78d-9af0fa526060",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--aa0fada8-19c1-454a-b891-7629743e99ea",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "action--380c88fd-d6c4-4299-af84-8cbb5e3dcccc": {
+            "name": "Verify system integrity",
+            "description": "Check for any rootkits and ensure system integrity.",
+            "on_completion": "if-condition--a08cc945-14bf-4d00-9425-101e17651000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "agent": "organization--aa0fada8-19c1-454a-b891-7629743e99ea",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "value": "output of chkrootkit",
+                    "constant": false
+                }
+            }
+        },
+        "action--a05624b7-4323-4df2-9119-0e0ff93d9999": {
+            "name": "Update firewall rules",
+            "description": "Reload the firewall rules to ensure continued protections.",
+            "on_completion": "end--1fad9e3c-4866-4f4a-9d66-1687f3e0f700",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--aa0fada8-19c1-454a-b891-7629743e99ea"
+        },
+        "end--1fad9e3c-4866-4f4a-9d66-1687f3e0f700": {
+            "type": "end"
+        },
+        "if-condition--e4f61dcf-947a-474c-b78d-9af0fa526060": {
+            "name": "Check if scanning results indicate threats",
+            "type": "if-condition",
+            "condition": "scan_results contain threats",
+            "on_true": "loop--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "on_false": "action--380c88fd-d6c4-4299-af84-8cbb5e3dcccc"
+        },
+        "if-condition--a08cc945-14bf-4d00-9425-101e17651000": {
+            "name": "Check if scan indicates clean",
+            "type": "if-condition",
+            "condition": "scan_results indicates clean",
+            "on_true": "action--a05624b7-4323-4df2-9119-0e0ff93d9999",
+            "on_false": "end--1fad9e3c-4866-4f4a-9d66-1687f3e0f700"
+        }
+    },
+    "agent_definitions": {
+        "organization--aa0fada8-19c1-454a-b891-7629743e99ea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

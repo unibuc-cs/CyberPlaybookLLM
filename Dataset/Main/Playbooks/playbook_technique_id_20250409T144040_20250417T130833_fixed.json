@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1b59e76-a41f-4f53-86a6-1cd0742c8b8e",
+    "name": "Mitigation Playbook for Command Execution Vulnerability",
+    "description": "This playbook addresses an incident where an attacker exploited a command execution vulnerability on host-22, executing malicious scripts and exfiltrating data.",
+    "created_by": "identity--f35f88c4-3413-475e-86cf-8c2de6ef0026",
+    "created": "2023-10-15T15:00:00.000Z",
+    "modified": "2023-10-15T15:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--9bba7fb4-4221-4b61-b0c3-6cd4e0f53f8a",
+            "type": "start"
+        },
+        "action--9bba7fb4-4221-4b61-b0c3-6cd4e0f53f8a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--d3d14b20-cdd5-45d1-b5f5-83ea0c9fa0d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875"
+        },
+        "action--d3d14b20-cdd5-45d1-b5f5-83ea0c9fa0d6": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the network interface of the affected host to prevent further damage.",
+            "on_completion": "parallel--2fbb7d4b-8c22-4d8b-a1b0-9c673c7f2123",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if (hostname == 'host-22') { disconnect-network_interface }"
+                }
+            ],
+            "agent": "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875"
+        },
+        "parallel--2fbb7d4b-8c22-4d8b-a1b0-9c673c7f2123": {
+            "name": "Scan and Block Malicious IPs",
+            "description": "Scan for persistence mechanisms and update firewall rules to block malicious IPs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fb3b2121-92e9-4382-bc5e-6de0c18a6723",
+                "action--cc5e6bcc-74a7-4933-bdac-5ff6f5c130d2"
+            ]
+        },
+        "action--fb3b2121-92e9-4382-bc5e-6de0c18a6723": {
+            "name": "Scan for persistence mechanisms",
+            "description": "Repeat the scan until it is clean.",
+            "on_completion": "action--ffddced6-35f5-4b87-8bdb-0b89f0ea5ae0",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the scan",
+                    "value": "initial",
+                    "constant": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --target=host-22 --condition=scan-not-clean"
+                }
+            ],
+            "agent": "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875"
+        },
+        "action--cc5e6bcc-74a7-4933-bdac-5ff6f5c130d2": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Block input from the malicious IP address.",
+            "on_completion": "action--ffddced6-35f5-4b87-8bdb-0b89f0ea5ae0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875"
+        },
+        "action--ffddced6-35f5-4b87-8bdb-0b89f0ea5ae0": {
+            "name": "Review security logs for additional anomalies",
+            "description": "Check security logs to identify any additional suspicious activity.",
+            "on_completion": "end--d4e59e75-b5f8-4ed3-bc3f-0cbb99469721",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'suspicious' /var/log/security.log"
+                }
+            ],
+            "agent": "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875"
+        },
+        "end--d4e59e75-b5f8-4ed3-bc3f-0cbb99469721": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5d80a2e3-db60-4c38-91c2-5e2195e27875": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

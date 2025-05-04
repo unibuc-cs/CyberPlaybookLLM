@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f990a408-0a9e-4e4b-9c0b-869803d0162a",
+    "name": "Mitigation Playbook for Scripting and Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting language via a web application to execute malicious commands on a compromised server.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-10-15T12:15:00Z",
+    "modified": "2023-10-15T12:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--3ea95404-e03f-42dd-b7ab-9ea4dadde0d7",
+    "workflow": {
+        "action--8b6d31e1-f3a4-4948-b94c-b65e1e39ee83": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the executing malicious Python script to stop further damage.",
+            "on_completion": "action--b2c041ae-ff7c-4e08-bdb1-93393743456b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--7b04384d-9ace-42c0-9d2f-f93ff5c91cea"
+        },
+        "action--b2c041ae-ff7c-4e08-bdb1-93393743456b": {
+            "name": "Investigate web application logs",
+            "description": "Check web application logs for any access by the malicious script.",
+            "on_completion": "while-condition--c5b5c8a2-a0e4-4c54-a1db-5c8bbd9cbb00",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_script' /var/log/webapp/access.log"
+                }
+            ],
+            "agent": "organization--7b04384d-9ace-42c0-9d2f-f93ff5c91cea"
+        },
+        "while-condition--c5b5c8a2-a0e4-4c54-a1db-5c8bbd9cbb00": {
+            "name": "Check malware scan report",
+            "description": "Run a malware scan and check the results.",
+            "on_completion": "action--3e081f58-1101-437e-b5bb-5f5c93cb0c4d",
+            "type": "while-condition",
+            "condition": "scan_report != 'clean'",
+            "on_true": "action--3e081f58-1101-437e-b5bb-5f5c93cb0c4d",
+            "on_false": "end--8dffd215-bfd0-416f-afd1-247767eff6d7"
+        },
+        "action--3e081f58-1101-437e-b5bb-5f5c93cb0c4d": {
+            "name": "Run malware scan on affected host",
+            "description": "Perform a scan on the affected host to detect any malware.",
+            "on_completion": "while-condition--c5b5c8a2-a0e4-4c54-a1db-5c8bbd9cbb00",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --log=/var/log/malware_scan.log"
+                }
+            ],
+            "step_variables": {
+                "scan_report": {
+                    "type": "string",
+                    "description": "The variable that contains the result of the malware scan.",
+                    "value": "result of clamscan",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--7b04384d-9ace-42c0-9d2f-f93ff5c91cea"
+        },
+        "start--3ea95404-e03f-42dd-b7ab-9ea4dadde0d7": {
+            "on_completion": "action--8b6d31e1-f3a4-4948-b94c-b65e1e39ee83",
+            "type": "start"
+        },
+        "end--8dffd215-bfd0-416f-afd1-247767eff6d7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7b04384d-9ace-42c0-9d2f-f93ff5c91cea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

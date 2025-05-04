@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--27f048bf-7b21-4ac0-b9f1-3065337f9456",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an attack where an unauthorized script was executed on a compromised system leading to data exfiltration.",
+    "created_by": "identity--f006d87e-6681-4535-bf54-e2716c895c10",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a3e8fce4-b7b3-4daf-bf67-8f5a940432a8",
+    "workflow": {
+        "start--a3e8fce4-b7b3-4daf-bf67-8f5a940432a8": {
+            "on_completion": "action--0ea5ac7b-4344-4e5e-9f2f-6a3f54449d3b",
+            "type": "start"
+        },
+        "action--0ea5ac7b-4344-4e5e-9f2f-6a3f54449d3b": {
+            "name": "Isolate affected system from the network",
+            "description": "Disconnect the compromised system from the network to prevent further data exfiltration.",
+            "on_completion": "if-condition--f0123456-7b8c-491c-b9c1-d8eabcde9098",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifdown eth0"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5"
+        },
+        "if-condition--f0123456-7b8c-491c-b9c1-d8eabcde9098": {
+            "name": "Check if logging is disabled",
+            "type": "if-condition",
+            "condition": "logging_status == 'disabled'",
+            "on_true": "action--f0123456-7b8c-491c-b9c1-d8eabcde9098",
+            "on_false": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8"
+        },
+        "action--f0123456-7b8c-491c-b9c1-d8eabcde9098": {
+            "name": "Enable enhanced logging",
+            "description": "Re-enable logging services for better incident tracking.",
+            "on_completion": "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo service rsyslog restart"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5"
+        },
+        "action--dcfa424d-9e99-4a58-b921-40f85a3c3ee8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the suspicious script.",
+            "on_completion": "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script'"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5",
+            "loop": {
+                "until": "process_not_running"
+            }
+        },
+        "action--893b3ea3-4b4c-4ac4-af34-c81ad5a4977f": {
+            "name": "Block malicious IP address",
+            "description": "Prevent further communication with known malicious IP addresses.",
+            "on_completion": "action--d55c9cab-8b7b-4733-b094-a82e9829f28a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.11 -j DROP"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5"
+        },
+        "action--d55c9cab-8b7b-4733-b094-a82e9829f28a": {
+            "name": "Deploy antivirus scan across all hosts",
+            "description": "Run antivirus scans on all known hosts to identify any further threats.",
+            "on_completion": "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in $(cat hosts.txt); do ssh $host 'run_antivirus_scan'; done"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5",
+            "variables": {
+                "hosts_file": "hosts.txt"
+            }
+        },
+        "action--7cf8b607-0759-4df5-b7e0-4ef996f5f4da": {
+            "name": "Restore affected files from backup",
+            "description": "Recover any affected files from the backup.",
+            "on_completion": "end--d878c3de-4587-4e4d-a25b-44351eb34993",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --progress /backup/ /restore/"
+                }
+            ],
+            "agent": "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5",
+            "variables": {
+                "backup_path": "/backup/",
+                "restore_path": "/restore/"
+            }
+        },
+        "end--d878c3de-4587-4e4d-a25b-44351eb34993": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--71b39839-6292-4809-bbb3-9d9fcd75edc5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8d463da9-020c-44d2-ac46-677268c1b1dc",
+    "name": "Mitigation Playbook for Unexpected Shell Command Execution Incident",
+    "description": "This playbook addresses an incident where an internal server executed a series of suspicious shell commands, indicating potential compromise.",
+    "created_by": "identity--f3e94bdd-38c6-40fa-888d-47d7b62bf2d3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--70f56b2b-0667-479c-8510-b86e8e91b8cf",
+    "workflow": {
+        "start--70f56b2b-0667-479c-8510-b86e8e91b8cf": {
+            "on_completion": "action--2c5f3b2e-dd1e-4dc7-b072-082614c4a0d1",
+            "type": "start"
+        },
+        "action--2c5f3b2e-dd1e-4dc7-b072-082614c4a0d1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious shell script process if it is still running.",
+            "on_completion": "if-condition--673a5c1f-aa9d-42a1-9c34-b513c995edbc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--4456e790-34fc-4b93-8a2a-89a5f2e1ff70"
+        },
+        "if-condition--673a5c1f-aa9d-42a1-9c34-b513c995edbc": {
+            "name": "Check if active connection exists",
+            "type": "if-condition",
+            "condition": "active_connection_found == true",
+            "on_true": "action--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b",
+            "on_false": "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9"
+        },
+        "action--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b": {
+            "name": "Block malicious IP address",
+            "description": "Block outbound connections to the known malicious IP address.",
+            "on_completion": "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--4456e790-34fc-4b93-8a2a-89a5f2e1ff70"
+        },
+        "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9": {
+            "name": "Scan and clean the system",
+            "description": "Scan the /tmp directory for malicious files and clean the system.",
+            "on_completion": "while-condition--f3fe7001-5741-4035-b8cf-bf592c6d5b81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /tmp"
+                }
+            ],
+            "agent": "organization--4456e790-34fc-4b93-8a2a-89a5f2e1ff70"
+        },
+        "while-condition--f3fe7001-5741-4035-b8cf-bf592c6d5b81": {
+            "name": "Repeat scan until system is clean",
+            "description": "Repeat the scan until the system is confirmed clean.",
+            "on_completion": "end--ccb83dd1-5eb0-4ac4-89ef-81c73de198d9",
+            "condition": "scan_result == 'CLEAN'",
+            "on_true": "end--ccb83dd1-5eb0-4ac4-89ef-81c73de198d9",
+            "on_false": "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9",
+            "type": "if-condition"
+        },
+        "end--ccb83dd1-5eb0-4ac4-89ef-81c73de198d9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4456e790-34fc-4b93-8a2a-89a5f2e1ff70": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "active_connection_found": {
+            "type": "boolean",
+            "description": "Indicates if an active connection to the malicious IP was found.",
+            "value": true,
+            "constant": false,
+            "external": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Status of the scan for malicious files.",
+            "value": "NOT_CLEAN",
+            "constant": false,
+            "external": true
+        }
+    }
+}

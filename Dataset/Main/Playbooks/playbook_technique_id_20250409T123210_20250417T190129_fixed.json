@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8c9b5e76-dc94-4b83-89b3-bf3d4c3215c5",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the internal network and executed malicious scripts to extract sensitive data.",
+    "created_by": "identity--a238ae68-2e87-44b7-a149-d7659a69ae44",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1e4a78a-cf45-47a7-baf7-b289d33e8ce5",
+    "workflow": {
+        "start--f1e4a78a-cf45-47a7-baf7-b289d33e8ce5": {
+            "on_completion": "if-condition--c2a3e3d9-3af1-4d7e-a32f-b6769e0c209f",
+            "type": "start"
+        },
+        "if-condition--c2a3e3d9-3af1-4d7e-a32f-b6769e0c209f": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists",
+            "on_true": "action--f8b97301-40d7-45ab-8e2f-5f0bb7b98ab6",
+            "on_false": "action--c7f8db07-b67b-4f00-87f4-43b7497808d3"
+        },
+        "action--f8b97301-40d7-45ab-8e2f-5f0bb7b98ab6": {
+            "name": "Kill malicious process",
+            "description": "Terminate the identified malicious process.",
+            "on_completion": "parallel--d9e52f3a-e2c8-446f-a5b2-3c0ef311b4be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--7c9a8f22-d267-48c4-a813-2976513074fe"
+        },
+        "action--c7f8db07-b67b-4f00-87f4-43b7497808d3": {
+            "name": "Scan system for malicious scripts",
+            "description": "Perform a search for any malicious scripts on the system.",
+            "on_completion": "parallel--d9e52f3a-e2c8-446f-a5b2-3c0ef311b4be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec grep 'malicious_signature' {} +"
+                }
+            ],
+            "agent": "organization--7c9a8f22-d267-48c4-a813-2976513074fe"
+        },
+        "parallel--d9e52f3a-e2c8-446f-a5b2-3c0ef311b4be": {
+            "name": "Parallel Actions",
+            "description": "Isolate the affected host while the scan for malicious scripts is in progress.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a2c7549a-cf5f-4f21-9cf9-e3a6e5f3af0e",
+                "action--c7f8db07-b67b-4f00-87f4-43b7497808d3"
+            ]
+        },
+        "action--a2c7549a-cf5f-4f21-9cf9-e3a6e5f3af0e": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent further data extraction.",
+            "on_completion": "loop--a2c7549a-cf5f-4f21-9cf9-e3a6e5f3af0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--7c9a8f22-d267-48c4-a813-2976513074fe"
+        },
+        "loop--a2c7549a-cf5f-4f21-9cf9-e3a6e5f3af0e": {
+            "name": "Confirm isolation",
+            "description": "Repeat isolation check until confirmation is received.",
+            "type": "while-condition",
+            "condition": "isolation_confirmed",
+            "on_true": "end--b2d98a19-6b50-4317-abc0-dfeeea17b08e",
+            "on_false": "action--a2c7549a-cf5f-4f21-9cf9-e3a6e5f3af0e"
+        },
+        "end--b2d98a19-6b50-4317-abc0-dfeeea17b08e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7c9a8f22-d267-48c4-a813-2976513074fe": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

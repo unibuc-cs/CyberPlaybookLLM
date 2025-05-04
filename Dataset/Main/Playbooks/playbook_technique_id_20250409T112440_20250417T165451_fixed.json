@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--098fbf48-67f4-4ed0-83a0-7c85e344bbeb",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses the incident of an attacker executing a PowerShell script resulting in malicious activity on the internal network.",
+    "created_by": "identity--bfbf6c6d-33da-4789-94f5-4bcac78c9e24",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f0e4a7de-36a2-47d3-bb73-38c73e0a4589",
+    "workflow": {
+        "start--f0e4a7de-36a2-47d3-bb73-38c73e0a4589": {
+            "on_completion": "parallel--c5a8e026-ab0d-4b6e-bd88-cf874b276306",
+            "type": "start"
+        },
+        "parallel--c5a8e026-ab0d-4b6e-bd88-cf874b276306": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Simultaneously execute actions to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7e8f1c4f-0e4a-4e0e-b788-79c20428c010",
+                "action--5b0920f3-336c-4085-9183-f0f3eb1c7cf2"
+            ]
+        },
+        "action--7e8f1c4f-0e4a-4e0e-b788-79c20428c010": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious PowerShell script process.",
+            "on_completion": "action--8c3cb9d8-fb72-4a62-a33d-f7956ef1da29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--236d3cc9-238c-4b7a-b010-b7836faa66a9"
+        },
+        "action--5b0920f3-336c-4085-9183-f0f3eb1c7cf2": {
+            "name": "Isolate affected host",
+            "description": "Block network traffic from the compromised host.",
+            "on_completion": "action--8c3cb9d8-fb72-4a62-a33d-f7956ef1da29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = host-22 ]; then iptables -A INPUT -s 192.168.0.22 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--236d3cc9-238c-4b7a-b010-b7836faa66a9"
+        },
+        "action--8c3cb9d8-fb72-4a62-a33d-f7956ef1da29": {
+            "name": "Scan system for additional threats",
+            "description": "Scan the system for any further potential threats post-mitigation.",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results from the malware scan.",
+                    "value": "null",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--b192878c-4da5-417e-af19-523f985cb9b7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--236d3cc9-238c-4b7a-b010-b7836faa66a9"
+        },
+        "while-condition--b192878c-4da5-417e-af19-523f985cb9b7": {
+            "name": "Scan for threats loop",
+            "description": "Repeat scanning until no malware is detected.",
+            "condition": "scan_results == null",
+            "on_true": "action--8c3cb9d8-fb72-4a62-a33d-f7956ef1da29",
+            "on_false": "end--3cfa39e8-f841-4757-8deb-aa6efae5077d",
+            "type": "while-condition"
+        },
+        "end--3cfa39e8-f841-4757-8deb-aa6efae5077d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--236d3cc9-238c-4b7a-b010-b7836faa66a9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

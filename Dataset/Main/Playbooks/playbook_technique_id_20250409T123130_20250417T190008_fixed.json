@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1e320012-bbd5-4bbf-bc1e-dcfe784d81e0",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application and executed malicious scripts to download sensitive data.",
+    "created_by": "identity--cf5c8bbf-6af5-4104-b70f-1c04804526da",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--80ada51f-db96-4d0f-9526-77b2eeaed5b3",
+    "workflow": {
+        "action--badc0ffe-e21b-4db7-b10f-ea967e6f3c1f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that may be used by the attacker.",
+            "on_completion": "parallel--ab4c0ffe-e21b-4db7-b10f-ea967e6f3c2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--b19765d9-e4f4-4e87-87df-36a8afc3de5d"
+        },
+        "parallel--ab4c0ffe-e21b-4db7-b10f-ea967e6f3c2f": {
+            "name": "Conduct Remediation Steps",
+            "type": "parallel",
+            "next_steps": [
+                "action--3a17bc47-b403-46de-9fd9-206e324b7fe9",
+                "action--19faafef-e057-4659-aa28-c0f9e178cae8"
+            ]
+        },
+        "action--3a17bc47-b403-46de-9fd9-206e324b7fe9": {
+            "name": "Scan for malware",
+            "description": "Perform a malware scan on the affected systems.",
+            "on_completion": "loop--61853784-d443-4c26-bf6e-165f20cc0746",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /path/to/infected/files"
+                }
+            ],
+            "agent": "organization--b19765d9-e4f4-4e87-87df-36a8afc3de5d"
+        },
+        "action--19faafef-e057-4659-aa28-c0f9e178cae8": {
+            "name": "Review User Permissions",
+            "description": "Check the permissions of the user related to the incident.",
+            "on_completion": "end--147b4eab-c5aa-4653-b769-f2e1c27efaf1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "getent passwd | grep attacker_user > user_permissions.txt"
+                }
+            ],
+            "agent": "organization--b19765d9-e4f4-4e87-87df-36a8afc3de5d"
+        },
+        "start--80ada51f-db96-4d0f-9526-77b2eeaed5b3": {
+            "on_completion": "if-condition--0c1ca08a-63d2-488b-8e7d-ae23805b2da5",
+            "type": "start"
+        },
+        "if-condition--0c1ca08a-63d2-488b-8e7d-ae23805b2da5": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "action--badc0ffe-e21b-4db7-b10f-ea967e6f3c1f",
+            "on_false": "action--3a17bc47-b403-46de-9fd9-206e324b7fe9"
+        },
+        "loop--61853784-d443-4c26-bf6e-165f20cc0746": {
+            "name": "Check Malware Scan Results",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--3a17bc47-b403-46de-9fd9-206e324b7fe9",
+            "on_false": "end--147b4eab-c5aa-4653-b769-f2e1c27efaf1"
+        },
+        "end--147b4eab-c5aa-4653-b769-f2e1c27efaf1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b19765d9-e4f4-4e87-87df-36a8afc3de5d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

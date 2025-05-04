@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f593d922-9278-4c56-a43e-3d1ff30f5458",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to establish persistence in the network.",
+    "created_by": "identity--c51a1b04-b651-4fa1-8025-6b3a110936b4",
+    "created": "2023-10-14T14:45:00Z",
+    "modified": "2023-10-14T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f57c3e0c-5e13-41b1-85b0-53668a30d370",
+    "workflow": {
+        "action--709d6a0f-1a4b-4470-8683-fb23d48aef17": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the suspicious PowerShell script.",
+            "on_completion": "if-condition--e2f0b602-be3c-460f-8c70-b52e87139c68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--16e8a324-d508-41b0-8f32-2e6a0726adc5"
+        },
+        "if-condition--e2f0b602-be3c-460f-8c70-b52e87139c68": {
+            "name": "Check if suspicious payload exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/suspicious_payload",
+            "on_true": "action--e2f0b602-be3c-460f-8c70-b52e87139c68",
+            "on_false": "loop--34a4e1f5-b724-4a8e-8629-f750ff9884e5"
+        },
+        "action--e2f0b602-be3c-460f-8c70-b52e87139c68": {
+            "name": "Remove suspicious files",
+            "description": "Delete any files associated with the suspicious payload.",
+            "on_completion": "loop--34a4e1f5-b724-4a8e-8629-f750ff9884e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--16e8a324-d508-41b0-8f32-2e6a0726adc5"
+        },
+        "loop--34a4e1f5-b724-4a8e-8629-f750ff9884e5": {
+            "name": "Run full system scan",
+            "description": "Run a full system scan and repeat until the scan is clean.",
+            "on_completion": "end--f40c6e8b-e56f-4d42-9a01-2fc5574f9ad4",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--34a4e1f5-b724-4a8e-8629-f750ff9884e5",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the system scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--34a4e1f5-b724-4a8e-8629-f750ff9884e5": {
+            "name": "Initiate full scan",
+            "description": "Perform a full scan to identify any remaining threats.",
+            "on_completion": "update-scan-status--b5a1eaf5-82e7-44e1-a294-0fec60b41451",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_scan.sh"
+                }
+            ],
+            "agent": "organization--16e8a324-d508-41b0-8f32-2e6a0726adc5"
+        },
+        "end--f40c6e8b-e56f-4d42-9a01-2fc5574f9ad4": {
+            "type": "end"
+        },
+        "start--f57c3e0c-5e13-41b1-85b0-53668a30d370": {
+            "on_completion": "action--709d6a0f-1a4b-4470-8683-fb23d48aef17",
+            "type": "start"
+        },
+        "update-scan-status--b5a1eaf5-82e7-44e1-a294-0fec60b41451": {
+            "name": "Update scan status",
+            "description": "Update the scan status based on the results.",
+            "on_completion": "loop--34a4e1f5-b724-4a8e-8629-f750ff9884e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if grep -q 'No threats found' scan_results.txt; then scan_status=clean; else scan_status=dirty; fi"
+                }
+            ],
+            "agent": "organization--16e8a324-d508-41b0-8f32-2e6a0726adc5"
+        }
+    },
+    "agent_definitions": {
+        "organization--16e8a324-d508-41b0-8f32-2e6a0726adc5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

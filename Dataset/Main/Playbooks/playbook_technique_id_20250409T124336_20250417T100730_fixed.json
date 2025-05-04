@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8b71975-b254-4e3c-b90a-eb7e926cb331",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses an incident where an unauthorized user exploited an open port to execute malicious scripts on the organization's network.",
+    "created_by": "identity--986fdb48-da00-46a0-9ce0-a7fc444eb75c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e1e1e57d-008c-4b19-b2e2-f4541b6480ab",
+    "workflow": {
+        "start--e1e1e57d-008c-4b19-b2e2-f4541b6480ab": {
+            "on_completion": "parallel--0a456dec-56b5-48d5-9efc-becae14777e5",
+            "type": "start"
+        },
+        "action--5e3b1c59-8e7a-41a7-a29e-dc1ede5f76d8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the processes executing malicious scripts.",
+            "on_completion": "action--73b84c2e-d9be-46d5-896c-b14bb6ba40ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--58820e62-be0e-4bd0-a8eb-8557d5169228"
+        },
+        "action--73b84c2e-d9be-46d5-896c-b14bb6ba40ed": {
+            "name": "Scan for remaining threats",
+            "description": "Run a virus scan until no threats are found.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! grep -q 'No threats found' scan_results.log; do run_virus_scan; done"
+                }
+            ],
+            "agent": "organization--58820e62-be0e-4bd0-a8eb-8557d5169228"
+        },
+        "action--b1dc6471-bd3e-49d2-ba77-83615ae5a9bd": {
+            "name": "Isolate affected systems",
+            "description": "Block incoming connections from malicious IPs.",
+            "on_completion": "end--7e1f2ded-00c3-4c9e-b3f1-4029dc362255",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--58820e62-be0e-4bd0-a8eb-8557d5169228"
+        },
+        "end--7e1f2ded-00c3-4c9e-b3f1-4029dc362255": {
+            "type": "end"
+        },
+        "parallel--0a456dec-56b5-48d5-9efc-becae14777e5": {
+            "name": "Address malicious activity",
+            "description": "Simultaneously isolate affected systems and kill malicious processes.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1dc6471-bd3e-49d2-ba77-83615ae5a9bd",
+                "action--5e3b1c59-8e7a-41a7-a29e-dc1ede5f76d8"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--58820e62-be0e-4bd0-a8eb-8557d5169228": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

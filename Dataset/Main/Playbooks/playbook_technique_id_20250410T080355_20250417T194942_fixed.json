@@ -1,0 +1,152 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c0a801fc-bfbb-43d5-9a70-659d0b54fac2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of a suspicious script to manipulate logs, with associated network anomalies.",
+    "created_by": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810",
+    "created": "2023-10-12T10:00:00.000Z",
+    "workflow_start": "start--0adef0db-32f8-482c-a2d3-26f08177db03",
+    "workflow": {
+        "start--0adef0db-32f8-482c-a2d3-26f08177db03": {
+            "on_completion": "parallel--cb1f90df-3551-445f-85c1-b4fb846da83d",
+            "type": "start"
+        },
+        "parallel--cb1f90df-3551-445f-85c1-b4fb846da83d": {
+            "name": "Initial Mitigation Steps",
+            "description": "Execute initial mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--422f3978-f7fd-4f61-97db-d67fe50cb2ca",
+                "if-condition--2ca1f5b7-4582-45ba-93e6-0743ccfff91b",
+                "while-condition--82c48e8b-9a16-404f-a19f-156c81815dd5"
+            ]
+        },
+        "action--422f3978-f7fd-4f61-97db-d67fe50cb2ca": {
+            "name": "Terminate Suspicious Script Process",
+            "description": "Terminate any processes running 'suspicious_script'.",
+            "on_completion": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810"
+        },
+        "if-condition--2ca1f5b7-4582-45ba-93e6-0743ccfff91b": {
+            "name": "Condition: Tampered Logs Detected",
+            "description": "Check if tampered logs are detected and clean up if true.",
+            "type": "if-condition",
+            "condition": "tampered_logs_detected == true",
+            "on_true": "action--7219736c-4866-494e-93b8-3f66eeaf456c",
+            "on_false": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5"
+        },
+        "action--7219736c-4866-494e-93b8-3f66eeaf456c": {
+            "name": "Cleanup Altered Logs",
+            "description": "Restore default context for altered logs.",
+            "on_completion": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -R /var/log/"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810"
+        },
+        "while-condition--82c48e8b-9a16-404f-a19f-156c81815dd5": {
+            "name": "Conduct Full System Audit",
+            "description": "Perform a full system audit in a loop until no vulnerabilities are found.",
+            "type": "while-condition",
+            "condition": "no_other_vulnerabilities_found == false",
+            "on_true": "action--1964a8ef-60d7-4625-a919-f437804ff24f",
+            "on_false": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5"
+        },
+        "action--1964a8ef-60d7-4625-a919-f437804ff24f": {
+            "name": "Activate System Audit",
+            "description": "Enable auditing to detect any unauthorized access.",
+            "on_completion": "while-condition--82c48e8b-9a16-404f-a19f-156c81815dd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -e 1"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810"
+        },
+        "if-condition--0d79e188-f7d0-41a0-ae39-8abdf8f8949e": {
+            "name": "Condition: Network Anomalies Detected",
+            "description": "Check for network anomalies and monitor if true.",
+            "type": "if-condition",
+            "condition": "network_anomalies_detected == true",
+            "on_true": "action--18ad3470-285a-426a-a8fb-7b184030461b",
+            "on_false": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5"
+        },
+        "action--18ad3470-285a-426a-a8fb-7b184030461b": {
+            "name": "Implement Network Monitoring",
+            "description": "Monitor the network for anomalies.",
+            "on_completion": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810"
+        },
+        "action--f1dc052d-092c-48d4-9038-cc5bf6ae1ebd": {
+            "name": "Perform Security Patch Update",
+            "description": "Update system during maintenance window.",
+            "on_completion": "if-condition--e5b569c9-a1b3-468d-aec5-a7557e8739bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810",
+            "step_variables": {
+                "maintenance_window": {
+                    "type": "string",
+                    "value": "02:00 - 04:00 AM",
+                    "description": "Window for performing maintenance updates."
+                }
+            }
+        },
+        "if-condition--e5b569c9-a1b3-468d-aec5-a7557e8739bd": {
+            "name": "Condition: System Integrity Verification",
+            "description": "Verify system integrity.",
+            "type": "if-condition",
+            "condition": "resolved_vulnerabilities == false",
+            "on_true": "action--9624d8dc-2886-4a04-b20c-fbf9d5fa600c",
+            "on_false": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5"
+        },
+        "action--9624d8dc-2886-4a04-b20c-fbf9d5fa600c": {
+            "name": "Verify System Integrity",
+            "description": "Run integrity checks on the system.",
+            "on_completion": "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tripwire --check"
+                }
+            ],
+            "agent": "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810"
+        },
+        "end--eea6b7cd-2c16-480d-b3e0-b80e7aba2cb5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--572bfc9e-0570-4fd4-8e8d-c92764f38810": {
+            "type": "organization",
+            "name": "XYZ Organization"
+        }
+    }
+}

@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4567c89-e12d-3c23-b456-426614174001",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents where an attacker executed unauthorized commands with a script, leading to a persistent backdoor installation.",
+    "created_by": "identity--abc12345-e89b-12d3-a456-426652174007",
+    "created": "2025-05-10T12:00:00Z",
+    "modified": "2025-05-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--78e30a98-9062-40c4-b1b9-66cb7cc2c293",
+    "workflow": {
+        "action--def4567c-e89b-12d3-a456-426652174000": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process identified as malicious.",
+            "on_completion": "action--999e4567-e89b-12d3-a456-426614179000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--0a61dafa-1f7d-4928-8947-5152e76799c5"
+        },
+        "action--999e4567-e89b-12d3-a456-426614179000": {
+            "name": "Remove backdoor",
+            "description": "Delete the backdoor installed by the malicious script.",
+            "on_completion": "action--222e4567-e89b-12d3-a456-426614172000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /usr/local/bin/backdoor"
+                }
+            ],
+            "agent": "organization--0a61dafa-1f7d-4928-8947-5152e76799c5",
+            "step_variables": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the backdoor file to be removed",
+                    "value": "/usr/local/bin/backdoor",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--222e4567-e89b-12d3-a456-426614172000": {
+            "name": "Scan system for other threats",
+            "description": "Conduct a full system scan for additional threats.",
+            "on_completion": "action--823e4567-e89b-12d3-a456-426614154000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan -full"
+                }
+            ],
+            "agent": "organization--0a61dafa-1f7d-4928-8947-5152e76799c5",
+            "loop": {
+                "type": "until",
+                "condition": "scan_is_clean"
+            }
+        },
+        "action--823e4567-e89b-12d3-a456-426614154000": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Capture network traffic to analyze for other malicious activities.",
+            "on_completion": "action--333e4567-e89b-12d3-a456-426614173000",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w /var/log/capture.pcap"
+                }
+            ],
+            "agent": "organization--0a61dafa-1f7d-4928-8947-5152e76799c5",
+            "condition": "if connection_attempts_detected"
+        },
+        "action--333e4567-e89b-12d3-a456-426614173000": {
+            "name": "Reset compromised accounts",
+            "description": "Reset passwords for compromised accounts.",
+            "on_completion": "end--fb730b88-d7d1-418b-9b8b-b1b763abc8a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd username"
+                }
+            ],
+            "agent": "organization--0a61dafa-1f7d-4928-8947-5152e76799c5"
+        },
+        "start--78e30a98-9062-40c4-b1b9-66cb7cc2c293": {
+            "on_completion": "parallel--1846a411-bc88-4f3a-ba13-41be9c78bad9",
+            "type": "start"
+        },
+        "parallel--1846a411-bc88-4f3a-ba13-41be9c78bad9": {
+            "name": "Execute Mitigations",
+            "description": "Run all mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--70bc5497-ca1b-45f9-b512-0249b294a59e",
+                "action--1b64a945-f677-44d8-ac30-835c649a1775"
+            ]
+        },
+        "if-condition--70bc5497-ca1b-45f9-b512-0249b294a59e": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_running('malicious_process_name')",
+            "on_true": "action--def4567c-e89b-12d3-a456-426652174000",
+            "on_false": "action--999e4567-e89b-12d3-a456-426614179000"
+        },
+        "end--fb730b88-d7d1-418b-9b8b-b1b763abc8a3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0a61dafa-1f7d-4928-8947-5152e76799c5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4ccd9d62-1500-4ecd-b1da-4f58c2e3be4f",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized PowerShell commands to gather sensitive information. It contains actions to respond to such incidents.",
+    "created_by": "identity--2e37f1c7-9297-4771-b1b9-87e83740371e",
+    "created": "2025-04-09T08:55:35Z",
+    "modified": "2025-04-09T08:56:56Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--bff6a67a-6fb5-4ab3-b4a1-f80c1f654f1a",
+            "type": "start"
+        },
+        "action--bff6a67a-6fb5-4ab3-b4a1-f80c1f654f1a": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell process that is executing malicious commands.",
+            "on_completion": "if-condition--62f328bd-e6f5-409b-a787-5b673287fddd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9356bac3-daf6-444e-ae81-e30267f2b8cc"
+        },
+        "action--50c1391b-eb79-4f51-aa0b-43d1c80ebeae": {
+            "name": "Monitor command line activity",
+            "description": "Continuously monitor command line activity for any suspicious behavior.",
+            "on_completion": "action--c69a57e9-4c2a-4ae1-a783-3d26c586b639",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--9356bac3-daf6-444e-ae81-e30267f2b8cc"
+        },
+        "action--c69a57e9-4c2a-4ae1-a783-3d26c586b639": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host from the network to prevent further unauthorized access.",
+            "on_completion": "end--d2370521-e690-4531-a875-d1cf32429f1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <IP_ADDRESS> -j DROP"
+                }
+            ],
+            "agent": "organization--9356bac3-daf6-444e-ae81-e30267f2b8cc"
+        },
+        "end--d2370521-e690-4531-a875-d1cf32429f1d": {
+            "type": "end"
+        },
+        "if-condition--62f328bd-e6f5-409b-a787-5b673287fddd": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--50c1391b-eb79-4f51-aa0b-43d1c80ebeae",
+            "on_false": "action--c69a57e9-4c2a-4ae1-a783-3d26c586b639"
+        }
+    },
+    "agent_definitions": {
+        "organization--9356bac3-daf6-444e-ae81-e30267f2b8cc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

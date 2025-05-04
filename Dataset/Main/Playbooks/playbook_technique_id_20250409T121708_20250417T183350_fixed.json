@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6e7f9c5-b060-4a2e-9560-485b6f74841c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited scripting to execute remote commands on a compromised host.",
+    "created_by": "identity--d211c3cb-fa6e-41de-aa25-e1c7f9e4aa9e",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b6e7f9c5-b060-4a2e-9560-485b6f74841c",
+    "workflow": {
+        "start--b6e7f9c5-b060-4a2e-9560-485b6f74841c": {
+            "on_completion": "action--c5be4567-117a-4e31-9f76-660349a647c4",
+            "type": "start",
+            "name": "Initiate Mitigation Process",
+            "description": "Starts the workflow for mitigating the scripting exploit."
+        },
+        "action--c5be4567-117a-4e31-9f76-660349a647c4": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--e256b473-fc5a-4c9c-bfb7-3b98150365b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.*payload.ps1'"
+                }
+            ],
+            "agent": "organization--104d79fe-19b6-46e8-b4c2-08f9e04fb11e"
+        },
+        "action--e256b473-fc5a-4c9c-bfb7-3b98150365b8": {
+            "name": "Delete Dropped Files",
+            "description": "Remove any dropped malicious files from the system.",
+            "on_completion": "loop--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ~/payload.ps1"
+                }
+            ],
+            "agent": "organization--104d79fe-19b6-46e8-b4c2-08f9e04fb11e"
+        },
+        "loop--8f1e9d3d-db79-4ae7-89be-8e44f8a74709": {
+            "name": "Run Malware Scan Loop",
+            "description": "Continuously run a malware scan until it is confirmed clean.",
+            "condition": "scan_status == 'pending'",
+            "on_true": "action--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+            "on_false": "end--f1e7b9f3-ad4f-4b17-ad4b-22b2f222dc94",
+            "type": "while-condition",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates the status of the malware scan.",
+                    "value": "pending",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "actions": [
+                {
+                    "name": "Run Malware Scan",
+                    "description": "Perform a scan to detect any remaining threats.",
+                    "on_completion": "loop--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+                    "type": "action",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "malware-scan --target host-12"
+                        }
+                    ],
+                    "agent": "organization--104d79fe-19b6-46e8-b4c2-08f9e04fb11e"
+                }
+            ]
+        },
+        "end--f1e7b9f3-ad4f-4b17-ad4b-22b2f222dc94": {
+            "type": "end",
+            "name": "Complete Mitigation Process",
+            "description": "Finishes the mitigation workflow."
+        }
+    },
+    "agent_definitions": {
+        "organization--104d79fe-19b6-46e8-b4c2-08f9e04fb11e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8c5f79a-8155-4a24-bb0c-8f14802f5974",
+    "name": "Mitigation Playbook for Malicious Script Exploitation",
+    "description": "This playbook addresses an incident involving the execution of a malicious script through phishing, leading to privilege escalation and remote command execution.",
+    "created_by": "identity--f66b1cfa-217e-49e5-85fc-86ea83068c52",
+    "created": "2023-10-02T10:00:00Z",
+    "modified": "2023-10-02T10:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c2a5f56c-2487-4f97-b8f1-1e7e9fbf155b",
+    "workflow": {
+        "start--c2a5f56c-2487-4f97-b8f1-1e7e9fbf155b": {
+            "on_completion": "action--a58a92e4-f7de-4de6-b651-a7d6c8257c9c",
+            "type": "start"
+        },
+        "action--a58a92e4-f7de-4de6-b651-a7d6c8257c9c": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--d08c093f-d410-4c72-b08a-834fe961d5f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.exe"
+                }
+            ],
+            "agent": "organization--9b3ff124-1895-4ae8-801f-a3d8c3ca43e3"
+        },
+        "action--d08c093f-d410-4c72-b08a-834fe961d5f3": {
+            "name": "Isolate Affected Host",
+            "description": "Isolate the host that executed the malicious script.",
+            "on_completion": "if-condition--b11bddf0-df7b-4e87-97c0-33f479b8cd9d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-47 down"
+                }
+            ],
+            "agent": "organization--9b3ff124-1895-4ae8-801f-a3d8c3ca43e3"
+        },
+        "if-condition--b11bddf0-df7b-4e87-97c0-33f479b8cd9d": {
+            "name": "Check if Malicious IP Exists",
+            "type": "if-condition",
+            "condition": "malicious_IP != None",
+            "on_true": "action--2d45915f-ac84-46d7-973e-fdbed6aeae40",
+            "on_false": "action--1a039c6f-ae9b-4aad-a43c-838614c5e5af"
+        },
+        "action--1a039c6f-ae9b-4aad-a43c-838614c5e5af": {
+            "name": "Conduct Full System Scan",
+            "description": "Perform a full scan of the affected host to detect vulnerabilities.",
+            "on_completion": "while-condition--c8c59006-a9b8-4bc0-bbc3-1cbf22c2d625",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --full"
+                }
+            ],
+            "agent": "organization--9b3ff124-1895-4ae8-801f-a3d8c3ca43e3"
+        },
+        "end--d4ff1d99-2919-452f-8a9c-e85a658e2a63": {
+            "type": "end"
+        },
+        "action--2d45915f-ac84-46d7-973e-fdbed6aeae40": {
+            "name": "Update Firewall Rules",
+            "description": "Block traffic from the identified malicious IP.",
+            "on_completion": "action--1a039c6f-ae9b-4aad-a43c-838614c5e5af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_IP -j DROP"
+                }
+            ],
+            "agent": "organization--9b3ff124-1895-4ae8-801f-a3d8c3ca43e3"
+        },
+        "while-condition--c8c59006-a9b8-4bc0-bbc3-1cbf22c2d625": {
+            "name": "Check for Remaining Vulnerabilities",
+            "description": "Repeat scanning until no vulnerabilities are found.",
+            "on_true": "action--1a039c6f-ae9b-4aad-a43c-838614c5e5af",
+            "on_false": "end--d4ff1d99-2919-452f-8a9c-e85a658e2a63",
+            "type": "while-condition",
+            "condition": "vulnerabilities_found()"
+        }
+    },
+    "agent_definitions": {
+        "organization--9b3ff124-1895-4ae8-801f-a3d8c3ca43e3": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

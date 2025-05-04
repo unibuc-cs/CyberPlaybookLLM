@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c2e1b89a-5a2a-4fba-8695-e5c3e3b1ba75",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exploit a vulnerability, deploying a backdoor for persistent access.",
+    "created_by": "identity--ef1a6191-04e1-4b50-8325-fb8ba5b3ffda",
+    "created": "2023-10-20T14:30:00Z",
+    "modified": "2023-10-20T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f7349e9-98e1-482b-b1b0-ff3e2130eaa3",
+    "workflow": {
+        "start--1f7349e9-98e1-482b-b1b0-ff3e2130eaa3": {
+            "type": "start",
+            "on_completion": "action--5a52c34f-c2ac-4674-83e9-c567a9fae635"
+        },
+        "action--5a52c34f-c2ac-4674-83e9-c567a9fae635": {
+            "type": "action",
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious scripts that are currently running.",
+            "on_completion": "parallel--f37a6d5c-db90-4c92-9da2-e3e6e76c4152",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'suspicious_script.sh')"
+                }
+            ],
+            "agent": "organization--05040515-6702-406f-a26a-11c71f89be80"
+        },
+        "parallel--f37a6d5c-db90-4c92-9da2-e3e6e76c4152": {
+            "type": "parallel",
+            "name": "Mitigation Actions",
+            "next_steps": [
+                "if-condition--c0fe300a-0c2d-4c39-b892-7b6b827a05b6",
+                "action--c763fa56-b4d1-4c69-bc9f-85dac28c9188"
+            ]
+        },
+        "if-condition--c0fe300a-0c2d-4c39-b892-7b6b827a05b6": {
+            "type": "if-condition",
+            "name": "Check for Isolation Needed",
+            "condition": "$ISOLATION_NEEDED == true",
+            "on_true": "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c",
+            "on_false": "action--c763fa56-b4d1-4c69-bc9f-85dac28c9188"
+        },
+        "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c": {
+            "type": "action",
+            "name": "Network Isolation of Host",
+            "description": "Block all incoming traffic from the affected host.",
+            "on_completion": "action--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--05040515-6702-406f-a26a-11c71f89be80"
+        },
+        "action--f3ac9f29-4aab-463d-934b-7c653c9ef975": {
+            "type": "action",
+            "name": "Remove Malicious Files",
+            "description": "Delete any known malicious files left on the system.",
+            "on_completion": "while-condition--7d36f1d7-4e6c-486e-aa1f-03881a019df6",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/suspicious/files/*"
+                }
+            ],
+            "agent": "organization--05040515-6702-406f-a26a-11c71f89be80"
+        },
+        "while-condition--7d36f1d7-4e6c-486e-aa1f-03881a019df6": {
+            "type": "while-condition",
+            "name": "Confirm Files Removed",
+            "condition": "$FILES_REMOVED == false",
+            "on_true": "action--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+            "description": "Keep trying to remove files until confirmed that all files have been deleted."
+        },
+        "action--c763fa56-b4d1-4c69-bc9f-85dac28c9188": {
+            "type": "action",
+            "name": "Update Firewall Rules",
+            "description": "Deny access to the external IP used by the attacker.",
+            "on_completion": "action--c754f6ad-6e12-4ffa-8c2c-846658adf556",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny external_ip"
+                }
+            ],
+            "agent": "organization--05040515-6702-406f-a26a-11c71f89be80"
+        },
+        "action--c754f6ad-6e12-4ffa-8c2c-846658adf556": {
+            "type": "action",
+            "name": "Conduct Full System Scan",
+            "description": "Perform a complete scan of the system to identify any remaining threats.",
+            "on_completion": "end--6a18c4cb-52dc-4b48-915b-03eada84b123",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--05040515-6702-406f-a26a-11c71f89be80",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--6a18c4cb-52dc-4b48-915b-03eada84b123": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--05040515-6702-406f-a26a-11c71f89be80": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

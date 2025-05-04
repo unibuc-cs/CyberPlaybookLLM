@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8d725e4c-ec3c-4166-a180-e3412f10cf27",
+    "name": "Playbook for Phishing Attack Mitigation",
+    "description": "This playbook addresses the incident of an attacker gaining access through phishing and executing malicious PowerShell scripts.",
+    "created_by": "identity--e2c8f4cc-6b0e-43f8-b0ec-2c4cc7e2e2fd",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--2bee0d73-5aeb-4b46-9c68-eb659d4978f8",
+    "workflow": {
+        "start--2bee0d73-5aeb-4b46-9c68-eb659d4978f8": {
+            "on_completion": "action--e6bc48e2-cf9b-4b4d-97ea-0d748ef5f093",
+            "type": "start"
+        },
+        "action--e6bc48e2-cf9b-4b4d-97ea-0d748ef5f093": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--f1664d1f-df34-4a13-9e2f-10007e9d0ca4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08"
+        },
+        "action--f1664d1f-df34-4a13-9e2f-10007e9d0ca4": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the victim's files until no threats are detected.",
+            "on_completion": "action--dfee3e73-e43e-4528-8d69-9b9edcb65885",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --path /path/to/victims/files"
+                }
+            ],
+            "agent": "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08",
+            "step_variables": {
+                "scan_result": {
+                    "type": "boolean",
+                    "description": "Determines if the scan is clean.",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "next_steps": [
+                "loop--cacccaf9-8575-4c89-90a3-e8abf21defbb"
+            ]
+        },
+        "action--dfee3e73-e43e-4528-8d69-9b9edcb65885": {
+            "name": "Block outbound connections",
+            "description": "Block all outbound connections to known malicious IPs.",
+            "on_completion": "action--a079ca25-e675-4834-9514-7331d6cf4411",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 443 -j REJECT"
+                }
+            ],
+            "agent": "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08",
+            "step_variables": {
+                "connection_established": {
+                    "type": "boolean",
+                    "description": "Check if connection is established to known malicious IP.",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "next_steps": [
+                "if-condition--34d350b2-b265-485a-ac57-ebca5c06641b"
+            ]
+        },
+        "action--a079ca25-e675-4834-9514-7331d6cf4411": {
+            "name": "Check for persistence mechanisms",
+            "description": "Identify and remove any persistence mechanisms related to the incident.",
+            "on_completion": "action--d208708b-47ff-429d-8366-6c0d261373b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_persistence' -exec rm -f {} +"
+                }
+            ],
+            "agent": "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08"
+        },
+        "action--d208708b-47ff-429d-8366-6c0d261373b5": {
+            "name": "Update incident response plan",
+            "description": "Document new phishing tactics observed in the incident log.",
+            "on_completion": "end--3f670559-ec3c-4a79-8290-48e08a1f4ef5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Update: New phishing tactics observed' >> incident_log.txt"
+                }
+            ],
+            "agent": "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08"
+        },
+        "end--3f670559-ec3c-4a79-8290-48e08a1f4ef5": {
+            "type": "end"
+        },
+        "loop--cacccaf9-8575-4c89-90a3-e8abf21defbb": {
+            "name": "Check if malware scan is clean",
+            "description": "Repeat malware scan until the scan result is clean.",
+            "type": "while-condition",
+            "condition": "scan_result == false",
+            "on_true": "action--f1664d1f-df34-4a13-9e2f-10007e9d0ca4",
+            "on_false": "action--dfee3e73-e43e-4528-8d69-9b9edcb65885"
+        },
+        "if-condition--34d350b2-b265-485a-ac57-ebca5c06641b": {
+            "name": "Check if connection to malicious IP exists",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--a079ca25-e675-4834-9514-7331d6cf4411",
+            "on_false": "action--d208708b-47ff-429d-8366-6c0d261373b5"
+        }
+    },
+    "agent_definitions": {
+        "organization--60ef077d-2fb7-4abe-aa8e-34f1426bde08": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

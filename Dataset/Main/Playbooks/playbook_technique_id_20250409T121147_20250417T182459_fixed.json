@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--45c10e79-9438-4c16-a375-a501ffde04c5",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command and scripting interpreter to execute malicious scripts on the network.",
+    "created_by": "identity--d1c24efb-3bd1-4e1c-bf06-477b4290b19c",
+    "created": "2023-10-02T10:00:00Z",
+    "modified": "2023-10-02T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--fede0b4d-197b-4f4e-bb18-2006289487d6",
+    "workflow": {
+        "start--fede0b4d-197b-4f4e-bb18-2006289487d6": {
+            "on_completion": "action--b646a83c-8c07-4de2-8f48-526e3866e9c3",
+            "type": "start"
+        },
+        "action--b646a83c-8c07-4de2-8f48-526e3866e9c3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious scripts.",
+            "on_completion": "parallel--80252a22-b67e-43dd-bb5c-d56d58412b1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f script_name_here"
+                }
+            ],
+            "agent": "organization--2de61c61-8522-4240-ac5e-2691850c8416"
+        },
+        "parallel--80252a22-b67e-43dd-bb5c-d56d58412b1f": {
+            "name": "Mitigation Actions",
+            "description": "Run both antivirus scan and review logs simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e045adc4-9a57-4652-a0c9-b5100d9ea1f3",
+                "action--3bfa94a5-8e38-4ffe-bd60-7c13e7c078b3"
+            ]
+        },
+        "action--e045adc4-9a57-4652-a0c9-b5100d9ea1f3": {
+            "name": "Run antivirus scan",
+            "description": "Perform a full antivirus scan of the system.",
+            "on_completion": "loop--31097de6-f1c9-4a31-b7e2-6cc87f949b62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_av_scan --full"
+                }
+            ],
+            "agent": "organization--2de61c61-8522-4240-ac5e-2691850c8416"
+        },
+        "loop--31097de6-f1c9-4a31-b7e2-6cc87f949b62": {
+            "name": "Check antivirus scan result",
+            "description": "Repeat the antivirus scan until it is confirmed clean.",
+            "on_completion": "decision--b61a0b3e-09e9-41aa-8b4a-0f2a67bded4a",
+            "type": "while-condition",
+            "condition": "is_scan_clean == false",
+            "on_true": "action--e045adc4-9a57-4652-a0c9-b5100d9ea1f3",
+            "on_false": "action--3bfa94a5-8e38-4ffe-bd60-7c13e7c078b3"
+        },
+        "decision--b61a0b3e-09e9-41aa-8b4a-0f2a67bded4a": {
+            "name": "Evaluate Scan Result",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--3bfa94a5-8e38-4ffe-bd60-7c13e7c078b3",
+            "on_false": "loop--31097de6-f1c9-4a31-b7e2-6cc87f949b62"
+        },
+        "action--3bfa94a5-8e38-4ffe-bd60-7c13e7c078b3": {
+            "name": "Review logs for unauthorized access",
+            "description": "Check the authentication logs for any unauthorized access attempts.",
+            "on_completion": "end--f7b80b64-5acd-40fb-b4d1-244df80e9d8b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--2de61c61-8522-4240-ac5e-2691850c8416"
+        },
+        "end--f7b80b64-5acd-40fb-b4d1-244df80e9d8b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2de61c61-8522-4240-ac5e-2691850c8416": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

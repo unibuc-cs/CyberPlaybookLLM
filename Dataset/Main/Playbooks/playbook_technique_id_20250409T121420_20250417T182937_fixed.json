@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1c5e0e0b-55b0-4de9-bd63-3dd3de3da7a6",
+    "name": "Playbook for Malicious Script Execution Incident Mitigation",
+    "description": "This playbook mitigates the incident where an attacker executed malicious scripts on multiple hosts, causing data exfiltration.",
+    "created_by": "identity--9fcb1cd5-f048-4d63-9d16-d879cb2c5b71",
+    "created": "2025-04-09T12:14:20.000Z",
+    "modified": "2025-04-09T12:14:20.000Z",
+    "revoked": false,
+    "workflow_start": "start--c1d0de88-0001-4e03-9ab9-1f68a82d1df9",
+    "workflow": {
+        "start--c1d0de88-0001-4e03-9ab9-1f68a82d1df9": {
+            "on_completion": "parallel--7f51e6f2-e4b3-4e2c-834b-e654633cf3f3",
+            "type": "start"
+        },
+        "parallel--7f51e6f2-e4b3-4e2c-834b-e654633cf3f3": {
+            "name": "Mitigation Strategies",
+            "description": "Execute parallel mitigation strategies to contain the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8b3df2c9-0e09-4f74-b8c4-18a5fc9cda37",
+                "if-condition--d3b2f09a-21e5-4c66-b5ab-3f4c04071b6a",
+                "action--c9f272f3-2dbf-4b12-9f57-f0497698f313"
+            ]
+        },
+        "action--8b3df2c9-0e09-4f74-b8c4-18a5fc9cda37": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "end--3e9f066a-3a70-4df1-b1bc-65e7de966f8e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--5138766e-a9cc-43cd-a0b8-55a4f8ee94e1"
+        },
+        "if-condition--d3b2f09a-21e5-4c66-b5ab-3f4c04071b6a": {
+            "name": "Check connection to malicious IP",
+            "type": "if-condition",
+            "condition": "connected_to_malicious_IP",
+            "on_true": "action--a27b9bcc-b2f1-4e57-b177-9d1ebe44024b",
+            "on_false": "action--c9f272f3-2dbf-4b12-9f57-f0497698f313"
+        },
+        "action--a27b9bcc-b2f1-4e57-b177-9d1ebe44024b": {
+            "name": "Block external IP address",
+            "description": "Block any outbound connections to the identified malicious IP address.",
+            "on_completion": "action--c9f272f3-2dbf-4b12-9f57-f0497698f313",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--5138766e-a9cc-43cd-a0b8-55a4f8ee94e1"
+        },
+        "action--c9f272f3-2dbf-4b12-9f57-f0497698f313": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan in the directory to identify any remaining threats.",
+            "on_completion": "while-condition--4fc9de0e-b578-4c48-b38b-c849aecb6c81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan /path/to/directory"
+                }
+            ],
+            "agent": "organization--5138766e-a9cc-43cd-a0b8-55a4f8ee94e1"
+        },
+        "while-condition--4fc9de0e-b578-4c48-b38b-c849aecb6c81": {
+            "name": "Scan until clean",
+            "description": "Continue scanning the directory until no threats are detected.",
+            "on_completion": "end--3e9f066a-3a70-4df1-b1bc-65e7de966f8e",
+            "type": "while-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "end--3e9f066a-3a70-4df1-b1bc-65e7de966f8e",
+            "on_false": "action--c9f272f3-2dbf-4b12-9f57-f0497698f313"
+        },
+        "end--3e9f066a-3a70-4df1-b1bc-65e7de966f8e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5138766e-a9cc-43cd-a0b8-55a4f8ee94e1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

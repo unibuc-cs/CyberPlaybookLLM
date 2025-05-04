@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7324509-ccb8-4598-8d68-367d667e5b9c",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script to extract sensitive data, leading to data exfiltration. Follow the mitigation actions to neutralize the ongoing threat.",
+    "created_by": "identity--6ebd504d-58c8-439d-a823-78ec08c37d48",
+    "created": "2025-04-06T13:35:11.596Z",
+    "modified": "2025-04-06T13:41:37.173Z",
+    "revoked": false,
+    "workflow_start": "start--e1f0f1e7-8e3b-4e87-9495-3af5c81fe258",
+    "workflow": {
+        "start--e1f0f1e7-8e3b-4e87-9495-3af5c81fe258": {
+            "on_completion": "action--e20a7f8b-95b1-42f3-b3dc-25ae42b5b1f4",
+            "type": "start"
+        },
+        "action--e20a7f8b-95b1-42f3-b3dc-25ae42b5b1f4": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are suspected of being malicious.",
+            "on_completion": "if-condition--d93b0e82-2d96-4bd6-8aef-60466c5e6df8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--ec2e6b71-295d-4491-86cd-9104ddd81081"
+        },
+        "if-condition--d93b0e82-2d96-4bd6-8aef-60466c5e6df8": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--be37c490-7b79-4ac1-bb83-3c42c947773c",
+            "on_false": "action--0b20e650-1429-4a07-8397-86d0e57e10be"
+        },
+        "action--be37c490-7b79-4ac1-bb83-3c42c947773c": {
+            "name": "Block outbound connection to known malicious IP",
+            "description": "Prevent any outgoing connections to the identified malicious IP.",
+            "on_completion": "action--372de35a-7991-4889-9f98-1f4a8f877d89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-IP> -j DROP"
+                }
+            ],
+            "agent": "organization--ec2e6b71-295d-4491-86cd-9104ddd81081"
+        },
+        "action--0b20e650-1429-4a07-8397-86d0e57e10be": {
+            "name": "Run endpoint security scan",
+            "description": "Perform a security scan on the endpoint to ensure no threats remain.",
+            "on_completion": "while-condition--82156bba-5e8b-4f29-a4d0-5b0f6add176b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /path/to/scan"
+                }
+            ],
+            "agent": "organization--ec2e6b71-295d-4491-86cd-9104ddd81081"
+        },
+        "action--372de35a-7991-4889-9f98-1f4a8f877d89": {
+            "name": "Review network logs for anomalies",
+            "description": "Search the network logs for any suspicious activities.",
+            "on_completion": "end--c45ada6d-04aa-4487-8177-80cc711d2d29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/network.log"
+                }
+            ],
+            "agent": "organization--ec2e6b71-295d-4491-86cd-9104ddd81081",
+            "step_variables": {
+                "suspicious": {
+                    "type": "string",
+                    "description": "The pattern used to identify suspicious activity",
+                    "value": "pattern_to_identify_suspicious_activity",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--82156bba-5e8b-4f29-a4d0-5b0f6add176b": {
+            "name": "Scan Loop",
+            "description": "Continue to run the endpoint security scan until no threats are detected.",
+            "on_completion": "end--c45ada6d-04aa-4487-8177-80cc711d2d29",
+            "type": "while-condition",
+            "condition": "scan_is_clean()",
+            "on_true": "action--0b20e650-1429-4a07-8397-86d0e57e10be"
+        },
+        "end--c45ada6d-04aa-4487-8177-80cc711d2d29": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ec2e6b71-295d-4491-86cd-9104ddd81081": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

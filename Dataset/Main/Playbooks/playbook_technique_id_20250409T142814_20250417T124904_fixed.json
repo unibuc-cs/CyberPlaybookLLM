@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1647571-a83b-4c2d-a01e-9d9c47350910",
+    "name": "Mitigation Playbook for Web Server Compromise Incident",
+    "description": "This playbook addresses an incident where an attacker compromised a web server and deployed a malicious script that executed unauthorized commands.",
+    "created_by": "identity--a5e4f764-6a77-4f4d-a6d8-29bd6d9a909c",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--df233aa3-3e95-4baf-a3a4-1c728f366d22",
+    "workflow": {
+        "start--df233aa3-3e95-4baf-a3a4-1c728f366d22": {
+            "on_completion": "parallel--b5fb3002-29eb-49ff-a828-0ca9363f5752",
+            "type": "start"
+        },
+        "parallel--b5fb3002-29eb-49ff-a828-0ca9363f5752": {
+            "name": "Immediate Response Actions",
+            "description": "Isolate the host and terminate malicious scripts simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8c1620cc-8193-4422-9421-36eb6d509c3e",
+                "action--1c6c4c29-f507-43c6-89cf-35e33ba79e2e"
+            ]
+        },
+        "action--8c1620cc-8193-4422-9421-36eb6d509c3e": {
+            "name": "Isolate affected host from network",
+            "description": "Block all incoming connections from a known malicious IP to isolate the affected host.",
+            "on_completion": "action--21e1591b-76ff-4f56-a707-fc3f6ee5d100",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--73787e44-1a34-4e03-99d5-c373ab3d6bde"
+        },
+        "action--1c6c4c29-f507-43c6-89cf-35e33ba79e2e": {
+            "name": "Terminate malicious scripts",
+            "description": "Kill any running instances of the malicious script to prevent further execution.",
+            "on_completion": "action--8baf77c4-ee1e-49eb-9a57-e0bc8a7c9c73",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_script_name>"
+                }
+            ],
+            "agent": "organization--73787e44-1a34-4e03-99d5-c373ab3d6bde",
+            "condition": "if malicious process found"
+        },
+        "action--21e1591b-76ff-4f56-a707-fc3f6ee5d100": {
+            "name": "Run antivirus scan",
+            "description": "Perform a thorough scan of the file system for all malicious artifacts.",
+            "on_completion": "while-condition--c0a30859-6602-43aa-b746-6e0c4f56878d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--73787e44-1a34-4e03-99d5-c373ab3d6bde"
+        },
+        "while-condition--c0a30859-6602-43aa-b746-6e0c4f56878d": {
+            "name": "Check scan results",
+            "description": "Repeat the antivirus scan until no malicious files are detected.",
+            "on_completion": "end--b9f54ffe-7287-4030-886e-8ad221b05570",
+            "type": "while-condition",
+            "condition": "scan_result == 'infected'",
+            "on_true": "action--21e1591b-76ff-4f56-a707-fc3f6ee5d100",
+            "on_false": "end--b9f54ffe-7287-4030-886e-8ad221b05570"
+        },
+        "end--b9f54ffe-7287-4030-886e-8ad221b05570": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--73787e44-1a34-4e03-99d5-c373ab3d6bde": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

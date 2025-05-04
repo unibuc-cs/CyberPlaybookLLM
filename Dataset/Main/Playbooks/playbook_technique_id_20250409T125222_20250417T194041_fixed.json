@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4b8a3b5-837f-4d6c-9963-148638871614",
+    "name": "Mitigation Playbook for Malicious PDF Exploitation",
+    "description": "This playbook responds to an incident where an employee opened a malicious PDF attachment that led to a remote code execution exploit.",
+    "created_by": "identity--1be8552a-db3a-442f-86a8-128e10867ce9",
+    "created": "2023-10-04T12:50:00.000Z",
+    "modified": "2023-10-04T12:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b6c66db7-a78d-483b-a47c-f9eb1bf5ab54",
+    "workflow": {
+        "action--e8caa608-185e-4b54-8b87-a7d7e5c1593e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the suspicious script executed from the malicious PDF.",
+            "on_completion": "action--c12f583b-1d97-4a8f-a5e4-58f7c22a56c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--ebb22b98-27f3-4994-bc51-e294de6ff085"
+        },
+        "action--c12f583b-1d97-4a8f-a5e4-58f7c22a56c9": {
+            "name": "Isolate affected device from the network",
+            "description": "Block outbound network connections from the affected device to prevent further malicious activities.",
+            "on_completion": "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <affected_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--ebb22b98-27f3-4994-bc51-e294de6ff085"
+        },
+        "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3": {
+            "name": "Scan for additional infections",
+            "description": "Continually scan for infections until no additional threats are found.",
+            "type": "while-condition",
+            "condition": "infected == true",
+            "on_true": "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "on_false": "end--8136b476-7325-4ff9-b328-fb807c03f2b2",
+            "next_steps": [
+                "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3"
+            ]
+        },
+        "action--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3": {
+            "name": "Perform scan for viruses and malware",
+            "description": "Run a comprehensive scan on the user\u2019s home directory for any additional infections.",
+            "on_completion": "if-condition--04970f27-36fa-4876-8240-e0f5713bca0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--ebb22b98-27f3-4994-bc51-e294de6ff085"
+        },
+        "start--b6c66db7-a78d-483b-a47c-f9eb1bf5ab54": {
+            "on_completion": "action--e8caa608-185e-4b54-8b87-a7d7e5c1593e",
+            "type": "start"
+        },
+        "if-condition--04970f27-36fa-4876-8240-e0f5713bca0c": {
+            "name": "Check if infected",
+            "type": "if-condition",
+            "condition": "scan_results != clean",
+            "on_true": "set_variable--f159103e-07e8-47f6-9855-c8994902ccf7",
+            "on_false": "set_variable--5bd748e1-beea-4a45-aa2f-faefd8c6c167"
+        },
+        "set_variable--f159103e-07e8-47f6-9855-c8994902ccf7": {
+            "name": "Set infected variable to true",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "on_completion": "while-condition--e5bf1c47-9c98-48f8-9357-f2b84e8f42b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set infected variable to true:  "
+                }
+            ],
+            "agent": "organization--ebb22b98-27f3-4994-bc51-e294de6ff085"
+        },
+        "set_variable--5bd748e1-beea-4a45-aa2f-faefd8c6c167": {
+            "name": "Set infected variable to false",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "end--8136b476-7325-4ff9-b328-fb807c03f2b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set infected variable to false:  "
+                }
+            ],
+            "agent": "organization--ebb22b98-27f3-4994-bc51-e294de6ff085"
+        },
+        "end--8136b476-7325-4ff9-b328-fb807c03f2b2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ebb22b98-27f3-4994-bc51-e294de6ff085": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

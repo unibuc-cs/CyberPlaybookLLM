@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8fe6741-95ee-4c05-a08e-8e10cbb0edcb",
+    "name": "Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook responds to an unauthorized script execution on the server, implementing several mitigations to address the situation, including killing malicious processes, removing unauthorized files, isolating compromised hosts, and auditing system logs.",
+    "created_by": "identity--60c62907-d783-46ae-b5c4-fb18005d93c7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1c43d47-96e9-4da2-8923-067ae35b9a09",
+    "workflow": {
+        "start--b1c43d47-96e9-4da2-8923-067ae35b9a09": {
+            "on_completion": "action--9e0b5f16-cb47-4c58-b62e-674473a2393b",
+            "type": "start"
+        },
+        "action--9e0b5f16-cb47-4c58-b62e-674473a2393b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "if-condition--79a652db-54f2-4b29-a44a-7e050bbf265f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--34f1ebea-5db8-4aee-9b11-7937f8d1c6c9"
+        },
+        "if-condition--79a652db-54f2-4b29-a44a-7e050bbf265f": {
+            "name": "Check if unauthorized file exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/suspicious_file ]",
+            "on_true": "action--79a652db-54f2-4b29-a44a-7e050bbf265f",
+            "on_false": "action--114d723e-0a72-4bcb-a0c8-7457f155546d"
+        },
+        "action--79a652db-54f2-4b29-a44a-7e050bbf265f": {
+            "name": "Remove unauthorized files",
+            "description": "Delete unauthorized files that were created during the attack.",
+            "on_completion": "action--114d723e-0a72-4bcb-a0c8-7457f155546d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--34f1ebea-5db8-4aee-9b11-7937f8d1c6c9"
+        },
+        "action--114d723e-0a72-4bcb-a0c8-7457f155546d": {
+            "name": "Isolate compromised host",
+            "description": "Take the affected host offline to prevent further unauthorized access.",
+            "on_completion": "while-condition--569b8b37-142e-4d82-a2d5-cfb653995f61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--34f1ebea-5db8-4aee-9b11-7937f8d1c6c9"
+        },
+        "while-condition--569b8b37-142e-4d82-a2d5-cfb653995f61": {
+            "name": "Repeat isolation until fully resolved",
+            "description": "Continue isolating the host until the issue is confirmed resolved.",
+            "on_true": "action--5c229399-d6cf-4b0b-a962-4e2c4f08d2b3",
+            "type": "while-condition",
+            "condition": "issue_not_resolved",
+            "on_false": "end--de142724-c55b-4dca-a1e6-357974b8209d"
+        },
+        "action--5c229399-d6cf-4b0b-a962-4e2c4f08d2b3": {
+            "name": "Audit system logs",
+            "description": "Inspect the last few entries in the system log to gather more context on the incident.",
+            "on_completion": "end--de142724-c55b-4dca-a1e6-357974b8209d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/syslog"
+                }
+            ],
+            "agent": "organization--34f1ebea-5db8-4aee-9b11-7937f8d1c6c9",
+            "step_variables": {
+                "log_count": {
+                    "type": "integer",
+                    "description": "Number of lines to fetch from syslog",
+                    "value": 100,
+                    "constant": true
+                }
+            }
+        },
+        "end--de142724-c55b-4dca-a1e6-357974b8209d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--34f1ebea-5db8-4aee-9b11-7937f8d1c6c9": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

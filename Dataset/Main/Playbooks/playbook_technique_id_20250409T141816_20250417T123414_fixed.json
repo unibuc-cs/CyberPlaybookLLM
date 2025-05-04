@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0607205-23d4-44b8-b042-47709ea7b1dd",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Script Execution",
+    "description": "This playbook addresses an incident involving unauthorized access to the network via a PowerShell script that exfiltrated sensitive data.",
+    "created_by": "identity--f83d294f-9cd3-42db-ae47-887265c362ce",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcd1234-abcd-1234-abcd-abcd1234abcd",
+    "workflow": {
+        "start--abcd1234-abcd-1234-abcd-abcd1234abcd": {
+            "on_completion": "if-condition--abcd5678-abcd-5678-abcd-abcd5678abcd",
+            "type": "start"
+        },
+        "if-condition--abcd5678-abcd-5678-abcd-abcd5678abcd": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--e1b349d4-19f3-45a5-b2b6-b6e4f47c3063",
+            "on_false": "action--cb5672d5-9885-4a95-b4ed-bb3a63e08d3f"
+        },
+        "action--e1b349d4-19f3-45a5-b2b6-b6e4f47c3063": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that are suspected to be malicious.",
+            "on_completion": "action--cb5672d5-9885-4a95-b4ed-bb3a63e08d3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--8210a42f-ee69-474f-af9e-0e7d3dcc23ea"
+        },
+        "action--cb5672d5-9885-4a95-b4ed-bb3a63e08d3f": {
+            "name": "Block outbound traffic to external IP",
+            "description": "Block all outbound traffic to the unapproved external IP to prevent further data loss.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.100.10 -j DROP"
+                }
+            ],
+            "agent": "organization--8210a42f-ee69-474f-af9e-0e7d3dcc23ea",
+            "on_completion": "while-condition--f9dd27ab-7692-422b-8adf-4b1ecdc660eb"
+        },
+        "action--9a322df3-4713-4c29-9397-d6ba285d9f25": {
+            "name": "Conduct a full security scan on affected host",
+            "description": "Perform a comprehensive malware scan on host-22 to identify any other security issues.",
+            "on_completion": "end--f023df29-b0f3-4f5e-9fd2-2b82c5a2ca61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan host-22"
+                }
+            ],
+            "agent": "organization--8210a42f-ee69-474f-af9e-0e7d3dcc23ea",
+            "step_variables": {
+                "scanned_host": {
+                    "type": "string",
+                    "description": "The host that was scanned for malware.",
+                    "value": "host-22",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--f9dd27ab-7692-422b-8adf-4b1ecdc660eb": {
+            "name": "Check for connections to external IP",
+            "description": "Continue blocking until there are no more outbound connections to the external IP.",
+            "condition": "check_for_connections_to(192.168.100.10)",
+            "on_true": "action--cb5672d5-9885-4a95-b4ed-bb3a63e08d3f",
+            "on_false": "action--9a322df3-4713-4c29-9397-d6ba285d9f25",
+            "type": "if-condition"
+        },
+        "end--f023df29-b0f3-4f5e-9fd2-2b82c5a2ca61": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8210a42f-ee69-474f-af9e-0e7d3dcc23ea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

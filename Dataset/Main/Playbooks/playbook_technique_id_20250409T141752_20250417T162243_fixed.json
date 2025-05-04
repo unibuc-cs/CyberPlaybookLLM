@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2a89f5b-7b5a-43c9-980c-1c9f3f682c77",
+    "name": "Phishing Incident Mitigation Playbook",
+    "description": "A playbook for responding to a phishing incident where an employee clicked a malicious link in a phishing email.",
+    "created_by": "identity--823b0f78-e27d-415e-a00e-3be1301d086f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--8b46782c-7f8c-4d8f-b10e-503cd5c7aa44",
+    "workflow": {
+        "start--8b46782c-7f8c-4d8f-b10e-503cd5c7aa44": {
+            "on_completion": "action--c2f9c3a1-1234-4567-b89c-abcdef123456",
+            "type": "start"
+        },
+        "action--c2f9c3a1-1234-4567-b89c-abcdef123456": {
+            "name": "Notify User of Phishing Attempt",
+            "description": "Inform the affected employee about the phishing email and instruct them to forward it to IT.",
+            "on_completion": "decision--78097c29-8bef-4fa6-bed1-d99caf1dc0e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Please forward any suspicious emails to IT.'"
+                }
+            ],
+            "agent": "organization--90d70c38-00a6-4055-a47c-1d64e920527f"
+        },
+        "end--c902cd29-53fa-4b02-8b35-6b1e4f79eada": {
+            "type": "end"
+        },
+        "decision--78097c29-8bef-4fa6-bed1-d99caf1dc0e3": {
+            "name": "Determine if account is compromised",
+            "type": "if-condition",
+            "condition": "account_compromised",
+            "on_true": "action--73f6e614-3e26-4975-8d39-7f932223049f",
+            "on_false": "action--06e072e8-45f1-489d-bacd-fb7e3b1e646a"
+        },
+        "action--73f6e614-3e26-4975-8d39-7f932223049f": {
+            "name": "Initiate Password Reset",
+            "description": "Reset the password for the compromised account.",
+            "on_completion": "loop--637a3e81-1dfb-4e5b-b99d-1cb09c8650ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reset_password --user=employee@example.com"
+                }
+            ],
+            "agent": "organization--90d70c38-00a6-4055-a47c-1d64e920527f"
+        },
+        "loop--637a3e81-1dfb-4e5b-b99d-1cb09c8650ec": {
+            "name": "Run Malware Scan Until Clean",
+            "description": "Conduct a malware scan on the affected host until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_results == 'dirty'",
+            "on_true": "action--06e072e8-45f1-489d-bacd-fb7e3b1e646a",
+            "on_false": "end--c902cd29-53fa-4b02-8b35-6b1e4f79eada"
+        },
+        "action--06e072e8-45f1-489d-bacd-fb7e3b1e646a": {
+            "name": "Run Malware Scan",
+            "description": "Execute a malware scan on the affected host.",
+            "on_completion": "loop--637a3e81-1dfb-4e5b-b99d-1cb09c8650ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan --host=host-02"
+                }
+            ],
+            "agent": "organization--90d70c38-00a6-4055-a47c-1d64e920527f"
+        }
+    },
+    "agent_definitions": {
+        "organization--90d70c38-00a6-4055-a47c-1d64e920527f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_definitions": {
+        "account_compromised": {
+            "description": "This variable determines if the account is considered compromised based on user activity.",
+            "type": "boolean",
+            "value": false
+        },
+        "scan_results": {
+            "description": "Tracks scan results to manage looping until no infections are found.",
+            "type": "string",
+            "value": "dirty"
+        }
+    }
+}

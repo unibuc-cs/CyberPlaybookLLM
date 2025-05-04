@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2951f18-a751-4765-bf3d-61e19d67ad3c",
+    "name": "Response Playbook for malicious script execution incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script on a server, leading to the download and execution of malware.",
+    "created_by": "identity--1bd389fb-d6b0-4e92-b518-a70766fbf1c3",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:05:00Z",
+    "workflow_start": "start--b829efda-626c-48cb-a1f7-20404fab5578",
+    "workflow": {
+        "start--b829efda-626c-48cb-a1f7-20404fab5578": {
+            "on_completion": "action--cd0065ff-30f1-4c36-b04b-f7986aae5e4f",
+            "type": "start"
+        },
+        "action--cd0065ff-30f1-4c36-b04b-f7986aae5e4f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes that may have resulted from the execution of the script.",
+            "on_completion": "if-condition--dee8bde5-e4e9-423e-bc18-89b977b2b058",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--dee8bde5-e4e9-423e-bc18-89b977b2b058": {
+            "name": "Check if there are additional malware infections",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "while-condition--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948",
+            "on_false": "action--6e5d3c3a-fd6e-4656-80f6-b09ca12d05f9"
+        },
+        "while-condition--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948": {
+            "name": "Scan for additional malware",
+            "description": "Perform a malware scan and repeat until a clean scan is achieved.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--6fbdc68b-679c-4f24-885e-64ea8be57f50",
+            "on_false": "if-condition--6e5d3c3a-fd6e-4656-80f6-b09ca12d05f9"
+        },
+        "action--6fbdc68b-679c-4f24-885e-64ea8be57f50": {
+            "name": "Run malware scan",
+            "description": "Scanning the path for any remaining malware.",
+            "on_completion": "while-condition--8bc6748b-5f25-4c5d-8d9e-d6dc8cd0f948",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The current status of the malware scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--6e5d3c3a-fd6e-4656-80f6-b09ca12d05f9": {
+            "name": "Block external IP address",
+            "description": "Block the external IP address responsible for the malicious activity.",
+            "on_completion": "end--ecd4dfee-d212-4460-9e82-9ff58d839b85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--ecd4dfee-d212-4460-9e82-9ff58d839b85": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_found": {
+            "type": "boolean",
+            "description": "Indicates if any additional malware was found during the scan.",
+            "value": true,
+            "constant": false,
+            "external": true
+        }
+    }
+}

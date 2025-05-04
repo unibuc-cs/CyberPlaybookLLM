@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4b0e04d-e3ab-4f85-bbee-deb32c846637",
+    "name": "Mitigation Playbook for PowerShell Command Exfiltration Incident",
+    "description": "This playbook aims to mitigate the impact of an incident where an attacker executed PowerShell commands for data exfiltration.",
+    "created_by": "identity--04793342-542f-4a10-b1e4-6248f152a7c5",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1e28c88-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1e28c88-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "action--f6c69f49-7535-49e0-ae56-e88c592d5da7",
+            "type": "start"
+        },
+        "action--f6c69f49-7535-49e0-ae56-e88c592d5da7": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host where the malicious activity was detected.",
+            "on_completion": "action--0aba9c76-5c84-4af5-b3d7-57a0caac104b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-14' ]; then isolate-host; fi"
+                }
+            ],
+            "agent": "organization--ec516423-5515-4f06-9723-9f646d6b03cd"
+        },
+        "action--0aba9c76-5c84-4af5-b3d7-57a0caac104b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process that is suspected of executing malicious commands.",
+            "on_completion": "loop--074ddcc3-585c-4e20-ac41-79b76783ae2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--ec516423-5515-4f06-9723-9f646d6b03cd"
+        },
+        "end--c3d4e91c-d6f0-4e52-b0f8-123456789abc": {
+            "type": "end"
+        },
+        "loop--074ddcc3-585c-4e20-ac41-79b76783ae2e": {
+            "name": "Scan the affected host until clean",
+            "description": "Run a malware scanner on the affected host and repeat until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--374cdf5b-72f2-43bc-958f-a411cc2f2ea7",
+            "next_steps": "end--c3d4e91c-d6f0-4e52-b0f8-123456789abc"
+        },
+        "action--374cdf5b-72f2-43bc-958f-a411cc2f2ea7": {
+            "name": "Run malware scanner on affected host",
+            "description": "Perform a malware scan on the affected host.",
+            "on_completion": "loop--074ddcc3-585c-4e20-ac41-79b76783ae2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scanner host-14"
+                }
+            ],
+            "agent": "organization--ec516423-5515-4f06-9723-9f646d6b03cd",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the last malware scan",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--ec516423-5515-4f06-9723-9f646d6b03cd": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

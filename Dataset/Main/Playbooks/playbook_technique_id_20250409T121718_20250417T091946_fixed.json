@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cddb1057-c7c3-4475-a71a-7d7c02a44837",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of commands through a compromised account, allowing unauthorized access to data and potential data exfiltration.",
+    "created_by": "identity--937dea4b-bfbc-414e-b0b0-079fe43062f3",
+    "created": "2023-10-12T14:45:00Z",
+    "modified": "2023-10-12T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--d277b516-7e69-448c-ba41-2bc662009631",
+    "workflow": {
+        "action--650fb7e8-e6a5-4e85-9d4e-d53e5a04d793": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious process.",
+            "on_completion": "action--c34cffc2-eb3c-4622-8885-af8b5ebc8a2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--447388f4-43c4-4502-8619-9d1fa3c52469"
+        },
+        "action--c34cffc2-eb3c-4622-8885-af8b5ebc8a2d": {
+            "name": "Delete dropped files from /tmp",
+            "description": "Remove any dropped malware scripts from the temporary directory.",
+            "on_completion": "action--ddb0c18d-a4bb-4e60-b4f6-4d4c452b0cfa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malware_script.sh"
+                }
+            ],
+            "agent": "organization--447388f4-43c4-4502-8619-9d1fa3c52469",
+            "on_condition": {
+                "condition": "file_exists('/tmp/malware_script.sh')"
+            }
+        },
+        "action--ddb0c18d-a4bb-4e60-b4f6-4d4c452b0cfa": {
+            "name": "Monitor network traffic for 1 hour",
+            "description": "Capture network traffic to identify suspicious activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--447388f4-43c4-4502-8619-9d1fa3c52469",
+            "loop": {
+                "repeat": "60 minutes"
+            },
+            "on_completion": "end--b8519219-fe5a-4c8c-8ab7-4f686c6e0c98"
+        },
+        "start--d277b516-7e69-448c-ba41-2bc662009631": {
+            "on_completion": "if-condition--288d4588-053a-460f-ae52-f543f220671f",
+            "type": "start"
+        },
+        "if-condition--288d4588-053a-460f-ae52-f543f220671f": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "malicious_process_exists",
+            "on_true": "action--650fb7e8-e6a5-4e85-9d4e-d53e5a04d793",
+            "on_false": "action--c34cffc2-eb3c-4622-8885-af8b5ebc8a2d"
+        },
+        "end--b8519219-fe5a-4c8c-8ab7-4f686c6e0c98": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--447388f4-43c4-4502-8619-9d1fa3c52469": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

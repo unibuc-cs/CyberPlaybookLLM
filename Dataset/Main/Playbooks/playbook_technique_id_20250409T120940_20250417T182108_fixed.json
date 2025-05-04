@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3f2f840-68af-4f8b-855c-801cad908f5c",
+    "name": "Playbook for Mitigation of Malicious Scripts Execution Incident",
+    "description": "This playbook addresses the incident of malicious script executions on the network, allowing unauthorized access to sensitive systems.",
+    "created_by": "identity--cdd1604b-ec47-4c8b-b663-aa6f23a0f067",
+    "created": "2023-10-06T08:30:00Z",
+    "modified": "2023-10-06T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b16b946e-8a92-46c7-b99c-c03a88590073",
+    "workflow": {
+        "start--b16b946e-8a92-46c7-b99c-c03a88590073": {
+            "on_completion": "parallel--d08ff123-5a7d-4a77-88d6-12e144bcde9d",
+            "type": "start"
+        },
+        "parallel--d08ff123-5a7d-4a77-88d6-12e144bcde9d": {
+            "name": "Mitigation Steps",
+            "description": "Execute mitigation steps in parallel to quickly respond to the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--73262c9e-1f17-489c-bfee-6221546c91c9",
+                "action--dfe20744-b2d4-4e34-b761-c058c49d534e"
+            ]
+        },
+        "action--73262c9e-1f17-489c-bfee-6221546c91c9": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "action--9a56826d-f9f4-4b9e-bb43-9add94bb4412",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--c441ee86-2228-4c2e-b0ab-1e3e2b1afa44"
+        },
+        "action--dfe20744-b2d4-4e34-b761-c058c49d534e": {
+            "name": "Isolate affected host",
+            "description": "Shutdown network connectivity to the affected host to prevent further unauthorized access.",
+            "on_completion": "action--9a56826d-f9f4-4b9e-bb43-9add94bb4412",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c441ee86-2228-4c2e-b0ab-1e3e2b1afa44"
+        },
+        "action--9a56826d-f9f4-4b9e-bb43-9add94bb4412": {
+            "name": "Run forensic scan",
+            "description": "Perform a forensic scan to detect any remaining threats.",
+            "on_completion": "if-condition--b6b84b1f-b7b8-4c45-8fa3-ec0459ba57af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_forensic_scan.sh"
+                }
+            ],
+            "agent": "organization--c441ee86-2228-4c2e-b0ab-1e3e2b1afa44",
+            "step_variables": {
+                "malicious_process_killed": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the malicious process was killed",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--b6b84b1f-b7b8-4c45-8fa3-ec0459ba57af": {
+            "name": "Check if malicious process was killed",
+            "type": "if-condition",
+            "condition": "malicious_process_killed == true",
+            "on_true": "loop--1d825a93-0ff5-4d99-b2be-2851742f87f4",
+            "on_false": "end--f9d3e88f-e1e4-4e89-a72d-0612823893b0"
+        },
+        "loop--1d825a93-0ff5-4d99-b2be-2851742f87f4": {
+            "name": "Forensic Scan Loop",
+            "description": "Continue running forensic scans until no threats detected.",
+            "on_true": "action--9a56826d-f9f4-4b9e-bb43-9add94bb4412",
+            "type": "while-condition",
+            "condition": "no_threats_detected == false",
+            "on_false": "end--f9d3e88f-e1e4-4e89-a72d-0612823893b0"
+        },
+        "end--f9d3e88f-e1e4-4e89-a72d-0612823893b0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c441ee86-2228-4c2e-b0ab-1e3e2b1afa44": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

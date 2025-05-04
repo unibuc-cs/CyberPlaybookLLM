@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--42e4c1e3-752f-4c12-9c54-bd8415e1d9e0",
+    "name": "Mitigation Playbook for HTTP Exfiltration Incident",
+    "description": "This playbook outlines the response to an incident where an attacker has compromised the internal network and is exfiltrating data via HTTP.",
+    "created_by": "identity--fa29943d-02e9-4063-b790-d36c1a093049",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--2e1dc8a6-e7f5-4ef8-853f-9faf32108b08",
+    "workflow": {
+        "start--2e1dc8a6-e7f5-4ef8-853f-9faf32108b08": {
+            "on_completion": "parallel--822b801e-5336-43b6-94a9-768f6449988d",
+            "type": "start"
+        },
+        "parallel--822b801e-5336-43b6-94a9-768f6449988d": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation steps to handle the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a1b17da7-fac8-4c32-9908-32e6ead97a9b",
+                "action--5c6417b0-be19-452b-9d59-a2d8c90e9730",
+                "while-condition--14bb0018-25c5-47fa-9f8e-a522e82b5311"
+            ]
+        },
+        "action--a1b17da7-fac8-4c32-9908-32e6ead97a9b": {
+            "name": "Block Outbound Traffic to Malicious IP",
+            "description": "Block outbound traffic to the identified malicious IP address to prevent further data exfiltration.",
+            "on_completion": "action--5c6417b0-be19-452b-9d59-a2d8c90e9730",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--f5ed9b7f-89ee-4c91-821d-d07fc7202318"
+        },
+        "action--5c6417b0-be19-452b-9d59-a2d8c90e9730": {
+            "name": "Kill the Associated Malicious Process",
+            "description": "Terminate any processes associated with the malicious activity to stop ongoing data exfiltration.",
+            "on_completion": "while-condition--14bb0018-25c5-47fa-9f8e-a522e82b5311",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--f5ed9b7f-89ee-4c91-821d-d07fc7202318"
+        },
+        "while-condition--14bb0018-25c5-47fa-9f8e-a522e82b5311": {
+            "name": "Initiate Full Network Scan",
+            "description": "Perform a network scan and continue until the scan results are clean.",
+            "type": "while-condition",
+            "condition": "scan_results != clean",
+            "on_true": "action--5ecab08f-9383-479b-a588-b8563dd9f002",
+            "on_false": "end--4c335c2f-d192-4fb4-b536-1c1ae615afab"
+        },
+        "action--5ecab08f-9383-479b-a588-b8563dd9f002": {
+            "name": "Perform Network Scan",
+            "description": "Conduct a network scan to identify any lingering threats.",
+            "on_completion": "while-condition--14bb0018-25c5-47fa-9f8e-a522e82b5311",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--f5ed9b7f-89ee-4c91-821d-d07fc7202318",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the latest network scan.",
+                    "value": "results of the previous scan",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--4c335c2f-d192-4fb4-b536-1c1ae615afab": {
+            "name": "End of Playbook",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f5ed9b7f-89ee-4c91-821d-d07fc7202318": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

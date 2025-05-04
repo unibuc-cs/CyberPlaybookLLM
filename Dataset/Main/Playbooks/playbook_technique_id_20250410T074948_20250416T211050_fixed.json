@@ -1,0 +1,145 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f34b817c-6cd5-45d9-a59c-7c3c78f3e758",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident involving the execution of a malicious script, unauthorized user account creation, and payload delivery.",
+    "created_by": "identity--d882a7f3-79de-4f6e-89c2-1e1c6301cac8",
+    "created": "2023-10-25T10:00:00Z",
+    "modified": "2023-10-25T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d4f5dabc-6ab6-4e23-87b5-d3e9f8d4effb",
+    "workflow": {
+        "start--d4f5dabc-6ab6-4e23-87b5-d3e9f8d4effb": {
+            "on_completion": "parallel--f96e5772-7de7-4f23-b359-8d3f987cc1f6",
+            "type": "start"
+        },
+        "parallel--f96e5772-7de7-4f23-b359-8d3f987cc1f6": {
+            "name": "Execute Parallel Actions",
+            "description": "Initiate parallel actions to mitigate incident effects",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--a5e8d02e-fcb2-478e-a604-6a3b3ef27254",
+                "loop--97e3f002-933f-4271-b0b2-1e4cb20fac3b",
+                "while-condition--2b5c4e0e-aa1e-4c59-84e3-269676e01efb",
+                "action--e712b1bb-6c2c-4fd3-bf0a-35a5bd123456"
+            ]
+        },
+        "if-condition--a5e8d02e-fcb2-478e-a604-6a3b3ef27254": {
+            "name": "Check for Malicious Process",
+            "type": "if-condition",
+            "condition": "process_name == 'malicious_script.sh'",
+            "on_true": "action--a3bb189e-8b58-4891-8427-49e860bf8c7e",
+            "on_false": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4"
+        },
+        "action--a3bb189e-8b58-4891-8427-49e860bf8c7e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the running malicious script process",
+            "on_completion": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--2995e414-9e02-401a-964d-9250ea269d3d"
+        },
+        "loop--97e3f002-933f-4271-b0b2-1e4cb20fac3b": {
+            "name": "Remove Unauthorized User Accounts",
+            "description": "Iterate through unauthorized user accounts and remove them",
+            "type": "loop",
+            "element": "unauthorized_user",
+            "on_completion": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4",
+            "next_steps": [
+                "action--c3d8e4db-53a1-481b-8d5e-5e38d4e7fd54"
+            ]
+        },
+        "action--c3d8e4db-53a1-481b-8d5e-5e38d4e7fd54": {
+            "name": "Delete User Account",
+            "description": "Remove unauthorized user accounts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r newly_created_user"
+                }
+            ],
+            "agent": "organization--dfcb1dd8-6fe8-433e-a31b-73fad26e7bb5",
+            "on_completion": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4"
+        },
+        "while-condition--2b5c4e0e-aa1e-4c59-84e3-269676e01efb": {
+            "name": "Scan and Clean Hosts",
+            "description": "Perform scanning and cleaning on affected hosts until clean status achieved",
+            "type": "while-condition",
+            "condition": "scan_status == 'pending'",
+            "on_true": "action--bd683d5f-ade7-44d7-85d8-e6a5f0a0e996",
+            "on_completion": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4"
+        },
+        "action--bd683d5f-ade7-44d7-85d8-e6a5f0a0e996": {
+            "name": "Run Antivirus Scan",
+            "description": "Execute antivirus scans on infected hosts and clean the infections",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan.sh --clean"
+                }
+            ],
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the antivirus scan",
+                    "value": "pending",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "agent": "organization--57875a5a-0fdb-437d-b79e-efdd52dc5502",
+            "on_completion": "while-condition--2b5c4e0e-aa1e-4c59-84e3-269676e01efb"
+        },
+        "action--e712b1bb-6c2c-4fd3-bf0a-35a5bd123456": {
+            "name": "Isolate Infected Hosts",
+            "description": "Isolate hosts identified with infections",
+            "on_completion": "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from infectedIP"
+                }
+            ],
+            "step_variables": {
+                "infectedIP": {
+                    "type": "string",
+                    "description": "IP address of the infected host",
+                    "value": "192.168.1.22",
+                    "constant": true,
+                    "external": false
+                }
+            },
+            "agent": "organization--8bb72642-7d17-47ec-a9ec-2893b5969adf"
+        },
+        "end--6b5d9f69-796a-4efa-a567-dcdfd9c03de4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2995e414-9e02-401a-964d-9250ea269d3d": {
+            "type": "organization",
+            "name": "HostManagement"
+        },
+        "organization--dfcb1dd8-6fe8-433e-a31b-73fad26e7bb5": {
+            "type": "organization",
+            "name": "UserAccountManagement"
+        },
+        "organization--57875a5a-0fdb-437d-b79e-efdd52dc5502": {
+            "type": "organization",
+            "name": "SecurityScanner"
+        },
+        "organization--8bb72642-7d17-47ec-a9ec-2893b5969adf": {
+            "type": "organization",
+            "name": "NetworkSecurity"
+        }
+    }
+}

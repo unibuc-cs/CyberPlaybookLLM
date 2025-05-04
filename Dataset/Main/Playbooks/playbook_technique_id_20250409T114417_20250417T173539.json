@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6f691e03-9a41-44be-b547-3a2f374a4d5e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook automates responses to an incident involving an attacker utilizing a command-line interface to execute malicious scripts, leading to unauthorized changes on the server.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-10T13:00:00Z",
+    "modified": "2023-10-10T13:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-e5f6-7890-abcd-ef0123456789",
+    "workflow": {
+        "start--1a2b3c4d-e5f6-7890-abcd-ef0123456789": {
+            "on_completion": "action--9b8fc094-74e3-42a2-91c0-08421ba58bbf",
+            "type": "start"
+        },
+        "action--9b8fc094-74e3-42a2-91c0-08421ba58bbf": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script executing on the server.",
+            "on_completion": "action--13f256e3-fcba-4b08-b9d6-3e9196e5ff90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--13f256e3-fcba-4b08-b9d6-3e9196e5ff90": {
+            "name": "Remove suspicious files",
+            "description": "Delete the suspicious file if it exists.",
+            "on_completion": "if-condition--2a5d0c37-2ad7-46d0-bbbb-58b9994bc86b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ~/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz",
+            "conditional": {
+                "condition": "if [ -f ~/malicious_script.ps1 ]; then true; else false; fi"
+            }
+        },
+        "if-condition--2a5d0c37-2ad7-46d0-bbbb-58b9994bc86b": {
+            "name": "Check for file removal",
+            "type": "if-condition",
+            "condition": "[ -f ~/malicious_script.ps1 ]",
+            "on_true": "action--1f2ed74d-bc6f-404e-bb3e-47143881a92c",
+            "on_false": "action--cbef98c6-80e4-4158-bb92-d6ada022de73"
+        },
+        "action--1f2ed74d-bc6f-404e-bb3e-47143881a92c": {
+            "name": "Scan for additional compromises",
+            "description": "Run a scan to find any additional threats.",
+            "on_completion": "while-condition--loop-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --bell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--loop-scan": {
+            "name": "Repeat scan until no threats found",
+            "description": "Keep scanning until no threats are detected.",
+            "on_true": "action--1f2ed74d-bc6f-404e-bb3e-47143881a92c",
+            "condition": "no_threats_detected",
+            "type": "while-condition"
+        },
+        "action--cbef98c6-80e4-4158-bb92-d6ada022de73": {
+            "name": "Audit user permissions",
+            "description": "Audit user permissions to ensure compliance.",
+            "on_completion": "end--5f6e4b91-1234-5678-9101-2b3c4d5e678f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "getent group users | awk -F: '{print $4}'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--5f6e4b91-1234-5678-9101-2b3c4d5e678f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

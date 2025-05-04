@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b01eafee-856f-4f8f-a88c-57119b496c18",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses a security incident involving an attacker who exploited a vulnerability in the web server to execute arbitrary commands and exfiltrate sensitive data.",
+    "created_by": "identity--953c00c0-1e4e-4fad-b749-d25464c12213",
+    "created": "2025-04-09T12:25:10.000Z",
+    "modified": "2025-04-09T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d266236d-c3c0-4952-be0b-8027c681ff1d",
+    "workflow": {
+        "start--d266236d-c3c0-4952-be0b-8027c681ff1d": {
+            "on_completion": "action--48d2f02f-dd43-4209-a5cc-8b9ded9d3f12",
+            "type": "start"
+        },
+        "action--48d2f02f-dd43-4209-a5cc-8b9ded9d3f12": {
+            "name": "Kill malicious process",
+            "description": "Terminate any ongoing malicious scripts to prevent further damage.",
+            "on_completion": "if-condition--c4a4f91f-9cb0-4b06-b14b-922dd64287d9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.py'"
+                }
+            ],
+            "agent": "organization--95fabf8a-8ac8-4c4e-a290-711601c94f59"
+        },
+        "if-condition--c4a4f91f-9cb0-4b06-b14b-922dd64287d9": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "ATK_STATUS == 'COMPROMISED'",
+            "on_true": "action--c4a4f91f-9cb0-4b06-b14b-922dd64287d9",
+            "on_false": "action--b431e926-3780-49c1-a3e0-8c6cb5c4af1f"
+        },
+        "action--c4a4f91f-9cb0-4b06-b14b-922dd64287d9": {
+            "name": "Isolate compromised host",
+            "description": "Disable network interface to prevent exfiltration of data.",
+            "on_completion": "action--b431e926-3780-49c1-a3e0-8c6cb5c4af1f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--95fabf8a-8ac8-4c4e-a290-711601c94f59"
+        },
+        "action--b431e926-3780-49c1-a3e0-8c6cb5c4af1f": {
+            "name": "Scan system for further threats",
+            "description": "Run a thorough scan to identify additional threats.",
+            "on_completion": "while-condition--fcd62a6f-a1cd-423c-bc86-356d693c92d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --threats --full"
+                }
+            ],
+            "agent": "organization--95fabf8a-8ac8-4c4e-a290-711601c94f59"
+        },
+        "end--7e71e1ba-51c4-4796-bc9a-75ca1ccb0631": {
+            "type": "end"
+        },
+        "while-condition--fcd62a6f-a1cd-423c-bc86-356d693c92d0": {
+            "name": "Scan Until Clean",
+            "description": "Continue scanning until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_result != 'CLEAN'",
+            "on_true": "action--b431e926-3780-49c1-a3e0-8c6cb5c4af1f"
+        }
+    },
+    "agent_definitions": {
+        "organization--95fabf8a-8ac8-4c4e-a290-711601c94f59": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1234567-bcde-4f00-abc1-1234567890ab",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the internal network via phishing and executed malicious commands.",
+    "created_by": "identity--5b5fdc37-b839-4703-8d42-8e74f5db86cd",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--8826d1a4-6b4d-41a7-aa92-622311e7d382",
+    "workflow": {
+        "action--e4f6634c-4ffc-4e93-bfb9-523b58091c98": {
+            "name": "Kill malicious process",
+            "description": "Terminate malicious processes identified on the compromised host.",
+            "on_completion": "while-condition--bf168b74-1b92-41b6-ae72-efc5c5d72a9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--e4fb6d45-49f7-4eef-b353-2d88a5f13896"
+        },
+        "while-condition--bf168b74-1b92-41b6-ae72-efc5c5d72a9c": {
+            "name": "Repeat Security Scan until Clean",
+            "description": "Perform a security scan repeatedly until no issues are found.",
+            "on_true": "action--bf168b74-1b92-41b6-ae72-efc5c5d72a9c",
+            "on_completion": "if-condition--b3c9c4eb-5bdc-45b2-bbd7-1d16f602f93a",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "loop": true
+        },
+        "action--bf168b74-1b92-41b6-ae72-efc5c5d72a9c": {
+            "name": "Perform security scan",
+            "description": "Run a security scan on the compromised directory.",
+            "on_completion": "while-condition--bf168b74-1b92-41b6-ae72-efc5c5d72a9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --path /compromised/directory"
+                }
+            ],
+            "agent": "organization--e4fb6d45-49f7-4eef-b353-2d88a5f13896",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the security scan.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--b3c9c4eb-5bdc-45b2-bbd7-1d16f602f93a": {
+            "name": "Analyze logs for anomalies",
+            "description": "Check for anomalies in system logs after scan completion.",
+            "type": "if-condition",
+            "condition": "[ -f suspicious_logs.txt ]",
+            "on_true": "action--f6eea00f-2a1a-4f99-9fb5-520436d63e07",
+            "on_false": "end--1a721d44-c2f2-47fc-8536-293745600a14"
+        },
+        "start--8826d1a4-6b4d-41a7-aa92-622311e7d382": {
+            "on_completion": "action--e4f6634c-4ffc-4e93-bfb9-523b58091c98",
+            "type": "start",
+            "name": "Start Mitigation Workflow",
+            "description": "Initiates the mitigation process for the detected compromise."
+        },
+        "action--f6eea00f-2a1a-4f99-9fb5-520436d63e07": {
+            "name": "Extract suspicious logs",
+            "description": "Retrieve suspicious logs for further analysis.",
+            "on_completion": "end--1a721d44-c2f2-47fc-8536-293745600a14",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_pattern' /var/log/syslog > suspicious_logs.txt"
+                }
+            ],
+            "agent": "organization--e4fb6d45-49f7-4eef-b353-2d88a5f13896"
+        },
+        "end--1a721d44-c2f2-47fc-8536-293745600a14": {
+            "type": "end",
+            "description": "Completion of the playbook execution."
+        }
+    },
+    "agent_definitions": {
+        "organization--e4fb6d45-49f7-4eef-b353-2d88a5f13896": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

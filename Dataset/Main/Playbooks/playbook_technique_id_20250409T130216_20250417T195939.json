@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1a0b6ea-2677-4b83-b8b2-d42d88d6e745",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data and deleted log files.",
+    "created_by": "identity--dfe98bb9-63d2-4f5f-b0c2-fc146af54d26",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--9521c422-e7d8-4f56-897b-4a109f8b78c0",
+    "workflow": {
+        "start--9521c422-e7d8-4f56-897b-4a109f8b78c0": {
+            "on_completion": "action--da65723a-7276-4f9a-b115-9d1d296fba84",
+            "type": "start"
+        },
+        "action--da65723a-7276-4f9a-b115-9d1d296fba84": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious PowerShell script that was executed.",
+            "on_completion": "parallel--0e8a5474-b5d2-4d68-afa2-f7aba0b7a375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--0e8a5474-b5d2-4d68-afa2-f7aba0b7a375": {
+            "name": "Post-Malicious Activity Mitigation",
+            "description": "Perform necessary actions after killing the malicious process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b07cfe0a-39a9-4973-a90b-6e9b567fd063",
+                "if-condition--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3"
+            ]
+        },
+        "action--b07cfe0a-39a9-4973-a90b-6e9b567fd063": {
+            "name": "Perform Full System Scan",
+            "description": "Scan the system for potential threats.",
+            "on_completion": "end--0e6a16fd-d47f-4f38-abc6-c05d1511862d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo antivirus_scan --full"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": "repeat until no threats detected"
+        },
+        "if-condition--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3": {
+            "name": "Check if Log Files Were Deleted",
+            "type": "if-condition",
+            "condition": "log_files_deleted == true",
+            "on_true": "action--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3",
+            "on_false": "end--0e6a16fd-d47f-4f38-abc6-c05d1511862d"
+        },
+        "action--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3": {
+            "name": "Restore Deleted Logs from Backup",
+            "description": "Restore log files from the backup in case they were deleted.",
+            "on_completion": "end--0e6a16fd-d47f-4f38-abc6-c05d1511862d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_logs --from backup.tar.gz"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0e6a16fd-d47f-4f38-abc6-c05d1511862d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

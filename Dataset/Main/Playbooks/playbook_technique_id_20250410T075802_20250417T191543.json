@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bcb7e8e5-f5c2-462c-b29c-336b7262c9ad",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute a malicious script, providing a backdoor for unauthorized access and enabling data exfiltration.",
+    "created_by": "identity--example-id",
+    "created": "2023-10-21T10:00:00Z",
+    "modified": "2023-10-21T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--bcb7e8e5-1c1b-4e6a-b29c-336b7262c9ad",
+    "workflow": {
+        "start--bcb7e8e5-1c1b-4e6a-b29c-336b7262c9ad": {
+            "on_completion": "parallel--7e3a9c45-a2d2-422a-9c6e-9539527f44cb",
+            "type": "start"
+        },
+        "end--ea43123f-2b21-4317-89f0-58b8963a8e30": {
+            "type": "end"
+        },
+        "parallel--7e3a9c45-a2d2-422a-9c6e-9539527f44cb": {
+            "name": "Parallel Execution of Initial Mitigations",
+            "description": "Execute actions to kill the process, remove the backdoor, and block the attacker IP simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1db5a4f3-15dd-4c25-9bfa-c400d88f6dbb",
+                "decision--b91471f8-bbda-4af9-bc4e-5541adb79a9b",
+                "action--62a1f896-5bf4-446b-8756-0e93f87e7426"
+            ]
+        },
+        "action--1db5a4f3-15dd-4c25-9bfa-c400d88f6dbb": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script process running on the host.",
+            "on_completion": "end--ea43123f-2b21-4317-89f0-58b8963a8e30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--b91471f8-bbda-4af9-bc4e-5541adb79a9b": {
+            "name": "Check if Backdoor Shell Exists",
+            "description": "Decision to remove backdoor shell if it exists.",
+            "type": "decision",
+            "condition": "if [ -f /path/to/backdoor_shell ]",
+            "on_true": "action--remove-backdoor-shell",
+            "on_false": "end--ea43123f-2b21-4317-89f0-58b8963a8e30"
+        },
+        "action--remove-backdoor-shell": {
+            "name": "Remove Backdoor Shell",
+            "description": "Remove the backdoor shell from the system.",
+            "on_completion": "end--ea43123f-2b21-4317-89f0-58b8963a8e30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/backdoor_shell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--62a1f896-5bf4-446b-8756-0e93f87e7426": {
+            "name": "Block Attacker IP",
+            "description": "Block the IP address of the attacker to prevent further commands.",
+            "on_completion": "end--ea43123f-2b21-4317-89f0-58b8963a8e30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s attacker_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--2c6e378f-aff5-4f59-9482-f76089854c93": {
+            "name": "Perform System Integrity Scan",
+            "description": "Iteratively perform a system integrity scan until no integrity violations are found.",
+            "type": "loop",
+            "condition": "while [ $? -ne 0 ]",
+            "on_true": "action--perform-integrity-scan",
+            "on_false": "end--ea43123f-2b21-4317-89f0-58b8963a8e30"
+        },
+        "action--perform-integrity-scan": {
+            "name": "Perform Integrity Check",
+            "description": "Run an integrity check using Tripwire.",
+            "on_completion": "loop--2c6e378f-aff5-4f59-9482-f76089854c93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tripwire --check"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--4f789487-7c69-4e4b-9e19-b42054512f60": {
+            "name": "Audit Log Analysis",
+            "description": "Analyze system logs for command interpreter activity.",
+            "on_completion": "end--ea43123f-2b21-4317-89f0-58b8963a8e30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'command interpreter' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "logfile": {
+                    "type": "string",
+                    "description": "System log file to analyze",
+                    "value": "/var/log/syslog",
+                    "constant": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Organization"
+        }
+    }
+}

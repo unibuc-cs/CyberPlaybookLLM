@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a79c1e96-d48e-4c4f-8e16-69d6fa240f8e",
+    "name": "Mitigation Playbook for Phishing Attachment Incident",
+    "description": "This playbook addresses a phishing incident where a malicious email attachment compromised a system and exfiltrated sensitive data.",
+    "created_by": "identity--11ad6630-b3f7-4d26-b4e3-8e53171b0dcc",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--74073325-eef6-4a74-917a-d3e33efff300",
+    "workflow": {
+        "start--74073325-eef6-4a74-917a-d3e33efff300": {
+            "on_completion": "if-condition--c1b8e44a-4d1a-41b1-994d-0cc706383149",
+            "type": "start"
+        },
+        "if-condition--c1b8e44a-4d1a-41b1-994d-0cc706383149": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_process')",
+            "on_true": "action--fbe453fa-3c3c-4f87-af44-4cf8a0437242",
+            "on_false": "action--c8c90280-9e4b-4cb2-abc5-60f962fb99ed"
+        },
+        "action--fbe453fa-3c3c-4f87-af44-4cf8a0437242": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process if it exists.",
+            "on_completion": "parallel--bdda4519-1c9e-4bcb-9700-791ba4a8646d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--9e8e5b5e-161c-4162-90ae-a566884d02d9"
+        },
+        "action--c8c90280-9e4b-4cb2-abc5-60f962fb99ed": {
+            "name": "Notify affected user and IT department",
+            "description": "Send notifications regarding the incident to the affected user and IT department.",
+            "on_completion": "while-condition--f46b6a08-0a54-47f4-9c88-4274e459d662",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification -u affected_user -t IT"
+                }
+            ],
+            "agent": "organization--9e8e5b5e-161c-4162-90ae-a566884d02d9"
+        },
+        "while-condition--f46b6a08-0a54-47f4-9c88-4274e459d662": {
+            "name": "Wait for user acknowledgment",
+            "description": "Loop until the affected user acknowledges the notification.",
+            "on_completion": "action--ca65a618-d59d-48b3-98b5-dfb0914f7e35",
+            "type": "while-condition",
+            "condition": "!user_acknowledged(affected_user)",
+            "on_true": "action--c8c90280-9e4b-4cb2-abc5-60f962fb99ed"
+        },
+        "action--ca65a618-d59d-48b3-98b5-dfb0914f7e35": {
+            "name": "Scan the system for additional threats",
+            "description": "Run a scan to check for additional threats on the compromised system.",
+            "on_completion": "end--a50f8a8b-c8b0-4a11-b571-9279b5bda8d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --host host-45"
+                }
+            ],
+            "agent": "organization--9e8e5b5e-161c-4162-90ae-a566884d02d9",
+            "step_variables": {
+                "SCAN_RESULT": {
+                    "type": "string",
+                    "description": "Result of the scan for further action",
+                    "value": "scan_output",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "parallel--bdda4519-1c9e-4bcb-9700-791ba4a8646d": {
+            "name": "Notify and Scan",
+            "description": "Execute user notification and system scan in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c8c90280-9e4b-4cb2-abc5-60f962fb99ed",
+                "action--ca65a618-d59d-48b3-98b5-dfb0914f7e35"
+            ]
+        },
+        "end--a50f8a8b-c8b0-4a11-b571-9279b5bda8d4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9e8e5b5e-161c-4162-90ae-a566884d02d9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3e97457-5a5b-4853-b02d-62e4a40b99f2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses unauthorized access through command and scripting interpreters and executes a series of mitigation steps.",
+    "created_by": "identity--3e8b7a0e-bb3c-4c4b-a14e-17cf09fc2a7a",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--296fb5d1-ee09-4d89-a32d-5ba797682336",
+    "workflow": {
+        "start--296fb5d1-ee09-4d89-a32d-5ba797682336": {
+            "on_completion": "action--f4c70f84-89b1-4d6b-8d2d-0d74001b95f7",
+            "type": "start"
+        },
+        "action--f4c70f84-89b1-4d6b-8d2d-0d74001b95f7": {
+            "name": "Kill malicious process and terminate connection",
+            "description": "Terminate malicious scripts and block connections to the malicious IP.",
+            "on_completion": "parallel--c0b29c8b-83f7-4d98-a6a7-639c4f95fc7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh; iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--c42aeefa-9dcf-4356-a646-77d2e43f6ebd"
+        },
+        "parallel--c0b29c8b-83f7-4d98-a6a7-639c4f95fc7e": {
+            "name": "Isolate and Scan Affected Hosts",
+            "description": "Isolate affected hosts and run scans.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a5f5e5c3-4c6c-4c0a-a2e0-012ab34a80bc",
+                "action--6e4db9ce-fc0f-4b4f-b1e3-80c07facd4bb"
+            ]
+        },
+        "action--a5f5e5c3-4c6c-4c0a-a2e0-012ab34a80bc": {
+            "name": "Isolate affected hosts",
+            "description": "Block all incoming connections to the affected hosts.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in host-01 host-02; do ssh $host 'iptables -A INPUT -j DROP'; done"
+                }
+            ],
+            "agent": "organization--c42aeefa-9dcf-4356-a646-77d2e43f6ebd"
+        },
+        "action--6e4db9ce-fc0f-4b4f-b1e3-80c07facd4bb": {
+            "name": "Run full antivirus scan on affected hosts",
+            "description": "Perform a comprehensive antivirus scan on the isolated hosts.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --bell"
+                }
+            ],
+            "agent": "organization--c42aeefa-9dcf-4356-a646-77d2e43f6ebd",
+            "condition": "if scan is not clean"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "step_extensions": {
+                "": "extension-definition--981e18fd-31e3-4a03-967d-7301f5c07b42"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c42aeefa-9dcf-4356-a646-77d2e43f6ebd": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

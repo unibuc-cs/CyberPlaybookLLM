@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b5ef73b-cf8b-4872-9669-65b1a3fa67bb",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate an incident where an attacker executed malicious PowerShell scripts for data exfiltration.",
+    "created_by": "identity--dff726f3-1740-4960-8b70-d815963d77c4",
+    "created": "2025-04-10T14:00:00.000Z",
+    "modified": "2025-04-10T14:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8ad0ebce-b67d-45b0-b691-97c19e438f9c",
+    "workflow": {
+        "start--8ad0ebce-b67d-45b0-b691-97c19e438f9c": {
+            "on_completion": "action--9c0e50d9-34ac-4d23-b034-b31f752979c3",
+            "type": "start"
+        },
+        "action--9c0e50d9-34ac-4d23-b034-b31f752979c3": {
+            "name": "Kill Malicious PowerShell Processes",
+            "description": "Terminate any PowerShell processes that may be executing the malicious scripts.",
+            "on_completion": "if-condition--99e90c3a-96b1-45b8-a1ca-996b07fd3281",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a4720094-c358-40d3-90bd-b0f976a49ec5"
+        },
+        "if-condition--99e90c3a-96b1-45b8-a1ca-996b07fd3281": {
+            "name": "Check if PowerShell Process was Killed",
+            "type": "if-condition",
+            "condition": "$(pgrep -f powershell) == ''",
+            "on_true": "action--6e832f2e-e790-4e15-bbce-845828c88d58",
+            "on_false": "action--9c0e50d9-34ac-4d23-b034-b31f752979c3"
+        },
+        "action--6e832f2e-e790-4e15-bbce-845828c88d58": {
+            "name": "Scan for Persistence Mechanisms",
+            "description": "Scan the system for any persistence mechanisms using PowerShell scripts.",
+            "on_completion": "while-condition--b64f9aa2-69bc-47e7-acfe-1a1ae3ed70d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1'"
+                }
+            ],
+            "agent": "organization--a4720094-c358-40d3-90bd-b0f976a49ec5"
+        },
+        "while-condition--b64f9aa2-69bc-47e7-acfe-1a1ae3ed70d7": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Repeat the scan for persistence mechanisms until no results are found.",
+            "on_completion": "action--1e42ae9d-8a37-4fca-9b1d-befdbb51b6d3",
+            "type": "while-condition",
+            "condition": "output_of_last_scan == ''",
+            "on_true": "action--6e832f2e-e790-4e15-bbce-845828c88d58"
+        },
+        "action--1e42ae9d-8a37-4fca-9b1d-befdbb51b6d3": {
+            "name": "Implement Network Segmentation",
+            "description": "Apply network segmentation rules to isolate affected hosts.",
+            "on_completion": "end--407bbc2f-17a9-44ed-bd4f-0b8b10807e0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A FORWARD -p tcp --dport 22 -s 192.168.1.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--a4720094-c358-40d3-90bd-b0f976a49ec5"
+        },
+        "end--407bbc2f-17a9-44ed-bd4f-0b8b10807e0e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a4720094-c358-40d3-90bd-b0f976a49ec5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

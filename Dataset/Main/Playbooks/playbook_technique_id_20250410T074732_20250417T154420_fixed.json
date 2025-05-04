@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--75dc43c2-0848-44e0-a295-0c62104fbd74",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses a security incident where an attacker exploited a vulnerable web application to execute malicious scripts, facilitating lateral movement and data exfiltration.",
+    "created_by": "identity--ae5f1ec9-2609-4b09-94f6-6a0d28595e62",
+    "created": "2023-10-07T14:00:00Z",
+    "modified": "2023-10-07T14:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1d84ef4-8177-4abc-95d7-681f3f1fa7af",
+    "workflow": {
+        "start--c1d84ef4-8177-4abc-95d7-681f3f1fa7af": {
+            "on_completion": "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605",
+            "type": "start"
+        },
+        "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious script processes that are currently running.",
+            "on_completion": "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 malicious_script"
+                }
+            ],
+            "agent": "organization--55710da9-80d1-4efb-addd-836c709d9db4"
+        },
+        "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391": {
+            "name": "Identify affected hosts",
+            "description": "Scan the network to identify any hosts that may have been affected by the malicious script.",
+            "on_completion": "if-condition--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -F -Pn -p 22 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--55710da9-80d1-4efb-addd-836c709d9db4",
+            "loop": {
+                "condition": "until no more new hosts",
+                "variables": {
+                    "count": "new_hosts_found"
+                }
+            }
+        },
+        "if-condition--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2": {
+            "name": "Check if compromised hosts are found",
+            "type": "if-condition",
+            "condition": "new_hosts_found > 0",
+            "on_true": "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2",
+            "on_false": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e"
+        },
+        "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2": {
+            "name": "Network isolation",
+            "description": "Isolate the network connection of the compromised host.",
+            "on_completion": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -I INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--55710da9-80d1-4efb-addd-836c709d9db4"
+        },
+        "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e": {
+            "name": "Remove unauthorized scripts",
+            "description": "Search for and remove any instances of the malicious script throughout the system.",
+            "on_completion": "action--a1e4935b-2276-4322-9e61-0b873bb6fec0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_script.sh' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--55710da9-80d1-4efb-addd-836c709d9db4"
+        },
+        "action--a1e4935b-2276-4322-9e61-0b873bb6fec0": {
+            "name": "Restore from backup",
+            "description": "Restore affected systems from a predefined backup to ensure integrity.",
+            "on_completion": "end--a4f36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/restore_backup.sh"
+                }
+            ],
+            "agent": "organization--55710da9-80d1-4efb-addd-836c709d9db4",
+            "variables": {
+                "backup_date": "October 2023"
+            }
+        },
+        "end--a4f36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--55710da9-80d1-4efb-addd-836c709d9db4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

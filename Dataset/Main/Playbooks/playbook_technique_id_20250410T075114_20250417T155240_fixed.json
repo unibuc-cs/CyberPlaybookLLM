@@ -1,0 +1,135 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b07384-d9f3-4c8c-9d1e-a35a88a5bb44",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident where an unauthorized script executed on host-22, dropping malicious files and establishing backdoor access.",
+    "created_by": "identity--b6898e6f-6101-4166-8494-03da1c9018b0",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-13T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--add5a3d5-a561-4c7b-a3f9-bda62bbfba73",
+    "workflow": {
+        "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f": {
+            "name": "Terminate unauthorized script process",
+            "description": "Terminate any unauthorized script processes running on host-22.",
+            "on_completion": "action--fb217749-5369-4f3e-a2e4-5a764c1099b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "action--fb217749-5369-4f3e-a2e4-5a764c1099b5": {
+            "name": "Block suspicious outbound network connectivity",
+            "description": "Block any suspicious outbound network connections.",
+            "on_completion": "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.remote.ip -j DROP"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02": {
+            "name": "Scan and quarantine detected backdoor",
+            "description": "If malware is found, scan and quarantine the malicious backdoor file.",
+            "on_completion": "decision--70674989-8efe-41e1-98fc-9a58d30ee6e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --move=/quarantine /system/directory/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9": {
+            "name": "Revert system files from backup",
+            "description": "Revert the system files from backup if integrity check failed.",
+            "on_completion": "action--c8bfa757-bcdd-4205-8966-af2aba3f738e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a --delete /backup/system_directory/ /system/directory/"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "action--c8bfa757-bcdd-4205-8966-af2aba3f738e": {
+            "name": "Repeat virus scan until clean",
+            "description": "Continue scanning the system until no viruses are detected.",
+            "type": "action",
+            "loop": "while virus_detected",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "action--f0b7a464-c081-490a-982e-d5bf59576b0b": {
+            "name": "Inform IT Security Team",
+            "description": "Notify the IT Security team about the incident.",
+            "on_completion": "end--d3456789-0bc1-45e5-bcde-12345abcd567",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security incident detected on host-22' | mail -s 'Security Alert' it_sec_team@example.com"
+                }
+            ],
+            "agent": "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89"
+        },
+        "end--d3456789-0bc1-45e5-bcde-12345abcd567": {
+            "type": "end"
+        },
+        "start--add5a3d5-a561-4c7b-a3f9-bda62bbfba73": {
+            "on_completion": "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f",
+            "type": "start"
+        },
+        "decision--70674989-8efe-41e1-98fc-9a58d30ee6e7": {
+            "name": "Check file integrity",
+            "type": "if-condition",
+            "condition": "if malware_found",
+            "on_true": "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9",
+            "on_false": "action--c8bfa757-bcdd-4205-8966-af2aba3f738e"
+        }
+    },
+    "agent_definitions": {
+        "organization--7f28ba9e-cff0-4a30-b544-68f08c61db89": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_found": {
+            "type": "boolean",
+            "description": "Indicates whether malicious files were detected during the scan.",
+            "value": false,
+            "constant": false,
+            "external": false
+        },
+        "virus_detected": {
+            "type": "boolean",
+            "description": "Indicates whether any viruses were detected.",
+            "value": true,
+            "constant": false,
+            "external": false
+        },
+        "file_integrity_check_failed": {
+            "type": "boolean",
+            "description": "Indicates whether the file integrity check has failed.",
+            "value": false,
+            "constant": false,
+            "external": false
+        }
+    }
+}

@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e617c5d6-cb91-4d81-87a5-fef83273df63",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook mitigates the effects of a PowerShell backdoor incident identified on the main server.",
+    "created_by": "identity--d1c86724-37dc-4b76-bc77-a142225d4254",
+    "created": "2025-10-01T11:30:09.000Z",
+    "modified": "2025-10-01T11:30:09.000Z",
+    "revoked": false,
+    "workflow_start": "start--54a3ff78-2cd6-46a8-8790-9adbd3baf022",
+    "workflow": {
+        "action--3e5dd98f-012c-40e6-b14a-73a1800aaa7d": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "decision--deb1ef82-bdab-4217-b76e-82b7838a826a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc"
+        },
+        "action--7b645a10-6277-4538-89a1-912bd90ed666": {
+            "name": "Run malware scan on affected host",
+            "description": "Perform a malware scan on the affected host until no threats are found.",
+            "on_completion": "loop--daeb8c2b-5eaf-4ce3-96a0-fc88b435be81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --host host-01"
+                }
+            ],
+            "agent": "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc"
+        },
+        "action--951047e0-5742-41f0-b4f1-82c088f5a91d": {
+            "name": "Block outbound traffic to known bad IP addresses",
+            "description": "Block known bad IP addresses to prevent data exfiltration.",
+            "on_completion": "action--1f08db0d-bba3-4b56-84ac-7e786761ef64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <bad_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc"
+        },
+        "action--1f08db0d-bba3-4b56-84ac-7e786761ef64": {
+            "name": "Update firewall rules to restrict PowerShell usage",
+            "description": "Update firewall rules to mitigate PowerShell usage.",
+            "on_completion": "action--f1734de3-77ba-4773-b033-5c20c000ff67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -p tcp --dport 80 -j REJECT"
+                }
+            ],
+            "agent": "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc"
+        },
+        "action--f1734de3-77ba-4773-b033-5c20c000ff67": {
+            "name": "Notify security team about the incident",
+            "description": "Send notification to the security team regarding the potential compromise.",
+            "on_completion": "end--83113e1c-d60e-4d74-a3d5-af00fbb782f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --team security --message 'Potential compromise detected'"
+                }
+            ],
+            "agent": "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc"
+        },
+        "start--54a3ff78-2cd6-46a8-8790-9adbd3baf022": {
+            "on_completion": "action--3e5dd98f-012c-40e6-b14a-73a1800aaa7d",
+            "type": "start"
+        },
+        "decision--deb1ef82-bdab-4217-b76e-82b7838a826a": {
+            "name": "Check if PowerShell processes are still running",
+            "type": "if-condition",
+            "condition": "$(pgrep powershell) != ''",
+            "on_true": "action--3e5dd98f-012c-40e6-b14a-73a1800aaa7d",
+            "on_false": "action--7b645a10-6277-4538-89a1-912bd90ed666"
+        },
+        "loop--daeb8c2b-5eaf-4ce3-96a0-fc88b435be81": {
+            "name": "Check scan result",
+            "description": "Repeat the malware scan until the scan is clean.",
+            "type": "while-condition",
+            "condition": "$(grep -c 'threat' scan_results.txt) > 0",
+            "on_true": "action--7b645a10-6277-4538-89a1-912bd90ed666",
+            "on_false": "action--951047e0-5742-41f0-b4f1-82c088f5a91d"
+        },
+        "end--83113e1c-d60e-4d74-a3d5-af00fbb782f3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--be500bd2-a5a6-49e9-b15a-ce680e7a10cc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

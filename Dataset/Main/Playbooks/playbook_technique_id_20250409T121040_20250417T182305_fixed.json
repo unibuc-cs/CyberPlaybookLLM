@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e07f5e50-d192-4c4d-a85e-6d09aef2f75a",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where malicious PowerShell scripts were executed on a sensitive server.",
+    "created_by": "identity--1a15d5e5-a012-4c91-b449-4e0113b7d0b4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:57:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1f66b23a-69a5-4c6e-92d7-2c5c0f7c1a52",
+    "workflow": {
+        "start--1f66b23a-69a5-4c6e-92d7-2c5c0f7c1a52": {
+            "on_completion": "action--b2b8f630-af84-4c12-923e-1e85d4de01f4",
+            "type": "start"
+        },
+        "action--b2b8f630-af84-4c12-923e-1e85d4de01f4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the detected malicious PowerShell script.",
+            "on_completion": "parallel--337b7f31-d6fe-48af-ad11-006092c11e8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--491facdb-8f4f-49b0-a506-814a7b4a64f0"
+        },
+        "parallel--337b7f31-d6fe-48af-ad11-006092c11e8c": {
+            "name": "Remove malicious files and initiate scan",
+            "description": "Remove potentially malicious files and start a system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ea16c1f3-0d13-49e7-8a16-3dcf59260469",
+                "action--d1c31b88-e4ae-4f02-9aaa-45e6d162d0aa"
+            ]
+        },
+        "action--ea16c1f3-0d13-49e7-8a16-3dcf59260469": {
+            "name": "Remove dropped files",
+            "description": "Delete the dropped malicious script if it exists.",
+            "on_completion": "end--d25e46b2-06c9-4c27-adde-70ab58a411a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/dropped/script.ps1"
+                }
+            ],
+            "agent": "organization--491facdb-8f4f-49b0-a506-814a7b4a64f0",
+            "step_variables": {
+                "script_exists": {
+                    "type": "boolean",
+                    "description": "Flag to check if the script still exists.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "while_condition": {
+                "condition": "[ -f /path/to/dropped/script.ps1 ]",
+                "on_true": "action--ea16c1f3-0d13-49e7-8a16-3dcf59260469"
+            }
+        },
+        "action--d1c31b88-e4ae-4f02-9aaa-45e6d162d0aa": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan to detect any additional threats.",
+            "on_completion": "end--d25e46b2-06c9-4c27-adde-70ab58a411a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_security_scan.sh"
+                }
+            ],
+            "agent": "organization--491facdb-8f4f-49b0-a506-814a7b4a64f0"
+        },
+        "end--d25e46b2-06c9-4c27-adde-70ab58a411a6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--491facdb-8f4f-49b0-a506-814a7b4a64f0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

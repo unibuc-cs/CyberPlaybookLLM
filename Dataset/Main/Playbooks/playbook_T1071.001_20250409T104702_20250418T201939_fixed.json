@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b5f0534-4abb-4e2e-b700-7b433f296473",
+    "name": "Mitigation Playbook for Application Layer Protocol Incident",
+    "description": "This playbook addresses an incident where an attacker used a compromised web application to exfiltrate sensitive data through encrypted HTTP requests.",
+    "created_by": "identity--d196bce1-ef2e-4e99-93e0-d79be470c1d4",
+    "created": "2025-04-09T10:47:02Z",
+    "modified": "2025-04-09T10:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--13595839-bb3b-4bda-942a-28d693a53355",
+    "workflow": {
+        "start--13595839-bb3b-4bda-942a-28d693a53355": {
+            "on_completion": "parallel--1ebe23d0-505e-4baf-b966-221f37d95d3f",
+            "type": "start"
+        },
+        "parallel--1ebe23d0-505e-4baf-b966-221f37d95d3f": {
+            "name": "Mitigation Actions",
+            "description": "Initiate mitigation actions for data exfiltration incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5ff24b56-bb19-44da-aaad-50024a0c7039",
+                "action--4e93c2ce-be71-422f-89df-f38dc97e6695",
+                "loop--47728738-5072-4949-b584-6e329d8e9607"
+            ]
+        },
+        "action--5ff24b56-bb19-44da-aaad-50024a0c7039": {
+            "name": "Block outbound traffic to suspicious IP",
+            "description": "Blocks outbound traffic to the identified suspicious IP address.",
+            "on_completion": "action--3c915d78-2d8a-43b0-b684-6cd78453910a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--1833c89b-9642-4081-b705-34cc6d6ca6ce"
+        },
+        "action--4e93c2ce-be71-422f-89df-f38dc97e6695": {
+            "name": "Enable Web Application Firewall logging",
+            "description": "Enables logging on the web application firewall to capture relevant events.",
+            "on_completion": "loop--47728738-5072-4949-b584-6e329d8e9607",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "waf_ctl enable_logging"
+                }
+            ],
+            "agent": "organization--1833c89b-9642-4081-b705-34cc6d6ca6ce"
+        },
+        "loop--47728738-5072-4949-b584-6e329d8e9607": {
+            "name": "Run endpoint detection and response scan",
+            "description": "Runs an EDR scan until the system is confirmed clean.",
+            "type": "while-condition",
+            "condition": "threat_level == high",
+            "on_true": "action--4037571c-e63e-403b-b80e-91f9409aa56e",
+            "loop": "repeat until scan is clean",
+            "step_variables": {
+                "threat_level": {
+                    "type": "string",
+                    "description": "Current threat level",
+                    "value": "high",
+                    "constant": false
+                }
+            }
+        },
+        "action--4037571c-e63e-403b-b80e-91f9409aa56e": {
+            "name": "Run EDR scan",
+            "description": "Runs a full scan of the system to detect any threats.",
+            "on_completion": "end--19cc59c5-7089-4907-a23d-98cf1133f339",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "edr_scan --all"
+                }
+            ],
+            "agent": "organization--1833c89b-9642-4081-b705-34cc6d6ca6ce"
+        },
+        "end--19cc59c5-7089-4907-a23d-98cf1133f339": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1833c89b-9642-4081-b705-34cc6d6ca6ce": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e581282c-897f-4b44-b54f-fc624cf67dfa",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates the incident where an attacker executed a malicious PowerShell script designed to steal sensitive data and communicate with a C2 server.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--40ef7ec4-065c-4e3f-b363-2b427ee9c3bd",
+    "workflow": {
+        "action--b4c8f8ee-f58e-4c40-896b-d4bb6bbf7875": {
+            "name": "Terminate malicious script processes",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--b91b15ca-92c7-4d9a-aa48-66c1406a24ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--5dc41657-9f13-41a3-9ba5-4baa5232d998"
+        },
+        "action--b91b15ca-92c7-4d9a-aa48-66c1406a24ae": {
+            "name": "Block outbound connections to malicious IPs",
+            "description": "Block any outbound connections to detected malicious IP addresses.",
+            "on_completion": "loop--c2b8b8c8-07eb-4ab4-bd96-c56bb20ab6e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--5dc41657-9f13-41a3-9ba5-4baa5232d998"
+        },
+        "loop--c2b8b8c8-07eb-4ab4-bd96-c56bb20ab6e3": {
+            "name": "Run full malware scan until clean",
+            "description": "Continuously run a malware scan until the system is clean.",
+            "on_completion": "end--e28568b3-7369-420d-a39b-9965ed92a7df",
+            "type": "while-condition",
+            "condition": "! scan_is_clean",
+            "on_true": "action--c2b8b8c8-07eb-4ab4-bd96-c56bb20ab6e3",
+            "on_false": "end--e28568b3-7369-420d-a39b-9965ed92a7df"
+        },
+        "action--c2b8b8c8-07eb-4ab4-bd96-c56bb20ab6e3": {
+            "name": "Run a malware scan",
+            "description": "Perform a full malware scan on the affected host",
+            "on_completion": "loop--c2b8b8c8-07eb-4ab4-bd96-c56bb20ab6e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "agent": "organization--5dc41657-9f13-41a3-9ba5-4baa5232d998"
+        },
+        "start--40ef7ec4-065c-4e3f-b363-2b427ee9c3bd": {
+            "on_completion": "action--b4c8f8ee-f58e-4c40-896b-d4bb6bbf7875",
+            "type": "start"
+        },
+        "end--e28568b3-7369-420d-a39b-9965ed92a7df": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5dc41657-9f13-41a3-9ba5-4baa5232d998": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

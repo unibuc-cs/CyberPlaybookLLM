@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8e4a63d-ebc4-466e-af0d-79abc891c8dd",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents involving unauthorized command execution from compromised scripts, leading to data exfiltration.",
+    "created_by": "identity--db298ba9-0a9f-469c-a052-f949858f724e",
+    "created": "2023-10-12T14:32:00Z",
+    "modified": "2023-10-12T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1d1c4a0-bd1d-48a8-82e9-d8f74b3cdd73",
+    "workflow": {
+        "start--f1d1c4a0-bd1d-48a8-82e9-d8f74b3cdd73": {
+            "on_completion": "if-condition--70690676-4909-4069-866d-1f5f39b38e1f",
+            "type": "start"
+        },
+        "if-condition--70690676-4909-4069-866d-1f5f39b38e1f": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_running == true",
+            "on_true": "action--ba98cd98-e5f0-40bd-abd1-70ece28bc5b0",
+            "on_false": "action--322a886e-b451-4b6f-83e8-8886a7cfdfa9"
+        },
+        "action--ba98cd98-e5f0-40bd-abd1-70ece28bc5b0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any currently running malicious processes.",
+            "on_completion": "action--322a886e-b451-4b6f-83e8-8886a7cfdfa9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--e7003570-41c6-44e0-9a54-66a46659aff4",
+            "step_variables": {
+                "process_running": {
+                    "type": "boolean",
+                    "description": "Indicates whether the malicious process is currently running",
+                    "value": true,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--322a886e-b451-4b6f-83e8-8886a7cfdfa9": {
+            "name": "Delete dropped file",
+            "description": "Remove the malicious payload from the temporary folder.",
+            "on_completion": "while-condition--8a392e38-58d1-4e67-af35-9b8fd7e23386",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--e7003570-41c6-44e0-9a54-66a46659aff4"
+        },
+        "while-condition--8a392e38-58d1-4e67-af35-9b8fd7e23386": {
+            "name": "Check if file is deleted",
+            "description": "Repeat deletion until the file is confirmed deleted.",
+            "on_completion": "action--32efe507-0738-4bea-94a3-85054e6cb570",
+            "type": "while-condition",
+            "condition": "file_exists == false",
+            "on_true": "action--322a886e-b451-4b6f-83e8-8886a7cfdfa9",
+            "step_variables": {
+                "file_exists": {
+                    "type": "boolean",
+                    "description": "Checks if the malicious payload file exists",
+                    "value": true,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--32efe507-0738-4bea-94a3-85054e6cb570": {
+            "name": "Monitor network connections",
+            "description": "List established network connections to safeguard against further exfiltration.",
+            "on_completion": "end--fbb5eefe-bfb1-4848-892a-62ce68be137c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -an | grep ESTABLISHED"
+                }
+            ],
+            "agent": "organization--e7003570-41c6-44e0-9a54-66a46659aff4",
+            "step_variables": {
+                "time_frame": {
+                    "type": "string",
+                    "description": "The time frame to monitor during the operation",
+                    "value": "last_30_seconds",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--fbb5eefe-bfb1-4848-892a-62ce68be137c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e7003570-41c6-44e0-9a54-66a46659aff4": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

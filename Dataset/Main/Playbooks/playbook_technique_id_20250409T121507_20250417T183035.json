@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--575e4e87-cf84-4e80-8937-8cb2aeeb5844",
+    "name": "Response Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook is designed to respond to an incident involving unauthorized command execution on a web application, exploiting vulnerabilities that allow attackers to run arbitrary scripts.",
+    "created_by": "identity--d3b0ac8e-cd4d-4f2e-b8bb-688e05ee510e",
+    "created": "2023-10-10T14:30:00Z",
+    "modified": "2023-10-10T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b60e9f15-a025-4a7b-b7e6-c58a12f0ed24",
+    "workflow": {
+        "start--b60e9f15-a025-4a7b-b7e6-c58a12f0ed24": {
+            "on_completion": "action--f1995b4b-0676-419d-b29e-b322effeaa12",
+            "type": "start"
+        },
+        "action--f1995b4b-0676-419d-b29e-b322effeaa12": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script execution to stop further exploitation.",
+            "on_completion": "action--8dbd831f-1e58-4f11-9b18-4f86bb6c1b0b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--8dbd831f-1e58-4f11-9b18-4f86bb6c1b0b": {
+            "name": "Remove malicious files",
+            "description": "Delete any residual files that the attacker may have placed on the server.",
+            "on_completion": "while-condition--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64": {
+            "name": "Security Scan Loop",
+            "description": "Continuously run a security scan until it's confirmed clean.",
+            "on_completion": "end--e4d66337-7d26-4679-81f6-959930b5bc56",
+            "type": "while-condition",
+            "condition": "scan_status == 'NOT_CLEAN'",
+            "on_true": "action--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64",
+            "next_steps": [
+                "action--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64"
+            ]
+        },
+        "action--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64": {
+            "name": "Run security scan",
+            "description": "Conduct a security scan to detect any threats remaining on the system.",
+            "on_completion": "set-variable--scan_result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-variable--scan_result": {
+            "name": "Check Scan Results",
+            "description": "Update the scan_status variable based on scan results.",
+            "on_completion": "if-condition--scan_is_clean",
+            "type": "action",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the last scan.",
+                    "value": "NOT_CLEAN",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--scan_is_clean": {
+            "name": "Scan is Clean?",
+            "description": "Determine if the security scan results indicate a clean system.",
+            "type": "if-condition",
+            "condition": "scan_status == 'CLEAN'",
+            "on_true": "end--e4d66337-7d26-4679-81f6-959930b5bc56",
+            "on_false": "action--e3b170e4-427c-4abc-a5a4-9e18a9cc8a64"
+        },
+        "end--e4d66337-7d26-4679-81f6-959930b5bc56": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

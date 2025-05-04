@@ -1,0 +1,142 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8b789bf-3a0f-4aad-b954-f2edd0101082",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where a threat actor used scripting interpreters for malicious purposes. It includes actions for killing malicious scripts, removing files, blocking IPs, and investigating affected hosts.",
+    "created_by": "identity--01d3dc67-2898-4859-96da-4b9b9552ee1f",
+    "created": "2025-04-10T08:55:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1dc0935-b042-4d6c-9b4e-b3c19ac1eafe",
+    "workflow": {
+        "start--b1dc0935-b042-4d6c-9b4e-b3c19ac1eafe": {
+            "on_completion": "if-condition--4b5c1fea-a88a-4977-bc77-790dbd4a0af1",
+            "type": "start"
+        },
+        "if-condition--4b5c1fea-a88a-4977-bc77-790dbd4a0af1": {
+            "name": "Check if malicious script is running",
+            "type": "if-condition",
+            "condition": "script_detected == True",
+            "on_true": "action--4a39b9ab-c9e8-4d2b-aa56-0989485dfa2e",
+            "on_false": "parallel--9e76b7f3-e4a2-4f7c-8072-7d7469001c65"
+        },
+        "action--4a39b9ab-c9e8-4d2b-aa56-0989485dfa2e": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes running the suspicious script.",
+            "type": "action",
+            "on_completion": "parallel--9e76b7f3-e4a2-4f7c-8072-7d7469001c65",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed"
+        },
+        "parallel--9e76b7f3-e4a2-4f7c-8072-7d7469001c65": {
+            "name": "Parallel Actions for Mitigation",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cf0b8f0f-16d8-4db8-ad27-f6a27b35c5e1",
+                "action--52f76219-065c-4c4e-b3e7-6f3dcb0a9421",
+                "loop--87d03a5d-3a04-4da1-b142-9ac517bf301c"
+            ]
+        },
+        "action--cf0b8f0f-16d8-4db8-ad27-f6a27b35c5e1": {
+            "name": "Remove dropped files",
+            "description": "Delete suspicious files dropped by malicious scripts.",
+            "type": "action",
+            "on_completion": "loop--6b3e8f6b-21d0-4f2d-9eba-8e3d67c4f8fd",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed"
+        },
+        "loop--6b3e8f6b-21d0-4f2d-9eba-8e3d67c4f8fd": {
+            "name": "Repeat until no files found",
+            "type": "while-condition",
+            "condition": "files_detected == True",
+            "on_true": "action--cf0b8f0f-16d8-4db8-ad27-f6a27b35c5e1",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--52f76219-065c-4c4e-b3e7-6f3dcb0a9421": {
+            "name": "Block malicious IP",
+            "description": "Block outbound connections to suspected malicious IP.",
+            "type": "action",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.25 -j DROP"
+                }
+            ],
+            "agent": "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed"
+        },
+        "loop--87d03a5d-3a04-4da1-b142-9ac517bf301c": {
+            "name": "Quarantine affected hosts",
+            "type": "while-condition",
+            "description": "Isolate each compromised host from the network.",
+            "condition": "foreach host in compromised_hosts",
+            "on_true": "action--ab43fdb7-3b98-4213-92e2-e03d276c09a6",
+            "on_completion": "action--f4dbe9ad-c3a1-40a4-9816-4f31c3586e73"
+        },
+        "action--ab43fdb7-3b98-4213-92e2-e03d276c09a6": {
+            "name": "Investigate and quarantine host",
+            "description": "Isolate a compromised host.",
+            "type": "action",
+            "on_completion": "loop--87d03a5d-3a04-4da1-b142-9ac517bf301c",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "isolate --host $HOST"
+                }
+            ],
+            "agent": "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed",
+            "step_variables": {
+                "HOST": {
+                    "type": "string",
+                    "description": "The host currently being isolated.",
+                    "value": null,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--f4dbe9ad-c3a1-40a4-9816-4f31c3586e73": {
+            "name": "Scan network for further intrusions",
+            "description": "Perform network scans to check for any further intrusions.",
+            "type": "action",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -oA /logs/scan_results $NETWORK"
+                }
+            ],
+            "agent": "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed",
+            "step_variables": {
+                "NETWORK": {
+                    "type": "string",
+                    "description": "The network range to scan.",
+                    "value": "192.168.0.0/24",
+                    "constant": true,
+                    "external": false
+                }
+            }
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7b3db88e-1e2d-43fc-bfdc-c90d737a87ed": {
+            "type": "organization",
+            "name": "XYZ Cybersecurity"
+        }
+    }
+}

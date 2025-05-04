@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e930d5b3-51c3-4572-b51d-d8c898d7bbe7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook automates mitigation steps for an incident involving execution of scripts to exfiltrate sensitive data.",
+    "created_by": "identity--f124567e-150e-4de9-818e-dc019a94b6d1",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:55:35.498Z",
+    "revoked": false,
+    "workflow_start": "start--893fb893-9881-4f61-b90e-23fd57691fcc",
+    "workflow": {
+        "if-condition--f87cdeb2-4166-46dc-a718-f76eaf85f637": {
+            "name": "Check for suspicious processes",
+            "type": "if-condition",
+            "condition": "suspiciousprocess_detected == true",
+            "on_true": "action--b9d10b8b-32c1-446a-ae41-3473a60a4b7e",
+            "on_false": "action--c3fe3577-d9bc-4d7f-9685-8d1f7271f677"
+        },
+        "action--b9d10b8b-32c1-446a-ae41-3473a60a4b7e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes detected.",
+            "on_completion": "parallel--0e7f4c67-e3df-4c54-aca9-a9d283234f93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--d7eb58bb-16a2-452b-a51d-0ecc7423b27c"
+        },
+        "parallel--0e7f4c67-e3df-4c54-aca9-a9d283234f93": {
+            "name": "Execute female-female pair actions",
+            "description": "Simultaneously delete downloaded files and monitor outbound connections.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c3fe3577-d9bc-4d7f-9685-8d1f7271f677",
+                "action--b7e1cfea-b271-4977-bddc-63fcc136671d"
+            ]
+        },
+        "action--c3fe3577-d9bc-4d7f-9685-8d1f7271f677": {
+            "name": "Delete downloaded temporary files",
+            "description": "Remove suspicious temporary files downloaded during the attack.",
+            "on_completion": "end--4262d652-d4aa-4f2e-8116-5fad6f9db6a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for file in $(ls /tmp/suspicious_files*); do rm -rf $file; done"
+                }
+            ],
+            "agent": "organization--d7eb58bb-16a2-452b-a51d-0ecc7423b27c"
+        },
+        "action--b7e1cfea-b271-4977-bddc-63fcc136671d": {
+            "name": "Monitor outbound connections",
+            "description": "Capture and analyze outbound network connections to unknown IP addresses.",
+            "on_completion": "end--4262d652-d4aa-4f2e-8116-5fad6f9db6a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n host <unknown_IP> -A"
+                }
+            ],
+            "agent": "organization--d7eb58bb-16a2-452b-a51d-0ecc7423b27c"
+        },
+        "end--4262d652-d4aa-4f2e-8116-5fad6f9db6a4": {
+            "type": "end"
+        },
+        "start--893fb893-9881-4f61-b90e-23fd57691fcc": {
+            "on_completion": "if-condition--f87cdeb2-4166-46dc-a718-f76eaf85f637",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--d7eb58bb-16a2-452b-a51d-0ecc7423b27c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

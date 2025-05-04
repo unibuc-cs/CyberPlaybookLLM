@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--98d3a88b-daa0-4e5e-b60b-b973c6c20ab7",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute arbitrary commands on the server.",
+    "created_by": "identity--fe42e94f-fcf0-4976-ba90-a932ae2d2499",
+    "created": "2023-10-12T15:00:00.000Z",
+    "modified": "2023-10-12T15:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--12d3e1e9-cdd8-4e78-8b07-8c343cdcf3ae",
+    "workflow": {
+        "start--12d3e1e9-cdd8-4e78-8b07-8c343cdcf3ae": {
+            "on_completion": "action--5a4097d6-e62b-4c7e-b038-bb39c97fc691",
+            "type": "start"
+        },
+        "action--5a4097d6-e62b-4c7e-b038-bb39c97fc691": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the suspicious script.",
+            "on_completion": "action--e01a0f3b-1231-43b2-b48c-705803be71f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--409937c5-2ed4-4d70-9797-995dc5869e73"
+        },
+        "action--e01a0f3b-1231-43b2-b48c-705803be71f3": {
+            "name": "Delete malicious files",
+            "description": "Remove malicious files from the temporary directory, if they exist.",
+            "on_completion": "action--638c902e-b4ca-4b11-8c89-2d2be003161d",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--409937c5-2ed4-4d70-9797-995dc5869e73",
+            "condition": "if [ -f /tmp/suspicious_file ]"
+        },
+        "action--638c902e-b4ca-4b11-8c89-2d2be003161d": {
+            "name": "Monitor network connections",
+            "description": "Monitor network traffic for suspicious activities.",
+            "on_completion": "if-condition--dd508fe5-63f7-418d-9f26-e05f8be6d76a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any port 80 or port 443"
+                }
+            ],
+            "agent": "organization--409937c5-2ed4-4d70-9797-995dc5869e73",
+            "loop": "repeat until no suspicious activity detected"
+        },
+        "if-condition--dd508fe5-63f7-418d-9f26-e05f8be6d76a": {
+            "name": "Update firewall rules if suspicious IP detected",
+            "type": "if-condition",
+            "condition": "suspicious_IP != null",
+            "on_true": "action--dd508fe5-63f7-418d-9f26-e05f8be6d76a",
+            "on_false": "action--a2f81698-6090-4f84-b1a8-7c1f4fe4b4b5"
+        },
+        "action--dd508fe5-63f7-418d-9f26-e05f8be6d76a": {
+            "name": "Update firewall rules",
+            "description": "Block any incoming connections from malicious IP.",
+            "on_completion": "action--a2f81698-6090-4f84-b1a8-7c1f4fe4b4b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_IP -j DROP"
+                }
+            ],
+            "agent": "organization--409937c5-2ed4-4d70-9797-995dc5869e73"
+        },
+        "action--a2f81698-6090-4f84-b1a8-7c1f4fe4b4b5": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a thorough scan of the system to detect any other threats.",
+            "on_completion": "end--3b179f97-7986-4d3f-952c-8fcd4bce8d01",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--409937c5-2ed4-4d70-9797-995dc5869e73",
+            "condition": "if result is not clean",
+            "variables": {
+                "scan_result": "result"
+            }
+        },
+        "end--3b179f97-7986-4d3f-952c-8fcd4bce8d01": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--409937c5-2ed4-4d70-9797-995dc5869e73": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

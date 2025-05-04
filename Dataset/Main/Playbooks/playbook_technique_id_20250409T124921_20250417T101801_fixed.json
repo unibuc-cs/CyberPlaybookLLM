@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a54721e8-e8fd-4cda-91aa-eea752fd1b70",
+    "name": "Mitigation Playbook for Command and Control Incident",
+    "description": "This playbook addresses an incident involving the exploitation of a vulnerable web application, where commands were executed from an attacker, and sensitive data was exfiltrated.",
+    "created_by": "identity--083012c4-4c89-4d46-aceb-bddac549ad06",
+    "created": "2023-10-12T09:00:00Z",
+    "modified": "2023-10-12T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1acb54bb-07b1-45ee-beda-37644d506ad9",
+    "workflow": {
+        "start--1acb54bb-07b1-45ee-beda-37644d506ad9": {
+            "on_completion": "action--0926fb39-54d4-472d-93b8-0534fbd3751d",
+            "type": "start"
+        },
+        "action--0926fb39-54d4-472d-93b8-0534fbd3751d": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Block outgoing connections to the command and control server.",
+            "on_completion": "action--0c0ebdca-3365-40f6-83c6-5d0deac57a88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--8f0ef8e0-888e-478c-9a4b-2c9e07fdc26b"
+        },
+        "action--0c0ebdca-3365-40f6-83c6-5d0deac57a88": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the attacker.",
+            "on_completion": "loop--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--8f0ef8e0-888e-478c-9a4b-2c9e07fdc26b"
+        },
+        "loop--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0": {
+            "name": "Perform forensic analysis of compromised host",
+            "description": "Repeat the forensic scan until the host is clean.",
+            "on_completion": "decision--5f0215d3-a167-4293-bb41-1635f44e36bc",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--3e2ed867-19c0-4217-8f8e-f5e2a7e1f3c0",
+            "next_steps": []
+        },
+        "action--5f0215d3-a167-4293-bb41-1635f44e36bc": {
+            "name": "Update web application firewall rules",
+            "description": "Update WAF rules if sensitive data was exfiltrated.",
+            "on_completion": "action--ec6a94b2-c73c-4324-a805-196bd2fc712b",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "waf-tool update rules --block http_post --target host-101"
+                }
+            ],
+            "agent": "organization--8f0ef8e0-888e-478c-9a4b-2c9e07fdc26b",
+            "condition": "if sensitive_data_exfiltrated"
+        },
+        "action--ec6a94b2-c73c-4324-a805-196bd2fc712b": {
+            "name": "Notify security team of incident",
+            "description": "Inform the security team about the incident for further investigation.",
+            "on_completion": "end--eae92a48-58d1-4e1e-b6e5-ac95e1e69fef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email security@organization.com -subject 'Critical Incident' -body 'Incident detected at host-101.'"
+                }
+            ],
+            "agent": "organization--8f0ef8e0-888e-478c-9a4b-2c9e07fdc26b"
+        },
+        "end--eae92a48-58d1-4e1e-b6e5-ac95e1e69fef": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8f0ef8e0-888e-478c-9a4b-2c9e07fdc26b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

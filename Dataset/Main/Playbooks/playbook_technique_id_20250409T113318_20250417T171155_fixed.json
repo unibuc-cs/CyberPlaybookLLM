@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d94f1d1c-1682-4eaf-b1e3-7af95fcbf999",
+    "name": "Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized access via PowerShell scripts leading to data exfiltration.",
+    "created_by": "identity--12345678-1234-5678-9012-345678901234",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "workflow_start": "start--e1234567-890a-1234-b567-cdef12345678",
+    "workflow": {
+        "start--e1234567-890a-1234-b567-cdef12345678": {
+            "on_completion": "if-condition--b12e45c2-e9e8-4797-9648-4d12ad432b7c",
+            "type": "start"
+        },
+        "if-condition--b12e45c2-e9e8-4797-9648-4d12ad432b7c": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "power_shell_running == true",
+            "on_true": "action--f13a4361-444f-45d0-9822-a4c4e7e20371",
+            "on_false": "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96"
+        },
+        "action--f13a4361-444f-45d0-9822-a4c4e7e20371": {
+            "name": "Terminate the PowerShell process",
+            "description": "Terminate any running instances of PowerShell.",
+            "on_completion": "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9847501c-afb2-4f6d-95e6-90a553c6c8d5"
+        },
+        "action--5a9ddd8b-64a7-4951-aafc-31260d5fba96": {
+            "name": "Block outgoing traffic to the external server",
+            "description": "Block outgoing traffic to the identified external server.",
+            "on_completion": "action--e8b3e5cd-a879-4638-b42c-ed683aa4b65e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_server_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--9847501c-afb2-4f6d-95e6-90a553c6c8d5"
+        },
+        "action--e8b3e5cd-a879-4638-b42c-ed683aa4b65e": {
+            "name": "Run malware detection scan",
+            "description": "Perform a malware scan on the affected host until clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_is_clean; do run_malware_scanner; done"
+                }
+            ],
+            "agent": "organization--9847501c-afb2-4f6d-95e6-90a553c6c8d5"
+        },
+        "end--b8a07f85-0c03-4d35-93e9-da0f43eb8e91": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9847501c-afb2-4f6d-95e6-90a553c6c8d5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "power_shell_running": {
+            "type": "boolean",
+            "description": "Indicates the status of PowerShell process.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "external_server_ip": {
+            "type": "string",
+            "description": "IP address of the external server to block.",
+            "value": "<external_server_ip>",
+            "constant": false,
+            "external": true
+        }
+    }
+}

@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d82949e3-f479-4284-9d4a-d76c144f45f9",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized scripts were executed, compromising system integrity.",
+    "created_by": "identity--f5d81c1b-e569-49c7-845b-ad42cb5e7b82",
+    "created": "2023-10-16T08:00:00Z",
+    "modified": "2023-10-16T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1f84c82-b797-497c-ae94-1e9c7c5d48f3",
+    "workflow": {
+        "start--b1f84c82-b797-497c-ae94-1e9c7c5d48f3": {
+            "on_completion": "action--a23c41e7-dc1a-49da-9eaf-fb8a59b175a0",
+            "type": "start"
+        },
+        "action--a23c41e7-dc1a-49da-9eaf-fb8a59b175a0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--4e5f2905-e3e2-4530-b40f-ebac0630b478",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--1e7a9694-b3b5-4604-9505-80b596a82462"
+        },
+        "if-condition--4e5f2905-e3e2-4530-b40f-ebac0630b478": {
+            "name": "Check if configuration files are altered",
+            "type": "if-condition",
+            "condition": "config_file_altered",
+            "on_true": "action--4e5f2905-e3e2-4530-b40f-ebac0630b478",
+            "on_false": "action--10f4c1fd-b8f4-43df-ae4e-4991c3c8dc5f"
+        },
+        "action--4e5f2905-e3e2-4530-b40f-ebac0630b478": {
+            "name": "Restore original configuration files",
+            "description": "Restore the original configuration files from backup.",
+            "on_completion": "action--10f4c1fd-b8f4-43df-ae4e-4991c3c8dc5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config_file /etc/config_file"
+                }
+            ],
+            "agent": "organization--1e7a9694-b3b5-4604-9505-80b596a82462"
+        },
+        "action--10f4c1fd-b8f4-43df-ae4e-4991c3c8dc5f": {
+            "name": "Monitor network traffic for suspicious activity",
+            "description": "Capture and analyze network traffic for any suspicious activity indicative of backdoor communications.",
+            "on_completion": "while-condition--d5e29438-d407-4b86-bf6b-678a7fca207d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--1e7a9694-b3b5-4604-9505-80b596a82462"
+        },
+        "while-condition--d5e29438-d407-4b86-bf6b-678a7fca207d": {
+            "name": "Traffic monitoring loop",
+            "description": "Continue monitoring network traffic until a detection threshold is reached.",
+            "type": "while-condition",
+            "condition": "detection_threshold_not_reached",
+            "on_true": "action--10f4c1fd-b8f4-43df-ae4e-4991c3c8dc5f",
+            "next_steps": []
+        },
+        "end--30b15257-c5f6-4b5a-9794-fabe0181f74c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1e7a9694-b3b5-4604-9505-80b596a82462": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "config_file_altered": {
+            "type": "boolean",
+            "description": "Indicates if configuration files were altered.",
+            "value": false,
+            "constant": false
+        },
+        "detection_threshold_not_reached": {
+            "type": "boolean",
+            "description": "Indicates if the detection threshold for suspicious activity has not yet been reached.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

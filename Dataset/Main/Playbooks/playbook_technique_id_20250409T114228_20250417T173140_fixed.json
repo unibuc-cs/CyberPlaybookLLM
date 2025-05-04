@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--66a91fa5-ade9-4ff4-b161-a45decb98eb1",
+    "name": "Mitigation Playbook for HTTP Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where sensitive data was exfiltrated using an application layer protocol, specifically HTTP.",
+    "created_by": "identity--195c824c-75a0-40c2-b041-5ea8e4063a21",
+    "created": "2023-10-14T12:00:00Z",
+    "modified": "2023-10-14T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f8236c90-ed7e-4b66-ac96-a2ea7d1eb798",
+    "workflow": {
+        "start--f8236c90-ed7e-4b66-ac96-a2ea7d1eb798": {
+            "on_completion": "parallel--a5acdc60-ecf2-46cf-afe3-657e01718b86",
+            "type": "start"
+        },
+        "parallel--a5acdc60-ecf2-46cf-afe3-657e01718b86": {
+            "name": "Immediate Mitigation Steps",
+            "description": "Execute mitigation steps to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9cf9e569-bd5f-4a6e-8505-51dd45182b93",
+                "if-condition--9fce3f2e-a239-46c4-81f6-50a406a6197d",
+                "action--ab2de443-4891-4bce-b9aa-df97d756261d"
+            ]
+        },
+        "action--9cf9e569-bd5f-4a6e-8505-51dd45182b93": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block outgoing traffic to known malicious IP to prevent further data loss.",
+            "on_completion": "end--69d3b8c4-b24a-4d00-b5c7-6ef8e2ac76fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--6aca9c6c-078d-4db7-b96b-8a2dafad94e0"
+        },
+        "action--2f9c476e-4615-4fe9-8751-d1fb2bd3e0f4": {
+            "name": "Kill process communicating over HTTP",
+            "description": "Terminate the process that is suspected of exfiltrating data.",
+            "on_completion": "end--69d3b8c4-b24a-4d00-b5c7-6ef8e2ac76fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <process_name>"
+                }
+            ],
+            "agent": "organization--6aca9c6c-078d-4db7-b96b-8a2dafad94e0"
+        },
+        "action--ab2de443-4891-4bce-b9aa-df97d756261d": {
+            "name": "Run full network scan",
+            "description": "Perform a full network scan to identify any other potential threats.",
+            "on_completion": "while-condition--b06a2d6c-0081-4e10-b170-d5a62f2b9537",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--6aca9c6c-078d-4db7-b96b-8a2dafad94e0"
+        },
+        "while-condition--b06a2d6c-0081-4e10-b170-d5a62f2b9537": {
+            "name": "Scan Status Check Loop",
+            "description": "Repeat scanning until the network is identified as clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--ab2de443-4891-4bce-b9aa-df97d756261d"
+        },
+        "end--69d3b8c4-b24a-4d00-b5c7-6ef8e2ac76fd": {
+            "type": "end"
+        },
+        "if-condition--9fce3f2e-a239-46c4-81f6-50a406a6197d": {
+            "name": "Check if process is running",
+            "type": "if-condition",
+            "condition": "process_is_running == true",
+            "on_true": "action--2f9c476e-4615-4fe9-8751-d1fb2bd3e0f4",
+            "on_false": "action--ab2de443-4891-4bce-b9aa-df97d756261d"
+        }
+    },
+    "agent_definitions": {
+        "organization--6aca9c6c-078d-4db7-b96b-8a2dafad94e0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

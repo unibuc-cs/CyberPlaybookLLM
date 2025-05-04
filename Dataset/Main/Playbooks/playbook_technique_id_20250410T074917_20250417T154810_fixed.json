@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6e7814b-6f5d-11ec-90d6-0242ac120003",
+    "name": "Response to Command and Scripting Interpreter Attack",
+    "description": "A playbook to respond to unauthorized script execution using command and scripting interpreters.",
+    "created_by": "identity--3e71e087-a235-4e51-a37d-9b77a165f208",
+    "created": "2025-04-10T07:49:00Z",
+    "modified": "2025-04-10T07:49:00Z",
+    "revoked": false,
+    "workflow_start": "start--399dce99-90e6-4bd9-8472-8fc8f39ebaf8",
+    "workflow": {
+        "action--9efa674b-9f95-4e9b-9183-52c85552b412": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the suspicious script.",
+            "on_completion": "parallel--e3d550c6-abbf-4933-bf43-77601894aba0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "action--e2a9d44a-3a97-4d08-b2eb-2c1f37c60f50": {
+            "name": "Delete all temporary payload files",
+            "description": "Remove any malicious payload files from the temp directory.",
+            "on_completion": "action--16a4cc2f-4fb3-4cb7-bec9-56223ddb0f69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload_*"
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "action--16a4cc2f-4fb3-4cb7-bec9-56223ddb0f69": {
+            "name": "Block IP on firewall",
+            "description": "Block suspicious outbound connections on the firewall.",
+            "on_completion": "action--c544b2cb-9a1e-4d32-9bb7-dfe9eae2521b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.200 -j DROP"
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "action--c544b2cb-9a1e-4d32-9bb7-dfe9eae2521b": {
+            "name": "Review and clean script execution paths",
+            "description": "Audit script execution paths to identify potential issues.",
+            "on_completion": "action--c6aee62d-11e5-4f2a-9741-1744d7f56be8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/local/bin/ -p wa"
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "action--c6aee62d-11e5-4f2a-9741-1744d7f56be8": {
+            "name": "Rollback untrusted script changes",
+            "description": "Rollback any untrusted changes to scripts.",
+            "on_completion": "action--bcd34c1b-21c9-49bb-a6ee-c1c2a5e5b195",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "git checkout ."
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "action--bcd34c1b-21c9-49bb-a6ee-c1c2a5e5b195": {
+            "name": "Perform a full system scan",
+            "description": "Conduct a comprehensive system scan to identify threats.",
+            "on_completion": "end--ee86b029-6483-4d99-a1eb-6c5c8d0e7c64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--871b2200-2699-4d0c-8790-e21c2448998f"
+        },
+        "start--399dce99-90e6-4bd9-8472-8fc8f39ebaf8": {
+            "on_completion": "action--9efa674b-9f95-4e9b-9183-52c85552b412",
+            "type": "start"
+        },
+        "parallel--e3d550c6-abbf-4933-bf43-77601894aba0": {
+            "name": "Execute cleanup actions concurrently",
+            "description": "Run cleanup actions in parallel after killing the malicious process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e2a9d44a-3a97-4d08-b2eb-2c1f37c60f50",
+                "action--c544b2cb-9a1e-4d32-9bb7-dfe9eae2521b"
+            ]
+        },
+        "end--ee86b029-6483-4d99-a1eb-6c5c8d0e7c64": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--871b2200-2699-4d0c-8790-e21c2448998f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

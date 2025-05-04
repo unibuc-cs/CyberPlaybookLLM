@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1c35056-b9e3-41f2-8a26-45cb482b2c49",
+    "name": "Response Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user executed malicious scripts on an internal server, modifying system configurations and establishing connections to malicious addresses.",
+    "created_by": "identity--abc12345-6789-0def-1234-56789abcdef0",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f418d270-e487-41b3-8e89-736aa2702eef",
+    "workflow": {
+        "start--f418d270-e487-41b3-8e89-736aa2702eef": {
+            "on_completion": "action--755cc133-97db-4dc3-a4f1-ba8487d50852",
+            "type": "start"
+        },
+        "action--755cc133-97db-4dc3-a4f1-ba8487d50852": {
+            "name": "Terminate unauthorized script processes",
+            "description": "Terminate any processes that are executing the suspicious PowerShell script.",
+            "on_completion": "action--1d191f09-c5c5-4bf8-a0fb-95e43a3f1435",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1d191f09-c5c5-4bf8-a0fb-95e43a3f1435": {
+            "name": "Check for malicious IP connections",
+            "description": "Determine if outbound connections to a known malicious IP address were established.",
+            "on_completion": "if-condition--234cc44f-6c1a-4dce-a0c1-e8f3f29f593b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -an | grep <malicious_ip>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--234cc44f-6c1a-4dce-a0c1-e8f3f29f593b": {
+            "name": "Check if malicious connection exists",
+            "type": "if-condition",
+            "condition": "grep -q '<malicious_ip>' netstat_output",
+            "on_true": "action--c5012342-b2b0-4c8a-bcd4-6ae1d080f1dc",
+            "on_false": "action--bd5c1a89-9929-4671-a767-913432507f7d"
+        },
+        "action--c5012342-b2b0-4c8a-bcd4-6ae1d080f1dc": {
+            "name": "Block outbound IP connections to malicious addresses",
+            "description": "Block any established outbound connections to the malicious IP address.",
+            "on_completion": "action--d23e8ab6-4c18-469c-b772-032fbbbadde5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bd5c1a89-9929-4671-a767-913432507f7d": {
+            "name": "Proceed to Malware Scan",
+            "description": "No malicious connection detected. Proceed to malware scan.",
+            "on_completion": "action--d23e8ab6-4c18-469c-b772-032fbbbadde5",
+            "type": "action",
+            "commands": [],
+            "agent": "organization--xyz"
+        },
+        "action--d23e8ab6-4c18-469c-b772-032fbbbadde5": {
+            "name": "Scan the system for malware",
+            "description": "Perform a complete scan of the system to identify any malware.",
+            "on_completion": "loop--f698086c-5238-4e9e-a8c8-04550ee15b1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--f698086c-5238-4e9e-a8c8-04550ee15b1c": {
+            "name": "Check scan results",
+            "description": "Repeat the scan until a clean status is achieved.",
+            "on_completion": "end--d62d9f01-a169-43a5-b3d8-d450152ae5dd",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d23e8ab6-4c18-469c-b772-032fbbbadde5"
+        },
+        "end--d62d9f01-a169-43a5-b3d8-d450152ae5dd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3e30e7b2-3bc9-4a07-b5b3-400c97b83986",
+    "name": "Playbook for PowerShell Malicious Command Incident",
+    "description": "This playbook addresses an incident involving a compromised workstation where an attacker executed malicious PowerShell commands and attempted data exfiltration.",
+    "created_by": "identity--f0e42829-b108-4793-bcad-9bb459c5ee4e",
+    "created": "2023-10-14T12:00:00Z",
+    "modified": "2023-10-14T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d4084bc2-4610-49bb-bb8b-f410ccd254b9",
+    "workflow": {
+        "start--d4084bc2-4610-49bb-bb8b-f410ccd254b9": {
+            "on_completion": "action--b03f49c2-2470-487b-a8a7-4c9b631ec292",
+            "type": "start"
+        },
+        "action--b03f49c2-2470-487b-a8a7-4c9b631ec292": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active malicious PowerShell processes to stop ongoing attacks.",
+            "on_completion": "action--114bc139-bca9-4e00-a0d6-6ed949579144",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--c22722a8-b0e3-4886-aba9-f5aadf7e4204"
+        },
+        "action--114bc139-bca9-4e00-a0d6-6ed949579144": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Block all outgoing traffic to the known malicious IP to prevent data exfiltration.",
+            "on_completion": "while-condition--4081ff43-7b4e-4904-b551-e06b36491638",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--c22722a8-b0e3-4886-aba9-f5aadf7e4204"
+        },
+        "while-condition--4081ff43-7b4e-4904-b551-e06b36491638": {
+            "name": "Scan system for remnants of the attack",
+            "description": "Continuously scan the system for remnants of the attack until the system is clean.",
+            "on_completion": "action--4081ff43-7b4e-4904-b551-e06b36491638",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--4081ff43-7b4e-4904-b551-e06b36491638",
+            "on_false": "end--e5ed4bc3-6d42-4b0f-bf6d-52d3b26e2c16"
+        },
+        "action--4081ff43-7b4e-4904-b551-e06b36491638": {
+            "name": "Run system scan",
+            "description": "Perform a thorough scan of the system to detect any remaining malware.",
+            "on_completion": "while-condition--4081ff43-7b4e-4904-b551-e06b36491638",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan()"
+                }
+            ],
+            "agent": "organization--c22722a8-b0e3-4886-aba9-f5aadf7e4204",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the scan; change it accordingly based on the scan results.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e5ed4bc3-6d42-4b0f-bf6d-52d3b26e2c16": {
+            "name": "End of playbook",
+            "description": "Playbook execution is complete.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c22722a8-b0e3-4886-aba9-f5aadf7e4204": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

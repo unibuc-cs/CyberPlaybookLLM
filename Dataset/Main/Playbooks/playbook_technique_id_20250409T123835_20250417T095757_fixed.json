@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bc79e85a-21bb-4669-bb5a-1d08870ea5eb",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Usage",
+    "description": "This playbook addresses an incident where an attacker executed commands via the command shell, leading to persistence and data exfiltration attempts through unusual script executions.",
+    "created_by": "identity--3af8568b-1524-4958-9053-02b16b3b4080",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e4f00189-b9e4-4f45-903e-05e0b59c9e1e",
+    "workflow": {
+        "start--e4f00189-b9e4-4f45-903e-05e0b59c9e1e": {
+            "on_completion": "action--a29fadfb-7f61-469a-82df-49cabc64649c",
+            "type": "start"
+        },
+        "action--a29fadfb-7f61-469a-82df-49cabc64649c": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that may be harmful.",
+            "on_completion": "if-condition--2a2fc3e4-eb0e-4e2b-bf5b-1ed34dc5f888",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "killall -9 suspicious_process"
+                }
+            ],
+            "agent": "organization--2cc06653-2a79-4edf-aa9d-65f85a35f037"
+        },
+        "if-condition--2a2fc3e4-eb0e-4e2b-bf5b-1ed34dc5f888": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_process)",
+            "on_true": "action--00f03edb-4ed7-41ef-9f3f-47cde7395e91",
+            "on_false": "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb"
+        },
+        "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb": {
+            "name": "Search for unauthorized scripts",
+            "description": "Find and remove any unauthorized script files that could be used for malicious purposes.",
+            "on_completion": "while-condition--cfe7a9ea-c5c5-4b77-97ba-45dcb34018c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' | grep -v '/home/user/' | xargs rm -f"
+                }
+            ],
+            "agent": "organization--2cc06653-2a79-4edf-aa9d-65f85a35f037"
+        },
+        "while-condition--cfe7a9ea-c5c5-4b77-97ba-45dcb34018c0": {
+            "name": "Loop until unauthorized scripts removed",
+            "description": "Repeat the search for unauthorized scripts until none are found.",
+            "on_completion": "action--edba4d51-8cdb-4db2-a3bb-5545b4eb1163",
+            "type": "while-condition",
+            "condition": "unauthorized_scripts_found",
+            "on_true": "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb"
+        },
+        "action--edba4d51-8cdb-4db2-a3bb-5545b4eb1163": {
+            "name": "Monitor outbound connections",
+            "description": "Monitor outbound traffic for potential data exfiltration to known malicious IPs.",
+            "on_completion": "end--d7974844-bc1b-4a9b-851b-a5cf77f3f0a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host known_malicious_ip"
+                }
+            ],
+            "agent": "organization--2cc06653-2a79-4edf-aa9d-65f85a35f037",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "description": "Known malicious IP address for monitoring",
+                    "value": "known_malicious_ip"
+                }
+            }
+        },
+        "end--d7974844-bc1b-4a9b-851b-a5cf77f3f0a2": {
+            "type": "end"
+        },
+        "action--00f03edb-4ed7-41ef-9f3f-47cde7395e91": {
+            "name": "Isolate affected host",
+            "description": "Prevent further malicious actions by isolating the affected host.",
+            "on_completion": "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--2cc06653-2a79-4edf-aa9d-65f85a35f037"
+        }
+    },
+    "agent_definitions": {
+        "organization--2cc06653-2a79-4edf-aa9d-65f85a35f037": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

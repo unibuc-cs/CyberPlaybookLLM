@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8923b4e-d6b3-4999-97c7-4c231376a7f2",
+    "name": "Response Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the internal network and executed malicious PowerShell scripts, resulting in data exfiltration.",
+    "created_by": "identity--9f3f1b29-3125-4d86-90b5-c4974e3fee51",
+    "created": "2025-10-09T08:55:35.498Z",
+    "modified": "2025-10-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e6e69b33-adf8-4849-bb49-2c73fbdb5e50",
+    "workflow": {
+        "start--e6e69b33-adf8-4849-bb49-2c73fbdb5e50": {
+            "on_completion": "action--4b75e104-da1d-4778-8516-71964f222874",
+            "type": "start"
+        },
+        "action--4b75e104-da1d-4778-8516-71964f222874": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes running on the infected host.",
+            "on_completion": "action--b9af5eb1-5d25-4a35-bc80-70dc0bf70723",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--5e7287f3-4586-4756-b923-3be519a2bdf3"
+        },
+        "action--b9af5eb1-5d25-4a35-bc80-70dc0bf70723": {
+            "name": "Isolate infected host from the network",
+            "description": "Block network access for the infected host to prevent further data exfiltration.",
+            "on_completion": "while-condition--edb3d729-40f1-47c3-9e9b-10e5db90dd80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <infected-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--5e7287f3-4586-4756-b923-3be519a2bdf3"
+        },
+        "while-condition--edb3d729-40f1-47c3-9e9b-10e5db90dd80": {
+            "name": "Perform full system scan",
+            "description": "Initiate a full system scan and repeat until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--a998b200-21cc-4d7d-98d8-2bdbb4b1644c",
+            "on_false": "end--c77f86a0-3e8b-40bd-97b8-5d63e12f73c3"
+        },
+        "action--a998b200-21cc-4d7d-98d8-2bdbb4b1644c": {
+            "name": "Run system scan",
+            "description": "Conduct a full scan of the system to find and eliminate threats.",
+            "on_completion": "set-scan-status--ff5276cf-d619-4e77-8ee4-671840f47445",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--5e7287f3-4586-4756-b923-3be519a2bdf3"
+        },
+        "end--c77f86a0-3e8b-40bd-97b8-5d63e12f73c3": {
+            "type": "end"
+        },
+        "set-scan-status--ff5276cf-d619-4e77-8ee4-671840f47445": {
+            "name": "Update scan status",
+            "type": "action",
+            "on_completion": "while-condition--edb3d729-40f1-47c3-9e9b-10e5db90dd80",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the last scan, if 'clean', the scan process will stop.",
+                    "value": "clamscan_result_value",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Update scan status:  "
+                }
+            ],
+            "agent": "organization--5e7287f3-4586-4756-b923-3be519a2bdf3"
+        }
+    },
+    "agent_definitions": {
+        "organization--5e7287f3-4586-4756-b923-3be519a2bdf3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

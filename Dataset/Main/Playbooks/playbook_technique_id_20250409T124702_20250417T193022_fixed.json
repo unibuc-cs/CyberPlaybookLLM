@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fe39eaf9-1f29-4e96-9615-f6473b203a1e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a script to exfiltrate sensitive data.",
+    "created_by": "identity--e0302ae2-5d2e-4232-b210-c2c9b25e19be",
+    "created": "2025-04-09T12:47:00.000Z",
+    "modified": "2025-04-09T12:57:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--378c3e70-1a99-4d4b-835e-71734f6890d7",
+    "workflow": {
+        "start--378c3e70-1a99-4d4b-835e-71734f6890d7": {
+            "on_completion": "action--a3eeb97b-50f9-4a40-9792-ae6b5c04c837",
+            "type": "start"
+        },
+        "action--a3eeb97b-50f9-4a40-9792-ae6b5c04c837": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script that is executing.",
+            "on_completion": "action--56b7eeb6-3fcf-4b8b-9d74-ab0bbd573b1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--b1a5bdf5-4a17-4626-87b4-f559aa943bb7"
+        },
+        "action--56b7eeb6-3fcf-4b8b-9d74-ab0bbd573b1b": {
+            "name": "Isolate affected host from network",
+            "description": "Block the malicious IP from the affected host's network.",
+            "on_completion": "loop--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s [malicious_ip] -j DROP"
+                }
+            ],
+            "agent": "organization--b1a5bdf5-4a17-4626-87b4-f559aa943bb7"
+        },
+        "loop--f7289c86-353b-4cba-88fe-3d2f63ff56e6": {
+            "name": "Scan for persistence methods",
+            "description": "Perform a persistence scan and repeat until it is clean.",
+            "on_true": "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+            "on_false": "end--cb9b76cc-98c7-4a5f-b26e-fd84551f702e",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan for persistence methods is clean.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "next_steps": [
+                "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+                "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6"
+            ]
+        },
+        "action--f7289c86-353b-4cba-88fe-3d2f63ff56e6": {
+            "name": "Run persistence scan",
+            "description": "Execute the scan for persistence methods.",
+            "on_completion": "loop--f7289c86-353b-4cba-88fe-3d2f63ff56e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_persistence_scan.sh"
+                }
+            ],
+            "agent": "organization--b1a5bdf5-4a17-4626-87b4-f559aa943bb7"
+        },
+        "end--cb9b76cc-98c7-4a5f-b26e-fd84551f702e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b1a5bdf5-4a17-4626-87b4-f559aa943bb7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f165b53b-6fc1-4f82-a78b-b5b8f7c94b08",
+    "name": "Mitigation Playbook for LSASS Memory Credential Dumping",
+    "description": "This playbook addresses incidents where an attacker has dumped credentials from LSASS memory to escalate privileges.",
+    "created_by": "identity--37eb8f05-5334-4649-9d86-20c214b6a7bc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b0dd6705-f4ed-4e4d-b2a7-6d73e5fb75fc",
+            "type": "start"
+        },
+        "action--b0dd6705-f4ed-4e4d-b2a7-6d73e5fb75fc": {
+            "name": "Kill malicious process",
+            "description": "Terminate the LSASS process accessed by the attacker.",
+            "on_completion": "if-condition--afde3b67-44c2-4d72-b6fa-c35eb2ae9db2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'lsass.exe'"
+                }
+            ],
+            "agent": "organization--c7b341da-2c1a-4748-afa8-f3aaefeb4153"
+        },
+        "if-condition--afde3b67-44c2-4d72-b6fa-c35eb2ae9db2": {
+            "name": "Check if network connection is flagged",
+            "type": "if-condition",
+            "condition": "network_flagged == true",
+            "on_true": "action--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb",
+            "on_false": "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e"
+        },
+        "action--c5e3cc8e-efb7-48aa-bbe2-408711e04bfb": {
+            "name": "Scan for rootkits and credential dumping tools",
+            "description": "Run a scan to detect any rootkits or credential dumping tools.",
+            "on_completion": "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "runav -scan --rootkit --detection"
+                }
+            ],
+            "agent": "organization--c7b341da-2c1a-4748-afa8-f3aaefeb4153"
+        },
+        "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e": {
+            "name": "Monitor for suspicious processes",
+            "description": "Continuously check for any suspicious processes every 10 seconds.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while :; do check_processes; sleep 10; done"
+                }
+            ],
+            "agent": "organization--c7b341da-2c1a-4748-afa8-f3aaefeb4153",
+            "on_completion": "while-condition--c4b24441-e5b3-4c98-b63c-1e91de060da7"
+        },
+        "while-condition--c4b24441-e5b3-4c98-b63c-1e91de060da7": {
+            "name": "Check for attack signature clearance",
+            "type": "while-condition",
+            "condition": "attack_signature_clear == false",
+            "on_true": "action--bf75f2b5-3925-4aa3-bf95-3833ba55bc7e",
+            "on_false": "end--e24cfd1a-e333-45ec-bdac-e04c918b3f67"
+        },
+        "end--e24cfd1a-e333-45ec-bdac-e04c918b3f67": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c7b341da-2c1a-4748-afa8-f3aaefeb4153": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

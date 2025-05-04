@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4f9f569-68a9-45c7-bccc-59130e798f76",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook mitigates risks associated with an attacker exploiting vulnerabilities in a web application to execute arbitrary commands and exfiltrate data.",
+    "created_by": "identity--d40ce815-bd62-43e8-907c-63f6303b48a9",
+    "created": "2023-10-14T15:00:00Z",
+    "modified": "2023-10-14T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1bdfa0d9-daf3-4fdd-823b-d4954d0648cb",
+    "workflow": {
+        "parallel--abcd1234-abcd-1234-abcd-12345678abcd": {
+            "name": "Execute Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b7cc16f5-6e49-4b27-92c2-7cae14f1d21b",
+                "action--5c8c7b92-f60e-4ebc-a4c2-e2b900b52347"
+            ]
+        },
+        "action--b7cc16f5-6e49-4b27-92c2-7cae14f1d21b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing malicious commands.",
+            "on_completion": "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep malicious_process)"
+                }
+            ],
+            "agent": "organization--e5ca1aa2-9c65-4c8a-a88b-5851700709aa"
+        },
+        "action--5c8c7b92-f60e-4ebc-a4c2-e2b900b52347": {
+            "name": "Isolate compromised host",
+            "description": "Block all incoming traffic from the compromised host.",
+            "on_completion": "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-33 -j DROP"
+                }
+            ],
+            "agent": "organization--e5ca1aa2-9c65-4c8a-a88b-5851700709aa"
+        },
+        "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994": {
+            "name": "Perform forensic analysis",
+            "description": "Conduct a forensic scan to identify any remaining issues.",
+            "on_completion": "if-condition--1ca69639-b1f8-420c-9c1c-9264251e59e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forensic_tool --scan /var/log --output results.log"
+                }
+            ],
+            "agent": "organization--e5ca1aa2-9c65-4c8a-a88b-5851700709aa",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The log file to check for suspicious activity.",
+                    "value": "results.log",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--12345678-8765-4321-8765-123456789012": {
+            "type": "end"
+        },
+        "start--1bdfa0d9-daf3-4fdd-823b-d4954d0648cb": {
+            "on_completion": "parallel--abcd1234-abcd-1234-abcd-12345678abcd",
+            "type": "start"
+        },
+        "if-condition--1ca69639-b1f8-420c-9c1c-9264251e59e8": {
+            "name": "Check for suspicious activity logs",
+            "type": "if-condition",
+            "condition": "grep -q 'suspicious' ${log_file}",
+            "on_true": "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "on_false": "end--12345678-8765-4321-8765-123456789012"
+        }
+    },
+    "agent_definitions": {
+        "organization--e5ca1aa2-9c65-4c8a-a88b-5851700709aa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

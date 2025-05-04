@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b24042-8a75-455e-8c77-a0a1f123f0f6",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a web server to exfiltrate sensitive data.",
+    "created_by": "identity--c2d3ae02-fe54-4d9b-b9b8-986267ada71f",
+    "created": "2023-10-07T12:00:00Z",
+    "modified": "2023-10-07T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "type": "start",
+            "on_completion": "decision--d5271c32-5eb2-4c4f-a1e0-5d8113cf49a7"
+        },
+        "decision--d5271c32-5eb2-4c4f-a1e0-5d8113cf49a7": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_script_name')",
+            "on_true": "action--b2f4965c-76a7-4f5e-9f1c-b9650304d20d",
+            "on_false": "loop--cdf1d760-adcf-4e33-8350-8763aa0b897e"
+        },
+        "action--b2f4965c-76a7-4f5e-9f1c-b9650304d20d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell scripts that are executing.",
+            "type": "action",
+            "agent": "organization--807cd05e-d796-43c1-9e02-a2451a980610",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "on_completion": "loop--cdf1d760-adcf-4e33-8350-8763aa0b897e"
+        },
+        "loop--cdf1d760-adcf-4e33-8350-8763aa0b897e": {
+            "name": "Scan for malware",
+            "description": "Repeat malware scanning until no threats are found.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--cdf1d760-adcf-4e33-8350-8763aa0b897e",
+            "next_steps": [
+                "action--df52713c-5eb2-4c4f-a1e0-5d8113cf49a7"
+            ]
+        },
+        "action--cdf1d760-adcf-4e33-8350-8763aa0b897e": {
+            "name": "Scan system for malware",
+            "description": "Perform a scan of the entire system for malware.",
+            "type": "action",
+            "agent": "organization--807cd05e-d796-43c1-9e02-a2451a980610",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "on_completion": "set_variable--e8ba06c4-18cb-4f11-960e-f8eece501df5"
+        },
+        "action--df52713c-5eb2-4c4f-a1e0-5d8113cf49a7": {
+            "name": "Review web application logs",
+            "description": "Retrieve the last 100 entries from the web application logs.",
+            "type": "action",
+            "agent": "organization--807cd05e-d796-43c1-9e02-a2451a980610",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/webapp.log"
+                }
+            ],
+            "on_completion": "end--f1a23a51-c12e-4a7f-aba0-dcc18ae12345"
+        },
+        "end--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "type": "end"
+        },
+        "set_variable--e8ba06c4-18cb-4f11-960e-f8eece501df5": {
+            "name": "Update threat status",
+            "type": "action",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Indicator if threats were found during the scan",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "loop--cdf1d760-adcf-4e33-8350-8763aa0b897e",
+            "agent": "organization--807cd05e-d796-43c1-9e02-a2451a980610",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Update threat status:  "
+                }
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--807cd05e-d796-43c1-9e02-a2451a980610": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

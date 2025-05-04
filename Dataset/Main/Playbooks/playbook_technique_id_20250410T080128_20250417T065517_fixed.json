@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1f5b6c4-e278-4c8f-9c18-381909d8c7a1",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook outlines the response steps for a phishing attack that exploited PowerShell for data exfiltration.",
+    "created_by": "identity--274cbb4c-9bf8-4d8d-9a37-0d9e649e3809",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1d2d2f5-e4a3-4b2e-9a3f-36fe832d9c01",
+    "workflow": {
+        "start--f1d2d2f5-e4a3-4b2e-9a3f-36fe832d9c01": {
+            "on_completion": "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321",
+            "type": "start"
+        },
+        "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that were executing malicious scripts.",
+            "on_completion": "if-condition--75853f1d-9016-4546-96c1-f24eb645e665",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--40e8e919-c588-4b40-ba07-1d045cf749b3"
+        },
+        "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2": {
+            "name": "Block IP address used for command and control",
+            "description": "Block the malicious IP to prevent further unauthorized access.",
+            "on_completion": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-IP> -j DROP"
+                }
+            ],
+            "agent": "organization--40e8e919-c588-4b40-ba07-1d045cf749b3"
+        },
+        "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc": {
+            "name": "Scan and quarantine all compromised files",
+            "description": "Iterate through the log directory to scan for threats and move them to a quarantine directory.",
+            "on_completion": "while-condition--e44823c8-cd5d-4949-9091-7fc6cecbcc77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r ${scan_path} --move=${quarantine_path}"
+                }
+            ],
+            "agent": "organization--40e8e919-c588-4b40-ba07-1d045cf749b3",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "value": "/var/log/"
+                },
+                "quarantine_path": {
+                    "type": "string",
+                    "value": "/quarantine"
+                }
+            }
+        },
+        "action--e4d1f3b9-819a-45f5-8d3e-2b361a8e4950": {
+            "name": "Reset credentials for affected users",
+            "description": "Reset passwords for all users affected by the data exfiltration.",
+            "on_completion": "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${username}"
+                }
+            ],
+            "agent": "organization--40e8e919-c588-4b40-ba07-1d045cf749b3",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "value": "affected_users"
+                }
+            }
+        },
+        "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4": {
+            "name": "Conduct full network audit",
+            "description": "Perform a network audit to identify further vulnerabilities.",
+            "on_completion": "end--9c661879-b926-41e9-a400-f42a79dd413f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -A -T4 -p 1-65535 <network-range>"
+                }
+            ],
+            "agent": "organization--40e8e919-c588-4b40-ba07-1d045cf749b3"
+        },
+        "if-condition--75853f1d-9016-4546-96c1-f24eb645e665": {
+            "name": "Check if PowerShell Process is Running",
+            "type": "if-condition",
+            "condition": "process_running('powershell.exe')",
+            "on_true": "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2",
+            "on_false": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc"
+        },
+        "while-condition--e44823c8-cd5d-4949-9091-7fc6cecbcc77": {
+            "name": "Repeat scanning until no threats detected",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc",
+            "on_false": "action--e4d1f3b9-819a-45f5-8d3e-2b361a8e4950"
+        },
+        "end--9c661879-b926-41e9-a400-f42a79dd413f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--40e8e919-c588-4b40-ba07-1d045cf749b3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,141 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9abc5f47-1234-4567-abcd-12345678defg",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates a PowerShell script execution incident that bypassed user account controls, leading to a reverse shell connection.",
+    "created_by": "identity--abc12345-6789-0abc-def1-23456789efgh",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bd730c3d-3131-47f4-a24b-2a54e39b7241",
+    "workflow": {
+        "start--bd730c3d-3131-47f4-a24b-2a54e39b7241": {
+            "on_completion": "parallel--f3c198e0-f2d9-4f40-bb7c-123456789abc",
+            "type": "start"
+        },
+        "parallel--f3c198e0-f2d9-4f40-bb7c-123456789abc": {
+            "name": "Initial Mitigations",
+            "description": "Execute initial mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--afd3f159-acef-5f56-a3de-afe234567890",
+                "if-condition--71de5947-5f1f-4d95-92f9-23456789abc1"
+            ]
+        },
+        "action--afd3f159-acef-5f56-a3de-afe234567890": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process running on the system.",
+            "on_completion": "action--caa27cba-7ec1-429e-bc8f-113456789def",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM malicious.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--71de5947-5f1f-4d95-92f9-23456789abc1": {
+            "name": "Check PowerShell remoting status",
+            "description": "Check if PowerShell remoting is already disabled.",
+            "type": "if-condition",
+            "condition": "PowerShellRemotingDisabled == false",
+            "on_true": "action--bde54ef6-8aa9-443b-9da4-567812348abc",
+            "on_false": "action--caa27cba-7ec1-429e-bc8f-113456789def"
+        },
+        "action--bde54ef6-8aa9-443b-9da4-567812348abc": {
+            "name": "Disable PowerShell remoting",
+            "description": "Disable PowerShell remoting to prevent further remote executions.",
+            "on_completion": "action--caa27cba-7ec1-429e-bc8f-113456789def",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Disable-PSRemoting -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--caa27cba-7ec1-429e-bc8f-113456789def": {
+            "name": "Remove downloaded executables",
+            "description": "Remove any executables downloaded by the attacker.",
+            "on_completion": "while-condition--thee6205-4f3e-4abc-93d6-456789abd789",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Remove-Item C:\\DownloadedMalware\\*.exe -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--thee6205-4f3e-4abc-93d6-456789abd789": {
+            "name": "System scan for additional threats",
+            "description": "Scan the system until no threats are detected.",
+            "type": "while-condition",
+            "condition": "ThreatsDetected == true",
+            "on_true": "action--def39c47-7a61-491f-9ea7-ab344567812c",
+            "on_completion": "if-condition--5d3b0f3d-2095-4322-a6f5-23456789efg3"
+        },
+        "action--def39c47-7a61-491f-9ea7-ab344567812c": {
+            "name": "Scan system for threats",
+            "description": "Conduct a full system scan using Windows Defender.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--5d3b0f3d-2095-4322-a6f5-23456789efg3": {
+            "name": "Check if all threats are removed",
+            "description": "Proceed to restore security settings if all threats are removed.",
+            "type": "if-condition",
+            "condition": "AllThreatsRemoved == true",
+            "on_true": "action--cdf4ffc7-7aa1-450b-8a3c-b13456789def",
+            "on_false": "end--8b95f8a6-1f33-4d12-a809-56789abcdef0"
+        },
+        "action--cdf4ffc7-7aa1-450b-8a3c-b13456789def": {
+            "name": "Restore security settings",
+            "description": "Restore Windows Defender real-time monitoring to prevent further malicious activities.",
+            "on_completion": "end--8b95f8a6-1f33-4d12-a809-56789abcdef0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command 'Set-MpPreference -DisableRealtimeMonitoring $false'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--8b95f8a6-1f33-4d12-a809-56789abcdef0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IT_Security_Team"
+        }
+    },
+    "variable_definitions": {
+        "PowerShellRemotingDisabled": {
+            "type": "boolean",
+            "description": "Indicates if PowerShell remoting is disabled",
+            "value": false
+        },
+        "ThreatsDetected": {
+            "type": "boolean",
+            "description": "Whether threats are currently detected on the system",
+            "value": true
+        },
+        "AllThreatsRemoved": {
+            "type": "boolean",
+            "description": "Confirms if all threats have been removed from the system",
+            "value": false
+        }
+    }
+}

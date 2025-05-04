@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5dfd8e1-2b8b-4a91-8b31-6e58a317fd46",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook mitigates an incident involving the unauthorized execution of a script leading to data exfiltration.",
+    "created_by": "identity--a0cc8b7d-1e03-4b5e-83fb-cd34d5fe0b32",
+    "created": "2025-04-10T07:44:29.000Z",
+    "modified": "2025-04-10T07:45:29.000Z",
+    "revoked": false,
+    "workflow_start": "start--71b528b4-1d2a-4edc-9d2e-bc93338f0088",
+    "workflow": {
+        "start--71b528b4-1d2a-4edc-9d2e-bc93338f0088": {
+            "on_completion": "action--e7351a7e-bd4f-4909-9f36-b5c312b37412",
+            "type": "start"
+        },
+        "action--e7351a7e-bd4f-4909-9f36-b5c312b37412": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes associated with the unauthorized script.",
+            "on_completion": "if-condition--d034ba8e-bc76-494e-a5e5-af2bf3fb687c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(ps aux | grep '[s]uspicious_script.sh' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--aa3fa5e5-d4cc-49d8-8fa0-5561bdbd2090"
+        },
+        "if-condition--d034ba8e-bc76-494e-a5e5-af2bf3fb687c": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists",
+            "on_true": "parallel--efecb66c-ae90-4a8c-987b-c56325e2496d",
+            "on_false": "action--c3a4d8de-dbdc-42a8-9015-c8ee34efce72"
+        },
+        "parallel--efecb66c-ae90-4a8c-987b-c56325e2496d": {
+            "name": "Handle Unauthorized Accounts and Block External IPs",
+            "description": "Simultaneously delete unauthorized accounts and block specified external IPs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94",
+                "action--c3a4d8de-dbdc-42a8-9015-c8ee34efce72"
+            ]
+        },
+        "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94": {
+            "name": "Delete new unauthorized accounts",
+            "description": "Remove all unauthorized accounts detected.",
+            "on_completion": "action--5deb7ee1-830e-4f27-9cde-51498c7ac58d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(get_unauthorized_accounts); do userdel $user; done"
+                }
+            ],
+            "agent": "organization--aa3fa5e5-d4cc-49d8-8fa0-5561bdbd2090"
+        },
+        "action--c3a4d8de-dbdc-42a8-9015-c8ee34efce72": {
+            "name": "Block external IPs",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "action--5deb7ee1-830e-4f27-9cde-51498c7ac58d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.42 -j DROP"
+                }
+            ],
+            "agent": "organization--96e5a53e-43c1-4069-a61d-b1caf2299663"
+        },
+        "action--5deb7ee1-830e-4f27-9cde-51498c7ac58d": {
+            "name": "Scan for residual scripts",
+            "description": "Perform a search for any remaining scripts from the attacker.",
+            "on_completion": "end--8a6d9e3a-7a9e-4cc9-a390-b4b15ef3ef7f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'suspicious_script.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--96e5a53e-43c1-4069-a61d-b1caf2299663",
+            "loop": "until clean_scan"
+        },
+        "end--8a6d9e3a-7a9e-4cc9-a390-b4b15ef3ef7f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--aa3fa5e5-d4cc-49d8-8fa0-5561bdbd2090": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        },
+        "organization--96e5a53e-43c1-4069-a61d-b1caf2299663": {
+            "type": "organization",
+            "name": "ClientOrganizationABC"
+        }
+    }
+}

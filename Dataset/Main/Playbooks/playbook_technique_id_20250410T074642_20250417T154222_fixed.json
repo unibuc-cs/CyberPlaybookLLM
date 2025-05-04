@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e52c108f-81d8-49d8-ae56-85b7582b00aa",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution on host-22 which potentially compromised system processes and attempted lateral movement within the network.",
+    "created_by": "identity--f0a45f7e-2d6a-4130-a480-7d9c4206b9c6",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--add53c68-215c-45c8-ac25-7384e78d4443",
+    "workflow": {
+        "start--add53c68-215c-45c8-ac25-7384e78d4443": {
+            "on_completion": "action--e6b8f7b1-f2ba-4bae-bf85-05fb813c1a5a",
+            "type": "start"
+        },
+        "action--e6b8f7b1-f2ba-4bae-bf85-05fb813c1a5a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing suspicious commands.",
+            "on_completion": "action--0f87f210-a045-4ab1-880b-a9b0aadae1ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_command'"
+                }
+            ],
+            "agent": "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3"
+        },
+        "action--0f87f210-a045-4ab1-880b-a9b0aadae1ac": {
+            "name": "Remove unauthorized script files",
+            "description": "Delete all unauthorized PowerShell script files.",
+            "on_completion": "if-condition--4a440506-64d5-4ac2-8b93-b32c37e30391",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3",
+            "loop": {
+                "condition": "unauthorized_scripts_exist",
+                "on_true": "action--0f87f210-a045-4ab1-880b-a9b0aadae1ac"
+            }
+        },
+        "if-condition--4a440506-64d5-4ac2-8b93-b32c37e30391": {
+            "name": "Check if containment is needed",
+            "type": "if-condition",
+            "condition": "containment_needed",
+            "on_true": "action--5332bae7-23bf-4f89-b77e-28dc0fadef52",
+            "on_false": "action--bbdc3f66-29bd-4f42-bd4f-411d8d191f5e"
+        },
+        "action--5332bae7-23bf-4f89-b77e-28dc0fadef52": {
+            "name": "Isolate affected host-22 from the network",
+            "description": "Disconnect host-22 from the network to prevent further lateral movement.",
+            "on_completion": "action--bbdc3f66-29bd-4f42-bd4f-411d8d191f5e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev disconnect iface eth0"
+                }
+            ],
+            "agent": "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3"
+        },
+        "action--bbdc3f66-29bd-4f42-bd4f-411d8d191f5e": {
+            "name": "Monitor network traffic for suspicious activity",
+            "description": "Watch network traffic for any further suspicious connections.",
+            "on_completion": "while-condition--c82c619e-d3a5-4337-8f54-d4e1c84b056f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tshark -i eth0 -Y 'tcp.port == 4455'"
+                }
+            ],
+            "agent": "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3"
+        },
+        "while-condition--c82c619e-d3a5-4337-8f54-d4e1c84b056f": {
+            "name": "Run system integrity check until clean",
+            "description": "Perform a system integrity check and repeat until the scan returns clean.",
+            "on_completion": "ending--d6de1384-ef86-42eb-823c-128114d976a9",
+            "condition": "scan_not_clean",
+            "on_true": "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5",
+            "on_false": "ending--d6de1384-ef86-42eb-823c-128114d976a9",
+            "type": "if-condition"
+        },
+        "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5": {
+            "name": "Run system integrity check",
+            "description": "Check the system for rootkits or other anomalies.",
+            "on_completion": "while-condition--c82c619e-d3a5-4337-8f54-d4e1c84b056f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "agent": "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3"
+        },
+        "ending--d6de1384-ef86-42eb-823c-128114d976a9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--29bc0c78-3835-40f4-9a96-7faa75914ba3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

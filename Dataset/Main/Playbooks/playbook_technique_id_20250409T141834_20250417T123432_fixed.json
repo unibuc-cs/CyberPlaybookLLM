@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b68cf184-e221-4641-90cd-841b5c991c44",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, allowing them to run arbitrary commands and create persistent access backdoors.",
+    "created_by": "identity--d462c883-1e92-4f35-a22f-6a8b1cd9f800",
+    "created": "2023-10-10T14:40:00Z",
+    "modified": "2023-10-10T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--44c6da71-b7f8-4e0d-a929-ccbe2d7cad95",
+    "workflow": {
+        "start--44c6da71-b7f8-4e0d-a929-ccbe2d7cad95": {
+            "on_completion": "action--c7e4daa8-4623-4e08-a641-3c08e4f64143",
+            "type": "start"
+        },
+        "action--c7e4daa8-4623-4e08-a641-3c08e4f64143": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that is running on the server.",
+            "on_completion": "if-condition--efcab053-2fa3-417c-81de-a19c885d08f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--25779f81-4e5e-4e9b-ba6b-9b91ffc98365"
+        },
+        "if-condition--efcab053-2fa3-417c-81de-a19c885d08f7": {
+            "name": "Check if suspicious script exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/suspicious_script.sh ]",
+            "on_true": "action--efcab053-2fa3-417c-81de-a19c885d08f7",
+            "on_false": "action--b96ca2d4-a17c-4451-b15e-27c2d8cfbc9f"
+        },
+        "action--efcab053-2fa3-417c-81de-a19c885d08f7": {
+            "name": "Remove created files",
+            "description": "Delete the suspicious script from the /tmp directory.",
+            "on_completion": "action--b96ca2d4-a17c-4451-b15e-27c2d8cfbc9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--25779f81-4e5e-4e9b-ba6b-9b91ffc98365"
+        },
+        "action--b96ca2d4-a17c-4451-b15e-27c2d8cfbc9f": {
+            "name": "Isolate affected host",
+            "description": "Block all inbound and outbound traffic to and from the compromised host.",
+            "on_completion": "while-condition--224a49db-919d-4ed7-a0f6-6f79d2959f45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP; iptables -A OUTPUT -d host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--25779f81-4e5e-4e9b-ba6b-9b91ffc98365"
+        },
+        "end--9a123e02-3c79-4a8b-8129-5eb0569dc9ab": {
+            "type": "end"
+        },
+        "while-condition--224a49db-919d-4ed7-a0f6-6f79d2959f45": {
+            "name": "Check isolation status",
+            "description": "Repeat isolation actions until confirmed.",
+            "type": "while-condition",
+            "condition": "isolation_confirmed == false",
+            "on_true": "action--b96ca2d4-a17c-4451-b15e-27c2d8cfbc9f"
+        }
+    },
+    "agent_definitions": {
+        "organization--25779f81-4e5e-4e9b-ba6b-9b91ffc98365": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "isolation_confirmed": {
+            "type": "boolean",
+            "description": "Status of isolation confirmation.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

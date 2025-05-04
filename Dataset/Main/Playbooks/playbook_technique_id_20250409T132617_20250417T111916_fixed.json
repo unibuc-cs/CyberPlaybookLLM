@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5eb26a11-f46e-4cd3-a9b0-7fa11b7dca21",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through a scripting interpreter on the host machine.",
+    "created_by": "identity--7e4f99cc-fec6-4e6f-89ef-6aa77fc80345",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1fd1c8d6-edb4-4cd7-bd00-73abef08678e",
+    "workflow": {
+        "start--1fd1c8d6-edb4-4cd7-bd00-73abef08678e": {
+            "on_completion": "if-condition--e64b648e-eaa3-4802-9e99-e6ef8837f894",
+            "type": "start"
+        },
+        "if-condition--e64b648e-eaa3-4802-9e99-e6ef8837f894": {
+            "name": "Check if PowerShell is running",
+            "type": "if-condition",
+            "condition": "is_powershell_running == true",
+            "on_true": "action--e2b05be1-1c8e-47eb-9a63-185bba3a0402",
+            "on_false": "action--fac9be47-af20-4b67-9a0b-dbacd3eae84f"
+        },
+        "action--e2b05be1-1c8e-47eb-9a63-185bba3a0402": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes initiated by the attacker.",
+            "on_completion": "parallel--e1a34dbf-1ce5-47c4-b32e-8a1c1126c93a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9e34f595-7955-4f75-b2a3-ca59482cb6c0"
+        },
+        "action--fac9be47-af20-4b67-9a0b-dbacd3eae84f": {
+            "name": "Isolate affected host from network",
+            "description": "Block network access for the affected host.",
+            "on_completion": "parallel--e1a34dbf-1ce5-47c4-b32e-8a1c1126c93a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--9e34f595-7955-4f75-b2a3-ca59482cb6c0"
+        },
+        "parallel--e1a34dbf-1ce5-47c4-b32e-8a1c1126c93a": {
+            "name": "Start Mitigation Processes",
+            "description": "Begin scanning for remaining malware and ensure the isolation execution continues.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ef5e9bcf-c3c7-41f3-93a9-851c94f17280",
+                "while-condition--4db1f8f0-3b11-49a2-9f3f-e7f98feb0e08"
+            ]
+        },
+        "action--ef5e9bcf-c3c7-41f3-93a9-851c94f17280": {
+            "name": "Scan for remaining malware",
+            "description": "Run a malware scan to identify any other threats from the attack.",
+            "on_completion": "end--b392f23f-4351-4b74-aaba-4f3574f48c9b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --path / --quiet"
+                }
+            ],
+            "agent": "organization--9e34f595-7955-4f75-b2a3-ca59482cb6c0",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--4db1f8f0-3b11-49a2-9f3f-e7f98feb0e08": {
+            "name": "Ensure Host Is Isolated",
+            "description": "Verify and repeat isolation until the host is confirmed isolated.",
+            "on_true": "action--fac9be47-af20-4b67-9a0b-dbacd3eae84f",
+            "condition": "host_is_isolated == false",
+            "on_completion": "end--b392f23f-4351-4b74-aaba-4f3574f48c9b",
+            "type": "while-condition"
+        },
+        "end--b392f23f-4351-4b74-aaba-4f3574f48c9b": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9e34f595-7955-4f75-b2a3-ca59482cb6c0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

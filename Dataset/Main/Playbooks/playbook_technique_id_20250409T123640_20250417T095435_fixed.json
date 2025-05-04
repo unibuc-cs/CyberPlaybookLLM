@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5c3f58c-2fc2-4e07-ae94-5de6fbcdb9dc",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on multiple hosts. The scripts were designed to harvest sensitive data and exfiltrate it to an external server.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-10-01T14:30:00Z",
+    "modified": "2023-10-01T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--1fce868b-6c7d-4a0c-aecd-f73f88e40043",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initiate the response to the malicious script execution incident."
+        },
+        "parallel--1fce868b-6c7d-4a0c-aecd-f73f88e40043": {
+            "name": "Execute Mitigation Steps",
+            "description": "Perform parallel actions to mitigate multiple threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b7eede3a-e0c9-4071-ae31-6154081c4c2f",
+                "action--e433fe8a-3225-4e6d-b64a-eb1dce407ab3"
+            ]
+        },
+        "action--b7eede3a-e0c9-4071-ae31-6154081c4c2f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing malicious PowerShell scripts.",
+            "on_completion": "action--3b2eeb3f-9956-41c7-80f9-1d409f7f3c3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--cde81305-57c6-4b33-b8b7-ff63315f9616"
+        },
+        "action--e433fe8a-3225-4e6d-b64a-eb1dce407ab3": {
+            "name": "Isolate infected host",
+            "description": "Isolate the compromised host to prevent further exfiltration.",
+            "on_completion": "action--75ca0e91-578d-4c2d-b55d-8cb1a92002c0",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--cde81305-57c6-4b33-b8b7-ff63315f9616",
+            "condition": "host-12 compromised"
+        },
+        "action--75ca0e91-578d-4c2d-b55d-8cb1a92002c0": {
+            "name": "Scan for remaining threats",
+            "description": "Perform a thorough scan for remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-clamav"
+                }
+            ],
+            "agent": "organization--cde81305-57c6-4b33-b8b7-ff63315f9616",
+            "loop": {
+                "condition": "scan is not clean",
+                "action": "run-clamav"
+            },
+            "on_completion": "action--1c0aef57-220f-4909-8701-9aad5fd7f30d"
+        },
+        "action--1c0aef57-220f-4909-8701-9aad5fd7f30d": {
+            "name": "Review access logs for suspicious activity",
+            "description": "Check access logs to identify any unauthorized activity.",
+            "on_completion": "action--3b2eeb3f-9956-41c7-80f9-1d409f7f3c3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--cde81305-57c6-4b33-b8b7-ff63315f9616"
+        },
+        "action--3b2eeb3f-9956-41c7-80f9-1d409f7f3c3f": {
+            "name": "Update firewall rules to block exfiltration attempts",
+            "description": "Block outbound connections to prevent data exfiltration.",
+            "on_completion": "end--bd1db81e-540a-4434-8b5b-cdb7a97e4e2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious-IP -j DROP"
+                }
+            ],
+            "agent": "organization--cde81305-57c6-4b33-b8b7-ff63315f9616"
+        },
+        "end--bd1db81e-540a-4434-8b5b-cdb7a97e4e2b": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cde81305-57c6-4b33-b8b7-ff63315f9616": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

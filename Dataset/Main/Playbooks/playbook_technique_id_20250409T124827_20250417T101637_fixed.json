@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8b5d4a7-f1c5-4482-8dbb-99fb3c55f3f2",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to deploy malware across multiple endpoints.",
+    "created_by": "identity--15d48448-8c4a-4861-85d4-97e46845a0b7",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--83f88885-34e3-4e5e-a121-281ab39b374a",
+    "workflow": {
+        "action--b2d1fa5c-5191-4da1-bb27-5a555d731924": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process if it is running.",
+            "on_completion": "decision--43d02d34-7d8d-4736-8b2f-2c550489f9cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-process"
+                }
+            ],
+            "agent": "organization--fb65c495-1252-44a6-88e8-41e0c1f0e663"
+        },
+        "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-22 to prevent further spread of malware.",
+            "on_completion": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "curl -X POST http://network-isolation/api/isolate -d '{\"host_id\": \"host-22\"}'"
+                }
+            ],
+            "agent": "organization--fb65c495-1252-44a6-88e8-41e0c1f0e663"
+        },
+        "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the isolated host.",
+            "on_completion": "loop--2b1012de-eeb1-468d-824d-1876b407bda7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan --log=/path/to/log"
+                }
+            ],
+            "agent": "organization--fb65c495-1252-44a6-88e8-41e0c1f0e663"
+        },
+        "start--83f88885-34e3-4e5e-a121-281ab39b374a": {
+            "on_completion": "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a",
+            "type": "start"
+        },
+        "loop--2b1012de-eeb1-468d-824d-1876b407bda7": {
+            "name": "Repeat scan until clean",
+            "description": "Keep running the malware scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "on_false": "end--75ab303f-a792-4460-9170-26ede13a811f"
+        },
+        "decision--43d02d34-7d8d-4736-8b2f-2c550489f9cf": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "on_false": "end--75ab303f-a792-4460-9170-26ede13a811f"
+        },
+        "end--75ab303f-a792-4460-9170-26ede13a811f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fb65c495-1252-44a6-88e8-41e0c1f0e663": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

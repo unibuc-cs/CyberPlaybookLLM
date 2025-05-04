@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d087c173-f2a4-4b4d-8f25-c8fab2b5aca5",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where the attacker gained access through a phishing email and executed a PowerShell command to create unauthorized accounts and escalate privileges.",
+    "created_by": "identity--b4fc07d2-cbc4-4bef-8212-fcd5e23050f1",
+    "created": "2023-10-20T08:00:00Z",
+    "modified": "2023-10-20T08:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1fbc5d8-28f7-4bf2-8ab4-14af9788e52b",
+    "workflow": {
+        "start--b1fbc5d8-28f7-4bf2-8ab4-14af9788e52b": {
+            "on_completion": "action--d144b242-2f74-47b2-bc74-48f62f1f4417",
+            "type": "start"
+        },
+        "action--d144b242-2f74-47b2-bc74-48f62f1f4417": {
+            "name": "Terminate all PowerShell processes",
+            "description": "Terminate any running PowerShell scripts to prevent further execution of malicious actions.",
+            "on_completion": "parallel--7e094b06-78dc-40e0-b2bc-e1b29b0347fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /im powershell.exe /f"
+                }
+            ],
+            "agent": "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44"
+        },
+        "action--4da680ac-a03e-44a9-98a0-ef58d5c5fcdd": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete any unauthorized user accounts created during the attack.",
+            "on_completion": "action--3c9b250b-8df6-4723-b2c7-f670b2c492bc",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user backupadmin /delete"
+                }
+            ],
+            "agent": "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44",
+            "condition": "if user exists"
+        },
+        "action--3c9b250b-8df6-4723-b2c7-f670b2c492bc": {
+            "name": "Revoke administrative privileges from unauthorized accounts",
+            "description": "Remove administrative privileges from any unauthorized accounts.",
+            "on_completion": "parallel--7e094b06-78dc-40e0-b2bc-e1b29b0347fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net localgroup administrators backupadmin /delete"
+                }
+            ],
+            "agent": "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44"
+        },
+        "parallel--7e094b06-78dc-40e0-b2bc-e1b29b0347fc": {
+            "name": "Post-mitigation Actions",
+            "description": "Conduct full system scan and log analysis to ensure no further threats are present.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a97e7153-1456-42ae-9470-e335161ab251",
+                "action--5c9923ad-d0a3-4c7f-b1e5-edf52753d3a3"
+            ]
+        },
+        "action--a97e7153-1456-42ae-9470-e335161ab251": {
+            "name": "Conduct full system scan",
+            "description": "Run a full system scan to detect any remaining malicious scripts or files.",
+            "on_completion": "end--c2ab23e9-a3f3-4c55-a910-b456789c1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44",
+            "loop": "repeat until scan is clean"
+        },
+        "action--5c9923ad-d0a3-4c7f-b1e5-edf52753d3a3": {
+            "name": "Analyze system logs for anomalies",
+            "description": "Retrieve and analyze security event logs to identify any further suspicious activities.",
+            "on_completion": "end--c2ab23e9-a3f3-4c55-a910-b456789c1234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-EventLog -LogName Security > C:\\temp\\security_logs.txt"
+                }
+            ],
+            "agent": "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44"
+        },
+        "end--c2ab23e9-a3f3-4c55-a910-b456789c1234": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4f9fabd0-5a10-4639-a051-42c7851ccb44": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

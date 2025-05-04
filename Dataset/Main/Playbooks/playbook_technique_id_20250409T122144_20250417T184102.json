@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--56fac7a1-1f57-4ded-ad81-0ead386d24f8",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to an incident where an attacker used a scripting interpreter to execute malicious commands leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--8b642123-171c-4e84-b768-e1f340022772",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--f7bc1234-e5a0-421a-a057-d28454b5f067",
+            "type": "start"
+        },
+        "parallel--f7bc1234-e5a0-421a-a057-d28454b5f067": {
+            "name": "Mitigate Threat",
+            "description": "Execute mitigation actions parallelly.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c5f62e47-27bb-4d9c-81d0-be8b623e5c7e",
+                "if-condition--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15",
+                "loop-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691"
+            ]
+        },
+        "action--c5f62e47-27bb-4d9c-81d0-be8b623e5c7e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "end--c71e4c54-52d6-419e-83f3-484e6782064c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15": {
+            "name": "Check for dropped payload",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malicious_payload ]",
+            "on_true": "action--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15",
+            "on_false": "loop-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691"
+        },
+        "action--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15": {
+            "name": "Delete Dropped Payload",
+            "description": "Remove the malicious payload from the system.",
+            "on_completion": "loop-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691": {
+            "name": "Network Scan Loop",
+            "description": "Repeat the network scan action until it returns clean results.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "on_false": "end--c71e4c54-52d6-419e-83f3-484e6782064c"
+        },
+        "action--d9f70b62-0edf-4879-a80f-7ed8f5c45691": {
+            "name": "Run Network Scan",
+            "description": "Run a network scan to ensure no other compromised systems are present.",
+            "on_completion": "loop-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the last network scan.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--c71e4c54-52d6-419e-83f3-484e6782064c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganizationABC"
+        }
+    }
+}

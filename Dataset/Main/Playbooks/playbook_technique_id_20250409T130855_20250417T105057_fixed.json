@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ee34c17f-69bb-41ab-a80b-6a5191abc123",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook executes a series of actions to mitigate incidents involving malicious PowerShell scripts that have downloaded malware.",
+    "created_by": "identity--5fee9f82-e62c-46f6-9598-10fe09f96b5a",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b7eb14d3-10ed-4d2a-9ef9-a90b1e9995a4",
+    "workflow": {
+        "action--f0b83daf-4682-4edc-9e77-afa5b5c8b81d": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate the PowerShell process that was executing the malicious script.",
+            "on_completion": "parallel--13fa5b81-9045-4769-9303-b03de77f00c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--49483999-f636-4e69-b5d5-2882f9644ef8"
+        },
+        "action--b15b4e70-f691-42b7-81e4-23f3fa5e8c5a": {
+            "name": "Delete downloaded malicious files",
+            "description": "Remove any files that were downloaded by the malicious PowerShell script.",
+            "on_completion": "parallel--13fa5b81-9045-4769-9303-b03de77f00c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious/file"
+                }
+            ],
+            "agent": "organization--49483999-f636-4e69-b5d5-2882f9644ef8",
+            "step_variables": {
+                "target_file": {
+                    "type": "string",
+                    "value": "/path/to/malicious/file"
+                }
+            }
+        },
+        "action--c1a5b9df-2c2c-4ac8-8b71-70a55533a4fc": {
+            "name": "Run a complete system scan",
+            "description": "Conduct a comprehensive system scan to identify and remediate any remaining threats.",
+            "on_completion": "end--540e9644-84b5-492a-a31b-ef0355686ee1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool --full"
+                }
+            ],
+            "agent": "organization--49483999-f636-4e69-b5d5-2882f9644ef8",
+            "loop": {
+                "condition": "scan.status != 'clean'",
+                "on_true": "run_scan_tool --full"
+            }
+        },
+        "start--b7eb14d3-10ed-4d2a-9ef9-a90b1e9995a4": {
+            "on_completion": "if-condition--0074f892-76c0-473c-a0d8-f517ac8814f6",
+            "type": "start"
+        },
+        "if-condition--0074f892-76c0-473c-a0d8-f517ac8814f6": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process.detection == 'malicious'",
+            "on_true": "action--f0b83daf-4682-4edc-9e77-afa5b5c8b81d",
+            "on_false": "action--b15b4e70-f691-42b7-81e4-23f3fa5e8c5a"
+        },
+        "parallel--13fa5b81-9045-4769-9303-b03de77f00c2": {
+            "name": "Perform Clean-up Actions",
+            "description": "Run clean-up actions such as file deletion and system scans in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c1a5b9df-2c2c-4ac8-8b71-70a55533a4fc"
+            ]
+        },
+        "end--540e9644-84b5-492a-a31b-ef0355686ee1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--49483999-f636-4e69-b5d5-2882f9644ef8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

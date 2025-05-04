@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--efb837fd-1b67-47a5-b29c-3fe943e0aa4e",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration Incident",
+    "description": "This playbook outlines the steps to mitigate an incident involving data exfiltration disguised as legitimate HTTPS traffic from a vulnerable web application.",
+    "created_by": "identity--d11e08e4-3c4a-4e0f-aaee-616c91d42e5f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "incident_id": "b52e14e2-9928-4573-a441-16b0cfd21093",
+    "workflow_start": "start--2b1a5571-0590-42c2-a043-f76c812c0570",
+    "workflow": {
+        "start--2b1a5571-0590-42c2-a043-f76c812c0570": {
+            "on_completion": "action--c5e4c75d-5c56-4ab5-8b35-3a1c67f77e56",
+            "type": "start"
+        },
+        "action--c5e4c75d-5c56-4ab5-8b35-3a1c67f77e56": {
+            "name": "Analyze outbound traffic logs",
+            "description": "Extract logs of outbound traffic to identify anomalies related to the suspected IP.",
+            "on_completion": "action--efb837fd-1b67-47a5-b29c-3fe943e0aa4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep '192.0.2.0' /var/log/network.log"
+                }
+            ],
+            "agent": "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67"
+        },
+        "action--efb837fd-1b67-47a5-b29c-3fe943e0aa4e": {
+            "name": "Block suspicious IP",
+            "description": "Prevent any outbound connections to the known malicious IP.",
+            "on_completion": "decision--abeb107d-4a80-4775-ad26-d969bc003bc7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67"
+        },
+        "decision--abeb107d-4a80-4775-ad26-d969bc003bc7": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "pgrep -f malicious_app.py",
+            "on_true": "action--abeb107d-4a80-4775-ad26-d969bc003bc7",
+            "on_false": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9"
+        },
+        "action--abeb107d-4a80-4775-ad26-d969bc003bc7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the suspected malicious application.",
+            "on_completion": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_app.py"
+                }
+            ],
+            "agent": "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67"
+        },
+        "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9": {
+            "name": "Initiate full system scan",
+            "description": "Run a comprehensive system scan to check for other vulnerabilities or threats.",
+            "on_completion": "loop--3b93f6fe-7c54-4fa1-bb8b-22d07943fee5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -l /var/log/clamav/scan.log"
+                }
+            ],
+            "agent": "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67"
+        },
+        "loop--3b93f6fe-7c54-4fa1-bb8b-22d07943fee5": {
+            "name": "Repeat system scan",
+            "description": "Repeat the scanning process until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_results > 0",
+            "on_true": "action--c0d64c39-3cf6-4b44-9cec-5bb54a70c1f9",
+            "on_false": "action--b0c22f9d-a433-4b4b-9c6c-acb317f39ef3"
+        },
+        "action--b0c22f9d-a433-4b4b-9c6c-acb317f39ef3": {
+            "name": "Review application security configuration",
+            "description": "Audit current application security settings and logs for vulnerabilities.",
+            "on_completion": "end--4a1b51e1-30aa-4123-b9c4-d51ca20b6e8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -l"
+                }
+            ],
+            "agent": "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67"
+        },
+        "end--4a1b51e1-30aa-4123-b9c4-d51ca20b6e8c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4663b7b8-4793-4c81-b079-f7146dc2dd67": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

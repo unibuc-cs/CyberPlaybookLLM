@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f62d8a50-11aa-4c2a-b9fb-d21bfcd85e22",
+    "name": "Mitigation Playbook for Script Execution Vulnerability",
+    "description": "This playbook addresses an incident where an attacker exploited a script execution vulnerability to execute malicious commands and exfiltrate sensitive data.",
+    "created_by": "identity--abcd1234-1234-5678-9101-1234567890ab",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--88f59b72-4daa-4d8a-b55f-6543db0d7fe4",
+    "workflow": {
+        "start--88f59b72-4daa-4d8a-b55f-6543db0d7fe4": {
+            "on_completion": "action--d23c7f1e-b9a0-45e6-a88a-bf1aa3f385c0",
+            "type": "start"
+        },
+        "action--d23c7f1e-b9a0-45e6-a88a-bf1aa3f385c0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--bf82bc9d-bf18-4530-bd00-51863193a9ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06"
+        },
+        "if-condition--bf82bc9d-bf18-4530-bd00-51863193a9ec": {
+            "name": "Check for detected connection to malicious IP",
+            "type": "if-condition",
+            "condition": "is_connection_detected",
+            "on_true": "action--bf82bc9d-bf18-4530-bd00-51863193a9ec",
+            "on_false": "action--54b62d34-5fbd-45a1-925f-8f99ed72e7c0"
+        },
+        "action--bf82bc9d-bf18-4530-bd00-51863193a9ec": {
+            "name": "Block outbound connection to malicious IP",
+            "description": "Drop outbound connections to known malicious IP.",
+            "on_completion": "loop--c5e3f21d-d9a8-409f-b9b7-b32585f383e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d known.malicious.ip -j DROP"
+                }
+            ],
+            "agent": "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06"
+        },
+        "loop--c5e3f21d-d9a8-409f-b9b7-b32585f383e1": {
+            "name": "Perform a full system scan",
+            "description": "Repeat full system scans until no more threats are found.",
+            "on_completion": "action--64c1dcdb-b633-49e9-9f7b-208586efc8ab",
+            "type": "while-condition",
+            "condition": "more_threats_found",
+            "on_true": "action--c5e3f21d-d9a8-409f-b9b7-b32585f383e1"
+        },
+        "action--c5e3f21d-d9a8-409f-b9b7-b32585f383e1": {
+            "name": "Run system scan",
+            "description": "Perform a full system scan to find other possible threats.",
+            "on_completion": "loop--c5e3f21d-d9a8-409f-b9b7-b32585f383e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06"
+        },
+        "action--54b62d34-5fbd-45a1-925f-8f99ed72e7c0": {
+            "name": "Review server access logs",
+            "description": "Check for failed login attempts in the server logs.",
+            "on_completion": "action--64c1dcdb-b633-49e9-9f7b-208586efc8ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/secure | grep 'Failed password'"
+                }
+            ],
+            "agent": "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06"
+        },
+        "action--64c1dcdb-b633-49e9-9f7b-208586efc8ab": {
+            "name": "Update server firewall rules",
+            "description": "Update firewall rules to restrict unauthorized access.",
+            "on_completion": "end--e58d32e2-8831-4954-a9fe-2c8f3bfb4489",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw allow from trusted_ip"
+                }
+            ],
+            "agent": "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06"
+        },
+        "end--e58d32e2-8831-4954-a9fe-2c8f3bfb4489": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--90e97ca8-3e51-40b0-a2a2-d9e9b299ef06": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

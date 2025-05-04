@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d59ac73f-1d45-4de9-a068-94329cb9c005",
+    "name": "Mitigation Playbook for PowerShell Script Exploitation Incident",
+    "description": "This playbook addresses an incident where a malicious PowerShell script was executed, leading to unauthorized access and privilege escalation.",
+    "created_by": "identity--0a6a1b06-7654-470b-9081-34a55dcf0157",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--cfe46162-d253-47ed-8f34-427de42ae62a",
+    "workflow": {
+        "start--cfe46162-d253-47ed-8f34-427de42ae62a": {
+            "on_completion": "action--2b15073d-4e79-4de2-bb3b-15812ccf9344",
+            "type": "start"
+        },
+        "action--2b15073d-4e79-4de2-bb3b-15812ccf9344": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process that executed the malicious script.",
+            "on_completion": "if-condition--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--1a272451-1d0f-46b1-b095-390ec40cef32"
+        },
+        "if-condition--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a": {
+            "name": "Check if outbound connection is active",
+            "type": "if-condition",
+            "condition": "connection_active",
+            "on_true": "action--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a",
+            "on_false": "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59"
+        },
+        "action--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent connections to the malicious IP address.",
+            "on_completion": "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.202 -j DROP"
+                }
+            ],
+            "agent": "organization--1a272451-1d0f-46b1-b095-390ec40cef32"
+        },
+        "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59": {
+            "name": "Scan and clean infected files",
+            "description": "Perform a recursive scan for malicious files and remove them.",
+            "on_completion": "while-condition--d606f2b7-8c52-44cc-aac0-568173c6b5f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--1a272451-1d0f-46b1-b095-390ec40cef32"
+        },
+        "action--ab348cd4-425d-4df5-84cb-578afb675b3e": {
+            "name": "Patch OS vulnerabilities",
+            "description": "Update the operating system to patch vulnerabilities.",
+            "on_completion": "if-condition--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--1a272451-1d0f-46b1-b095-390ec40cef32"
+        },
+        "if-condition--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af": {
+            "name": "Check if PowerShell logging is enabled",
+            "type": "if-condition",
+            "condition": "not logging_enabled",
+            "on_true": "action--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af",
+            "on_false": "end--26b5452a-11e6-40f1-ab28-63082dbd1030"
+        },
+        "action--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af": {
+            "name": "Enable PowerShell Script Execution Logging",
+            "description": "Set execution policy to restrict script execution.",
+            "on_completion": "end--26b5452a-11e6-40f1-ab28-63082dbd1030",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--1a272451-1d0f-46b1-b095-390ec40cef32"
+        },
+        "end--26b5452a-11e6-40f1-ab28-63082dbd1030": {
+            "type": "end"
+        },
+        "while-condition--d606f2b7-8c52-44cc-aac0-568173c6b5f0": {
+            "name": "Infection Check Loop",
+            "description": "Continue scanning until no infections are detected.",
+            "type": "while-condition",
+            "condition": "infections_remaining",
+            "on_true": "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59",
+            "on_false": "action--ab348cd4-425d-4df5-84cb-578afb675b3e"
+        }
+    },
+    "agent_definitions": {
+        "organization--1a272451-1d0f-46b1-b095-390ec40cef32": {
+            "type": "organization",
+            "name": "XYZ Security Organization"
+        }
+    }
+}

@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e792b852-79c4-4bc8-a57c-2d26895c3a3d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a command-line interpreter to execute malicious commands and create a persistent backdoor.",
+    "created_by": "identity--0b0f70d5-32c3-4a0e-8d36-d30c3a80dd2c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e5b6f818-9428-4c83-87bd-fb8b103cba11",
+    "workflow": {
+        "start--e5b6f818-9428-4c83-87bd-fb8b103cba11": {
+            "on_completion": "action--1a234bc3-4ee7-4cb0-bb14-d031b4ebf2ab",
+            "type": "start"
+        },
+        "action--1a234bc3-4ee7-4cb0-bb14-d031b4ebf2ab": {
+            "name": "Check if malicious process is running",
+            "description": "Determine if the malicious process needs to be killed.",
+            "on_completion": "if-condition--f8738de7-2450-4c7b-9a4e-015c1001a3f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pgrep -f malicious_process"
+                }
+            ],
+            "agent": "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb"
+        },
+        "if-condition--f8738de7-2450-4c7b-9a4e-015c1001a3f9": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "pgrep -f malicious_process != None",
+            "on_true": "action--80baef80-256b-44f0-b464-d4ae7d0eaf08",
+            "on_false": "action--9d6d1426-4f7b-4528-b39d-409b2dac9333"
+        },
+        "action--80baef80-256b-44f0-b464-d4ae7d0eaf08": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes identified as malicious.",
+            "on_completion": "parallel--bc6e6709-d661-4c72-8fce-cb4b09ef1948",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb"
+        },
+        "while-condition--6dd8261e-974f-44ea-a016-69e2e946edd6": {
+            "name": "Remove malicious files loop",
+            "description": "Continue removing files until no malicious files are left.",
+            "on_completion": "parallel--bc6e6709-d661-4c72-8fce-cb4b09ef1948",
+            "type": "while-condition",
+            "condition": "ls /path/to/malicious_files | grep -q .",
+            "on_true": "action--9d6d1426-4f7b-4528-b39d-409b2dac9333"
+        },
+        "parallel--bc6e6709-d661-4c72-8fce-cb4b09ef1948": {
+            "name": "Scan for backdoors and remove",
+            "description": "Execute actions in parallel: scan for backdoors and remove them if found.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f4c22e25-dd58-401d-a79e-bfabaedb2d10",
+                "action--3b054bc3-7fc1-49aa-8f55-f2a9f1511fa1"
+            ]
+        },
+        "action--f4c22e25-dd58-401d-a79e-bfabaedb2d10": {
+            "name": "Scan system for malicious services",
+            "description": "Identify any backdoor services running.",
+            "on_completion": "if-condition--58b0cdf3-901a-487f-ac7d-f2c415c4144d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'backdoor_service'"
+                }
+            ],
+            "agent": "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb"
+        },
+        "if-condition--58b0cdf3-901a-487f-ac7d-f2c415c4144d": {
+            "name": "Check if backdoor services exist",
+            "type": "if-condition",
+            "condition": "find / -name 'backdoor_service' != None",
+            "on_true": "action--70c11dd9-dc16-4304-aac2-644bef13e2af",
+            "on_false": "end--e9c3baba-02a0-4f76-9ef6-333cf9e3d51c"
+        },
+        "end--e9c3baba-02a0-4f76-9ef6-333cf9e3d51c": {
+            "type": "end"
+        },
+        "action--9d6d1426-4f7b-4528-b39d-409b2dac9333": {
+            "name": "Remove dropped files",
+            "description": "Loop to remove all malicious files.",
+            "on_completion": "while-condition--6dd8261e-974f-44ea-a016-69e2e946edd6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ls /path/to/malicious_files | grep . && rm -rf /path/to/malicious_files"
+                }
+            ],
+            "agent": "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb"
+        },
+        "action--70c11dd9-dc16-4304-aac2-644bef13e2af": {
+            "name": "Remove backdoor services",
+            "on_completion": "end--e9c3baba-02a0-4f76-9ef6-333cf9e3d51c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl stop backdoor_service && systemctl disable backdoor_service"
+                }
+            ],
+            "agent": "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb"
+        }
+    },
+    "agent_definitions": {
+        "organization--281cc796-d2ca-496a-8639-3b7139fd9cfb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a592c3f7-c1e9-4a3c-a64b-a61bc2f74b8e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook helps to mitigate the attack where the attacker exploited a vulnerable web application and executed malicious scripts leading to data exfiltration.",
+    "created_by": "identity--152e53be-c5e1-45de-a264-1e4d05089952",
+    "created": "2023-10-04T10:00:00Z",
+    "modified": "2023-10-04T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1bc0beb-2b73-42a1-bac4-8bc9fa1b62f5",
+    "workflow": {
+        "start--f1bc0beb-2b73-42a1-bac4-8bc9fa1b62f5": {
+            "on_completion": "parallel--198d2e1b-e9ab-4a41-ae2b-20d1908b5ab3",
+            "type": "start"
+        },
+        "parallel--198d2e1b-e9ab-4a41-ae2b-20d1908b5ab3": {
+            "name": "Execute initial mitigations",
+            "description": "Perform initial actions to mitigate the threat simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3c8e1630-62d8-4e7e-be41-e6e5e14868b1",
+                "action--67b3c86d-2192-413b-b517-1c948efcfe71"
+            ]
+        },
+        "action--3c8e1630-62d8-4e7e-be41-e6e5e14868b1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--b453877e-d11f-41e8-8cbd-58c0274e9547",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f script_name.js"
+                }
+            ],
+            "agent": "organization--85f5d2f5-360a-4df4-ac61-ea9528228f28"
+        },
+        "action--67b3c86d-2192-413b-b517-1c948efcfe71": {
+            "name": "Block outgoing traffic to known malicious IPs",
+            "description": "Prevent outbound connections to the specified malicious IP.",
+            "on_completion": "action--b453877e-d11f-41e8-8cbd-58c0274e9547",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j REJECT"
+                }
+            ],
+            "agent": "organization--85f5d2f5-360a-4df4-ac61-ea9528228f28"
+        },
+        "action--b453877e-d11f-41e8-8cbd-58c0274e9547": {
+            "name": "Monitor and audit for unusual command executions",
+            "description": "Continuously monitor logs for any suspicious command executions until the system stabilizes.",
+            "on_completion": "if-condition--5a2bfc55-c8b2-4963-bf83-a94d8b9f88f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'EXECUTE'"
+                }
+            ],
+            "agent": "organization--85f5d2f5-360a-4df4-ac61-ea9528228f28"
+        },
+        "if-condition--5a2bfc55-c8b2-4963-bf83-a94d8b9f88f8": {
+            "name": "Check system stability",
+            "type": "if-condition",
+            "condition": "system_stability == unstable",
+            "on_true": "action--b453877e-d11f-41e8-8cbd-58c0274e9547",
+            "on_false": "end--f4fc1065-cfcb-41ec-8c5a-23e03b84bdd5"
+        },
+        "end--f4fc1065-cfcb-41ec-8c5a-23e03b84bdd5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--85f5d2f5-360a-4df4-ac61-ea9528228f28": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "system_stability": {
+            "type": "string",
+            "description": "Tracks the stability of the system.",
+            "value": "unstable",
+            "constant": false,
+            "external": false
+        }
+    }
+}

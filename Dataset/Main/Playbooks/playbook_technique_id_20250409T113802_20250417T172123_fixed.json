@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1f8b5c0-75d5-4a07-9a7a-622a189f0cca",
+    "name": "Mitigation Playbook for Compromised RDP Session",
+    "description": "This playbook mitigates the risks associated with a compromised RDP session leading to unauthorized PowerShell script execution.",
+    "created_by": "identity--0622ac01-bc8b-47d3-bc2f-dc0ad70690d5",
+    "created": "2023-10-02T10:00:00.000Z",
+    "modified": "2023-10-02T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1d2ae64-df43-4f89-8feb-d39a986e6e77",
+    "workflow": {
+        "start--f1d2ae64-df43-4f89-8feb-d39a986e6e77": {
+            "on_completion": "action--3ea3b259-76f1-4b9e-b30d-8c2a00d35f65",
+            "type": "start"
+        },
+        "action--3ea3b259-76f1-4b9e-b30d-8c2a00d35f65": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are malicious.",
+            "on_completion": "if-condition--6baffcb0-aa92-42c6-b3b8-0eaa1f8a8629",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--46d872a8-fdaa-4835-93ee-a5f8729c00d5"
+        },
+        "if-condition--6baffcb0-aa92-42c6-b3b8-0eaa1f8a8629": {
+            "name": "Check for active malicious processes",
+            "type": "if-condition",
+            "condition": "malicious_process_running",
+            "on_true": "action--14c4c763-09c3-4b1d-81d6-74f639073f9b",
+            "on_false": "action--cc67f3b5-3387-4b42-aeb8-89ecbc9c1b10"
+        },
+        "action--14c4c763-09c3-4b1d-81d6-74f639073f9b": {
+            "name": "Remove new administrative account",
+            "description": "Delete the administrative account created by the attacker.",
+            "on_completion": "action--cc67f3b5-3387-4b42-aeb8-89ecbc9c1b10",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user admin_user /delete"
+                }
+            ],
+            "agent": "organization--46d872a8-fdaa-4835-93ee-a5f8729c00d5"
+        },
+        "action--cc67f3b5-3387-4b42-aeb8-89ecbc9c1b10": {
+            "name": "Monitor network traffic for C2 communication",
+            "description": "Continuously monitor the network for any command-and-control (C2) traffic.",
+            "on_completion": "while-condition--f7dedeac-90a3-4e9f-bb8f-c30d213e1b71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 port 443"
+                }
+            ],
+            "agent": "organization--46d872a8-fdaa-4835-93ee-a5f8729c00d5"
+        },
+        "while-condition--f7dedeac-90a3-4e9f-bb8f-c30d213e1b71": {
+            "name": "Check for suspicious network traffic",
+            "description": "Repeat monitoring until no suspicious traffic is detected.",
+            "on_true": "action--cc67f3b5-3387-4b42-aeb8-89ecbc9c1b10",
+            "on_false": "end--f7dedeac-90a3-4e9f-bb8f-c30d213e1b71",
+            "type": "while-condition",
+            "condition": "suspicious_traffic_detected"
+        },
+        "end--f7dedeac-90a3-4e9f-bb8f-c30d213e1b71": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--46d872a8-fdaa-4835-93ee-a5f8729c00d5": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

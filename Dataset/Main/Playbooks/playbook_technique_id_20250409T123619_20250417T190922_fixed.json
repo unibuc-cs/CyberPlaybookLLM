@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--92e8e0ea-e6e8-4aa7-8c77-01eacc3c2d81",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to gain unauthorized access to sensitive information.",
+    "created_by": "identity--11a8f6f7-5e5e-461c-b3c4-7ff456168047",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e8f4d1d2-bd3b-469f-b2d7-272274329800",
+    "workflow": {
+        "start--e8f4d1d2-bd3b-469f-b2d7-272274329800": {
+            "on_completion": "if-condition--fe2b2bd4-a3da-4788-82d4-6a3138553e32",
+            "type": "start"
+        },
+        "if-condition--fe2b2bd4-a3da-4788-82d4-6a3138553e32": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "$(pgrep powershell) != ''",
+            "on_true": "action--7fcd7fcb-001b-4f9e-8119-dc2cbf1c962a",
+            "on_false": "action--314fea2f-6a28-4c57-9aad-e6f8b3d168b3"
+        },
+        "action--7fcd7fcb-001b-4f9e-8119-dc2cbf1c962a": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell scripts to halt ongoing unauthorized access.",
+            "on_completion": "action--314fea2f-6a28-4c57-9aad-e6f8b3d168b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep powershell)"
+                }
+            ],
+            "agent": "organization--7378bb0f-b298-459d-b36c-57000c2f25b2"
+        },
+        "action--314fea2f-6a28-4c57-9aad-e6f8b3d168b3": {
+            "name": "Disconnect affected host from network",
+            "description": "Disconnect the compromised host to prevent further data leakage.",
+            "on_completion": "action--a3d83561-eb50-4e6a-b935-c6ce80b2e5db",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--7378bb0f-b298-459d-b36c-57000c2f25b2"
+        },
+        "action--a3d83561-eb50-4e6a-b935-c6ce80b2e5db": {
+            "name": "Scan network for additional compromised hosts",
+            "description": "Identify other hosts on the network that might be compromised.",
+            "on_completion": "while-condition--6ab5645f-d337-40e2-9f9e-f842b8591254",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--7378bb0f-b298-459d-b36c-57000c2f25b2"
+        },
+        "while-condition--6ab5645f-d337-40e2-9f9e-f842b8591254": {
+            "name": "Check all hosts scanned",
+            "description": "Repeat scanning process until all hosts are verified.",
+            "on_completion": "action--0abae378-8503-4d05-9b92-ee514f5eb1e7",
+            "type": "while-condition",
+            "condition": "all_hosts_scanned == false",
+            "on_true": "action--a3d83561-eb50-4e6a-b935-c6ce80b2e5db"
+        },
+        "action--0abae378-8503-4d05-9b92-ee514f5eb1e7": {
+            "name": "Review and analyze logs for suspicious activities",
+            "description": "Investigate logs for any suspicious activities related to the incident.",
+            "on_completion": "end--b29a2625-982e-41cf-9771-bfbf36d76576",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' ${filename}"
+                }
+            ],
+            "agent": "organization--7378bb0f-b298-459d-b36c-57000c2f25b2",
+            "step_variables": {
+                "filename": {
+                    "type": "string",
+                    "description": "Name of the log file to be searched.",
+                    "value": "/var/log/syslog",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b29a2625-982e-41cf-9771-bfbf36d76576": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7378bb0f-b298-459d-b36c-57000c2f25b2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

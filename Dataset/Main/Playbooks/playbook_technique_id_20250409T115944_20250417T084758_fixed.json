@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c9edb440-b048-4c62-bd44-fb93ad2ef548",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook outlines steps to mitigate an incident where a series of scripted commands were executed to exfiltrate sensitive data and establish a backdoor.",
+    "created_by": "identity--4521c1cb-1b9b-48bc-8c6f-0cbedb9578d8",
+    "created": "2025-04-09T08:55:00.498Z",
+    "modified": "2025-04-09T08:56:00.043Z",
+    "revoked": false,
+    "workflow_start": "start--bece00fa-a928-4550-9dc6-caac4c2301c2",
+    "workflow": {
+        "action--1f4e3f65-5f8b-4d77-a69f-0d764c3b498f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that was executed.",
+            "on_completion": "if-condition--51a33e1b-39b9-40d0-a07e-a852ccf13dea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--f6d8ae11-0220-49ba-abf9-f4c652504eb2"
+        },
+        "action--e33790e7-9937-48ec-a72b-5f8a091f5c79": {
+            "name": "Remove dropped files",
+            "description": "Delete any suspicious files dropped in the home directory.",
+            "on_completion": "action--a5faba31-7600-4c22-ad46-c0247808b308",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf ~/suspicious_file"
+                }
+            ],
+            "agent": "organization--f6d8ae11-0220-49ba-abf9-f4c652504eb2"
+        },
+        "action--a5faba31-7600-4c22-ad46-c0247808b308": {
+            "name": "Run malware scan",
+            "description": "Initiate a malware scan of the home directory to ensure no other threats are present.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan, to check if it's clean.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--65a281ae-2d5d-43f3-8dc4-556e55d533fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/; scan_status=$(grep -q 'Infected files: 0' clamscan_output.txt && echo clean || echo infected)"
+                }
+            ],
+            "agent": "organization--f6d8ae11-0220-49ba-abf9-f4c652504eb2"
+        },
+        "end--f1234567-85de-12ff-abcd-123456789abc": {
+            "type": "end"
+        },
+        "start--bece00fa-a928-4550-9dc6-caac4c2301c2": {
+            "on_completion": "action--1f4e3f65-5f8b-4d77-a69f-0d764c3b498f",
+            "type": "start"
+        },
+        "if-condition--51a33e1b-39b9-40d0-a07e-a852ccf13dea": {
+            "name": "Check for dropped files",
+            "type": "if-condition",
+            "condition": "[ -f ~/suspicious_file ]",
+            "on_true": "action--e33790e7-9937-48ec-a72b-5f8a091f5c79",
+            "on_false": "action--a5faba31-7600-4c22-ad46-c0247808b308"
+        },
+        "while-condition--65a281ae-2d5d-43f3-8dc4-556e55d533fb": {
+            "name": "Check scan status",
+            "description": "Repeat the scan until the status is clean.",
+            "on_true": "action--a5faba31-7600-4c22-ad46-c0247808b308",
+            "condition": "scan_status == infected",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--f6d8ae11-0220-49ba-abf9-f4c652504eb2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1643d32-f6f1-4b50-92f5-688ffac34478",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook responds to an incident where a PowerShell script was used to extract sensitive data from a server.",
+    "created_by": "identity--c3c590c8-dc3c-4ef1-b5d4-5b6d6b6786b4",
+    "created": "2023-10-05T08:00:00.000Z",
+    "modified": "2023-10-05T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e8f028a5-f899-49c5-bb60-e635885f0ef4",
+    "workflow": {
+        "start--e8f028a5-f899-49c5-bb60-e635885f0ef4": {
+            "on_completion": "parallel--0e3c67f0-a334-46e3-9a51-a65b395bb3ca",
+            "type": "start"
+        },
+        "parallel--0e3c67f0-a334-46e3-9a51-a65b395bb3ca": {
+            "name": "Immediate Response Actions",
+            "description": "Terminate processes and disable scheduled tasks to mitigate the attack",
+            "type": "parallel",
+            "next_steps": [
+                "action--c30e6e9e-19e2-465b-9277-505425c4d07f",
+                "action--3d3fda5a-b934-4f37-b07a-b52673ee83f1"
+            ]
+        },
+        "action--c30e6e9e-19e2-465b-9277-505425c4d07f": {
+            "name": "Terminate the suspicious PowerShell process",
+            "description": "Stop any ongoing PowerShell processes that might be exfiltrating data.",
+            "on_completion": "action--7e65b1d0-b413-4b2d-bdeb-b3da193585e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--0940088d-5cfb-4edd-b808-7486b5217761"
+        },
+        "action--3d3fda5a-b934-4f37-b07a-b52673ee83f1": {
+            "name": "Disable scheduled tasks related to PowerShell scripts",
+            "description": "Remove any scheduled tasks that initiate PowerShell scripts to prevent further execution.",
+            "on_completion": "action--7e65b1d0-b413-4b2d-bdeb-b3da193585e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for task in $(schtasks /query /fo csv | grep PowerShell | cut -d, -f1 | tr -d '\"'); do schtasks /delete /tn \"$task\" /f; done"
+                }
+            ],
+            "agent": "organization--0940088d-5cfb-4edd-b808-7486b5217761"
+        },
+        "action--7e65b1d0-b413-4b2d-bdeb-b3da193585e0": {
+            "name": "Run incident response tool",
+            "description": "Initiate a scan for indicators of compromise on the affected host.",
+            "on_completion": "while-condition--63997865-46aa-4497-bc3f-034d040e24af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ir-tool --scan --target host-22"
+                }
+            ],
+            "agent": "organization--0940088d-5cfb-4edd-b808-7486b5217761"
+        },
+        "while-condition--63997865-46aa-4497-bc3f-034d040e24af": {
+            "name": "Scan Result Evaluation",
+            "description": "Check if the scan indicates any threats.",
+            "on_completion": "action--a8c186c9-cfcb-40af-b6e8-4e7766a7d7fa",
+            "type": "while-condition",
+            "condition": "scan_result == 'undefined'",
+            "on_true": "action--7e65b1d0-b413-4b2d-bdeb-b3da193585e0"
+        },
+        "action--a8c186c9-cfcb-40af-b6e8-4e7766a7d7fa": {
+            "name": "Conclude Incident Response",
+            "description": "Wrap up the incident response activities.",
+            "on_completion": "end--ff4745b6-1f31-4a61-9b6d-9943afee54b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Conclude Incident Response:  Wrap up the incident response activities."
+                }
+            ],
+            "agent": "organization--0940088d-5cfb-4edd-b808-7486b5217761"
+        },
+        "end--ff4745b6-1f31-4a61-9b6d-9943afee54b1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0940088d-5cfb-4edd-b808-7486b5217761": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

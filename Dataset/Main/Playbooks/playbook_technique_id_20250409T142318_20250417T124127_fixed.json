@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--879f0b2c-9c1b-467b-aa37-7c7c3f1aa68d",
+    "name": "Mitigation Playbook for Phishing Incident Leading to Script Execution",
+    "description": "Playbook designed to respond to a phishing attack that compromised sensitive data through unauthorized script executions.",
+    "created_by": "identity--5a594126-0f15-4ce4-b763-85ec4e46223b",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--ff2837ab-2bcb-485a-b035-e0f715602ad5",
+    "workflow": {
+        "start--ff2837ab-2bcb-485a-b035-e0f715602ad5": {
+            "on_completion": "action--a1e56cbe-3cdc-4b1e-b39e-e9cb685fd878",
+            "type": "start"
+        },
+        "action--a1e56cbe-3cdc-4b1e-b39e-e9cb685fd878": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running malicious PowerShell scripts.",
+            "on_completion": "action--2a55ac42-8d92-45ff-97f7-4ec6f73d4c69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f suspicious-script.ps1)"
+                }
+            ],
+            "agent": "organization--2512b077-82ab-4b06-b775-f01aa648c038"
+        },
+        "action--2a55ac42-8d92-45ff-97f7-4ec6f73d4c69": {
+            "name": "Delete malicious files",
+            "description": "Remove the downloaded malicious payload from the system.",
+            "on_completion": "if-condition--eebf672f-064b-4edc-bf5d-c064aeb0c649",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f C:\\temp\\malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--2512b077-82ab-4b06-b775-f01aa648c038"
+        },
+        "if-condition--eebf672f-064b-4edc-bf5d-c064aeb0c649": {
+            "name": "Check for suspicious network traffic",
+            "type": "if-condition",
+            "condition": "suspicious_traffic_detected",
+            "on_true": "parallel--b2d91e15-4159-4f53-a309-54677dde61df",
+            "on_false": "end--b4e20949-5b33-42c8-99da-453c2485a0a7"
+        },
+        "parallel--b2d91e15-4159-4f53-a309-54677dde61df": {
+            "name": "Monitor and mitigate traffic",
+            "description": "Monitor network traffic for any unusual activity while repeating the checks.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c8341b8a-1d94-43a2-85bb-23e0d30d8ccd",
+                "loop--loop--d374a8c2-dfd8-4e31-a13c-7c97a3da25cb"
+            ]
+        },
+        "action--c8341b8a-1d94-43a2-85bb-23e0d30d8ccd": {
+            "name": "Monitor network traffic",
+            "description": "Capture network traffic to inspect for suspicious activity.",
+            "on_completion": "loop--loop--d374a8c2-dfd8-4e31-a13c-7c97a3da25cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--2512b077-82ab-4b06-b775-f01aa648c038"
+        },
+        "loop--loop--d374a8c2-dfd8-4e31-a13c-7c97a3da25cb": {
+            "name": "Check for unusual activity",
+            "description": "Repeat monitoring until no unusual activity is detected.",
+            "type": "while-condition",
+            "condition": "suspicious_traffic_detected",
+            "on_true": "action--c8341b8a-1d94-43a2-85bb-23e0d30d8ccd",
+            "on_false": "end--b4e20949-5b33-42c8-99da-453c2485a0a7"
+        },
+        "end--b4e20949-5b33-42c8-99da-453c2485a0a7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2512b077-82ab-4b06-b775-f01aa648c038": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

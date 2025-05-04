@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1a2c53b-6c8e-4f3d-b845-1379c80bb0ab",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute arbitrary commands and establish persistence through malicious scripts.",
+    "created_by": "identity--d29e1f33-8e41-446a-934d-408722c12a22",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--54d88e62-bffc-4868-a75e-dad67a2ab10d",
+    "workflow": {
+        "action--a20e6a97-0c84-4fc2-b1e1-3c87f37ab9e3": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious reverse shell process.",
+            "on_completion": "loop--repeat-until-condition--d20e6a97-0c84-4fc2-b1e1-3c87f37ab9e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'reverse shell'"
+                }
+            ],
+            "agent": "organization--5007007b-076a-44a6-b096-2dade86a5481"
+        },
+        "loop--repeat-until-condition--d20e6a97-0c84-4fc2-b1e1-3c87f37ab9e3": {
+            "name": "Remove downloaded malicious files loop",
+            "description": "Iterate until there are no malicious files left.",
+            "on_completion": "action--c4a4f8d7-d132-427b-b8a9-d48dfdeec1f8",
+            "type": "while-condition",
+            "condition": "malicious_files_found == true",
+            "on_true": "action--db3ae97f-69f7-4dec-abf4-acbc02c65cfb"
+        },
+        "action--db3ae97f-69f7-4dec-abf4-acbc02c65cfb": {
+            "name": "Remove downloaded malicious files",
+            "description": "Delete any remaining malicious scripts.",
+            "on_completion": "if-condition--a968c3b3-d066-4809-a3e4-643b9f3e62df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--5007007b-076a-44a6-b096-2dade86a5481"
+        },
+        "action--c4a4f8d7-d132-427b-b8a9-d48dfdeec1f8": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a comprehensive scan of the system to detect remaining threats.",
+            "on_completion": "end--a8cad8e5-540d-432a-8896-c0ef9c439fd7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --full /"
+                }
+            ],
+            "agent": "organization--5007007b-076a-44a6-b096-2dade86a5481",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Output of the scan results",
+                    "value": "",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--54d88e62-bffc-4868-a75e-dad67a2ab10d": {
+            "on_completion": "if-condition--a968c3b3-d066-4809-a3e4-643b9f3e62df",
+            "type": "start"
+        },
+        "if-condition--a968c3b3-d066-4809-a3e4-643b9f3e62df": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "exists malicious process",
+            "on_true": "action--a20e6a97-0c84-4fc2-b1e1-3c87f37ab9e3",
+            "on_false": "action--db3ae97f-69f7-4dec-abf4-acbc02c65cfb"
+        },
+        "end--a8cad8e5-540d-432a-8896-c0ef9c439fd7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5007007b-076a-44a6-b096-2dade86a5481": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

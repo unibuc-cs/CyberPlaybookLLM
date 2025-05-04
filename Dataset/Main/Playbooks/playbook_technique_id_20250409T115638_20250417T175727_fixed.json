@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1ae3fe60-66ba-4e9c-846b-9f34c2cfd610",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to gather sensitive information and potentially exfiltrate data.",
+    "created_by": "identity--5cb37243-da81-48d8-938c-6ba63ed160b8",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--4abe61c9-153d-4ecb-bb4c-e7f45e9da231",
+    "workflow": {
+        "start--4abe61c9-153d-4ecb-bb4c-e7f45e9da231": {
+            "on_completion": "if-condition--f2c8f009-9523-4ed4-a6e8-39ee7e1fff1d",
+            "type": "start"
+        },
+        "if-condition--f2c8f009-9523-4ed4-a6e8-39ee7e1fff1d": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--16bcb229-1fd5-4627-9123-4c8ea674ae7c",
+            "on_false": "action--a8a39b00-4584-41d8-80fa-92dbdc22472f"
+        },
+        "action--16bcb229-1fd5-4627-9123-4c8ea674ae7c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate malicious PowerShell processes that have been detected.",
+            "on_completion": "parallel--f3b6695f-dabc-4e36-9f9b-2e921502f3ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--b225d4e0-ae89-488f-965e-11f710d27f38"
+        },
+        "action--a8a39b00-4584-41d8-80fa-92dbdc22472f": {
+            "name": "Block outbound traffic",
+            "description": "Block outbound traffic to prevent data exfiltration.",
+            "on_completion": "parallel--f3b6695f-dabc-4e36-9f9b-2e921502f3ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--b225d4e0-ae89-488f-965e-11f710d27f38"
+        },
+        "parallel--f3b6695f-dabc-4e36-9f9b-2e921502f3ca": {
+            "name": "Run scans and monitoring",
+            "description": "Initiate artifact scanning and monitoring processes concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3d5f83fc-d0bd-4f23-bc77-05658ddc039f",
+                "end--edd6c40a-9738-4a2f-9e14-ca8caf11c1b4"
+            ]
+        },
+        "action--3d5f83fc-d0bd-4f23-bc77-05658ddc039f": {
+            "name": "Scan for additional artifacts",
+            "description": "Continuously scan the system for any remaining malicious artifacts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_clean; do run_scan; sleep 60; done"
+                }
+            ],
+            "agent": "organization--b225d4e0-ae89-488f-965e-11f710d27f38"
+        },
+        "end--edd6c40a-9738-4a2f-9e14-ca8caf11c1b4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b225d4e0-ae89-488f-965e-11f710d27f38": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

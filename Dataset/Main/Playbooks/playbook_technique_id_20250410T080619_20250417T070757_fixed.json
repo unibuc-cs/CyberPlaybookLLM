@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d47ac10b-58cc-4372-a567-0e02b2c3d478",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses a script-based attack where a PowerShell script was executed to gain further access to the compromised host. It includes steps for killing malicious processes, scanning for threats, blocking outbound connections, and reviewing execution policies.",
+    "created_by": "identity--08e524b2-98c9-4057-a8fe-184893dd9dd8",
+    "created": "2023-10-01T10:00:00Z",
+    "modified": "2023-10-01T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--2222e7f8-b123-48a8-9123-6e045294e53c",
+    "workflow": {
+        "start--2222e7f8-b123-48a8-9123-6e045294e53c": {
+            "on_completion": "action--c9b9e161-a80d-4422-957c-13f17b2da3b6",
+            "type": "start"
+        },
+        "action--c9b9e161-a80d-4422-957c-13f17b2da3b6": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any instances of PowerShell that were used in the script attack.",
+            "on_completion": "parallel--1222e7c8-d123-45c9-8546-bc1234567890",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM powershell.exe"
+                }
+            ],
+            "agent": "organization--b4db16d0-795f-4635-9aba-3e14e135fb20"
+        },
+        "parallel--1222e7c8-d123-45c9-8546-bc1234567890": {
+            "name": "Run additional mitigations in parallel",
+            "description": "Simultaneously carry out other necessary mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--58c9b707-1fd3-4d05-bb2b-36f5028a4679",
+                "action--6912e7e1-45cf-47b3-9cde-1b123dce9c4d",
+                "if-condition--d12f5e84-2c32-4b36-bb9a-bce2d2135012"
+            ]
+        },
+        "action--58c9b707-1fd3-4d05-bb2b-36f5028a4679": {
+            "name": "Scan system for remaining threats",
+            "description": "Perform a comprehensive system scan to identify any remaining threats.",
+            "on_completion": "while-condition--47fb997e-faab-49e5-8d58-5e1df2dde970",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemscan -full"
+                }
+            ],
+            "agent": "organization--b4db16d0-795f-4635-9aba-3e14e135fb20"
+        },
+        "action--6912e7e1-45cf-47b3-9cde-1b123dce9c4d": {
+            "name": "Block external IP address",
+            "description": "Block known malicious external IP address.",
+            "on_completion": "if-condition--d12f5e84-2c32-4b36-bb9a-bce2d2135012",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=ipv4 source address=192.168.0.1 reject'"
+                }
+            ],
+            "agent": "organization--b4db16d0-795f-4635-9aba-3e14e135fb20"
+        },
+        "if-condition--d12f5e84-2c32-4b36-bb9a-bce2d2135012": {
+            "name": "Review PowerShell execution policy",
+            "type": "if-condition",
+            "condition": "Get-ExecutionPolicy != 'Restricted'",
+            "on_true": "action--ee78b162-5adf-4b06-a120-29891d8a9e2e",
+            "on_false": "end--e238f3dd-5496-42a3-a139-22356ba65c88"
+        },
+        "action--ee78b162-5adf-4b06-a120-29891d8a9e2e": {
+            "name": "Enforce restricted execution policy for PowerShell",
+            "description": "Set the PowerShell execution policy to restricted to prevent script execution.",
+            "on_completion": "end--e238f3dd-5496-42a3-a139-22356ba65c88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--23363c76-6262-4d2b-90db-64006574a0a3"
+        },
+        "end--e238f3dd-5496-42a3-a139-22356ba65c88": {
+            "type": "end"
+        },
+        "while-condition--47fb997e-faab-49e5-8d58-5e1df2dde970": {
+            "name": "Repeat scan until clean",
+            "description": "Repeats the system scan until no threats remain.",
+            "on_completion": "action--6912e7e1-45cf-47b3-9cde-1b123dce9c4d",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--58c9b707-1fd3-4d05-bb2b-36f5028a4679"
+        }
+    },
+    "agent_definitions": {
+        "organization--b4db16d0-795f-4635-9aba-3e14e135fb20": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--23363c76-6262-4d2b-90db-64006574a0a3": {
+            "type": "organization",
+            "name": "ClientOrgSecurity"
+        }
+    }
+}

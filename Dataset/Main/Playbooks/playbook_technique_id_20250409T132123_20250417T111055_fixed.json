@@ -1,0 +1,68 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f3d7f73-0ca5-44f2-89f2-7829de4b5223",
+    "name": "Playbook for Exfiltration via Web Protocols",
+    "description": "This playbook addresses an incident where an attacker used HTTP for unauthorized data exfiltration from the database server.",
+    "created_by": "identity--cdec5fd3-6447-471a-adc2-cffe116e5310",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a4c3d444-c454-4fc3-bd3d-123456789abc",
+    "workflow": {
+        "start--a4c3d444-c454-4fc3-bd3d-123456789abc": {
+            "on_completion": "action--e216bffd-d454-4356-96b8-0fef81f0e9de",
+            "type": "start"
+        },
+        "action--e216bffd-d454-4356-96b8-0fef81f0e9de": {
+            "name": "Isolate the compromised host",
+            "description": "Shut down the network interface of the compromised host to prevent further data loss.",
+            "on_completion": "action--cd9a51f7-1b93-4b83-b6b5-404ff6f80c88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-29 down"
+                }
+            ],
+            "agent": "organization--18d8a54d-a735-42e4-877f-95dc374a1810"
+        },
+        "action--cd9a51f7-1b93-4b83-b6b5-404ff6f80c88": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious processes that are running on the compromised host.",
+            "on_completion": "while-condition--c1d8f512-0c8e-4e01-9938-68f7763c8f80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--18d8a54d-a735-42e4-877f-95dc374a1810",
+            "conditional": {
+                "type": "if-condition",
+                "condition": "process_running('malicious_script')",
+                "on_true": "action--cd9a51f7-1b93-4b83-b6b5-404ff6f80c88",
+                "on_false": "while-condition--c1d8f512-0c8e-4e01-9938-68f7763c8f80"
+            }
+        },
+        "while-condition--c1d8f512-0c8e-4e01-9938-68f7763c8f80": {
+            "name": "Loop to block outbound traffic",
+            "description": "Repeat the action to block outbound traffic to malicious domains until no connections exist.",
+            "on_completion": "end--b4e7a45b-8c4b-4567-a66e-55567890abcd",
+            "type": "while-condition",
+            "condition": "connections_exist('malicious-domain.com')",
+            "on_true": "action--c1d8f512-0c8e-4e01-9938-68f7763c8f80",
+            "on_false": "end--b4e7a45b-8c4b-4567-a66e-55567890abcd"
+        },
+        "end--b4e7a45b-8c4b-4567-a66e-55567890abcd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--18d8a54d-a735-42e4-877f-95dc374a1810": {
+            "type": "organization",
+            "name": "DefensiveTeam"
+        }
+    }
+}

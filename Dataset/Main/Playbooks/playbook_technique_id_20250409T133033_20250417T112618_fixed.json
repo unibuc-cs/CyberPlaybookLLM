@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d98b46cb-2b51-426f-bb6f-2b3e7640b8b1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script that led to further compromise across multiple hosts.",
+    "created_by": "identity--50a4091d-0666-4b8f-91ad-02301e5853e4",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--88285e99-5830-4395-81a4-cef76c87b812",
+    "workflow": {
+        "action--a07e3c82-f316-4c4e-a2f8-e0c54ee946f5": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the processes executing the malicious script.",
+            "on_completion": "action--c19a6e7f-b968-4e70-9f8d-39b8e4010bdf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c"
+        },
+        "action--c19a6e7f-b968-4e70-9f8d-39b8e4010bdf": {
+            "name": "Scan for additional infections",
+            "description": "Run a scan on the system until it is confirmed clean.",
+            "on_completion": "while-condition--a4b0f20c-8b25-4f8b-820d-e0e443ba5ab1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c"
+        },
+        "action--e503f6b9-3ad9-4a4c-b1b4-9de27d5bcbb2": {
+            "name": "Remove identified malicious files",
+            "description": "Delete files identified as malicious by the scanner.",
+            "on_completion": "action--b4c9b897-e81c-403f-b021-315e2c6411d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malicious_files/*"
+                }
+            ],
+            "agent": "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c"
+        },
+        "action--b4c9b897-e81c-403f-b021-315e2c6411d7": {
+            "name": "Update security policies",
+            "description": "Update security configurations to prevent future script execution.",
+            "on_completion": "action--7c33f439-82c5-4aec-84d9-7715da25bc67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Restrict script execution permissions' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c"
+        },
+        "action--7c33f439-82c5-4aec-84d9-7715da25bc67": {
+            "name": "Notify the security team",
+            "description": "Send an alert to the security team regarding the detected malicious activity.",
+            "on_completion": "end--a7e1877b-4888-4331-a985-ae594404af6d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious activity detected on host-22' | mail -s 'Incident Alert' security@organization.com"
+                }
+            ],
+            "agent": "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c"
+        },
+        "start--88285e99-5830-4395-81a4-cef76c87b812": {
+            "on_completion": "action--a07e3c82-f316-4c4e-a2f8-e0c54ee946f5",
+            "type": "start"
+        },
+        "while-condition--a4b0f20c-8b25-4f8b-820d-e0e443ba5ab1": {
+            "name": "Repeat Infection Scan",
+            "description": "Repeat the scan until no infected files are detected.",
+            "on_true": "action--c19a6e7f-b968-4e70-9f8d-39b8e4010bdf",
+            "condition": "scan_results_detected == true",
+            "type": "while-condition"
+        },
+        "if-condition--bbf53fb1-d22d-4e4b-97bc-bca49ef0c260": {
+            "name": "Check if files are detected",
+            "type": "if-condition",
+            "condition": "scan_results_detected == true",
+            "on_true": "action--e503f6b9-3ad9-4a4c-b1b4-9de27d5bcbb2",
+            "on_false": "action--b4c9b897-e81c-403f-b021-315e2c6411d7"
+        },
+        "end--a7e1877b-4888-4331-a985-ae594404af6d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bd24717f-5d3f-46b3-a3d1-03a75e46b87c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

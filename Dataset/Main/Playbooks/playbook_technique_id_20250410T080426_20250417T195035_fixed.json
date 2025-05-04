@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e71b56e5-173c-4db2-9edc-4813b14d6f08",
+    "name": "Mitigation Playbook for PowerShell Script Attack",
+    "description": "This playbook mitigates an attack involving a PowerShell script used for data exfiltration and backdoor installation.",
+    "created_by": "identity--5f8e98d3-9c9f-4b87-befc-6aebb9f0d9b9",
+    "created": "2023-10-05T14:00:00.000Z",
+    "modified": "2023-10-05T14:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a0fdf1b6-2b43-4f49-a313-b4cb4e6a1323",
+    "workflow": {
+        "start--a0fdf1b6-2b43-4f49-a313-b4cb4e6a1323": {
+            "on_completion": "parallel--e9f30110-022b-46b7-8a1e-4989de971d1f",
+            "type": "start"
+        },
+        "end--5d4e09a2-0cc3-4f1b-9cba-e6df92165c11": {
+            "type": "end"
+        },
+        "parallel--e9f30110-022b-46b7-8a1e-4989de971d1f": {
+            "name": "Execute Parallel Mitigation Steps",
+            "description": "Perform multiple mitigation steps simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b",
+                "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68"
+            ]
+        },
+        "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any detected malicious PowerShell processes.",
+            "on_completion": "if-condition--8a4d1171-6e89-4c57-9bdc-0a528b0881e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'powershell' | grep -v grep | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--81acb4f9-5153-4663-9b84-92479e71c33f"
+        },
+        "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68": {
+            "name": "Block outbound traffic from host-47",
+            "description": "Prevent host-47 from making any outbound connections.",
+            "on_completion": "end--5d4e09a2-0cc3-4f1b-9cba-e6df92165c11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 0.0.0.0/0 -j DROP"
+                }
+            ],
+            "agent": "organization--2033bc81-1b49-4493-b425-912d001f70f9",
+            "step_variables": {
+                "host": {
+                    "type": "string",
+                    "description": "The host identifier",
+                    "value": "host-47",
+                    "constant": true
+                }
+            }
+        },
+        "if-condition--8a4d1171-6e89-4c57-9bdc-0a528b0881e8": {
+            "name": "Check for Backdoor Registry Entry",
+            "description": "Determine if a backdoor registry key exists.",
+            "type": "if-condition",
+            "condition": "registry key exists",
+            "on_true": "action--722b1a15-9d7b-48ad-8ee9-8a0627e02dab",
+            "on_false": "loop--7a59c6a7-e252-4c86-bc4f-8e5a64b5e651"
+        },
+        "action--722b1a15-9d7b-48ad-8ee9-8a0627e02dab": {
+            "name": "Remove backdoor from registry",
+            "description": "Delete any backdoor registry entries that may be present.",
+            "on_completion": "loop--7a59c6a7-e252-4c86-bc4f-8e5a64b5e651",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v backdoor /f"
+                }
+            ],
+            "agent": "organization--81acb4f9-5153-4663-9b84-92479e71c33f"
+        },
+        "loop--7a59c6a7-e252-4c86-bc4f-8e5a64b5e651": {
+            "name": "Scan for Lingering Malicious Scripts",
+            "description": "Conduct repeated scans until no malicious scripts are found.",
+            "type": "while-condition",
+            "condition": "scan is clean == false",
+            "on_true": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f",
+            "on_false": "end--5d4e09a2-0cc3-4f1b-9cba-e6df92165c11"
+        },
+        "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f": {
+            "name": "Scan for malicious PowerShell scripts",
+            "description": "Scan the file system for any malicious PowerShell scripts.",
+            "on_completion": "loop--7a59c6a7-e252-4c86-bc4f-8e5a64b5e651",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.ps1' -exec clamscan {} +"
+                }
+            ],
+            "agent": "organization--1a7c2781-701b-46b0-b0c6-51b5fbec4da7"
+        }
+    },
+    "agent_definitions": {
+        "organization--81acb4f9-5153-4663-9b84-92479e71c33f": {
+            "type": "organization",
+            "name": "Security Operations"
+        },
+        "organization--2033bc81-1b49-4493-b425-912d001f70f9": {
+            "type": "organization",
+            "name": "Network Operations"
+        },
+        "organization--1a7c2781-701b-46b0-b0c6-51b5fbec4da7": {
+            "type": "organization",
+            "name": "Antivirus Operations"
+        }
+    }
+}

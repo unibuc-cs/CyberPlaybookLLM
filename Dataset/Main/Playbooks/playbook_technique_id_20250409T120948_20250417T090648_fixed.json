@@ -1,0 +1,77 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d62fdbd3-a3d4-4e54-b761-1c625cb6ddbf",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an adversary executed a PowerShell script to download a malicious payload and scheduled it for persistent execution.",
+    "created_by": "identity--023b48a0-2ffd-4e64-bd36-373a5deef92e",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--fa74329d-6ff9-41b9-9c1b-db563dcf7158",
+    "workflow": {
+        "start--fa74329d-6ff9-41b9-9c1b-db563dcf7158": {
+            "on_completion": "action--a26276eb-fdfb-49d5-a775-0a8a7486941f",
+            "type": "start"
+        },
+        "action--a26276eb-fdfb-49d5-a775-0a8a7486941f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that was executed.",
+            "on_completion": "action--7c9d5c0f-d1c3-4c92-8059-9c2e5914c4b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--441043f7-52b0-420b-96f7-500cd80c6489"
+        },
+        "action--7c9d5c0f-d1c3-4c92-8059-9c2e5914c4b5": {
+            "name": "Remove scheduled task",
+            "description": "Delete the scheduled task associated with the malicious script to prevent future execution.",
+            "on_completion": "while-condition--f4e660a5-4fda-4d3b-84bd-994dddc12c6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn 'Malicious Task' /f"
+                }
+            ],
+            "agent": "organization--441043f7-52b0-420b-96f7-500cd80c6489"
+        },
+        "while-condition--f4e660a5-4fda-4d3b-84bd-994dddc12c6f": {
+            "name": "Scan for remaining threats",
+            "description": "Iterate the system scan until no threats are found.",
+            "on_true": "action--f4e660a5-4fda-4d3b-84bd-994dddc12c6f",
+            "on_false": "end--e8d22aa8-2cb6-436b-ae17-2fcf6723b4b2",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "next_steps": [
+                "action--f4e660a5-4fda-4d3b-84bd-994dddc12c6f"
+            ]
+        },
+        "action--f4e660a5-4fda-4d3b-84bd-994dddc12c6f": {
+            "name": "Run system scan",
+            "description": "Perform a system scan to check for remaining threats.",
+            "on_completion": "action--f4e660a5-4fda-4d3b-84bd-994dddc12c6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--441043f7-52b0-420b-96f7-500cd80c6489"
+        },
+        "end--e8d22aa8-2cb6-436b-ae17-2fcf6723b4b2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--441043f7-52b0-420b-96f7-500cd80c6489": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

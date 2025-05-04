@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c10b8d6c-5284-4c57-80e9-2c71c6ab072f",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook mitigates the threat arising from the execution of a malicious PowerShell script that led to unauthorized network actions.",
+    "created_by": "identity--b046bd9a-17d8-4a10-afad-195ef16aa68f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--e8c4b2e3-1cc2-487e-8278-01689c654cfd",
+            "type": "start"
+        },
+        "parallel--e8c4b2e3-1cc2-487e-8278-01689c654cfd": {
+            "name": "Execute Mitigations",
+            "description": "Perform several mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5e30b2c0-92cb-4c48-a2ce-1de4f3cc5e4c",
+                "if-condition--a61b5225-d5f6-4e0f-bb53-51f74cfebba8",
+                "loop--45c82063-b79e-4b99-8c1b-65d7c59de851"
+            ]
+        },
+        "action--5e30b2c0-92cb-4c48-a2ce-1de4f3cc5e4c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell script execution.",
+            "on_completion": "end--bfa3e23f-ca01-4949-ba7e-79e5c48b8400",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--f0889c87-9577-4d3d-9f04-d4b6f1f9b7e0"
+        },
+        "if-condition--a61b5225-d5f6-4e0f-bb53-51f74cfebba8": {
+            "name": "Check for established connections",
+            "type": "if-condition",
+            "condition": "established_connections_to_known_malicious_IP",
+            "on_true": "action--25c27bc8-ba8c-4c01-b071-0928dd0a4b87",
+            "on_false": "loop--45c82063-b79e-4b99-8c1b-65d7c59de851"
+        },
+        "action--25c27bc8-ba8c-4c01-b071-0928dd0a4b87": {
+            "name": "Terminate suspicious network connections",
+            "description": "Block all network connections to known malicious IP",
+            "on_completion": "loop--45c82063-b79e-4b99-8c1b-65d7c59de851",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport <port> -j DROP"
+                }
+            ],
+            "agent": "organization--f0889c87-9577-4d3d-9f04-d4b6f1f9b7e0"
+        },
+        "loop--45c82063-b79e-4b99-8c1b-65d7c59de851": {
+            "name": "Scan user directories for malicious scripts",
+            "description": "Iteratively scan user directories for other malicious scripts.",
+            "on_completion": "end--bfa3e23f-ca01-4949-ba7e-79e5c48b8400",
+            "type": "while-condition",
+            "condition": "remaining_user_directories > 0",
+            "on_true": "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1",
+            "on_false": "end--bfa3e23f-ca01-4949-ba7e-79e5c48b8400"
+        },
+        "action--79ea18ee-0663-4b97-b1b2-cfe976e1ebd1": {
+            "name": "Scan for other malicious scripts",
+            "description": "Search for PowerShell scripts in user directories.",
+            "on_completion": "loop--45c82063-b79e-4b99-8c1b-65d7c59de851",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home/* -name '*.ps1' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--f0889c87-9577-4d3d-9f04-d4b6f1f9b7e0"
+        },
+        "end--bfa3e23f-ca01-4949-ba7e-79e5c48b8400": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f0889c87-9577-4d3d-9f04-d4b6f1f9b7e0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7d7e36cc-7289-4148-a99b-1cedd5765528",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability to execute malicious scripts using a command-line interpreter.",
+    "created_by": "identity--710ae93c-4e2e-40e5-bb41-2fee4ec3529e",
+    "created": "2025-04-09T12:30:00.000Z",
+    "modified": "2025-04-09T12:35:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c5c4051e-2898-4dcf-a974-e561afa2dcf6",
+    "workflow": {
+        "action--60f1471e-c778-4c92-9d4f-56b5b23e2645": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--add87284-8526-4f89-9c01-77ad552f3a0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--209118e7-30e7-4f6f-95d2-1b9e1bdde61a"
+        },
+        "action--add87284-8526-4f89-9c01-77ad552f3a0a": {
+            "name": "Remove dropped files",
+            "description": "Delete any dropped malicious script files.",
+            "on_completion": "loop--be6b3814-4ee7-47d2-8cba-d3e74f3ae6cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /home/user/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--209118e7-30e7-4f6f-95d2-1b9e1bdde61a"
+        },
+        "loop--be6b3814-4ee7-47d2-8cba-d3e74f3ae6cb": {
+            "name": "Check for other instances of the script",
+            "description": "Repeat until no more instances of the suspicious script exist.",
+            "on_completion": "if-condition--bcce1cf4-c5e8-4be3-a1c7-efb82bb665c6",
+            "type": "while-condition",
+            "condition": "grep -q suspicious_script.sh /home/user/suspicious_script.sh",
+            "on_true": "action--be6b3814-4ee7-47d2-8cba-d3e74f3ae6cb",
+            "on_false": "action--bcce1cf4-c5e8-4be3-a1c7-efb82bb665c6"
+        },
+        "if-condition--bcce1cf4-c5e8-4be3-a1c7-efb82bb665c6": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected",
+            "on_true": "action--bcce1cf4-c5e8-4be3-a1c7-efb82bb665c6",
+            "on_false": "action--d84e8655-c64e-4ece-85ab-4b2fc700fa96"
+        },
+        "action--bcce1cf4-c5e8-4be3-a1c7-efb82bb665c6": {
+            "name": "Block outbound connections",
+            "description": "Block any unauthorized outbound connections.",
+            "on_completion": "action--d84e8655-c64e-4ece-85ab-4b2fc700fa96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 22 -j DROP"
+                }
+            ],
+            "agent": "organization--209118e7-30e7-4f6f-95d2-1b9e1bdde61a"
+        },
+        "action--d84e8655-c64e-4ece-85ab-4b2fc700fa96": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan to identify any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--209118e7-30e7-4f6f-95d2-1b9e1bdde61a",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates whether the scan is complete.",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "loop-while-scan--706d1c76-fd08-47e7-9778-2225d50292ba"
+        },
+        "start--c5c4051e-2898-4dcf-a974-e561afa2dcf6": {
+            "on_completion": "action--60f1471e-c778-4c92-9d4f-56b5b23e2645",
+            "type": "start"
+        },
+        "loop-while-scan--706d1c76-fd08-47e7-9778-2225d50292ba": {
+            "name": "Wait for scan completion",
+            "description": "Continue to check for scan completion.",
+            "on_true": "if-condition-scan-complete--72e5ad0d-77d2-4a48-bbc7-a4862d66756a",
+            "type": "while-condition",
+            "condition": "scan_complete == false",
+            "on_completion": "end--28e6c961-95df-4e24-b78e-416f7d519981"
+        },
+        "if-condition-scan-complete--72e5ad0d-77d2-4a48-bbc7-a4862d66756a": {
+            "name": "Scan completion check",
+            "type": "if-condition",
+            "condition": "scan_complete == true",
+            "on_true": "end--28e6c961-95df-4e24-b78e-416f7d519981"
+        },
+        "end--28e6c961-95df-4e24-b78e-416f7d519981": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--209118e7-30e7-4f6f-95d2-1b9e1bdde61a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

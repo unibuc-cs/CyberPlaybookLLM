@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b96ddd88-5e0b-41c4-9391-7981e7a1d935",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses incidents involving network exploitation via application layer protocols and facilitates the disconnection from C2 servers, killing of malicious processes, and conducting network traffic analysis.",
+    "created_by": "identity--30feb43c-8e8f-4138-8313-60a4e2131c52",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1d3a7c4c-39de-4fa2-8b24-3adb8dba8e60",
+    "workflow": {
+        "start--1d3a7c4c-39de-4fa2-8b24-3adb8dba8e60": {
+            "on_completion": "if-condition--b5187427-72be-446d-9f68-6c57c6f315c8",
+            "type": "start"
+        },
+        "if-condition--b5187427-72be-446d-9f68-6c57c6f315c8": {
+            "name": "Check if connection established",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--b5fbbd88-69a7-4c56-bb96-05b77b69999d",
+            "on_false": "action--c79fa891-a80d-414e-9c2d-98a8fdc7a299"
+        },
+        "action--b5fbbd88-69a7-4c56-bb96-05b77b69999d": {
+            "name": "Disconnect from the C2 server",
+            "description": "Terminate all connections to the command and control server.",
+            "on_completion": "action--c79fa891-a80d-414e-9c2d-98a8fdc7a299",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(lsof -t -i:443)"
+                }
+            ],
+            "agent": "organization--015d7a20-92b9-4af3-84c0-5e1e2bc36ec2"
+        },
+        "action--c79fa891-a80d-414e-9c2d-98a8fdc7a299": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes that may be running.",
+            "on_completion": "while-condition--187df666-d271-4e5b-94ad-ca5f7f4d2157",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--015d7a20-92b9-4af3-84c0-5e1e2bc36ec2"
+        },
+        "action--a15de7c2-06ef-42e1-a988-528599e454d2": {
+            "name": "Conduct network traffic analysis",
+            "description": "Capture and analyze traffic on the specific port.",
+            "on_completion": {
+                "action_increment": {
+                    "variable": "analysis_count--fe95194a-baeb-4f5b-961f-32b5bc2eb48f",
+                    "increment": 1
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -n port 443"
+                }
+            ],
+            "agent": "organization--015d7a20-92b9-4af3-84c0-5e1e2bc36ec2"
+        },
+        "end--aa7ed233-54c2-4bfe-a34a-a5c8b4cbf05a": {
+            "step_extensions": {
+                "": "extension-definition--218ee24c-9cb1-46d9-afa5-309e01aabc8f"
+            },
+            "type": "end"
+        },
+        "while-condition--187df666-d271-4e5b-94ad-ca5f7f4d2157": {
+            "name": "Conduct network traffic analysis loop",
+            "description": "Repeat the traffic analysis until all significant data is collected.",
+            "on_completion": "end--aa7ed233-54c2-4bfe-a34a-a5c8b4cbf05a",
+            "type": "while-condition",
+            "condition": "analysis_count < 10",
+            "on_true": "action--a15de7c2-06ef-42e1-a988-528599e454d2",
+            "on_false": "end--aa7ed233-54c2-4bfe-a34a-a5c8b4cbf05a",
+            "step_variables": {
+                "analysis_count": {
+                    "type": "integer",
+                    "description": "Counts the number of analyses performed.",
+                    "value": 0,
+                    "constant": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--015d7a20-92b9-4af3-84c0-5e1e2bc36ec2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

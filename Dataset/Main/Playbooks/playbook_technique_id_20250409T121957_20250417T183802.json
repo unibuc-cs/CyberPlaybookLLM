@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b150a377-c27c-47a9-9feb-9c2894f4291d",
+    "name": "Mitigation Playbook for Web Application Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the web application, executing malicious scripts and exfiltrating sensitive data.",
+    "created_by": "identity--c0e8d202-c872-4c80-967a-0f2fd7ba5e36",
+    "created": "2023-10-17T11:00:00Z",
+    "modified": "2023-10-17T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c5d6b926-e964-4de2-bb45-5b905182eb6f",
+    "workflow": {
+        "start--c5d6b926-e964-4de2-bb45-5b905182eb6f": {
+            "on_completion": "action--e5e36e7c-11f1-43f0-b5f0-81075f28b4a8",
+            "type": "start"
+        },
+        "action--e5e36e7c-11f1-43f0-b5f0-81075f28b4a8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--a3c9e765-af2e-4647-bf9a-f2a1e421d0f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a3c9e765-af2e-4647-bf9a-f2a1e421d0f7": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host where the attack occurred to prevent further data loss.",
+            "on_completion": "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2": {
+            "name": "Scan for additional threats",
+            "description": "Continuously scan the system for any remaining threats.",
+            "on_completion": "action--a6cace01-90ab-4e60-be73-ff6a1c1128fc",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "on_false": "action--f3e4b823-b2de-4fbc-8b3b-73e8f3df8a53"
+        },
+        "action--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2": {
+            "name": "Run antivirus scan",
+            "on_completion": "loop--c3efdebc-2b99-4d3f-b4bc-c6e6b426b2d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_antivirus; sleep 600"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a6cace01-90ab-4e60-be73-ff6a1c1128fc": {
+            "name": "Change all compromised passwords",
+            "description": "Reset passwords for all users that may have been compromised during the attack.",
+            "on_completion": "action--f3e4b823-b2de-4fbc-8b3b-73e8f3df8a53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "change_passwords --users compromised_users.txt"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if users need reset"
+        },
+        "action--f3e4b823-b2de-4fbc-8b3b-73e8f3df8a53": {
+            "name": "Monitor log files for suspicious activities",
+            "description": "Monitor log files for any sign of failed login attempts.",
+            "on_completion": "end--a5b9b123-1234-45de-bb12-bd123456abcd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'Failed login'"
+                }
+            ],
+            "agent": "organization--abc",
+            "variables": {
+                "user_monitor": "failed_attempts"
+            }
+        },
+        "end--a5b9b123-1234-45de-bb12-bd123456abcd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

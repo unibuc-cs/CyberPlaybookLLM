@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fb4a1e53-5c75-4f3d-8a8b-5b64b440766f",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses the incident where an unauthorized user executed scripts on an internal server, leading to privilege escalation and data exfiltration.",
+    "created_by": "identity--1687ecef-3b38-4a3c-babe-31216d6b4287",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--2ecc8be5-be70-433b-a888-189b747eb86c",
+    "workflow": {
+        "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that are potentially malicious.",
+            "on_completion": "parallel--9c99ec9e-19ef-4d1e-aaa2-dc74a9d6948f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--02dc2c70-0f65-4c49-8d68-150278bcfa0c"
+        },
+        "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5": {
+            "name": "Restore previous configurations",
+            "description": "Restore the configuration from backup.",
+            "on_completion": "while-condition--7b7578e0-5363-4a94-b649-778291071bdd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config /etc/myapp/config"
+                }
+            ],
+            "agent": "organization--02dc2c70-0f65-4c49-8d68-150278bcfa0c"
+        },
+        "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc": {
+            "name": "Perform a full security scan",
+            "description": "Conduct a comprehensive security scan after restoring configurations.",
+            "on_completion": "end--164e09e1-1f23-4e46-aea0-0e9e8712c4a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --full"
+                }
+            ],
+            "agent": "organization--02dc2c70-0f65-4c49-8d68-150278bcfa0c",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the security scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--2ecc8be5-be70-433b-a888-189b747eb86c": {
+            "on_completion": "if-condition--d4916058-3a41-4581-82b1-de9ac1231575",
+            "type": "start"
+        },
+        "if-condition--d4916058-3a41-4581-82b1-de9ac1231575": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b",
+            "on_false": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5"
+        },
+        "while-condition--7b7578e0-5363-4a94-b649-778291071bdd": {
+            "name": "Check Configuration Stability Loop",
+            "description": "Repeat restoring configurations until stable.",
+            "on_completion": "parallel--9c99ec9e-19ef-4d1e-aaa2-dc74a9d6948f",
+            "type": "while-condition",
+            "condition": "configuration_is_stable()",
+            "on_true": "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc",
+            "on_false": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5"
+        },
+        "parallel--9c99ec9e-19ef-4d1e-aaa2-dc74a9d6948f": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Run mitigations concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc"
+            ]
+        },
+        "end--164e09e1-1f23-4e46-aea0-0e9e8712c4a2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--02dc2c70-0f65-4c49-8d68-150278bcfa0c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

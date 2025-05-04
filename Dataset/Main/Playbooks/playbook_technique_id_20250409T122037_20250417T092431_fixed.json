@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a20a1e60-3de2-4ea0-b7eb-3d7c7aaf72b4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability in a web application to execute arbitrary commands, modify server files, and install a backdoor.",
+    "created_by": "identity--03f2e982-03c8-4231-9120-abc2b6962912",
+    "created": "2023-10-10T14:50:00.000Z",
+    "modified": "2023-10-10T14:50:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c3b04892-54f9-4c47-8dfe-b4b52033b007",
+    "workflow": {
+        "start--c3b04892-54f9-4c47-8dfe-b4b52033b007": {
+            "on_completion": "parallel--c5309e5f-bc62-4f11-b45d-ef12fa75b560",
+            "type": "start"
+        },
+        "parallel--c5309e5f-bc62-4f11-b45d-ef12fa75b560": {
+            "name": "Resolve Incident",
+            "description": "Simultaneously take actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9a1e6d92-daae-4d46-b9b3-8fbba97cfae1",
+                "if-condition--a89fdb6c-09ae-4f71-b174-8b4b013f6c20"
+            ]
+        },
+        "action--9a1e6d92-daae-4d46-b9b3-8fbba97cfae1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious scripts running on the server.",
+            "on_completion": "if-condition--a89fdb6c-09ae-4f71-b174-8b4b013f6c20",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--e3e319cc-4f7d-4a23-9334-533427177896"
+        },
+        "if-condition--a89fdb6c-09ae-4f71-b174-8b4b013f6c20": {
+            "name": "Check for malicious files",
+            "type": "if-condition",
+            "condition": "malicious_files_check != ''",
+            "on_true": "action--d2fbb4a6-cc21-4b2f-b1f8-004b84265eec",
+            "on_false": "action--c3e2fb06-e025-4724-82c0-ed5b8bb12fd5"
+        },
+        "action--d2fbb4a6-cc21-4b2f-b1f8-004b84265eec": {
+            "name": "Remove dropped files",
+            "description": "Remove all malicious files from the server.",
+            "on_completion": "action--c3e2fb06-e025-4724-82c0-ed5b8bb12fd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious_script.sh /path/to/backdoor_executable"
+                }
+            ],
+            "agent": "organization--e3e319cc-4f7d-4a23-9334-533427177896"
+        },
+        "action--c3e2fb06-e025-4724-82c0-ed5b8bb12fd5": {
+            "name": "Conduct security audit",
+            "description": "Run a security audit to identify any remaining threats.",
+            "on_completion": "if-condition--f1e72dc5-2b67-4ed8-8da9-295e48d64c90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_audit_tool.sh"
+                }
+            ],
+            "agent": "organization--e3e319cc-4f7d-4a23-9334-533427177896"
+        },
+        "if-condition--f1e72dc5-2b67-4ed8-8da9-295e48d64c90": {
+            "name": "Evaluate audit results",
+            "type": "if-condition",
+            "condition": "scan_result == 0",
+            "on_true": "end--6c44e3bb-5723-4c1e-9a9d-b1fbe59fed8b",
+            "on_false": "repeat--e1c30743-6c15-4c29-8044-62ecc5ae89af"
+        },
+        "repeat--e1c30743-6c15-4c29-8044-62ecc5ae89af": {
+            "name": "Repeat collateral security audit",
+            "description": "Continue to conduct audits until no threats are identified.",
+            "on_completion": "action--c3e2fb06-e025-4724-82c0-ed5b8bb12fd5",
+            "type": "while-condition",
+            "condition": "scan_result != 0"
+        },
+        "end--6c44e3bb-5723-4c1e-9a9d-b1fbe59fed8b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e3e319cc-4f7d-4a23-9334-533427177896": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

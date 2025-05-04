@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3f707d71-7d07-49b9-aa70-1b49658ad0e0",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed a malicious script via a phishing email that led to data exfiltration and a backdoor establishment.",
+    "created_by": "identity--7c0e5d46-272c-48a0-b5b9-b41021fc0073",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--75798023-71d6-494b-86ab-2fe83d21a58c",
+    "workflow": {
+        "start--75798023-71d6-494b-86ab-2fe83d21a58c": {
+            "on_completion": "action--2048d736-cf70-4b91-b4d3-4f4e44fa126c",
+            "type": "start"
+        },
+        "action--2048d736-cf70-4b91-b4d3-4f4e44fa126c": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script running on the host.",
+            "on_completion": "action--e8308052-a247-40e2-bf33-4f7f8d24da7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7"
+        },
+        "action--e8308052-a247-40e2-bf33-4f7f8d24da7d": {
+            "name": "Isolate affected host",
+            "description": "Take down the affected host to prevent further exfiltration.",
+            "on_completion": "action--370a95e5-055b-4b0c-93d3-83bc84d2a0de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7"
+        },
+        "action--370a95e5-055b-4b0c-93d3-83bc84d2a0de": {
+            "name": "Conduct full malware scan",
+            "description": "Perform a full malware scan on the host.",
+            "on_completion": "while-condition--2f1da8ac-8d2e-4da9-b4b4-30d6ced18637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell --remove"
+                }
+            ],
+            "agent": "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7"
+        },
+        "while-condition--2f1da8ac-8d2e-4da9-b4b4-30d6ced18637": {
+            "name": "Check if threats are found",
+            "description": "Repeat the malware scan until no threats are found on the host.",
+            "on_true": "action--370a95e5-055b-4b0c-93d3-83bc84d2a0de",
+            "on_false": "action--a645ac17-3d4a-49f7-bed9-7583ba7949fb",
+            "type": "while-condition",
+            "condition": "threats_found == true"
+        },
+        "action--a645ac17-3d4a-49f7-bed9-7583ba7949fb": {
+            "name": "Reset user credentials",
+            "description": "Reset the credentials of the affected user.",
+            "on_completion": "action--f8a0e711-e73d-4268-9522-e5548fd838dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user-22"
+                }
+            ],
+            "agent": "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7"
+        },
+        "action--f8a0e711-e73d-4268-9522-e5548fd838dc": {
+            "name": "Monitor network traffic",
+            "description": "Start monitoring network traffic for suspicious activity.",
+            "on_completion": "end--e9d11dd8-3e73-49d1-878b-2b36465a65f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7"
+        },
+        "end--e9d11dd8-3e73-49d1-878b-2b36465a65f7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--453d0ea5-e53c-4465-8c58-8f8ab3febdd7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7d663c76-af5f-4e62-b6af-3b004c65aa62",
+    "name": "Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates incidents where an attacker executed malicious scripts remotely to exploit a web application.",
+    "created_by": "identity--b6320eae-c659-44c4-9f12-c2ff2112e510",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a2f1e3c5-db7e-4d65-b9d3-d7e25c882ac8",
+    "workflow": {
+        "start--a2f1e3c5-db7e-4d65-b9d3-d7e25c882ac8": {
+            "on_completion": "action--9e69ff26-2f9f-458e-9cb7-c362df97bb86",
+            "type": "start"
+        },
+        "action--9e69ff26-2f9f-458e-9cb7-c362df97bb86": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--128ddcd9-ccde-4187-9152-35ead9a6f88e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2"
+        },
+        "action--128ddcd9-ccde-4187-9152-35ead9a6f88e": {
+            "name": "Isolate compromised host",
+            "description": "Take the compromised host offline.",
+            "on_completion": "while-condition--cb06c9d2-34e9-4e34-b547-469d93309a5e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-01 down"
+                }
+            ],
+            "agent": "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2"
+        },
+        "while-condition--cb06c9d2-34e9-4e34-b547-469d93309a5e": {
+            "name": "Run malware scan until no threats found",
+            "description": "Perform a malware scan repeatedly until no threats are detected.",
+            "on_true": "action--85c462ef-c20f-445a-8443-2a23c8bd2f7d",
+            "condition": "threat_found == true",
+            "type": "while-condition",
+            "next_steps": [
+                "action--85c462ef-c20f-445a-8443-2a23c8bd2f7d"
+            ]
+        },
+        "action--85c462ef-c20f-445a-8443-2a23c8bd2f7d": {
+            "name": "Run malware scan",
+            "description": "Scan the entire system for malware.",
+            "on_completion": "if-condition--02ccf870-790d-41fc-92cf-fbed237cc948",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2"
+        },
+        "if-condition--02ccf870-790d-41fc-92cf-fbed237cc948": {
+            "name": "Check for web application vulnerability",
+            "type": "if-condition",
+            "condition": "vulnerability_exists == true",
+            "on_true": "action--9b072bf5-845f-42a0-8856-09340d831445",
+            "on_false": "action--5b80e5a6-1b8c-496f-b015-6503732141ad"
+        },
+        "action--9b072bf5-845f-42a0-8856-09340d831445": {
+            "name": "Patch web application vulnerability",
+            "description": "Install the patch for the identified vulnerability in the web application.",
+            "on_completion": "action--5b80e5a6-1b8c-496f-b015-6503732141ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install webapp-patch"
+                }
+            ],
+            "agent": "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2"
+        },
+        "action--5b80e5a6-1b8c-496f-b015-6503732141ad": {
+            "name": "Monitor logs for suspicious activity",
+            "description": "Continuously watch the web application logs for any unusual actions.",
+            "on_completion": "end--fb1ee7ed-a6fe-4e22-b005-5a7fa4ed56ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/webapp.log"
+                }
+            ],
+            "agent": "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2",
+            "step_variables": {
+                "logfile": {
+                    "type": "string",
+                    "description": "Location of the web application log file",
+                    "value": "/var/log/webapp.log",
+                    "constant": false
+                }
+            }
+        },
+        "end--fb1ee7ed-a6fe-4e22-b005-5a7fa4ed56ce": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--191f0eed-f5b3-4faf-8fe7-b893853bb9d2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--18712915-5d69-413f-b64b-365656aef48a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting language to execute malicious commands across multiple hosts.",
+    "created_by": "identity--b25b8751-60fb-454f-8035-06f4a0f82b61",
+    "created": "2023-10-12T10:00:00Z",
+    "modified": "2023-10-12T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d24e3c86-931d-5e6a-8b39-7a3edc12f62e",
+    "workflow": {
+        "start--d24e3c86-931d-5e6a-8b39-7a3edc12f62e": {
+            "on_completion": "action--c0f1a4e0-71e5-4645-9464-9d75188471f6",
+            "type": "start"
+        },
+        "action--c0f1a4e0-71e5-4645-9464-9d75188471f6": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--3e67c1ec-59f8-48c8-b433-9f7cd507fabd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--a24b189d-021f-4e0f-a7a6-dc91b147ada3"
+        },
+        "if-condition--3e67c1ec-59f8-48c8-b433-9f7cd507fabd": {
+            "name": "Check if host-22 is compromised",
+            "type": "if-condition",
+            "condition": "host-22 compromised == true",
+            "on_true": "action--3ad9a6d3-37b2-404e-89fa-21431f3b5c44",
+            "on_false": "action--6629a2b7-3ccf-4c8e-84b9-7c10ac40f1cb"
+        },
+        "action--3ad9a6d3-37b2-404e-89fa-21431f3b5c44": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate the compromised host-22 from the network.",
+            "on_completion": "action--6629a2b7-3ccf-4c8e-84b9-7c10ac40f1cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--a24b189d-021f-4e0f-a7a6-dc91b147ada3"
+        },
+        "action--6629a2b7-3ccf-4c8e-84b9-7c10ac40f1cb": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the entire system to detect any remaining threats.",
+            "on_completion": "loop--d692e549-f185-4b4f-8856-a96bd72a82b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--a24b189d-021f-4e0f-a7a6-dc91b147ada3"
+        },
+        "loop--d692e549-f185-4b4f-8856-a96bd72a82b3": {
+            "name": "Repeat malware scan until clean",
+            "description": "Continue scanning for malware until the system is clean.",
+            "on_completion": "if-condition--75ab4a1d-8f12-4a8c-a5be-3c6ac69771fb",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--6629a2b7-3ccf-4c8e-84b9-7c10ac40f1cb"
+        },
+        "if-condition--75ab4a1d-8f12-4a8c-a5be-3c6ac69771fb": {
+            "name": "Check script execution logs",
+            "type": "if-condition",
+            "condition": "check_logs == true",
+            "on_true": "action--b8350898-8868-49f7-a225-96476fd59dce",
+            "on_false": "end--4eeb825d-f5bd-468b-b3a6-c328f7d2646f"
+        },
+        "action--b8350898-8868-49f7-a225-96476fd59dce": {
+            "name": "Execute log search for malicious activity",
+            "description": "Search the logs for any malicious command execution.",
+            "on_completion": "end--4eeb825d-f5bd-468b-b3a6-c328f7d2646f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/command.log"
+                }
+            ],
+            "agent": "organization--a24b189d-021f-4e0f-a7a6-dc91b147ada3"
+        },
+        "end--4eeb825d-f5bd-468b-b3a6-c328f7d2646f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a24b189d-021f-4e0f-a7a6-dc91b147ada3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

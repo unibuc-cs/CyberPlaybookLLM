@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8c45fcb-1f8f-4720-a553-1e6250620082",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution and data exfiltration by taking appropriate mitigation steps.",
+    "created_by": "identity--da0b60f0-3645-4e6d-90a6-e5466bb1f7f6",
+    "created": "2025-10-10T14:30:00.000Z",
+    "modified": "2025-10-10T14:35:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f2d7a3e1-1e5d-4ef0-bb6b-3c7b0d3b124b",
+    "workflow": {
+        "start--f2d7a3e1-1e5d-4ef0-bb6b-3c7b0d3b124b": {
+            "on_completion": "action--3b36c3c5-0e97-4e2e-b3c7-9e68f2d03299",
+            "type": "start"
+        },
+        "action--3b36c3c5-0e97-4e2e-b3c7-9e68f2d03299": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that has been executing.",
+            "on_completion": "parallel--a4b1bc84-a218-4f32-bc41-fae3271bfe2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--ea8ce2cd-bcb5-4632-b946-cf2649bf56db"
+        },
+        "parallel--a4b1bc84-a218-4f32-bc41-fae3271bfe2a": {
+            "name": "Launch Mitigation Steps",
+            "description": "Simultaneously monitor network activity and isolate compromised hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6a64f63f-68bc-4c0c-9985-52f29eedc9a5",
+                "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592"
+            ]
+        },
+        "action--6a64f63f-68bc-4c0c-9985-52f29eedc9a5": {
+            "name": "Monitor network traffic for suspicious activity",
+            "description": "Capture all network traffic to detect any further malicious activity.",
+            "on_completion": "if-condition--b2a59769-8d1e-4e7f-abe8-328ea51a572c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i all -n -s 0 -A"
+                }
+            ],
+            "agent": "organization--ea8ce2cd-bcb5-4632-b946-cf2649bf56db"
+        },
+        "if-condition--b2a59769-8d1e-4e7f-abe8-328ea51a572c": {
+            "name": "Check network traffic thresholds",
+            "type": "if-condition",
+            "condition": "traffic > normal_threshold",
+            "on_true": "action--c2031c67-f154-41ea-a616-3c791f3c7ce9",
+            "on_false": "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592"
+        },
+        "action--c2031c67-f154-41ea-a616-3c791f3c7ce9": {
+            "name": "Audit user account activity",
+            "description": "Check the last 100 login activities to identify unauthorized access.",
+            "on_completion": "end--9b60a5c0-fb16-4c18-806b-506401efc930",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "last -n ${audit_window}"
+                }
+            ],
+            "agent": "organization--ea8ce2cd-bcb5-4632-b946-cf2649bf56db",
+            "step_variables": {
+                "audit_window": {
+                    "type": "integer",
+                    "description": "Number of last records to audit",
+                    "value": 100,
+                    "constant": false
+                }
+            }
+        },
+        "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592": {
+            "name": "Isolate compromised hosts",
+            "description": "Block traffic from identified malicious IPs until all compromised hosts are isolated.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--ea8ce2cd-bcb5-4632-b946-cf2649bf56db",
+            "loop": "until_hosts_isolated--e997c09d-4806-4b29-9fb4-948b9e820d65"
+        },
+        "end--9b60a5c0-fb16-4c18-806b-506401efc930": {
+            "type": "end"
+        },
+        "until_hosts_isolated--e8009f07-e7c5-499f-b4f8-63dc37db89f7": {
+            "name": "Check if all hosts are isolated",
+            "description": "Repeat isolation process until all monitored hosts are confirmed isolated.",
+            "on_completion": "action--6a64f63f-68bc-4c0c-9985-52f29eedc9a5",
+            "type": "while-condition",
+            "condition": "all_hosts_isolated == false",
+            "on_true": "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592"
+        }
+    },
+    "agent_definitions": {
+        "organization--ea8ce2cd-bcb5-4632-b946-cf2649bf56db": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,127 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3a8ef53-87ef-4e3f-b3c3-ea58c7d3b266",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution Incident",
+    "description": "This playbook outlines the steps to mitigate the effects of unauthorized PowerShell scripts executed by an attacker on several hosts.",
+    "created_by": "identity--b1b99e6c-b9b1-4d7d-9b44-e2c7e98dee76",
+    "created": "2023-09-25T14:30:00Z",
+    "modified": "2023-09-25T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--9a8c377b-c4ec-4d58-a3f8-89a120e7f470",
+    "workflow": {
+        "start--9a8c377b-c4ec-4d58-a3f8-89a120e7f470": {
+            "on_completion": "parallel--2d2383c8-3f81-4fb8-9fdf-79d7edda06c0",
+            "type": "start"
+        },
+        "parallel--2d2383c8-3f81-4fb8-9fdf-79d7edda06c0": {
+            "name": "Mitigate Unauthorized Scripts",
+            "description": "Simultaneously execute multiple mitigation actions against unauthorized scripts and network threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--478b760d-a658-42a9-b59f-5b590d4e1c9f",
+                "action--d9a8c2e0-b5e7-4bd7-a9d1-16f1e8f5a5f3",
+                "action--b7606eaa-5c23-4c7a-957f-3e5f89b9dcd1",
+                "action--9a1c5c2e-6b8d-4a6c-b7c8-2d4e0f2b4f5d"
+            ]
+        },
+        "action--478b760d-a658-42a9-b59f-5b590d4e1c9f": {
+            "name": "Terminate unauthorized PowerShell processes",
+            "description": "Terminate any unauthorized PowerShell scripts running on detected hosts.",
+            "on_completion": "action--b7606eaa-5c23-4c7a-957f-3e5f89b9dcd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--57c4ff60-8551-4f34-9613-3bfd7c291966"
+        },
+        "action--d9a8c2e0-b5e7-4bd7-a9d1-16f1e8f5a5f3": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Block any outbound traffic to the suspicious command and control server.",
+            "on_completion": "action--b7606eaa-5c23-4c7a-957f-3e5f89b9dcd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.142 -j DROP"
+                }
+            ],
+            "agent": "organization--50f2b7d7-7bc0-4168-a4f1-806106015a83"
+        },
+        "action--9a1c5c2e-6b8d-4a6c-b7c8-2d4e0f2b4f5d": {
+            "name": "Conduct security audit and remove suspicious scripts",
+            "description": "Identify and delete suspicious PowerShell scripts from the system.",
+            "on_completion": "action--b7606eaa-5c23-4c7a-957f-3e5f89b9dcd1",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -delete"
+                }
+            ],
+            "agent": "organization--ab17d12c-b333-4a04-bd4e-8b8d7153ea84",
+            "condition": "if unauthorized scripts are found"
+        },
+        "action--b7606eaa-5c23-4c7a-957f-3e5f89b9dcd1": {
+            "name": "Quarantine affected hosts",
+            "description": "Quarantine the affected hosts to prevent further damage.",
+            "on_completion": "action--f021a4e6-b0e4-40c7-b2c6-28fe3df7060a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Quarantine IP {{host_ip}}'"
+                }
+            ],
+            "agent": "organization--46e45501-1094-4ddd-8779-0d0b37bae8e5",
+            "targets": [
+                {
+                    "variable": "host_ip",
+                    "description": "IP of affected host"
+                }
+            ]
+        },
+        "action--f021a4e6-b0e4-40c7-b2c6-28fe3df7060a": {
+            "name": "Initiate full network scan for additional compromises",
+            "description": "Conduct a network scan to identify any additional compromised systems.",
+            "on_completion": "end--c0e217b6-27b9-4ef1-8a6e-dea4c0f99696",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p 1-65535 192.168.0.0/16"
+                }
+            ],
+            "agent": "organization--e2f97d7f-9bbb-4f15-b036-404157155922",
+            "condition": "if any suspicious activity is logged post-mitigation"
+        },
+        "end--c0e217b6-27b9-4ef1-8a6e-dea4c0f99696": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--57c4ff60-8551-4f34-9613-3bfd7c291966": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--50f2b7d7-7bc0-4168-a4f1-806106015a83": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--ab17d12c-b333-4a04-bd4e-8b8d7153ea84": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--46e45501-1094-4ddd-8779-0d0b37bae8e5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--e2f97d7f-9bbb-4f15-b036-404157155922": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

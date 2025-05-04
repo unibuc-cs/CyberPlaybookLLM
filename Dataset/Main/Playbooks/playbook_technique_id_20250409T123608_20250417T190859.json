@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2818f8c-6ff6-4e2f-b7af-3f4c6ff71172",
+    "name": "Mitigation Playbook for Shell Command Execution Incident",
+    "description": "This playbook addresses an incident where an internal server executed unexpected shell commands potentially indicating a compromise.",
+    "created_by": "identity--d3c3e8c4-c28e-4f67-b8ab-5f120371263d",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a3d9d85-5b2f-4f80-a2e3-1bbc02f18d3c",
+    "workflow": {
+        "start--1a3d9d85-5b2f-4f80-a2e3-1bbc02f18d3c": {
+            "on_completion": "action--2c5f3b2e-dd1e-4dc7-b072-082614c4a0d1",
+            "type": "start"
+        },
+        "action--2c5f3b2e-dd1e-4dc7-b072-082614c4a0d1": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script process that was initiated.",
+            "on_completion": "if-condition--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b": {
+            "name": "Check for active connection to malicious IP",
+            "type": "if-condition",
+            "condition": "active_connection_found == true",
+            "on_true": "action--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b",
+            "on_false": "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9"
+        },
+        "action--816b3e1f-ef5c-483d-8975-ec2eddcb3f7b": {
+            "name": "Block malicious IP address",
+            "description": "Block outbound connections to the specified malicious IP address.",
+            "on_completion": "parallel--560a429d-a343-46d0-b86f-f6c897b68ed8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--560a429d-a343-46d0-b86f-f6c897b68ed8": {
+            "name": "Scan and clean the system",
+            "description": "Simultaneously scan the system for malicious files in the /tmp directory.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9",
+                "end--1c47e3c6-0d04-4c01-bf51-2c62de2fc58e"
+            ]
+        },
+        "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9": {
+            "name": "Scan system",
+            "description": "Perform a scanning operation to check and remove any malicious payloads.",
+            "on_completion": "while-condition--c90c2253-5f16-42e0-aa5b-814ec8685613",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /tmp"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--c90c2253-5f16-42e0-aa5b-814ec8685613": {
+            "name": "Check scan results",
+            "description": "Repeat the scanning process until no malicious files are detected.",
+            "on_completion": "end--1c47e3c6-0d04-4c01-bf51-2c62de2fc58e",
+            "type": "while-condition",
+            "condition": "scan_results_clean == true",
+            "on_true": "action--b39e1b3c-7f35-4621-bdd9-894dfc8947b9"
+        },
+        "end--1c47e3c6-0d04-4c01-bf51-2c62de2fc58e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "active_connection_found": {
+            "type": "boolean",
+            "description": "Indicates if an active connection to the malicious IP is found.",
+            "value": true
+        },
+        "scan_results_clean": {
+            "type": "boolean",
+            "description": "Indicates if the scan results cleaned of malicious files.",
+            "value": false
+        }
+    }
+}

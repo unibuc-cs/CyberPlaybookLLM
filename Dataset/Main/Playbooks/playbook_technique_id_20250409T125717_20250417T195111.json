@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--db71c0d4-5f34-4a2f-90c7-097f789b4fff",
+    "name": "Automated Playbook for Command Execution and Data Exfiltration",
+    "description": "This playbook automates the response to an incident where an attacker has executed commands through a scripting interpreter, leading to data exfiltration.",
+    "created_by": "identity--1d03c3a8-e6c9-4c17-a631-4e490e472deb",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-efgh-ijkl-123456789012",
+    "workflow": {
+        "start--12345678-abcd-efgh-ijkl-123456789012": {
+            "on_completion": "action--64f8c825-f6d3-46b0-bbcd-fe33eb8fb5d4",
+            "type": "start"
+        },
+        "action--64f8c825-f6d3-46b0-bbcd-fe33eb8fb5d4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that were executing unauthorized scripts.",
+            "on_completion": "action--c906320d-5c8a-4f99-bb89-9c6e8eec5b43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c906320d-5c8a-4f99-bb89-9c6e8eec5b43": {
+            "name": "Block suspicious IP",
+            "description": "Block any known malicious IP addresses from accessing the system.",
+            "on_completion": "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42",
+            "type": "conditional",
+            "condition": "malicious_IP_detected",
+            "on_true": {
+                "commands": [
+                    {
+                        "type": "bash",
+                        "command": "iptables -A INPUT -s 192.0.2.1 -j DROP"
+                    }
+                ]
+            },
+            "on_false": "action--a6e19657-ee71-414d-afc3-e476565e4e57"
+        },
+        "action--a6e19657-ee71-414d-afc3-e476565e4e57": {
+            "name": "Run a full antivirus scan",
+            "description": "Scan the entire system for any lingering threats.",
+            "on_completion": "while-condition--loop-antivirus-scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--loop-antivirus-scan": {
+            "name": "Antivirus Scan Loop",
+            "description": "Continue the antivirus scanning process until no threats are detected.",
+            "on_completion": "decision--check_for_threats_after_scan",
+            "type": "while-condition",
+            "condition": "threats_found",
+            "on_true": "action--a6e19657-ee71-414d-afc3-e476565e4e57"
+        },
+        "decision--check_for_threats_after_scan": {
+            "name": "Check for Threats",
+            "type": "if-condition",
+            "condition": "threats_found == false",
+            "on_true": "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42",
+            "on_false": "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42"
+        },
+        "action--b4f80d1c-2b38-4ccd-bc71-8e991acc1e42": {
+            "name": "Review logs for abnormal activity",
+            "description": "Review the last 100 lines of the log file for suspicious activities.",
+            "on_completion": "end--finish-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/syslog | grep suspicious"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--finish-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "malicious_IP_detected": {
+            "type": "boolean",
+            "description": "Indicates if a malicious IP address is detected",
+            "value": "false",
+            "constant": false,
+            "external": true
+        },
+        "threats_found": {
+            "type": "boolean",
+            "description": "Indicates if any threats were found during scan",
+            "value": "true",
+            "constant": false,
+            "external": true
+        }
+    }
+}

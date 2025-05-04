@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8657e65-3c7b-4627-8a0f-6f037d7fe33c",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of an unauthorized script that altered system configurations and initiated data exfiltration.",
+    "created_by": "identity--3a11ea16-8f28-4ce6-872b-2005f4a4f48d",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--fbeff503-3a3c-4ac7-8be1-8a371b309c07",
+    "workflow": {
+        "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the unauthorized script.",
+            "on_completion": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9"
+        },
+        "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7": {
+            "name": "Revert system configurations",
+            "description": "Restore system settings to the previous state.",
+            "on_completion": "loop--e209ddf7-ffc2-4a07-b958-332fd97e6f95",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -Rv /etc"
+                }
+            ],
+            "agent": "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9"
+        },
+        "action--d8245e66-c943-45e9-9279-b0faef813ced": {
+            "name": "Monitor network for suspicious activities",
+            "description": "Capture and analyze traffic to detect malicious actions.",
+            "on_completion": "if-condition--d2fe5ab3-2b6e-4164-a2f8-484069ad3243",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host 192.0.2.1"
+                }
+            ],
+            "agent": "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "description": "IP address of the detected malicious source",
+                    "value": "192.0.2.1",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0": {
+            "name": "Update firewall rules to block outgoing traffic",
+            "description": "Modify firewall settings to block traffic to the malicious IP address.",
+            "on_completion": "end--ce507ebe-76bc-4cab-87a5-273cb2fefb51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9"
+        },
+        "start--fbeff503-3a3c-4ac7-8be1-8a371b309c07": {
+            "on_completion": "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd",
+            "type": "start"
+        },
+        "loop--e209ddf7-ffc2-4a07-b958-332fd97e6f95": {
+            "name": "Repeat until no anomalies detected",
+            "description": "Continue monitoring the system for anomalies until resolved.",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "on_false": "action--244afb87-ea61-4881-92a7-cdafc8559720"
+        },
+        "action--244afb87-ea61-4881-92a7-cdafc8559720": {
+            "name": "Analyze and isolate compromised account",
+            "description": "Lock the compromised user account to prevent further access.",
+            "on_completion": "action--d8245e66-c943-45e9-9279-b0faef813ced",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9"
+        },
+        "if-condition--d2fe5ab3-2b6e-4164-a2f8-484069ad3243": {
+            "name": "Check for alerts from monitoring",
+            "type": "if-condition",
+            "condition": "alert_detected == true",
+            "on_true": "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0",
+            "on_false": "end--ce507ebe-76bc-4cab-87a5-273cb2fefb51"
+        },
+        "end--ce507ebe-76bc-4cab-87a5-273cb2fefb51": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--16362d94-9520-4bd7-b821-504f9f3cc5a9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

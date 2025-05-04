@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6fbd151-cfe9-4a2e-9c06-1fcc2d4d07f6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook outlines steps to mitigate an attack where an attacker executed malicious scripts using a command interpreter on several internal machines.",
+    "created_by": "identity--21fba8d7-62c7-421b-a09a-27facd9aa3de",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--0d5b300e-edb0-490c-a70f-f5cd3b574170",
+    "workflow": {
+        "action--730f3103-d8a5-4522-8e1d-9e542a841e0e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any detected malicious PowerShell processes.",
+            "on_completion": "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a643e8f1-78f4-4e5c-8b76-ab200f497bec"
+        },
+        "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29": {
+            "name": "Remove dropped scripts",
+            "description": "Delete any suspicious PowerShell script files from user directories.",
+            "on_completion": "while-condition--7cee5ffe-ffeb-4d49-9eee-5f944277ddd2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home -name '*.ps1' -delete"
+                }
+            ],
+            "agent": "organization--a643e8f1-78f4-4e5c-8b76-ab200f497bec"
+        },
+        "action--d2278c73-0e17-492c-9054-19b60eecb2d1": {
+            "name": "Monitor outbound traffic",
+            "description": "Use Suricata to monitor for any suspicious outbound traffic.",
+            "on_completion": "while-condition--7cee5ffe-ffeb-4d49-9eee-5f944277ddd2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "suricata -c /etc/suricata/suricata.yaml -i eth0"
+                }
+            ],
+            "agent": "organization--a643e8f1-78f4-4e5c-8b76-ab200f497bec",
+            "step_variables": {
+                "traffic_normalized": {
+                    "type": "boolean",
+                    "description": "Indicates whether the outbound traffic has normalized.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--0d5b300e-edb0-490c-a70f-f5cd3b574170": {
+            "on_completion": "if-condition--ef1e3003-bb1a-4aec-9157-d11a92f79da4",
+            "type": "start"
+        },
+        "if-condition--ef1e3003-bb1a-4aec-9157-d11a92f79da4": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--730f3103-d8a5-4522-8e1d-9e542a841e0e",
+            "on_false": "action--04e2af0a-6ae4-4408-9d0e-29c2ab829c29"
+        },
+        "while-condition--7cee5ffe-ffeb-4d49-9eee-5f944277ddd2": {
+            "name": "Monitor outbound traffic until normalized",
+            "description": "Continuously monitor outbound traffic until it returns to normal levels.",
+            "on_completion": "end--9e43ea13-20b4-4117-81ad-eeef58990818",
+            "type": "while-condition",
+            "condition": "traffic_normalized == false",
+            "on_true": "action--d2278c73-0e17-492c-9054-19b60eecb2d1"
+        },
+        "end--9e43ea13-20b4-4117-81ad-eeef58990818": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a643e8f1-78f4-4e5c-8b76-ab200f497bec": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

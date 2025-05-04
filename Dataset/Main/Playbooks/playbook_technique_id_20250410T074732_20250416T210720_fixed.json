@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ef5b6a70-9b77-4f60-967e-1c6a0b5aecd2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution through unauthorized access and data exfiltration.",
+    "created_by": "identity--6327f409-11f2-40d8-b6c9-a3e534fd0f2b",
+    "created": "2023-10-10T10:00:00Z",
+    "modified": "2023-10-10T10:00:00Z",
+    "workflow_start": "start--d9f3e0e4-5c88-4b57-a6f0-415d6e35a1db",
+    "workflow": {
+        "start--d9f3e0e4-5c88-4b57-a6f0-415d6e35a1db": {
+            "on_completion": "parallel--3d8e7b21-6e2c-4f5a-9eac-77c3a0f9e84f",
+            "type": "start"
+        },
+        "parallel--3d8e7b21-6e2c-4f5a-9eac-77c3a0f9e84f": {
+            "name": "Parallel Execution: Immediate Actions",
+            "description": "Execute immediate mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605",
+                "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2"
+            ]
+        },
+        "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate all processes running the malicious script.",
+            "on_completion": "decision--a9b3cf14-7e24-4c92-be04-ee8bae8e4bb9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 malicious_script"
+                }
+            ],
+            "agent": "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37"
+        },
+        "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2": {
+            "name": "Network Isolation",
+            "description": "Isolate network by blocking malicious IP if a compromised host is found.",
+            "on_completion": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -I INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37"
+        },
+        "decision--a9b3cf14-7e24-4c92-be04-ee8bae8e4bb9": {
+            "name": "Check if Hosts are Compromised",
+            "type": "if-condition",
+            "condition": "new_hosts_found > 0",
+            "on_true": "loop--faa3abf0-1eb9-4c6f-ae59-e9315878e391",
+            "on_false": "action--a1e4935b-2276-4322-9e61-0b873bb6fec0"
+        },
+        "loop--faa3abf0-1eb9-4c6f-ae59-e9315878e391": {
+            "name": "Identify Affected Hosts",
+            "description": "Loop to identify all compromised hosts until no more new hosts are found.",
+            "type": "while-condition",
+            "condition": "loop.new_hosts_found > 0",
+            "on_true": "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391",
+            "on_completion": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e"
+        },
+        "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391": {
+            "name": "Scan for Affected Hosts",
+            "description": "Identify all potentially affected hosts in the network.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -F -Pn -p 22 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37"
+        },
+        "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e": {
+            "name": "Remove Unauthorized Scripts",
+            "description": "Locate and remove any unauthorized scripts from all systems.",
+            "on_completion": "decision--dcf4c4e8-f2c2-4af4-bc3b-ec4b5c5b3b5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_script.sh' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37"
+        },
+        "decision--dcf4c4e8-f2c2-4af4-bc3b-ec4b5c5b3b5b": {
+            "name": "Determine Restore Action",
+            "type": "if-condition",
+            "condition": "compromised_files_restored",
+            "on_true": "action--a1e4935b-2276-4322-9e61-0b873bb6fec0",
+            "on_false": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e"
+        },
+        "action--a1e4935b-2276-4322-9e61-0b873bb6fec0": {
+            "name": "Restore from Backup",
+            "description": "Restore affected systems from last known good backup.",
+            "on_completion": "end--fbb2c2e9-acd6-4c4e-8c7c-e8e6c7a9b2b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/restore_backup.sh"
+                }
+            ],
+            "step_variables": {
+                "backup_date": {
+                    "type": "string",
+                    "value": "October 2023",
+                    "description": "The date of the backup to restore from."
+                }
+            },
+            "agent": "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37"
+        },
+        "end--fbb2c2e9-acd6-4c4e-8c7c-e8e6c7a9b2b2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5a098ee0-2a1d-47de-9f81-1ecfdeba4f37": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

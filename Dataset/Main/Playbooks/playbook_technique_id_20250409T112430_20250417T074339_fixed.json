@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7f75e48-bc1c-48fd-8b5c-2896c2b78923",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident involving malicious PowerShell scripts designed to exfiltrate sensitive information from the internal network.",
+    "created_by": "identity--9b0b68c7-25b4-494e-bbe5-ea24dfd21c2e",
+    "created": "2023-10-15T12:45:00Z",
+    "modified": "2023-10-15T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--002e696b-4b5d-4c25-94d8-e89043ae2bd6",
+    "workflow": {
+        "start--002e696b-4b5d-4c25-94d8-e89043ae2bd6": {
+            "on_completion": "parallel--aef69c0f-96f4-4e9d-b3de-3918c4c0e679",
+            "type": "start"
+        },
+        "parallel--aef69c0f-96f4-4e9d-b3de-3918c4c0e679": {
+            "name": "Execute Mitigations",
+            "description": "Run mitigation steps in parallel to halt the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4f3e88da-90cf-4e44-8e15-1845d499c50a",
+                "action--9c6b43bc-37a5-4ff9-8db9-fd81c5334b8e",
+                "loop--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9"
+            ]
+        },
+        "action--4f3e88da-90cf-4e44-8e15-1845d499c50a": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any processes running malicious PowerShell scripts.",
+            "on_completion": "action--9c6b43bc-37a5-4ff9-8db9-fd81c5334b8e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--d3b40c87-61b4-447a-bdf5-1b51e2dd9728"
+        },
+        "action--9c6b43bc-37a5-4ff9-8db9-fd81c5334b8e": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Stop any data transmission to identified malicious IP addresses.",
+            "on_completion": "loop--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--d3b40c87-61b4-447a-bdf5-1b51e2dd9728"
+        },
+        "loop--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9": {
+            "name": "Scan for additional malicious scripts",
+            "description": "Repeatedly search for and list malicious scripts until none remain.",
+            "type": "while-condition",
+            "condition": "script_found == true",
+            "on_true": "action--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9",
+            "on_false": "end--6d202c6f-f537-49d1-aa44-2f05e967cafe"
+        },
+        "action--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9": {
+            "name": "Find and handle malicious scripts",
+            "description": "Locate additional malicious PowerShell scripts and execute mitigation actions.",
+            "on_completion": "loop--f7a4cd7e-5a20-49d8-96a1-e9fbeab871e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec grep -il 'malicious' {} \\;"
+                }
+            ],
+            "agent": "organization--d3b40c87-61b4-447a-bdf5-1b51e2dd9728",
+            "step_variables": {
+                "script_found": {
+                    "type": "boolean",
+                    "description": "Indicates if malicious scripts were found",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--6d202c6f-f537-49d1-aa44-2f05e967cafe": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d3b40c87-61b4-447a-bdf5-1b51e2dd9728": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

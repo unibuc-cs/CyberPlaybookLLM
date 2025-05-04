@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7381f583-2186-45ed-9777-eabc3a7da717",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker compromised the system using a script executed by the command interpreter to download additional malware.",
+    "created_by": "identity--a1bbe595-8436-48d1-a7fa-48c50313654f",
+    "created": "2025-10-09T12:00:00Z",
+    "modified": "2025-10-09T12:00:00Z",
+    "workflow_start": "start--1e3f844f-c02d-432f-a138-38c7b8ab8e52",
+    "workflow": {
+        "start--1e3f844f-c02d-432f-a138-38c7b8ab8e52": {
+            "on_completion": "action--f63a30e6-9fcf-4b3d-a2bb-6a514f0e3ad7",
+            "type": "start"
+        },
+        "action--f63a30e6-9fcf-4b3d-a2bb-6a514f0e3ad7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious PowerShell script that was executed.",
+            "on_completion": "if-condition--bcde6701-f2e7-43f8-8fb8-ca730d91d5a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--48b81a36-0f68-403b-9bdc-a7c8632ddb59"
+        },
+        "if-condition--bcde6701-f2e7-43f8-8fb8-ca730d91d5a2": {
+            "name": "Check for dropped malware files",
+            "type": "if-condition",
+            "condition": "malware_files_exist",
+            "on_true": "action--a4e59abb-fb81-4d18-ac4d-f4c64cf4f0c1",
+            "on_false": "action--b2f8736f-8e97-45e7-b5ba-cb4e825eecb3"
+        },
+        "action--a4e59abb-fb81-4d18-ac4d-f4c64cf4f0c1": {
+            "name": "Delete dropped malware files",
+            "description": "Remove the malware binary that was downloaded.",
+            "on_completion": "action--b2f8736f-8e97-45e7-b5ba-cb4e825eecb3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malware_binary"
+                }
+            ],
+            "agent": "organization--48b81a36-0f68-403b-9bdc-a7c8632ddb59"
+        },
+        "action--b2f8736f-8e97-45e7-b5ba-cb4e825eecb3": {
+            "name": "Run a full system scan",
+            "description": "Perform a comprehensive scan on the system to detect any remaining threats.",
+            "on_completion": "while-condition--1f2f4a58-2e12-4a4f-8f72-8f23c7c6a1e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--48b81a36-0f68-403b-9bdc-a7c8632ddb59"
+        },
+        "while-condition--1f2f4a58-2e12-4a4f-8f72-8f23c7c6a1e2": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until no more threats are detected.",
+            "on_true": "action--b2f8736f-8e97-45e7-b5ba-cb4e825eecb3",
+            "condition": "scan_status != 'clean'",
+            "on_completion": "end--3d4e1dbf-36e6-4ee2-8927-12f19b1c7d8b",
+            "type": "if-condition"
+        },
+        "end--3d4e1dbf-36e6-4ee2-8927-12f19b1c7d8b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--48b81a36-0f68-403b-9bdc-a7c8632ddb59": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

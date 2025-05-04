@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7a05bec5-deb3-4c26-931b-2e907a377234",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution",
+    "description": "This playbook addresses a malicious PowerShell script execution incident that involved extracting sensitive data and creating a backdoor.",
+    "created_by": "identity--abb6641d-1614-47c6-96c7-48f3e809c676",
+    "created": "2023-10-21T09:00:00Z",
+    "modified": "2023-10-21T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--7d70a1aa-5f54-4435-9355-007fb451714d",
+    "workflow": {
+        "action--3a086ed6-f601-47b1-88b1-d5120303b9f8": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name 'powershell' -Force"
+                }
+            ],
+            "agent": "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c",
+            "on_completion": "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99"
+        },
+        "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Prevent any outbound connections to the identified malicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c",
+            "on_completion": "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "value": "192.168.1.10"
+                }
+            }
+        },
+        "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa": {
+            "name": "Remove backdoor executable",
+            "description": "Delete the backdoor executable created by the attacker.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.exe"
+                }
+            ],
+            "agent": "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c",
+            "on_completion": "while-condition--92d33f69-f429-4131-b259-43cc4e4d638b"
+        },
+        "while-condition--92d33f69-f429-4131-b259-43cc4e4d638b": {
+            "name": "Scan System for Additional Threats",
+            "description": "Repeat scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--92d33f69-f429-4131-b259-43cc4e4d638b",
+            "next_steps": [
+                "action--92d33f69-f429-4131-b259-43cc4e4d638b"
+            ]
+        },
+        "action--92d33f69-f429-4131-b259-43cc4e4d638b": {
+            "name": "System Scanning",
+            "description": "Scan the entire system for additional threats and remove them.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c",
+            "on_completion": "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72"
+        },
+        "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72": {
+            "name": "Review system logs for unusual activity",
+            "description": "Inspect system logs to detect any unauthorized actions.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c",
+            "on_completion": "end--5609ca25-4279-4cfa-8420-d2fd3f794911"
+        },
+        "start--7d70a1aa-5f54-4435-9355-007fb451714d": {
+            "on_completion": "action--3a086ed6-f601-47b1-88b1-d5120303b9f8",
+            "type": "start"
+        },
+        "end--5609ca25-4279-4cfa-8420-d2fd3f794911": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4c7f7695-9f49-4b16-a0a9-c56c8a6b582c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

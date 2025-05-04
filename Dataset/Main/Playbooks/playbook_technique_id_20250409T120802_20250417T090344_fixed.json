@@ -1,0 +1,75 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fcd8b437-08ed-47a9-903b-1b25603af650",
+    "name": "Mitigation Playbook for Unauthorized Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an unauthorized user accessed the organization's internal web application and exfiltrated sensitive data via HTTP requests using a compromised user account.",
+    "created_by": "identity--e1ff1b00-2321-4bdb-9d27-eae363fa3ead",
+    "created": "2023-10-15T14:32:00Z",
+    "modified": "2023-10-16T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--cde456d3-d7b4-4474-867c-c56c44c7de7c",
+    "workflow": {
+        "block-compromised-account--5b84e62b-6d2e-4645-bd3a-c671707f4e04": {
+            "name": "Block Compromised Account",
+            "description": "Disable the compromised user account to prevent further unauthorized access.",
+            "on_completion": "password-reset--1c683f59-3e02-4c23-8d12-3e4136797bc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo usermod -L user@example.com"
+                }
+            ],
+            "agent": "organization--0b3ebebf-62ef-49d8-9685-0712f2430b75"
+        },
+        "password-reset--1c683f59-3e02-4c23-8d12-3e4136797bc2": {
+            "name": "Apply Password Reset for All Users",
+            "description": "Reset passwords for all users to mitigate further risks.",
+            "on_completion": "monitor-logs--c9de0503-9168-48f2-beac-3b9f66c4e7bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat users.txt); do echo 'Password reset for $user'; done"
+                }
+            ],
+            "agent": "organization--0b3ebebf-62ef-49d8-9685-0712f2430b75"
+        },
+        "monitor-logs--c9de0503-9168-48f2-beac-3b9f66c4e7bc": {
+            "name": "Monitor Web Server Logs",
+            "description": "Continuously monitor web server logs until clean.",
+            "on_completion": "end--e0f12456-aa21-4313-bc9f-5a367a708fbc",
+            "type": "while-condition",
+            "condition": "logs_are_clean",
+            "on_true": "end--e0f12456-aa21-4313-bc9f-5a367a708fbc",
+            "on_false": "check-logs--5363bf3e-4edb-47be-bdf2-37d3e1868e52"
+        },
+        "end--e0f12456-aa21-4313-bc9f-5a367a708fbc": {
+            "type": "end"
+        },
+        "start--cde456d3-d7b4-4474-867c-c56c44c7de7c": {
+            "on_completion": "block-compromised-account--5b84e62b-6d2e-4645-bd3a-c671707f4e04",
+            "type": "start"
+        },
+        "check-logs--5363bf3e-4edb-47be-bdf2-37d3e1868e52": {
+            "name": "Check Logs Status",
+            "description": "Verify if logs show any potential security risks after monitoring.",
+            "on_completion": "monitor-logs--c9de0503-9168-48f2-beac-3b9f66c4e7bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'Unauthorized Access' /var/log/apache2/access.log"
+                }
+            ],
+            "agent": "organization--0b3ebebf-62ef-49d8-9685-0712f2430b75"
+        }
+    },
+    "agent_definitions": {
+        "organization--0b3ebebf-62ef-49d8-9685-0712f2430b75": {
+            "type": "organization",
+            "name": "Security Operations Team"
+        }
+    }
+}

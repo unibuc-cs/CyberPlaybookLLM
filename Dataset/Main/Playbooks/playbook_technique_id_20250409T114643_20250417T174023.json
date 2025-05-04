@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c6e94e96-d708-41c5-b9b9-f586949e27a7",
+    "name": "Mitigation Playbook for PowerShell-based Data Exfiltration",
+    "description": "This playbook mitigates an incident where a PowerShell script was used to exfiltrate sensitive data from the network.",
+    "created_by": "identity--f0074fc8-22b7-4c73-b9f7-cacd42dfa6a6",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--f82d280c-d508-4e9e-9232-aeb1be40c290",
+    "workflow": {
+        "start--f82d280c-d508-4e9e-9232-aeb1be40c290": {
+            "on_completion": "parallel--fd7a8c45-7ff3-4bbc-8f89-1d683d79cd94",
+            "type": "start"
+        },
+        "parallel--fd7a8c45-7ff3-4bbc-8f89-1d683d79cd94": {
+            "name": "Initiate Mitigation Actions",
+            "description": "Simultaneously initiate multiple mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5f6c3b2b-e623-4b8d-8e67-460654c5f968",
+                "action--4e47ccf5-3750-42c8-b4b6-d145f53be663"
+            ]
+        },
+        "action--5f6c3b2b-e623-4b8d-8e67-460654c5f968": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes found.",
+            "on_completion": "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4e47ccf5-3750-42c8-b4b6-d145f53be663": {
+            "name": "Monitor outgoing connections for unusual activity",
+            "description": "Use tcpdump to monitor outgoing connections for any unusual activity.",
+            "on_completion": "loop--e82fca12-6a9f-4c17-a018-d8959f747e40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n host [EXTERNAL_IP]"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e82fca12-6a9f-4c17-a018-d8959f747e40": {
+            "name": "Monitor Loop",
+            "description": "Repeat monitoring outgoing connections every 5 minutes.",
+            "on_completion": "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79",
+            "type": "while-condition",
+            "condition": "true",
+            "on_true": "action--4e47ccf5-3750-42c8-b4b6-d145f53be663"
+        },
+        "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79": {
+            "name": "Run a full system antivirus scan",
+            "description": "Perform a full system antivirus scan to detect any threats.",
+            "on_completion": "if-condition--d8059c64-9b34-40ef-9c9c-ad4c75cfc892",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the antivirus scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--d8059c64-9b34-40ef-9c9c-ad4c75cfc892": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--f6201589-d913-4a1a-9a29-5a4cf5b2f53c",
+            "on_false": "action--2d43b4a3-603f-41fa-92d7-a7c5c37f8b79"
+        },
+        "end--f6201589-d913-4a1a-9a29-5a4cf5b2f53c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cf174d65-1a81-40af-a70c-c569ec9b6f67",
+    "name": "Mitigation Playbook for Unauthorized Access and Data Exfiltration",
+    "description": "This playbook addresses an incident involving unauthorized access through a web application and malicious script execution.",
+    "created_by": "identity--b6e8aa6a-73ef-47c5-981b-eb7b4b3e88eb",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c53b8127-60bf-4f64-b99f-5603c75236e8",
+    "workflow": {
+        "action--fe88aa1f-0102-45ef-94f5-7a3a96d562e7": {
+            "name": "Kill malicious process and terminate the connection",
+            "description": "Terminate the execution of the suspicious script that was manipulating data.",
+            "on_completion": "action--4b00c4da-8817-4ab7-a14b-c69ae0c6f551",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--3e180582-4646-41ce-b937-bb6f67445d8d"
+        },
+        "action--4b00c4da-8817-4ab7-a14b-c69ae0c6f551": {
+            "name": "Monitor outbound network traffic for anomalies",
+            "description": "Start monitoring for suspicious outbound network traffic.",
+            "on_completion": "if-condition--e63798b8-cb84-4930-854b-88c275e6f15d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--3e180582-4646-41ce-b937-bb6f67445d8d"
+        },
+        "action--3fa91139-0da5-47db-998c-e0608e06f3aa": {
+            "name": "Scan system for malware and inspect log files",
+            "description": "Perform a malware scan and inspect log files for any indicators of compromise.",
+            "on_completion": "while-condition--7ff57c79-0e8a-4bcb-9b18-9e2519e0b8f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r {{scan_path}}"
+                }
+            ],
+            "agent": "organization--3e180582-4646-41ce-b937-bb6f67445d8d",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "description": "Path to scan for malware",
+                    "value": "/path/to/scan",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--c53b8127-60bf-4f64-b99f-5603c75236e8": {
+            "on_completion": "action--fe88aa1f-0102-45ef-94f5-7a3a96d562e7",
+            "type": "start"
+        },
+        "if-condition--e63798b8-cb84-4930-854b-88c275e6f15d": {
+            "name": "Check for high network usage",
+            "type": "if-condition",
+            "condition": "high_network_usage_detected == true",
+            "on_true": "action--3fa91139-0da5-47db-998c-e0608e06f3aa",
+            "on_false": "while-condition--c2ad748c-0a54-4839-aee4-c8c6ad4ad64e"
+        },
+        "while-condition--c2ad748c-0a54-4839-aee4-c8c6ad4ad64e": {
+            "name": "Monitoring traffic loop",
+            "description": "Continue monitoring until further analysis",
+            "on_completion": "end--a7ee6362-8a07-4f0c-bc28-461ad791b208",
+            "type": "while-condition",
+            "condition": "high_network_usage_detected == false",
+            "on_true": "action--4b00c4da-8817-4ab7-a14b-c69ae0c6f551"
+        },
+        "while-condition--7ff57c79-0e8a-4bcb-9b18-9e2519e0b8f7": {
+            "name": "Repeat malware scan until clean",
+            "description": "Continue malware scan until the system is determined to be clean.",
+            "on_completion": "end--a7ee6362-8a07-4f0c-bc28-461ad791b208",
+            "type": "while-condition",
+            "condition": "malware_found == false",
+            "on_true": "action--3fa91139-0da5-47db-998c-e0608e06f3aa"
+        },
+        "end--a7ee6362-8a07-4f0c-bc28-461ad791b208": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3e180582-4646-41ce-b937-bb6f67445d8d": {
+            "type": "organization",
+            "name": "Threat Response Team"
+        }
+    }
+}

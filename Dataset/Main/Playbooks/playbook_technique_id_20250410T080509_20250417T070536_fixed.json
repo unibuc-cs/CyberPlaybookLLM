@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1d6aebf-2d1a-4615-b2f8-c4a78accf240",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the execution of unauthorized scripts in a compromised environment, involving multiple mitigation strategies.",
+    "created_by": "identity--2a907c24-8680-4d02-8316-082cadb2dcb0",
+    "created": "2023-10-24T10:00:00.000Z",
+    "modified": "2023-10-24T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c9ae6678-e744-4366-abc3-c3d1249af415",
+    "workflow": {
+        "start--c9ae6678-e744-4366-abc3-c3d1249af415": {
+            "on_completion": "action--b1a63786-4bd2-41d9-8ef1-c3ed6f9f28d0",
+            "type": "start"
+        },
+        "action--b1a63786-4bd2-41d9-8ef1-c3ed6f9f28d0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that could be executing unauthorized scripts.",
+            "on_completion": "action--ea93e2d4-abef-45e9-b6b4-e5507cdb5404",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_process'"
+                }
+            ],
+            "agent": "organization--7104fd6a-0ee1-43ea-8d90-a50a14453795"
+        },
+        "action--ea93e2d4-abef-45e9-b6b4-e5507cdb5404": {
+            "name": "Remove dropped payloads",
+            "description": "Delete any dropped malicious files identified in the environment.",
+            "on_completion": "action--d77e4f85-b109-4329-bc25-cf18c02e8c41",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_payload' -delete"
+                }
+            ],
+            "agent": "organization--e9b7172d-dbfb-4c14-b169-e3e4fa3b455c"
+        },
+        "action--d77e4f85-b109-4329-bc25-cf18c02e8c41": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent any outbound network traffic to known malicious IP addresses.",
+            "on_completion": "if-condition--5b836de3-2e25-409e-b3ed-fe753b4949ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--7104fd6a-0ee1-43ea-8d90-a50a14453795"
+        },
+        "if-condition--5b836de3-2e25-409e-b3ed-fe753b4949ff": {
+            "name": "Check for malware presence",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--15a7dc4f-f6f6-4d6f-bbd8-37df6f53e3fe",
+            "on_false": "end--036dc2a6-94c4-493f-8f1f-a7a261879198"
+        },
+        "action--15a7dc4f-f6f6-4d6f-bbd8-37df6f53e3fe": {
+            "name": "Conduct full system scan",
+            "description": "Perform a thorough scan of the system to identify any remaining threats.",
+            "on_completion": "while-condition--fab4c83a-bb53-428f-a6f3-6f133b88b8ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--7104fd6a-0ee1-43ea-8d90-a50a14453795"
+        },
+        "while-condition--fab4c83a-bb53-428f-a6f3-6f133b88b8ab": {
+            "name": "Scan until clean",
+            "description": "Repeat the scan until no malware is found.",
+            "on_true": "action--15a7dc4f-f6f6-4d6f-bbd8-37df6f53e3fe",
+            "condition": "malware_found == true",
+            "on_completion": "action--fe8cf6da-56c5-42d3-b9ba-dcd987ffe703",
+            "type": "if-condition"
+        },
+        "action--fe8cf6da-56c5-42d3-b9ba-dcd987ffe703": {
+            "name": "Reset compromised user credentials",
+            "description": "Change credentials for any identified compromised users.",
+            "on_completion": "end--036dc2a6-94c4-493f-8f1f-a7a261879198",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <compromised_user>"
+                }
+            ],
+            "agent": "organization--e9b7172d-dbfb-4c14-b169-e3e4fa3b455c"
+        },
+        "end--036dc2a6-94c4-493f-8f1f-a7a261879198": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7104fd6a-0ee1-43ea-8d90-a50a14453795": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        },
+        "organization--e9b7172d-dbfb-4c14-b169-e3e4fa3b455c": {
+            "type": "organization",
+            "name": "System Administration"
+        }
+    },
+    "variables": {
+        "malware_found": {
+            "type": "boolean",
+            "description": "Indicates if malware is found during the scan.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

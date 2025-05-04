@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3e5c551-3194-4e7a-9f79-baf2e9e4fc6c",
+    "name": "Mitigation Playbook for Remote Command Execution Incident",
+    "description": "This playbook addresses the incident of a remote shell command execution that dropped a trojan onto the system and initiated data exfiltration.",
+    "created_by": "identity--9e70c2c0-3535-4dc3-8e92-8cc0d1849c3f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1c3a4f1-b9de-4f50-a36a-33e2d0ef3a23",
+    "workflow": {
+        "start--f1c3a4f1-b9de-4f50-a36a-33e2d0ef3a23": {
+            "on_completion": "action--9a3b9d36-7f76-4d25-bcc6-1dc56c6d5b25",
+            "type": "start"
+        },
+        "action--9a3b9d36-7f76-4d25-bcc6-1dc56c6d5b25": {
+            "name": "Kill malicious process",
+            "description": "Terminate the trojan process running on the server.",
+            "on_completion": "if-condition--561c8b6f-1838-40e0-8c17-1ff02c22a665",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f trojan_process"
+                }
+            ],
+            "agent": "organization--329f5086-f447-45d7-8501-bbe7f14a70b9"
+        },
+        "if-condition--561c8b6f-1838-40e0-8c17-1ff02c22a665": {
+            "name": "Check if trojan file exists",
+            "type": "if-condition",
+            "condition": "file_exist('/path/to/trojan')",
+            "on_true": "action--561c8b6f-1838-40e0-8c17-1ff02c22a665",
+            "on_false": "parallel--f8ee84ba-8ff4-40f8-b167-1ca7741bff9c"
+        },
+        "action--561c8b6f-1838-40e0-8c17-1ff02c22a665": {
+            "name": "Remove backdoor file",
+            "on_completion": "action--b85c08be-3bb5-41cb-912a-6e6b5e90d7d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/trojan"
+                }
+            ],
+            "agent": "organization--329f5086-f447-45d7-8501-bbe7f14a70b9"
+        },
+        "parallel--f8ee84ba-8ff4-40f8-b167-1ca7741bff9c": {
+            "name": "Isolate Threat",
+            "description": "Notify security team and block malicious IPs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b85c08be-3bb5-41cb-912a-6e6b5e90d7d7",
+                "action--4e2f173d-bf2e-4f28-b052-44137c63d924"
+            ]
+        },
+        "action--b85c08be-3bb5-41cb-912a-6e6b5e90d7d7": {
+            "name": "Block IP address",
+            "description": "Block incoming traffic from the malicious IP address.",
+            "on_completion": "action--21f4c6cb-c52c-4f2e-9e97-27e60d154e3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s bad.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--329f5086-f447-45d7-8501-bbe7f14a70b9"
+        },
+        "action--4e2f173d-bf2e-4f28-b052-44137c63d924": {
+            "name": "Notify security team",
+            "description": "Send alert to the security team regarding the incident.",
+            "on_completion": "action--21f4c6cb-c52c-4f2e-9e97-27e60d154e3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert_to_security_team"
+                }
+            ],
+            "agent": "organization--329f5086-f447-45d7-8501-bbe7f14a70b9"
+        },
+        "action--21f4c6cb-c52c-4f2e-9e97-27e60d154e3a": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "on_completion": "end--e5f69af8-daa7-4a6a-b74d-b4f3f7f2b4ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool"
+                }
+            ],
+            "agent": "organization--329f5086-f447-45d7-8501-bbe7f14a70b9"
+        },
+        "end--e5f69af8-daa7-4a6a-b74d-b4f3f7f2b4ad": {
+            "type": "end"
+        },
+        "while-condition--74996065-8bc4-4e61-9a77-82b412e96f1b": {
+            "name": "Monitor System Scan",
+            "description": "Repeat scan until the system is clean.",
+            "on_completion": "end--e5f69af8-daa7-4a6a-b74d-b4f3f7f2b4ad",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--21f4c6cb-c52c-4f2e-9e97-27e60d154e3a"
+        }
+    },
+    "agent_definitions": {
+        "organization--329f5086-f447-45d7-8501-bbe7f14a70b9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

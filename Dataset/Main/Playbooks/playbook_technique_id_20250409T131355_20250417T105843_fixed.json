@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--550e8400-e29b-41d4-a716-446655440000",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute arbitrary commands, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--e5001697-1faf-4797-8de8-7437313374c2",
+    "created": "2023-10-15T10:00:00Z",
+    "modified": "2023-10-15T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f2b7686a-b432-48c5-a2fd-02795994370c",
+    "workflow": {
+        "start--f2b7686a-b432-48c5-a2fd-02795994370c": {
+            "on_completion": "action--4d6ec3b8-1da3-456c-a70a-5eee8ca0bde5",
+            "type": "start"
+        },
+        "action--4d6ec3b8-1da3-456c-a70a-5eee8ca0bde5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the reverse shell process executed by the attacker.",
+            "on_completion": "if-condition--ac0d922e-4125-4984-a4c2-ca930c28a3b7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell"
+                }
+            ],
+            "agent": "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1"
+        },
+        "if-condition--ac0d922e-4125-4984-a4c2-ca930c28a3b7": {
+            "name": "Check if malicious files exist",
+            "type": "if-condition",
+            "condition": "test -f /tmp/malicious_payload",
+            "on_true": "action--a55beffe-a1bd-4094-b586-d433c559efcf",
+            "on_false": "action--23bee5b9-c833-4ca6-9d87-ddcde22ccc61"
+        },
+        "action--a55beffe-a1bd-4094-b586-d433c559efcf": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious payload dropped in the /tmp directory.",
+            "on_completion": "action--5ddfaee4-0cb1-4fbb-9577-3c263b5fad41",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1"
+        },
+        "action--23bee5b9-c833-4ca6-9d87-ddcde22ccc61": {
+            "name": "No malicious files found",
+            "description": "No malicious files were detected in /tmp.",
+            "on_completion": "action--5ddfaee4-0cb1-4fbb-9577-3c263b5fad41",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo No malicious files found:  No malicious files were detected in /tmp."
+                }
+            ],
+            "agent": "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1"
+        },
+        "action--5ddfaee4-0cb1-4fbb-9577-3c263b5fad41": {
+            "name": "Run full system scan",
+            "description": "Perform a complete system scan to identify any remaining threats.",
+            "on_completion": "while-condition--30737b53-237a-4363-8107-3b2a72aa1b88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan"
+                }
+            ],
+            "agent": "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1"
+        },
+        "while-condition--30737b53-237a-4363-8107-3b2a72aa1b88": {
+            "name": "Scan until clean",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "end--ecb7655c-9ffe-4bdb-aa9c-bee2731723df",
+            "type": "while-condition",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--5ddfaee4-0cb1-4fbb-9577-3c263b5fad41",
+            "on_false": "action--9ab2a685-87c3-4a90-beb1-a08ebd017df8"
+        },
+        "action--9ab2a685-87c3-4a90-beb1-a08ebd017df8": {
+            "name": "Scan complete",
+            "description": "The full system scan is complete and no threats were found.",
+            "on_completion": "end--ecb7655c-9ffe-4bdb-aa9c-bee2731723df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Scan complete:  The full system scan is complete and no threats were found."
+                }
+            ],
+            "agent": "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1"
+        },
+        "end--ecb7655c-9ffe-4bdb-aa9c-bee2731723df": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--094bed36-c6d6-404c-87e3-d1eff5a36ec1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

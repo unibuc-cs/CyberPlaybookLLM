@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0c4dd22-86db-4b4d-b5b0-0881209bfb98",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts, escalated privileges, and established persistence.",
+    "created_by": "identity--12345678-9abc-def0-1234-56789abcdef0",
+    "created": "2025-04-10T07:58:18Z",
+    "modified": "2025-04-10T07:58:18Z",
+    "revoked": false,
+    "workflow_start": "start--b21e3a88-3d2b-41c1-af3d-6cf39c3cda2a",
+    "workflow": {
+        "start--b21e3a88-3d2b-41c1-af3d-6cf39c3cda2a": {
+            "on_completion": "parallel--e2b7c1d3-4adc-48e9-bb48-41440ef96a44",
+            "type": "start"
+        },
+        "parallel--e2b7c1d3-4adc-48e9-bb48-41440ef96a44": {
+            "name": "Initiate Mitigation Measures",
+            "description": "Simultaneous execution of multiple mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8a1c8aa1-b14f-4c5a-b795-72ebb15200e4",
+                "action--c4d2c323-1b98-4423-991f-78e63cd66cae",
+                "if-condition--5faebf4b-bc64-4f45-a0c7-6b9c8ab8e9db",
+                "if-condition--e3a0d9f0-65be-44e3-a7e0-af8b0d9ec7bd"
+            ]
+        },
+        "action--8a1c8aa1-b14f-4c5a-b795-72ebb15200e4": {
+            "name": "Terminate Unauthorized Script Execution",
+            "description": "Stop any running unauthorized scripts.",
+            "on_completion": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c4d2c323-1b98-4423-991f-78e63cd66cae": {
+            "name": "Remove Malicious Scheduled Task",
+            "description": "Delete task created for persistence.",
+            "on_completion": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /Delete /TN malware_task /F"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--5faebf4b-bc64-4f45-a0c7-6b9c8ab8e9db": {
+            "name": "Check for Compromised User",
+            "description": "Revoke elevated privileges if user exists.",
+            "type": "if-condition",
+            "condition": "compromised_user exists",
+            "on_true": "action--9b7e41b3-0768-4faa-8bb4-678ddcb77bf9",
+            "on_false": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166"
+        },
+        "action--9b7e41b3-0768-4faa-8bb4-678ddcb77bf9": {
+            "name": "Revoke Elevated Privileges",
+            "description": "Lock the compromised user account.",
+            "on_completion": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--b6fabe25-6391-4cd1-b3ed-fb26e54c32b8": {
+            "name": "System Integrity Scan Loop",
+            "description": "Perform repeated system scans until clean.",
+            "type": "while-condition",
+            "condition": "rkhunter_scan_result != 'clean'",
+            "on_true": "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b"
+        },
+        "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b": {
+            "name": "Perform System Integrity Scan",
+            "description": "Conduct a full system scan.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --checkall"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--b6fabe25-6391-4cd1-b3ed-fb26e54c32b8"
+        },
+        "if-condition--e3a0d9f0-65be-44e3-a7e0-af8b0d9ec7bd": {
+            "name": "Incident Reporting Check",
+            "description": "Check if the incident is already reported.",
+            "type": "if-condition",
+            "condition": "incidentReported == false",
+            "on_true": "action--4e1f8479-1e2d-4c0a-8346-a9b4b7b1bf9b",
+            "on_false": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166"
+        },
+        "action--4e1f8479-1e2d-4c0a-8346-a9b4b7b1bf9b": {
+            "name": "Alert IT Security and Log Incident",
+            "description": "Send an incident report email and log details.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sendmail -s 'Incident Report' security@example.com < /var/log/incident_report.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166"
+        },
+        "end--ad4bacd9-81f3-4f87-8c37-4c227e07a166": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e269f10e-0524-4a7c-b530-7689e2a9fbc7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute malicious scripts and exfiltrate sensitive data.",
+    "created_by": "identity--5428c814-be3d-4766-a663-5cb182bd686c",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--00723da8-c056-4658-86b2-1dfa288b2be1",
+    "workflow": {
+        "action--b1c3f726-e70c-48b9-b9db-121bc148fee9": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process executing the script.",
+            "on_completion": "action--9c3e956f-8b85-4c4a-a3a2-1de8d94e6d2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--766ce564-feaf-448e-96b0-463ffc2ab146"
+        },
+        "action--9c3e956f-8b85-4c4a-a3a2-1de8d94e6d2e": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan to identify and mitigate other threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool --full --target web-server-01"
+                }
+            ],
+            "agent": "organization--766ce564-feaf-448e-96b0-463ffc2ab146",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Check scan results for remaining threats",
+                    "value": "threats_detected",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--be1a093d-e9d0-49ae-8184-f5a088ac008b"
+        },
+        "action--d843b5cc-f876-4380-bd43-1b5cf6ac5140": {
+            "name": "Reinforce firewall policies",
+            "description": "Update firewall rules to block malicious traffic.",
+            "on_completion": "end--3577a8b9-5d8e-4533-91bb-6e5dcfa3f7e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--766ce564-feaf-448e-96b0-463ffc2ab146"
+        },
+        "start--00723da8-c056-4658-86b2-1dfa288b2be1": {
+            "on_completion": "if-condition--6a9fb7c2-82d6-43e2-bd5d-b7851d79ce8d",
+            "type": "start"
+        },
+        "if-condition--6a9fb7c2-82d6-43e2-bd5d-b7851d79ce8d": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--b1c3f726-e70c-48b9-b9db-121bc148fee9",
+            "on_false": "action--d843b5cc-f876-4380-bd43-1b5cf6ac5140"
+        },
+        "while-condition--be1a093d-e9d0-49ae-8184-f5a088ac008b": {
+            "name": "Repeat scan while threats are found",
+            "description": "Repeat the system scan until the threat level is safe.",
+            "type": "while-condition",
+            "condition": "scan_result == threats_detected",
+            "on_true": "action--9c3e956f-8b85-4c4a-a3a2-1de8d94e6d2e",
+            "on_false": "end--3577a8b9-5d8e-4533-91bb-6e5dcfa3f7e8"
+        },
+        "end--3577a8b9-5d8e-4533-91bb-6e5dcfa3f7e8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--766ce564-feaf-448e-96b0-463ffc2ab146": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

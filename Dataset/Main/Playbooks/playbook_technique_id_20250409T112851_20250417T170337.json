@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2a301fe6-8e5a-4c9d-b154-18bd3053f1be",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to a command injection incident where PowerShell scripts were used to download malware.",
+    "created_by": "identity--95a3b5ec-732b-4ae1-8721-5614292044ea",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b310b065-f0c2-4e92-aa7d-070762bc89fe",
+    "workflow": {
+        "start--b310b065-f0c2-4e92-aa7d-070762bc89fe": {
+            "on_completion": "parallel--d67d95cd-0030-4933-9d25-65fc72e43e4f",
+            "type": "start"
+        },
+        "parallel--d67d95cd-0030-4933-9d25-65fc72e43e4f": {
+            "name": "Execute Mitigations",
+            "description": "Execute the necessary actions to mitigate the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6c11ad41-5e8d-460d-a0c1-de4024a0def8",
+                "action--d5e9a44e-04f5-4aa9-ba1f-cf1c4b348bfe",
+                "loop--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c"
+            ]
+        },
+        "action--6c11ad41-5e8d-460d-a0c1-de4024a0def8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process that is executing.",
+            "on_completion": "action--d5e9a44e-04f5-4aa9-ba1f-cf1c4b348bfe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d5e9a44e-04f5-4aa9-ba1f-cf1c4b348bfe": {
+            "name": "Disconnect compromised host from network",
+            "description": "Isolate the compromised host from the network to prevent further data exfiltration.",
+            "on_completion": "loop--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c": {
+            "name": "Run complete malware scan",
+            "description": "Perform a full malware scan on the compromised host until clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the malware scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "end--f4c97a27-256e-4ee0-b837-688f20f3d851"
+        },
+        "action--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c": {
+            "name": "Execute malware scan",
+            "description": "Run a malware scan on the entire system.",
+            "on_completion": "loop--f2d3c16b-3fb7-4158-ac5a-36ed736b1b0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f4c97a27-256e-4ee0-b837-688f20f3d851": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

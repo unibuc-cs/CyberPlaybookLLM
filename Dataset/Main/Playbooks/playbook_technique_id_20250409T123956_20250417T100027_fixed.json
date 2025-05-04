@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2cf0e31-4c72-4d5f-a14e-fcb3594edadb",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Abuse",
+    "description": "This playbook responds to incidents where malicious commands are executed via scripting interpreters, focusing on killing processes, blocking connections, and restoring modified files.",
+    "created_by": "identity--0124752b-692d-4ac0-a01e-9aa53b5f531c",
+    "created": "2023-10-03T14:32:10Z",
+    "modified": "2023-10-03T14:32:20Z",
+    "revoked": false,
+    "workflow_start": "start--f9c3219c-dcba-4382-ac45-7e07ba31b283",
+    "workflow": {
+        "action--b5225efc-f460-4f4f-b929-e2c82f026fe6": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that are currently running.",
+            "on_completion": "action--2e309856-91dc-41b8-8160-0bc1e3f8e438",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f PowerShell)"
+                }
+            ],
+            "agent": "organization--b01c20a0-878d-4245-a2f2-9761bb46ec33"
+        },
+        "action--2e309856-91dc-41b8-8160-0bc1e3f8e438": {
+            "name": "Block network connection to known malicious IPs",
+            "description": "Block outbound connections to known malicious IP addresses using iptables.",
+            "on_completion": "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--b01c20a0-878d-4245-a2f2-9761bb46ec33"
+        },
+        "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b": {
+            "name": "Restore modified configuration files",
+            "description": "Scan for modified files and restore them until all files are checked.",
+            "on_completion": "end--8f923c37-69c5-49b7-bb08-b2c74ffec82e",
+            "type": "while-condition",
+            "condition": "all_files_scanned == false",
+            "on_true": "action--f8b6e16e-61cd-435a-8573-c951135a91d9"
+        },
+        "start--f9c3219c-dcba-4382-ac45-7e07ba31b283": {
+            "on_completion": "if-suspicious-activity--4fd18073-7396-43f4-9d0f-4f33ac570eb9",
+            "type": "start"
+        },
+        "if-suspicious-activity--4fd18073-7396-43f4-9d0f-4f33ac570eb9": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--b5225efc-f460-4f4f-b929-e2c82f026fe6",
+            "on_false": "end--8f923c37-69c5-49b7-bb08-b2c74ffec82e"
+        },
+        "action--f8b6e16e-61cd-435a-8573-c951135a91d9": {
+            "name": "Scan and restore modified files",
+            "description": "Restore each modified configuration file to its previous state.",
+            "on_completion": "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for file in /path/to/config/files/*; do restore_file $file; done"
+                }
+            ],
+            "agent": "organization--b01c20a0-878d-4245-a2f2-9761bb46ec33"
+        },
+        "end--8f923c37-69c5-49b7-bb08-b2c74ffec82e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b01c20a0-878d-4245-a2f2-9761bb46ec33": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "suspicious_activity_detected": {
+            "type": "boolean",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "all_files_scanned": {
+            "type": "boolean",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

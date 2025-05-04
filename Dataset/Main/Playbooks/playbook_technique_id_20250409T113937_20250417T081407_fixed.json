@@ -1,0 +1,77 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1fdf926-e2ac-4d3e-9bdf-3ea34f2e8d79",
+    "name": "Incident Response Playbook for Unauthorized Network Access",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to the network using a script, executing various commands that triggered alerts.",
+    "created_by": "identity--07c96d25-d546-46f6-8f54-9285e8fd5f32",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--d91bfb13-4a1e-4e5b-a08f-fc79c7d4f81a",
+            "type": "start"
+        },
+        "action--d91bfb13-4a1e-4e5b-a08f-fc79c7d4f81a": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--f7e1c186-6d73-47af-9a02-83cbbeb91ab4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--bd32826a-f81c-4162-9ff1-da952bb8fbd6"
+        },
+        "action--f2b1ab58-8719-4e8c-ab9d-c78167e5b208": {
+            "name": "Run Malware Scan",
+            "description": "Perform a malware scan and remove detected threats.",
+            "on_completion": "action--f2b1ab58-8719-4e8c-ab9d-c78167e5b208",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scanning --remove=yes"
+                }
+            ],
+            "agent": "organization--bd32826a-f81c-4162-9ff1-da952bb8fbd6",
+            "loop": {
+                "condition": "scan_result != 'Clean'",
+                "next_steps": "action--f2b1ab58-8719-4e8c-ab9d-c78167e5b208"
+            }
+        },
+        "action--0b7baef5-1e68-4879-81e0-5ed085bdc042": {
+            "name": "Update Firewall Rules",
+            "description": "Block the suspicious IP address from accessing the network.",
+            "on_completion": "end--f1d4a3f5-45ac-4a59-bb47-fd4dbb5d1e94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--bd32826a-f81c-4162-9ff1-da952bb8fbd6"
+        },
+        "end--f1d4a3f5-45ac-4a59-bb47-fd4dbb5d1e94": {
+            "type": "end"
+        },
+        "if-condition--f7e1c186-6d73-47af-9a02-83cbbeb91ab4": {
+            "name": "Check if malicious process still running",
+            "type": "if-condition",
+            "condition": "$(pgrep -f malicious_script.sh) != ''",
+            "on_true": "action--f2b1ab58-8719-4e8c-ab9d-c78167e5b208",
+            "on_false": "action--0b7baef5-1e68-4879-81e0-5ed085bdc042"
+        }
+    },
+    "agent_definitions": {
+        "organization--bd32826a-f81c-4162-9ff1-da952bb8fbd6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

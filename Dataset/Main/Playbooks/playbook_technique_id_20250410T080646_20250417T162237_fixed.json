@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5f9a64bd-9dd6-4c3b-9b90-7e6c88850555",
+    "name": "Mitigation Playbook for Unauthorized Scripting Access Incident",
+    "description": "This playbook addresses incidents involving unauthorized access through scripting interfaces on internal servers.",
+    "created_by": "identity--46d8c2c3-5f1a-45b7-b169-a30a124fdb22",
+    "created": "2025-10-10T10:00:00.000Z",
+    "modified": "2025-10-10T10:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1b2b3c4d-e5f6-4a2b-b8e0-6141d72c11de",
+    "workflow": {
+        "start--1b2b3c4d-e5f6-4a2b-b8e0-6141d72c11de": {
+            "on_completion": "action--94af6a00-beef-4d7c-b18a-0f1b577d0fba",
+            "type": "start"
+        },
+        "action--94af6a00-beef-4d7c-b18a-0f1b577d0fba": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized shell process that was opened.",
+            "on_completion": "parallel--f9815a00-4c91-42e8-b8dd-76ff198c8d19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_shell"
+                }
+            ],
+            "agent": "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c"
+        },
+        "parallel--f9815a00-4c91-42e8-b8dd-76ff198c8d19": {
+            "name": "Parallel actions for incident response",
+            "description": "Perform multiple actions simultaneously to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4db5c027-05e4-4f96-bec7-ca2dc4de195c",
+                "action--ee43b598-e2c9-4d00-a6cb-1cf333b3c4cd",
+                "action--c5dbf1ea-cd6c-4cf1-8399-48eddbc2cdef",
+                "action--bd7aad8f-d1c9-4f7e-92d5-7864c882ebc1",
+                "if-condition--ec207ea8-9d10-4ebe-b6c4-dcbede6bb209"
+            ]
+        },
+        "action--4db5c027-05e4-4f96-bec7-ca2dc4de195c": {
+            "name": "Scan and quarantine compromised files",
+            "description": "Perform a scan of the system to find and quarantine any compromised files.",
+            "on_completion": "while-condition--7e91c8bd-8d24-4a4b-b3f4-bd985205cc68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --infected --remove --recursive /"
+                }
+            ],
+            "agent": "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c"
+        },
+        "while-condition--7e91c8bd-8d24-4a4b-b3f4-bd985205cc68": {
+            "name": "Check if scan is clean",
+            "description": "Loop until the system scan is confirmed to be clean.",
+            "on_completion": "action--ee43b598-e2c9-4d00-a6cb-1cf333b3c4cd",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--4db5c027-05e4-4f96-bec7-ca2dc4de195c"
+        },
+        "action--ee43b598-e2c9-4d00-a6cb-1cf333b3c4cd": {
+            "name": "Disable vulnerable script interfaces",
+            "description": "Disable execution rights on vulnerable scripts to prevent further exploitation.",
+            "on_completion": "action--c5dbf1ea-cd6c-4cf1-8399-48eddbc2cdef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -x /path/to/vulnerable/script"
+                }
+            ],
+            "agent": "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c"
+        },
+        "action--c5dbf1ea-cd6c-4cf1-8399-48eddbc2cdef": {
+            "name": "Update network firewall rules",
+            "description": "Block outbound traffic from suspicious IPs.",
+            "on_completion": "action--bd7aad8f-d1c9-4f7e-92d5-7864c882ebc1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.100"
+                }
+            ],
+            "agent": "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c"
+        },
+        "action--bd7aad8f-d1c9-4f7e-92d5-7864c882ebc1": {
+            "name": "Notify security team",
+            "description": "Alert the security team regarding the detected incident.",
+            "on_completion": "end--9dbb8c80-c287-4d8a-a0af-df167f7dc802",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected. Immediate action required.' | mail -s 'Security Alert' security_team@xyz.org"
+                }
+            ],
+            "agent": "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c"
+        },
+        "end--9dbb8c80-c287-4d8a-a0af-df167f7dc802": {
+            "type": "end"
+        },
+        "if-condition--ec207ea8-9d10-4ebe-b6c4-dcbede6bb209": {
+            "name": "Check for network anomalies",
+            "type": "if-condition",
+            "condition": "network_anomalies_detected == true",
+            "on_true": "action--ad3bc130-4aff-41c2-bde9-696c7f1f16c4",
+            "on_false": "action--bd7aad8f-d1c9-4f7e-92d5-7864c882ebc1"
+        }
+    },
+    "agent_definitions": {
+        "organization--e4944c1c-11e1-49a1-8fee-e1723d5c462c": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

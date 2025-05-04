@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d7e1a6a-7dcb-4f08-8299-5e9d4f6f78d5",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--abc77fb3-1234-5678-9abc-def123456789",
+    "created": "2023-10-06T12:00:00.000Z",
+    "modified": "2023-10-06T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--5f88abbc-6d08-4ccf-aa07-0c3f9ed5cbe4",
+    "workflow": {
+        "start--5f88abbc-6d08-4ccf-aa07-0c3f9ed5cbe4": {
+            "on_completion": "if-condition--c9a8a6c6-6d70-46a6-9579-5f94f7affd2f",
+            "type": "start"
+        },
+        "end--f7e109da-e750-4c57-b6e0-5a08f3e17f5d": {
+            "type": "end"
+        },
+        "if-condition--c9a8a6c6-6d70-46a6-9579-5f94f7affd2f": {
+            "name": "Check if malicious processes exist",
+            "type": "if-condition",
+            "condition": "process_exists",
+            "on_true": "action--f6e72f0f-4e02-4c3f-a599-427aeda6ea1d",
+            "on_false": "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033"
+        },
+        "action--f6e72f0f-4e02-4c3f-a599-427aeda6ea1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--149303fe-948c-4076-9fda-261b98d84f49"
+        },
+        "action--e3c257b2-1539-4a2e-b7e5-ccdd5cfd5033": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Prevent any outgoing connections to known malicious IP addresses.",
+            "on_completion": "while-condition--1b7a4f38-8bcf-474d-9d78-ea755e233b84",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--149303fe-948c-4076-9fda-261b98d84f49"
+        },
+        "while-condition--1b7a4f38-8bcf-474d-9d78-ea755e233b84": {
+            "name": "Initiate full malware scan",
+            "description": "Run a full malware scan and continue until the system is clean.",
+            "on_completion": "end--f7e109da-e750-4c57-b6e0-5a08f3e17f5d",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--cda4aabe-0563-497b-9734-4f63e3cf97f0",
+            "on_false": "None"
+        },
+        "action--cda4aabe-0563-497b-9734-4f63e3cf97f0": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan on the affected systems.",
+            "on_completion": "while-condition--1b7a4f38-8bcf-474d-9d78-ea755e233b84",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "agent": "organization--149303fe-948c-4076-9fda-261b98d84f49"
+        }
+    },
+    "agent_definitions": {
+        "organization--149303fe-948c-4076-9fda-261b98d84f49": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "process_exists": {
+            "type": "boolean",
+            "value": true,
+            "description": "Determines if any malicious processes are currently running."
+        },
+        "scan_is_clean": {
+            "type": "boolean",
+            "value": false,
+            "description": "Variable indicating if the malware scan is complete and clean."
+        }
+    }
+}

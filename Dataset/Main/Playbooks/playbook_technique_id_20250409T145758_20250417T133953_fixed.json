@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e99a2b-56af-4f8b-a1b1-4487c52b3d6d",
+    "name": "Response to Command and Scripting Interpreter Attack",
+    "description": "This playbook handles an incident where an attacker utilized a script to execute commands, allowing for malware execution.",
+    "created_by": "identity--f2b36fe8-db7f-4a3c-8653-dae154f0066b",
+    "created": "2023-10-06T14:32:00Z",
+    "modified": "2023-10-06T14:32:00Z",
+    "revoked": false,
+    "workflow_start": "start--1c34d86c-b95e-41b8-9dbd-9466ae485d60",
+    "workflow": {
+        "start--1c34d86c-b95e-41b8-9dbd-9466ae485d60": {
+            "on_completion": "parallel--66569d13-11e5-47bc-bb5d-37aafa9fd164",
+            "type": "start"
+        },
+        "action--f0a899e1-3bb0-4b4e-9c87-fb906c6f8bee": {
+            "name": "Kill malicious process",
+            "description": "Terminate the 'malware.exe' process that was executed by the attacker.",
+            "on_completion": "action--7f627a58-d42e-4ca3-9434-ddcdca7602f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.exe"
+                }
+            ],
+            "agent": "organization--b08ccc33-773b-4f9e-b5ee-e01ba49d5907"
+        },
+        "action--7f627a58-d42e-4ca3-9434-ddcdca7602f8": {
+            "name": "Remove dropped file",
+            "description": "Remove the unauthorized file that was written to the system.",
+            "on_completion": "loop--2b7bafe3-e497-44c3-9be0-87dce88e8778",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malware.exe"
+                }
+            ],
+            "agent": "organization--b08ccc33-773b-4f9e-b5ee-e01ba49d5907"
+        },
+        "loop--2b7bafe3-e497-44c3-9be0-87dce88e8778": {
+            "name": "Run antivirus scan",
+            "description": "Continue running the antivirus scan until no malware is found.",
+            "type": "while-condition",
+            "condition": "malware_found",
+            "on_true": "action--2b7bafe3-e497-44c3-9be0-87dce88e8778",
+            "next_steps": [
+                "action--2b7bafe3-e497-44c3-9be0-87dce88e8778"
+            ]
+        },
+        "action--2b7bafe3-e497-44c3-9be0-87dce88e8778": {
+            "name": "Scan system for malware",
+            "description": "Execute antivirus scanning on the system to detect any remaining threats.",
+            "on_completion": "loop--2b7bafe3-e497-44c3-9be0-87dce88e8778",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan --now"
+                }
+            ],
+            "agent": "organization--b08ccc33-773b-4f9e-b5ee-e01ba49d5907"
+        },
+        "parallel--66569d13-11e5-47bc-bb5d-37aafa9fd164": {
+            "name": "Execute Mitigations",
+            "description": "Simultaneously execute mitigation actions for the detected malicious activity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f0a899e1-3bb0-4b4e-9c87-fb906c6f8bee",
+                "action--7f627a58-d42e-4ca3-9434-ddcdca7602f8",
+                "loop--2b7bafe3-e497-44c3-9be0-87dce88e8778"
+            ]
+        },
+        "end--3cb71b87-3ab5-49a3-8bff-d1d78caf15aa": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b08ccc33-773b-4f9e-b5ee-e01ba49d5907": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

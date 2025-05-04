@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a4f8e1a4-6c09-4408-86cf-4335f60c1f89",
+    "name": "Mitigation Playbook for Web Server Compromise Incident",
+    "description": "This playbook addresses an incident where a web server vulnerability was exploited to execute a malicious script, leading to unauthorized access, data exfiltration, and lateral movement.",
+    "created_by": "identity--52ed9e09-163c-447c-84ac-d42f9b88db32",
+    "created": "2023-10-04T13:00:00Z",
+    "modified": "2023-10-04T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b3d93d82-af53-4c69-8b37-899879c8ae52",
+    "workflow": {
+        "start--b3d93d82-af53-4c69-8b37-899879c8ae52": {
+            "on_completion": "action--f74a8b85-106f-465e-861a-0ae7687b5abe",
+            "type": "start"
+        },
+        "action--f74a8b85-106f-465e-861a-0ae7687b5abe": {
+            "name": "Kill malicious process",
+            "description": "Terminate the execution of the malicious script.",
+            "on_completion": "if-condition--c724b8aa-a05e-4338-b105-3942d84f8dbc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--fd465ed0-b70f-4d86-a0a1-d2f138462e9d"
+        },
+        "if-condition--c724b8aa-a05e-4338-b105-3942d84f8dbc": {
+            "name": "Check for suspicious user",
+            "type": "if-condition",
+            "condition": "suspicious_user_exists",
+            "on_true": "action--d6ef9a4e-fbe1-4d31-a7a4-614b0c39d948",
+            "on_false": "action--f3b773ec-dc56-4b98-a835-0dd49f62dd4e"
+        },
+        "action--d6ef9a4e-fbe1-4d31-a7a4-614b0c39d948": {
+            "name": "Restrict user account access",
+            "description": "Lock the suspicious user account to prevent further access.",
+            "on_completion": "action--f3b773ec-dc56-4b98-a835-0dd49f62dd4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L suspicious_user"
+                }
+            ],
+            "agent": "organization--fd465ed0-b70f-4d86-a0a1-d2f138462e9d"
+        },
+        "action--f3b773ec-dc56-4b98-a835-0dd49f62dd4e": {
+            "name": "Perform a full system scan with antivirus",
+            "description": "Scan the entire system for any remaining threats and remove them.",
+            "on_completion": "while-condition--8c098e1c-9d91-4f7e-9131-7b428d9a339b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--fd465ed0-b70f-4d86-a0a1-d2f138462e9d"
+        },
+        "while-condition--8c098e1c-9d91-4f7e-9131-7b428d9a339b": {
+            "name": "Threats found loop",
+            "description": "Loop until no threats are found by the antivirus.",
+            "on_completion": "end--68dff540-ded5-4707-a634-1bc0e63f4b51",
+            "type": "while-condition",
+            "condition": "threats_found == False",
+            "on_true": "action--f3b773ec-dc56-4b98-a835-0dd49f62dd4e"
+        },
+        "end--68dff540-ded5-4707-a634-1bc0e63f4b51": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fd465ed0-b70f-4d86-a0a1-d2f138462e9d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

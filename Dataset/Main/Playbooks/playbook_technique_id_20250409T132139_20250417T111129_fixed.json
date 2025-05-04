@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a633da31-5f34-4b91-bb3f-2e19f70b92fb",
+    "name": "Mitigation Playbook for Compromised User Account Incident",
+    "description": "This playbook outlines the steps to mitigate an incident where an attacker compromised a user account to extract stored passwords from a password manager application silently.",
+    "created_by": "identity--0e5051f2-db8f-4b82-b24a-e783b6abcb9d",
+    "created": "2023-10-11T14:30:00Z",
+    "modified": "2023-10-11T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--8b714892-e9a9-4a43-b5b5-708d00e27463",
+    "workflow": {
+        "action--f37cc7e2-2dfc-4f91-9899-93e1acac2361": {
+            "name": "Audit password manager logs for suspicious activity",
+            "description": "Review logs for any failed login attempts or unusual behavior.",
+            "on_completion": "loop--59a5ba3c-bf18-4e1d-93f3-896ba10fb51b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'failed login' /var/log/password_manager.log"
+                }
+            ],
+            "agent": "organization--0cf88210-6e56-4640-b078-86ade624e8d8"
+        },
+        "action--88967b21-527a-4976-977c-0c07bb98d3a9": {
+            "name": "Reset compromised user passwords",
+            "description": "Update passwords for the users whose accounts may have been compromised.",
+            "on_completion": "action--c12b9565-e8ee-411e-8d48-df30b04bf674",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--0cf88210-6e56-4640-b078-86ade624e8d8"
+        },
+        "action--c12b9565-e8ee-411e-8d48-df30b04bf674": {
+            "name": "Implement multi-factor authentication",
+            "description": "Enable MFA for the user account to enhance security.",
+            "on_completion": "end--b2b4a252-f30e-4773-a1cc-9e540d0a1998",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "enable-mfa <username>"
+                }
+            ],
+            "agent": "organization--0cf88210-6e56-4640-b078-86ade624e8d8"
+        },
+        "start--8b714892-e9a9-4a43-b5b5-708d00e27463": {
+            "on_completion": "action--f37cc7e2-2dfc-4f91-9899-93e1acac2361",
+            "type": "start"
+        },
+        "loop--59a5ba3c-bf18-4e1d-93f3-896ba10fb51b": {
+            "name": "Loop until audit is complete",
+            "description": "Repeat the log audit until it is deemed complete.",
+            "on_completion": "action--88967b21-527a-4976-977c-0c07bb98d3a9",
+            "type": "while-condition",
+            "condition": "audit_complete == false",
+            "on_true": "action--f37cc7e2-2dfc-4f91-9899-93e1acac2361"
+        },
+        "end--b2b4a252-f30e-4773-a1cc-9e540d0a1998": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0cf88210-6e56-4640-b078-86ade624e8d8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "audit_complete": {
+            "type": "boolean",
+            "description": "Indicates if the audit of logs is complete.",
+            "value": "false",
+            "constant": false,
+            "external": false
+        }
+    }
+}

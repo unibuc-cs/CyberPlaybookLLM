@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--849b6120-6b29-4e68-8120-988446bb666d",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates an incident involving unauthorized access via a PowerShell script and addresses compromised systems and accounts.",
+    "created_by": "identity--d1234567-e89b-12d3-a456-426614174000",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:35.498Z",
+    "revoked": false,
+    "workflow_start": "start--b8f970b4-84ae-4a41-9c7f-bfc44b1878cb",
+    "workflow": {
+        "start--b8f970b4-84ae-4a41-9c7f-bfc44b1878cb": {
+            "on_completion": "action--e5c6c1c2-7b43-459f-89b8-6ac9a6c66052",
+            "type": "start"
+        },
+        "action--e5c6c1c2-7b43-459f-89b8-6ac9a6c66052": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process if it is running.",
+            "on_completion": "action--bf7ad3f2-8198-4d9b-928f-1b02d776b289",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if pgrep -f 'powershell -ExecutionPolicy Bypass -File exploit.ps1'; then pkill -f 'powershell -ExecutionPolicy Bypass -File exploit.ps1'; fi"
+                }
+            ],
+            "agent": "organization--08b825bf-2026-4a18-9bc0-2c8655f03ae3"
+        },
+        "action--bf7ad3f2-8198-4d9b-928f-1b02d776b289": {
+            "name": "Patch vulnerable service",
+            "description": "Apply patch to the vulnerable service and ensure it is not running after patching.",
+            "on_completion": "action--f6e4a1d1-c40b-4ad9-bc20-3ed290d72c4c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "until ! systemctl is-active vulnerable-service; do apt-get update && apt-get install vulnerable-service-patch; done"
+                }
+            ],
+            "agent": "organization--07d343b9-bc7c-4f55-9f73-2d223b1ccaa3"
+        },
+        "action--f6e4a1d1-c40b-4ad9-bc20-3ed290d72c4c": {
+            "name": "Reset compromised passwords",
+            "description": "Expire the passwords of compromised users.",
+            "on_completion": "action--a9f5d0e1-d2af-4337-8eed-49b2e58c38cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${compromised_user} --expire"
+                }
+            ],
+            "agent": "organization--08b825bf-2026-4a18-9bc0-2c8655f03ae3",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "User account that has been compromised",
+                    "value": "user123",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--a9f5d0e1-d2af-4337-8eed-49b2e58c38cb": {
+            "name": "Conduct full system scan",
+            "description": "Perform a thorough system scan to detect any remaining threats.",
+            "on_completion": "if-condition--d7b783da-3585-4c4e-973c-43d7f6a76a1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "until clamscan -r / | grep 'No viruses found'; do clamscan -r /; done"
+                }
+            ],
+            "agent": "organization--08b825bf-2026-4a18-9bc0-2c8655f03ae3"
+        },
+        "if-condition--d7b783da-3585-4c4e-973c-43d7f6a76a1b": {
+            "name": "Review access logs conditionally",
+            "type": "if-condition",
+            "condition": "system_scan_passed == true",
+            "on_true": "action--d7b783da-3585-4c4e-973c-43d7f6a76a1b",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--d7b783da-3585-4c4e-973c-43d7f6a76a1b": {
+            "name": "Review access logs for anomalous activity",
+            "description": "Examine the access logs for any suspicious activities.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--07d343b9-bc7c-4f55-9f73-2d223b1ccaa3",
+            "step_variables": {
+                "system_scan_passed": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the system scan was successful",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--08b825bf-2026-4a18-9bc0-2c8655f03ae3": {
+            "type": "organization",
+            "name": "DefenderOrganization"
+        },
+        "organization--07d343b9-bc7c-4f55-9f73-2d223b1ccaa3": {
+            "type": "organization",
+            "name": "ResponderOrganization"
+        }
+    }
+}

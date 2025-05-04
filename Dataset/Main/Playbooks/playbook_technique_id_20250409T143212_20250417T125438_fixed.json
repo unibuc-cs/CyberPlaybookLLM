@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e27d5e-4c40-4e37-8db4-15519c4bcd97",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute malicious scripts on the server, extracting sensitive data.",
+    "created_by": "identity--abc12345-1234-5678-9abc-1234567890ef",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--f03b2c0f-8b76-467d-a350-0d94cc0d2c43",
+            "type": "start"
+        },
+        "action--f03b2c0f-8b76-467d-a350-0d94cc0d2c43": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are potentially malicious.",
+            "on_completion": "if-condition--c77a5c38-dc93-4865-80aa-45170ef3ac19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--b1869e72-7a29-492f-b49b-3e861be67470"
+        },
+        "if-condition--c77a5c38-dc93-4865-80aa-45170ef3ac19": {
+            "name": "Check for active external connections",
+            "type": "if-condition",
+            "condition": "active_connection",
+            "on_true": "action--c77a5c38-dc93-4865-80aa-45170ef3ac19",
+            "on_false": "action--3cfb08e8-0a6e-4b2e-a4fe-82047b1b5875"
+        },
+        "action--c77a5c38-dc93-4865-80aa-45170ef3ac19": {
+            "name": "Block external IP address",
+            "description": "Block outbound connections to the identified external IP address used for data exfiltration.",
+            "on_completion": "action--3cfb08e8-0a6e-4b2e-a4fe-82047b1b5875",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d '$(extract_external_ip)' -j DROP"
+                }
+            ],
+            "agent": "organization--b1869e72-7a29-492f-b49b-3e861be67470"
+        },
+        "action--3cfb08e8-0a6e-4b2e-a4fe-82047b1b5875": {
+            "name": "Scan the host for vulnerabilities",
+            "description": "Scan the affected host for any vulnerabilities.",
+            "on_completion": "while-condition--61824d7c-1a79-4ff8-b1c4-46734158f2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sV -p- host-22"
+                }
+            ],
+            "agent": "organization--b1869e72-7a29-492f-b49b-3e861be67470"
+        },
+        "end--b1a27b81-8375-42e6-97da-18907b3b6ea3": {
+            "type": "end"
+        },
+        "while-condition--61824d7c-1a79-4ff8-b1c4-46734158f2d3": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Repeat the vulnerability scan until a clean status is reported.",
+            "on_true": "action--3cfb08e8-0a6e-4b2e-a4fe-82047b1b5875",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--3cfb08e8-0a6e-4b2e-a4fe-82047b1b5875"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--b1869e72-7a29-492f-b49b-3e861be67470": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

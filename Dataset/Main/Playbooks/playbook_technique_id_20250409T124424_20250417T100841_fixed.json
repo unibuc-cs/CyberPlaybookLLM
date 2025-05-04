@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c75b3c75-8a50-4744-9060-5c590b5d8c80",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access and executed malicious scripts compromising sensitive data on key servers.",
+    "created_by": "identity--c4679cb9-969b-4cf8-854a-9994c2357517",
+    "created": "2023-10-10T14:30:00Z",
+    "modified": "2023-10-10T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e7d295bc-0ed2-4e37-b0f5-0bfcc6a5754b",
+    "workflow": {
+        "start--e7d295bc-0ed2-4e37-b0f5-0bfcc6a5754b": {
+            "on_completion": "action--0d48eabe-6cd2-47e2-b3f9-49a1f34f6d0d",
+            "type": "start"
+        },
+        "action--0d48eabe-6cd2-47e2-b3f9-49a1f34f6d0d": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "parallel--b58e6315-8c3c-4b67-8414-a67c5ea1a972",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--c0579a91-4a81-43e4-8842-fc19ae7bf62e"
+        },
+        "parallel--b58e6315-8c3c-4b67-8414-a67c5ea1a972": {
+            "name": "Isolate affected hosts and assess risk",
+            "description": "Simultaneously isolate affected hosts and audit logs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b58e6315-8c3c-4b67-8414-a67c5ea1a972",
+                "action--cd216f6f-e4f9-4455-8c44-75d6eb58e38e"
+            ]
+        },
+        "action--b58e6315-8c3c-4b67-8414-a67c5ea1a972": {
+            "name": "Isolate affected hosts",
+            "description": "Block outbound connections for affected hosts to prevent data exfiltration.",
+            "on_completion": "action--467f33cd-cd3b-44e8-ade4-dc8f097e30bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in host-21 host-22 host-23; do ssh $host 'iptables -A OUTPUT -j DROP'; done"
+                }
+            ],
+            "agent": "organization--c0579a91-4a81-43e4-8842-fc19ae7bf62e"
+        },
+        "action--cd216f6f-e4f9-4455-8c44-75d6eb58e38e": {
+            "name": "Audit script execution logs",
+            "description": "Check logs for any malicious script activity.",
+            "on_completion": "if-condition--5c72f330-6f8e-4c80-afdc-ec36e4487bd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/script_execution.log"
+                }
+            ],
+            "agent": "organization--c0579a91-4a81-43e4-8842-fc19ae7bf62e"
+        },
+        "action--467f33cd-cd3b-44e8-ade4-dc8f097e30bc": {
+            "name": "Conduct system-wide malware scan",
+            "description": "Perform a scan for any malware on the system.",
+            "on_completion": "while-condition--de0fa4a2-8ae6-4867-9084-32f42a657a4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--c0579a91-4a81-43e4-8842-fc19ae7bf62e"
+        },
+        "end--e1f63deb-7f12-4f3e-8eec-ddcb1c9c8914": {
+            "type": "end"
+        },
+        "if-condition--5c72f330-6f8e-4c80-afdc-ec36e4487bd1": {
+            "name": "Check if suspicious behavior detected",
+            "type": "if-condition",
+            "condition": "suspicious_behavior_detected",
+            "on_true": "action--467f33cd-cd3b-44e8-ade4-dc8f097e30bc",
+            "on_false": "end--e1f63deb-7f12-4f3e-8eec-ddcb1c9c8914"
+        },
+        "while-condition--de0fa4a2-8ae6-4867-9084-32f42a657a4e": {
+            "name": "Repeat system scan until no malware is found",
+            "description": "Continue scanning the system until all malware has been eradicated.",
+            "on_true": "action--467f33cd-cd3b-44e8-ade4-dc8f097e30bc",
+            "condition": "malware_found",
+            "on_completion": "end--e1f63deb-7f12-4f3e-8eec-ddcb1c9c8914",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--c0579a91-4a81-43e4-8842-fc19ae7bf62e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

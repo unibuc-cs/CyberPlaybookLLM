@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bd414a60-3979-4cc5-bf97-dc897440914b",
+    "name": "Mitigation Playbook for Script Execution and Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data. It involves killing malicious processes, isolating affected hosts, and performing system scans iteratively until the system is clean.",
+    "created_by": "identity--b5a4d686-5eeb-4ba5-adc9-36d57e088af6",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--fa8f6ca4-93f2-4f08-9942-6551cd50675d",
+    "workflow": {
+        "start--fa8f6ca4-93f2-4f08-9942-6551cd50675d": {
+            "on_completion": "action--cc7a4f97-cf11-4e10-a4d6-9ea5f3f123e8",
+            "type": "start"
+        },
+        "action--cc7a4f97-cf11-4e10-a4d6-9ea5f3f123e8": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes executing known malicious scripts.",
+            "on_completion": "action--eb29f5c3-8f17-47c6-8458-ab7ed5a20445",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--db19365c-a93e-416f-94c7-42ff0dc0c40c"
+        },
+        "action--eb29f5c3-8f17-47c6-8458-ab7ed5a20445": {
+            "name": "Isolate affected host",
+            "description": "Block network traffic from the compromised host to prevent further data exfiltration.",
+            "on_completion": "while-condition--b8c8bde0-ed79-4a09-a7d1-3cfb44b19e90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--db19365c-a93e-416f-94c7-42ff0dc0c40c"
+        },
+        "while-condition--b8c8bde0-ed79-4a09-a7d1-3cfb44b19e90": {
+            "name": "Perform full system scan loop",
+            "description": "Continuously scan the affected host until no threats remain.",
+            "on_true": "action--b8c8bde0-ed79-4a09-a7d1-3cfb44b19e90",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_completion": "end--8f69a80f-95c3-44da-b5c3-c56d6819eb79"
+        },
+        "action--b8c8bde0-ed79-4a09-a7d1-3cfb44b19e90": {
+            "name": "Perform full system scan",
+            "description": "Execute a full system scan on the affected host.",
+            "on_completion": "while-condition--b8c8bde0-ed79-4a09-a7d1-3cfb44b19e90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --target host-22"
+                }
+            ],
+            "agent": "organization--db19365c-a93e-416f-94c7-42ff0dc0c40c",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Stores scan results to determine if the system is clean",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--8f69a80f-95c3-44da-b5c3-c56d6819eb79": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--db19365c-a93e-416f-94c7-42ff0dc0c40c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8f2b944c-6975-4cb9-8146-4624b1d7e437",
+    "name": "Mitigation Playbook for Unauthorized Access Incident",
+    "description": "This playbook addresses the incident where an unauthorized user executed malicious scripts on an internal server.",
+    "created_by": "identity--8abb0ae6-e43f-4f16-aee5-09bcaa2c679c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f32b3f21-8b75-4ff8-b2e8-743996948f34",
+    "workflow": {
+        "start--f32b3f21-8b75-4ff8-b2e8-743996948f34": {
+            "on_completion": "action--e15be542-b35f-4c30-b947-dbb2c26a3fe4",
+            "type": "start"
+        },
+        "action--e15be542-b35f-4c30-b947-dbb2c26a3fe4": {
+            "name": "Terminate unauthorized script process",
+            "description": "Terminate any processes executing the malicious script identified.",
+            "on_completion": "parallel--0c6eb6b8-04f5-4e4a-bfe4-cce8c84a5e9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--734aa1ff-87e3-4540-8859-77f73aaf80ca"
+        },
+        "parallel--0c6eb6b8-04f5-4e4a-bfe4-cce8c84a5e9a": {
+            "name": "Execute follow-up actions",
+            "description": "Blocking IP connections and scanning the system in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--477122de-2e44-4f0b-9c62-b3c026bab6bb",
+                "action--d23e8ab6-4c18-469c-b772-032fbbbadde5"
+            ]
+        },
+        "action--477122de-2e44-4f0b-9c62-b3c026bab6bb": {
+            "name": "Block outbound IP connections to malicious addresses",
+            "description": "Block any outgoing connections to the known malicious IP.",
+            "on_completion": "action--d23e8ab6-4c18-469c-b772-032fbbbadde5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--734aa1ff-87e3-4540-8859-77f73aaf80ca"
+        },
+        "action--d23e8ab6-4c18-469c-b772-032fbbbadde5": {
+            "name": "Scan the system for malware",
+            "description": "Perform a scan of the entire system to locate malware.",
+            "type": "action",
+            "loop": "while",
+            "on_completion": "decision--ebd6b8ad-42b9-451f-b4f7-352f999f3255",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan /"
+                }
+            ],
+            "agent": "organization--734aa1ff-87e3-4540-8859-77f73aaf80ca"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        },
+        "decision--ebd6b8ad-42b9-451f-b4f7-352f999f3255": {
+            "name": "Check if scan is clean",
+            "description": "Evaluate the result of the malware scan.",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "on_false": "action--d23e8ab6-4c18-469c-b772-032fbbbadde5"
+        }
+    },
+    "agent_definitions": {
+        "organization--734aa1ff-87e3-4540-8859-77f73aaf80ca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

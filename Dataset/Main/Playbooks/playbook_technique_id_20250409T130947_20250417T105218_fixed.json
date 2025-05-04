@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ee70076d-76d7-4868-b727-a8618d09b393",
+    "name": "Mitigation Playbook for Malicious Script Exploitation Incident",
+    "description": "This playbook addresses an incident where a malicious script was executed, altering system configurations without authorization.",
+    "created_by": "identity--b29a0556-26d3-4f45-bef8-7b894b0ac840",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T08:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--2e1cdaa2-22fb-443b-8016-2b5ec900cb71",
+    "workflow": {
+        "start--2e1cdaa2-22fb-443b-8016-2b5ec900cb71": {
+            "on_completion": "action--ed02b29b-0f85-47e3-985b-115814d1ecf9",
+            "type": "start"
+        },
+        "action--ed02b29b-0f85-47e3-985b-115814d1ecf9": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script that was executed.",
+            "on_completion": "parallel--44a044b8-ae30-41df-b908-0922078816ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--e5368232-adf7-4ecd-8e86-8050191233a1"
+        },
+        "parallel--44a044b8-ae30-41df-b908-0922078816ca": {
+            "name": "Perform additional mitigations",
+            "description": "Run system restorations and security scans in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--88c43a32-053b-4108-82ef-0f2747f3c36f",
+                "loop--f5ffec88-b051-4aa7-9054-9df172ee6775"
+            ]
+        },
+        "loop--88c43a32-053b-4108-82ef-0f2747f3c36f": {
+            "name": "Restore system configuration",
+            "description": "Repeat until the system configuration is restored and system is stable.",
+            "on_completion": "decision--e78a3f30-d75c-4416-a413-3580e82e6793",
+            "type": "while-condition",
+            "condition": "backup_exists",
+            "on_true": "action--1a88547c-3474-4299-9799-2c523ed84047"
+        },
+        "action--1a88547c-3474-4299-9799-2c523ed84047": {
+            "name": "Copy backup configuration",
+            "description": "Restore the configuration from backup to system configuration files.",
+            "on_completion": "loop--88c43a32-053b-4108-82ef-0f2747f3c36f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config_backup /etc/config"
+                }
+            ],
+            "agent": "organization--e5368232-adf7-4ecd-8e86-8050191233a1"
+        },
+        "loop--f5ffec88-b051-4aa7-9054-9df172ee6775": {
+            "name": "Run security scan",
+            "description": "Repeat until no vulnerabilities are found.",
+            "on_completion": "end--32ec4526-b77a-4ee8-a9d3-9b28489ce41c",
+            "type": "while-condition",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--7dfa60e5-bf0b-4eb5-a690-ec796e5af8c4"
+        },
+        "action--7dfa60e5-bf0b-4eb5-a690-ec796e5af8c4": {
+            "name": "Run full security scan",
+            "description": "Execute a comprehensive security scan on the system.",
+            "on_completion": "loop--f5ffec88-b051-4aa7-9054-9df172ee6775",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --full"
+                }
+            ],
+            "agent": "organization--e5368232-adf7-4ecd-8e86-8050191233a1"
+        },
+        "decision--e78a3f30-d75c-4416-a413-3580e82e6793": {
+            "name": "Check if system stability is restored",
+            "type": "if-condition",
+            "condition": "system_is_stable",
+            "on_true": "end--32ec4526-b77a-4ee8-a9d3-9b28489ce41c",
+            "on_false": "loop--88c43a32-053b-4108-82ef-0f2747f3c36f"
+        },
+        "end--32ec4526-b77a-4ee8-a9d3-9b28489ce41c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e5368232-adf7-4ecd-8e86-8050191233a1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

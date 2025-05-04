@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8d1c60b-2345-4341-93a4-1a4d6e50702f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses incidents where an attacker executed malicious scripts, resulting in unauthorized data exfiltration. The playbook executes steps to terminate malicious processes, isolate affected hosts, and perform malware scans.",
+    "created_by": "identity--f1fb3b22-3452-4c25-b71a-dc25a6097ca0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--32959911-4dc0-46b8-894a-fdfab298af61",
+    "workflow": {
+        "action--f4d508d7-9d01-4f5a-b193-1c56ce3a299e": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--e55c5fca-ad59-45c8-a8b9-55719afe90ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--cc02b4eb-aee8-47b6-a39e-609db5716389"
+        },
+        "if-condition--e55c5fca-ad59-45c8-a8b9-55719afe90ef": {
+            "name": "Check if hosts affected",
+            "type": "if-condition",
+            "condition": "hosts_affected == true",
+            "on_true": "loop--1851704e-7013-4c74-800f-3894cda460a6",
+            "on_false": "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219"
+        },
+        "action--e55c5fca-ad59-45c8-a8b9-55719afe90ef": {
+            "name": "Isolate affected hosts",
+            "description": "Shut down identified affected hosts.",
+            "on_completion": "set_variable--5d18b160-939f-486b-b99c-f10cc8bae8b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down && ifconfig host-02 down"
+                }
+            ],
+            "agent": "organization--cc02b4eb-aee8-47b6-a39e-609db5716389"
+        },
+        "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219": {
+            "name": "Perform comprehensive malware scan",
+            "description": "Scan the isolated hosts for further threats.",
+            "on_completion": "end--93f986e7-633a-4edb-9f97-539af2a63709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --bell"
+                }
+            ],
+            "agent": "organization--cc02b4eb-aee8-47b6-a39e-609db5716389"
+        },
+        "start--32959911-4dc0-46b8-894a-fdfab298af61": {
+            "on_completion": "action--f4d508d7-9d01-4f5a-b193-1c56ce3a299e",
+            "type": "start"
+        },
+        "loop--1851704e-7013-4c74-800f-3894cda460a6": {
+            "name": "Isolate affected hosts",
+            "description": "Repeat until affected hosts are isolated.",
+            "type": "while-condition",
+            "condition": "isolation_confirmed == false",
+            "on_true": "action--e55c5fca-ad59-45c8-a8b9-55719afe90ef",
+            "on_false": "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219"
+        },
+        "set_variable--5d18b160-939f-486b-b99c-f10cc8bae8b5": {
+            "name": "Set isolation confirmed",
+            "step_variables": {
+                "isolation_confirmed": {
+                    "type": "boolean",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "on_completion": "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set isolation confirmed:  "
+                }
+            ],
+            "agent": "organization--cc02b4eb-aee8-47b6-a39e-609db5716389"
+        },
+        "end--93f986e7-633a-4edb-9f97-539af2a63709": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cc02b4eb-aee8-47b6-a39e-609db5716389": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "hosts_affected": {
+            "type": "boolean",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "isolation_confirmed": {
+            "type": "boolean",
+            "description": "Flag to confirm the isolation of hosts",
+            "value": "false",
+            "constant": false,
+            "external": false
+        }
+    }
+}

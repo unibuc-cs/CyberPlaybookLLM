@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b5f43e7-9bbd-4c7e-ba6e-9b02236bdc1d",
+    "name": "Incident Response Playbook for PowerShell Exploitation",
+    "description": "This playbook addresses an incident where a malicious PowerShell script was executed to create a reverse shell and escalate privileges.",
+    "created_by": "identity--7d1a45c7-c947-4f0e-a828-b12f08f8c86e",
+    "created": "2023-10-14T09:00:00Z",
+    "modified": "2023-10-14T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--74c4fbcf-92bc-4cbb-b576-b1dce3854bfb",
+    "workflow": {
+        "start--74c4fbcf-92bc-4cbb-b576-b1dce3854bfb": {
+            "on_completion": "parallel--01c3a9b9-fd3b-4f7e-91f4-8f8a5ef2a208",
+            "type": "start"
+        },
+        "parallel--01c3a9b9-fd3b-4f7e-91f4-8f8a5ef2a208": {
+            "name": "Execute Initial Mitigation Steps",
+            "description": "Terminate the malicious process and isolate the system by blocking outbound connections.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2b15073d-4e79-4de2-bb3b-15812ccf9344",
+                "if-condition--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a"
+            ]
+        },
+        "action--2b15073d-4e79-4de2-bb3b-15812ccf9344": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate any running instances of the PowerShell process.",
+            "on_completion": "while-condition--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d"
+        },
+        "if-condition--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a": {
+            "name": "Check Active Connection to Malicious IP",
+            "type": "if-condition",
+            "condition": "connection_active == true",
+            "on_true": "action--block-traffic--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a",
+            "on_false": "while-condition--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59"
+        },
+        "action--block-traffic--59c93b3a-ddde-4cb8-8ea3-1e4f5ad2cc7a": {
+            "name": "Block Outgoing Traffic to Malicious IP",
+            "description": "Block any attempts to communicate with the malicious external server.",
+            "on_completion": "while-condition--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.202 -j DROP"
+                }
+            ],
+            "agent": "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d"
+        },
+        "while-condition--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59": {
+            "name": "Scan and Clean Infected Files",
+            "description": "Continuously scan and clean files until no further infections are detected.",
+            "type": "while-condition",
+            "condition": "no_infections_detected == false",
+            "on_true": "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59",
+            "on_false": "action--ab348cd4-425d-4df5-84cb-578afb675b3e"
+        },
+        "action--6f3b3f1e-ef59-4f51-82d6-98278f3f9b59": {
+            "name": "Perform Full System Scan and Clean",
+            "description": "Run a full system scan to clean infected files.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d"
+        },
+        "action--ab348cd4-425d-4df5-84cb-578afb675b3e": {
+            "name": "Patch Operating System Vulnerabilities",
+            "description": "Update the operating system to patch known vulnerabilities.",
+            "on_completion": "if-condition--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d"
+        },
+        "if-condition--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af": {
+            "name": "Check If PowerShell Logging is Enabled",
+            "type": "if-condition",
+            "condition": "logging_enabled == false",
+            "on_true": "action--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af",
+            "on_false": "end--bdd71aa7-16e9-4f31-9d9e-912ff3116b88"
+        },
+        "action--d5f68f79-8b45-4cdb-9d42-4c3ffecdc1af": {
+            "name": "Enable PowerShell Script Execution Logging",
+            "description": "Restrict PowerShell execution to enhance security.",
+            "on_completion": "end--bdd71aa7-16e9-4f31-9d9e-912ff3116b88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d"
+        },
+        "end--bdd71aa7-16e9-4f31-9d9e-912ff3116b88": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d7f2c76a-8ca3-481f-b0ac-0ffce998e09d": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        }
+    }
+}

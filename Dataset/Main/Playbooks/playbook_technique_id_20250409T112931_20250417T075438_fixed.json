@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9aa6e72-2c6b-45b5-9eab-8d5f2c880ec6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts using a command and scripting interpreter.",
+    "created_by": "identity--a97baab1-af15-4e28-bc98-f1a6d6058cde",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e2c3d1c5-0191-4658-a590-8b580f8c5d27",
+    "workflow": {
+        "start--e2c3d1c5-0191-4658-a590-8b580f8c5d27": {
+            "on_completion": "action--a1c8f451-fc3f-4f8a-ab8c-82a4e09f0a7a",
+            "type": "start"
+        },
+        "action--a1c8f451-fc3f-4f8a-ab8c-82a4e09f0a7a": {
+            "name": "Kill malicious script",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "action--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--62bcb192-607c-472c-89ab-3da30eae2a58"
+        },
+        "action--d8a8ef9c-bb0a-42c4-af7a-0b3245d3876d": {
+            "name": "Quarantine affected files",
+            "description": "Move the malicious script to quarantine.",
+            "on_completion": "if-condition--e31f9192-5121-41d2-81da-6d307bb8d968",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv ~/user_profile/suspicious_script.ps1 ~/quarantine/"
+                }
+            ],
+            "agent": "organization--62bcb192-607c-472c-89ab-3da30eae2a58"
+        },
+        "action--52baf483-0eb8-4914-a0fc-00f4f20e8c3c": {
+            "name": "Run endpoint scan",
+            "description": "Perform a systematic scan of the user profile for residual threats.",
+            "on_completion": "end--d500e3b1-db4f-4ac8-b5a3-5e4f5a204003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan --recursive ~/user_profile/"
+                }
+            ],
+            "agent": "organization--62bcb192-607c-472c-89ab-3da30eae2a58"
+        },
+        "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5": {
+            "name": "Review command logs",
+            "description": "Review command execution logs for further malicious activity.",
+            "on_completion": "loop--b7f930ee-57bb-487c-9cc1-750d7b1433c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/command.log"
+                }
+            ],
+            "agent": "organization--62bcb192-607c-472c-89ab-3da30eae2a58"
+        },
+        "action--c70d42c4-ab75-401d-a438-937c8741d04b": {
+            "name": "Block malicious IP",
+            "description": "Prevent network access to the known malicious IP.",
+            "on_completion": "end--d500e3b1-db4f-4ac8-b5a3-5e4f5a204003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--62bcb192-607c-472c-89ab-3da30eae2a58"
+        },
+        "end--d500e3b1-db4f-4ac8-b5a3-5e4f5a204003": {
+            "type": "end"
+        },
+        "if-condition--e31f9192-5121-41d2-81da-6d307bb8d968": {
+            "name": "Check if quarantine was successful",
+            "type": "if-condition",
+            "condition": "malicious_script_found == true",
+            "on_true": "action--52baf483-0eb8-4914-a0fc-00f4f20e8c3c",
+            "on_false": "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5"
+        },
+        "loop--b7f930ee-57bb-487c-9cc1-750d7b1433c3": {
+            "name": "Review command logs loop",
+            "description": "Continue reviewing logs until all have been analyzed.",
+            "on_completion": "action--c70d42c4-ab75-401d-a438-937c8741d04b",
+            "type": "while-condition",
+            "condition": "more_logs_to_review",
+            "on_true": "action--63b24efc-30c4-419c-afe1-7b89e2d4e3f5"
+        }
+    },
+    "agent_definitions": {
+        "organization--62bcb192-607c-472c-89ab-3da30eae2a58": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

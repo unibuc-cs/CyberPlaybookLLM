@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6e9f110-1c00-4e52-9634-fd2f85fcf82e",
+    "name": "Playbook for Handling Application Layer Protocol Data Exfiltration",
+    "description": "This playbook addresses an incident involving data exfiltration using a standard application layer protocol. It includes monitoring traffic, blocking suspicious IPs, and conducting a comprehensive network analysis.",
+    "created_by": "identity--f191c115-9b82-4b9f-8ca9-a8841b8c0211",
+    "created": "2025-04-09T13:00:00.000Z",
+    "modified": "2025-04-09T13:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--04223677-ecc0-44a8-90c5-390bddb05087",
+    "workflow": {
+        "start--04223677-ecc0-44a8-90c5-390bddb05087": {
+            "on_completion": "parallel--9aeb6338-7e6a-4810-b362-165f5bafc109",
+            "type": "start"
+        },
+        "parallel--9aeb6338-7e6a-4810-b362-165f5bafc109": {
+            "name": "Monitor and Block",
+            "description": "Simultaneous monitoring of outbound traffic and blocking of suspicious IPs.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d54648a5-c7c5-49cc-9435-f4a9883d2d68",
+                "action--b74c0225-6a57-47b0-951d-dc394ae16fee"
+            ]
+        },
+        "action--d54648a5-c7c5-49cc-9435-f4a9883d2d68": {
+            "name": "Monitor outbound traffic",
+            "description": "Use tcpdump to monitor outbound traffic for suspicious patterns.",
+            "on_completion": "loop--5c13216e-bdff-471d-abe5-bcc9d66d8dfd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'tcp dst port 443'"
+                }
+            ],
+            "agent": "organization--ac0e9594-15f8-4a47-a642-2f63547542f8"
+        },
+        "loop--5c13216e-bdff-471d-abe5-bcc9d66d8dfd": {
+            "name": "Repeat Traffic Monitoring",
+            "description": "Repeat the monitoring action every 5 minutes if suspicious traffic is detected.",
+            "on_completion": "end--da93ec46-f009-4b47-9253-6c254d5768b4",
+            "type": "while-condition",
+            "condition": "suspicious_traffic_detected",
+            "on_true": "action--d54648a5-c7c5-49cc-9435-f4a9883d2d68"
+        },
+        "action--b74c0225-6a57-47b0-951d-dc394ae16fee": {
+            "name": "Block suspicious IPs",
+            "description": "Block any known suspicious IP addresses to prevent further data exfiltration.",
+            "on_completion": "action--7de14a32-e6e0-4e71-92bf-5f47d007205c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--ac0e9594-15f8-4a47-a642-2f63547542f8"
+        },
+        "action--7de14a32-e6e0-4e71-92bf-5f47d007205c": {
+            "name": "Conduct a full network analysis",
+            "description": "Run nmap to analyze the network for any remaining anomalous behavior.",
+            "on_completion": "end--da93ec46-f009-4b47-9253-6c254d5768b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP <network_range>"
+                }
+            ],
+            "agent": "organization--ac0e9594-15f8-4a47-a642-2f63547542f8"
+        },
+        "end--da93ec46-f009-4b47-9253-6c254d5768b4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ac0e9594-15f8-4a47-a642-2f63547542f8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

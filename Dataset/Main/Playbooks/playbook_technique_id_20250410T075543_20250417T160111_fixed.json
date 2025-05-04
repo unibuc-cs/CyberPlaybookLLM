@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d9d4a7a4-13a2-4dd1-b5f9-e2f9f1ba5af9",
+    "name": "Mitigation Playbook for Web Server Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application and executed malicious scripts on a web server.",
+    "created_by": "identity--3a5b9083-6b6b-4d1b-9aba-7487ff903f4a",
+    "created": "2025-10-15T08:00:00Z",
+    "modified": "2025-10-15T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--4ec4c1bc-e3e2-4aea-a0bd-9a2fa0dd7a0a",
+    "workflow": {
+        "action--73aba804-eff8-4515-a8d2-f5d2d8b8905e": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious processes that might be running.",
+            "on_completion": "action--390298ef-c57d-4d9b-a6e5-3f4d97be8456",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process || echo 'No process found'"
+                }
+            ],
+            "agent": "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255"
+        },
+        "action--390298ef-c57d-4d9b-a6e5-3f4d97be8456": {
+            "name": "Block outbound connections to malicious IPs",
+            "description": "Block any outbound connections to known malicious IP addresses.",
+            "on_completion": "if-condition--ab9d7531-db90-4a44-b957-832e2b6d9d50",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255"
+        },
+        "if-condition--ab9d7531-db90-4a44-b957-832e2b6d9d50": {
+            "name": "Check if malicious scripts are detected",
+            "type": "if-condition",
+            "condition": "malicious_scripts_detected == true",
+            "on_true": "action--ab9d7531-db90-4a44-b957-832e2b6d9d50",
+            "on_false": "action--f8d059c5-2d57-4d17-8ca4-5a8e7aca6b62"
+        },
+        "action--ab9d7531-db90-4a44-b957-832e2b6d9d50": {
+            "name": "Scan and remove malicious scripts",
+            "description": "Remove any identified malicious scripts from the server.",
+            "on_completion": "action--f8d059c5-2d57-4d17-8ca4-5a8e7aca6b62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255"
+        },
+        "action--f8d059c5-2d57-4d17-8ca4-5a8e7aca6b62": {
+            "name": "Verify system integrity",
+            "description": "Loop to check system integrity until it's clean.",
+            "on_completion": "action--e15f94e0-2687-48a5-b712-e34baf3855b0",
+            "type": "while-condition",
+            "condition": "system_integrity != 'clean'",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "audctl check --mode complete"
+                }
+            ],
+            "agent": "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255"
+        },
+        "action--e15f94e0-2687-48a5-b712-e34baf3855b0": {
+            "name": "Patch web application vulnerability",
+            "description": "Apply patches to ensure the web application is not vulnerable.",
+            "on_completion": "end--1829aeaa-64e1-4f96-ae5e-4fece486cf4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_patch --version v1.2.3"
+                }
+            ],
+            "agent": "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255"
+        },
+        "start--4ec4c1bc-e3e2-4aea-a0bd-9a2fa0dd7a0a": {
+            "on_completion": "action--73aba804-eff8-4515-a8d2-f5d2d8b8905e",
+            "type": "start"
+        },
+        "end--1829aeaa-64e1-4f96-ae5e-4fece486cf4e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3b71ba0e-cca0-4c50-9650-fb0aad185255": {
+            "type": "organization",
+            "name": "SecurityOperations"
+        }
+    }
+}

@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3c4d7bcf-233b-46de-9e18-3ad5d04dc493",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration Incident",
+    "description": "This playbook addresses the incident involving data exfiltration through application layer protocols, mitigating the ongoing attack by inspecting traffic, terminating suspicious processes, and blocking identified malicious IPs.",
+    "created_by": "identity--b0b1f1c9-ae36-4f7e-af90-59f140e032ae",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--d8a327bc-ecde-4a31-a52e-429c61fe8762",
+            "type": "start"
+        },
+        "parallel--d8a327bc-ecde-4a31-a52e-429c61fe8762": {
+            "name": "Immediate Mitigation Actions",
+            "description": "Execute complementary actions to handle exfiltration.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8d5a1918-df01-4b99-b4f4-e0a4911aafef",
+                "action--eab53e67-03e6-49a7-85b6-6acd8f54fa0b",
+                "loop--c181b827-5795-49fe-9c2c-b2d3cfa0d4c0"
+            ]
+        },
+        "action--8d5a1918-df01-4b99-b4f4-e0a4911aafef": {
+            "name": "Inspect outgoing application layer traffic",
+            "description": "Capture and analyze outgoing HTTP and HTTPS traffic for suspicious activity.",
+            "on_completion": "action--eab53e67-03e6-49a7-85b6-6acd8f54fa0b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 port 80 or port 443"
+                }
+            ],
+            "agent": "organization--536dfa5b-c3a1-4c65-8a3f-858a60fcccb8"
+        },
+        "action--eab53e67-03e6-49a7-85b6-6acd8f54fa0b": {
+            "name": "Terminate suspicious processes",
+            "description": "Terminate any processes known or suspected to be involved in data exfiltration.",
+            "on_completion": "loop--c181b827-5795-49fe-9c2c-b2d3cfa0d4c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--536dfa5b-c3a1-4c65-8a3f-858a60fcccb8"
+        },
+        "loop--c181b827-5795-49fe-9c2c-b2d3cfa0d4c0": {
+            "name": "Block external IPs identified in logs",
+            "description": "Iterate through the identified external IPs and block them.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "external_ip_count > 0",
+            "on_true": "action--864cf587-1671-41f5-8b7d-9987a9d822ae",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "action--864cf587-1671-41f5-8b7d-9987a9d822ae": {
+            "name": "Block external IP",
+            "on_completion": "loop--c181b827-5795-49fe-9c2c-b2d3cfa0d4c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--536dfa5b-c3a1-4c65-8a3f-858a60fcccb8",
+            "step_variables": {
+                "external_ip_count": {
+                    "description": "Count of external IPs to block",
+                    "type": "integer",
+                    "value": "assumed_value_gathered_from_logs"
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--536dfa5b-c3a1-4c65-8a3f-858a60fcccb8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--634f2b52-e58b-4609-91af-1c9f6faebbd6",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to extract sensitive data from the internal network.",
+    "created_by": "identity--7daecb3f-6014-4e64-975f-1cc560d27594",
+    "created": "2023-10-16T12:00:00Z",
+    "modified": "2023-10-16T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f9e28b5-4f35-4f8e-a8d4-5f7c5b0b6333",
+    "workflow": {
+        "start--1f9e28b5-4f35-4f8e-a8d4-5f7c5b0b6333": {
+            "on_completion": "parallel--5b3422f8-736e-4b52-869f-61226f9c022a",
+            "type": "start"
+        },
+        "action--b3a6224f-7d97-4588-92a0-fc6f3d3fca11": {
+            "name": "Kill malicious process",
+            "description": "Terminate the script that is executing unauthorized actions.",
+            "on_completion": "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--59b185d3-4fe0-4746-83d5-26190421e269"
+        },
+        "action--d0a0a236-f3a4-4e67-9dbc-92279f1b6156": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming connections to the compromised host.",
+            "on_completion": "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--59b185d3-4fe0-4746-83d5-26190421e269"
+        },
+        "action--c39f80e7-3f2f-4fc4-b1bb-d742c4a438e9": {
+            "name": "Notify security team",
+            "description": "Send a notification about the incident to the security team.",
+            "on_completion": "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --to security_team --message 'Incident detected on host-22'"
+                }
+            ],
+            "agent": "organization--59b185d3-4fe0-4746-83d5-26190421e269"
+        },
+        "action--f6c4fbf9-2ae5-41da-aec3-8c11a9c1309e": {
+            "name": "Review system logs",
+            "description": "Check the system logs for any suspicious activity related to the incident.",
+            "on_completion": "while-condition--f2e9f07b-845a-4c6f-b7a4-3f6e9f4b1ab2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep host-22"
+                }
+            ],
+            "agent": "organization--59b185d3-4fe0-4746-83d5-26190421e269"
+        },
+        "while-condition--f2e9f07b-845a-4c6f-b7a4-3f6e9f4b1ab2": {
+            "name": "Perform full system scan",
+            "description": "Conduct a full system scan to detect any remaining threats.",
+            "on_completion": "if-condition--f1a4b26b-1faa-4e5b-89be-7aa3032ff3ab",
+            "type": "while-condition",
+            "condition": "if threats_detected",
+            "on_true": "action--f3db1edf-5f41-421f-85f1-1cd3546aa2a5",
+            "on_false": "end--bd942ece-6c1f-4e3b-bcbc-b6c7c2ddff92"
+        },
+        "action--f3db1edf-5f41-421f-85f1-1cd3546aa2a5": {
+            "name": "Perform full system scan",
+            "description": "Scan the entire system for threats and save the output to a file.",
+            "on_completion": "while-condition--f2e9f07b-845a-4c6f-b7a4-3f6e9f4b1ab2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --scan / --output=scan_report.txt"
+                }
+            ],
+            "agent": "organization--59b185d3-4fe0-4746-83d5-26190421e269"
+        },
+        "end--bd942ece-6c1f-4e3b-bcbc-b6c7c2ddff92": {
+            "type": "end"
+        },
+        "parallel--5b3422f8-736e-4b52-869f-61226f9c022a": {
+            "name": "Execute Mitigations",
+            "description": "Perform immediate mitigations in parallel to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b3a6224f-7d97-4588-92a0-fc6f3d3fca11",
+                "action--d0a0a236-f3a4-4e67-9dbc-92279f1b6156",
+                "action--c39f80e7-3f2f-4fc4-b1bb-d742c4a438e9"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--59b185d3-4fe0-4746-83d5-26190421e269": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

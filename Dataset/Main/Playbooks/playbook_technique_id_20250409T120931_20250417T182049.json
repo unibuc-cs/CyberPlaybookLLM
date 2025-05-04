@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4f9f569-68a9-45c7-bccc-59130e798f76",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute arbitrary commands, access sensitive files, and attempt data exfiltration.",
+    "created_by": "identity--12345678-90ab-cdef-1234-567890abcdef",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a75f1a9c-d65c-4422-afaf-1657c1ef93b8",
+    "workflow": {
+        "start--a75f1a9c-d65c-4422-afaf-1657c1ef93b8": {
+            "on_completion": "action--b7cc16f5-6e49-4b27-92c2-7cae14f1d21b",
+            "type": "start"
+        },
+        "action--b7cc16f5-6e49-4b27-92c2-7cae14f1d21b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that is being executed.",
+            "on_completion": "action--5c8c7b92-f60e-4ebc-a4c2-e2b900b52347",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep malicious_process)"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--5c8c7b92-f60e-4ebc-a4c2-e2b900b52347": {
+            "name": "Isolate compromised host",
+            "description": "Block the incoming connections from the compromised host.",
+            "on_completion": "if-condition--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-33 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994": {
+            "name": "Check for suspicious activity logs",
+            "type": "if-condition",
+            "condition": "suspicious_logs_exist",
+            "on_true": "loop--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "on_false": "end--f1e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "loop--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994": {
+            "name": "Perform forensic analysis loop",
+            "description": "Perform forensic analysis until no suspicious activity logs are found.",
+            "type": "while-condition",
+            "condition": "suspicious_activity_logs_exist",
+            "on_true": "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "on_false": "end--f1e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994": {
+            "name": "Perform forensic analysis",
+            "description": "Scan the logs for further issues.",
+            "on_completion": "loop--ccd1ec4c-bc10-4a34-b56e-bfe816ff2994",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forensic_tool --scan /var/log --output results.log"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "suspicious_activity_logs_exist": {
+                    "type": "boolean",
+                    "description": "Flag to indicate whether suspicious activity logs exist.",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "end--f1e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

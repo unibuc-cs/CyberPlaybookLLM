@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d61d3d3e-8e59-4133-803e-0ecae51cf9c9",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker gained access to the network via a vulnerable web application and executed a malicious PowerShell script, leading to data exfiltration.",
+    "created_by": "identity--8b01baa1-8477-4db6-b697-5bc3ebc67912",
+    "created": "2025-04-09T14:00:00Z",
+    "modified": "2025-04-09T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fbd65e13-f309-415b-8b70-4fa19d7a9f71",
+    "workflow": {
+        "start--fbd65e13-f309-415b-8b70-4fa19d7a9f71": {
+            "on_completion": "if-condition--aedd786a-d0a0-4ee7-b1f5-3257dedacf74",
+            "type": "start"
+        },
+        "if-condition--aedd786a-d0a0-4ee7-b1f5-3257dedacf74": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--b6e14ec1-878a-4725-bb76-cf82c1b1d8a5",
+            "on_false": "action--7a8fb72a-1c35-4d90-bb73-24680e8fe013"
+        },
+        "action--b6e14ec1-878a-4725-bb76-cf82c1b1d8a5": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "on_completion": "action--7a8fb72a-1c35-4d90-bb73-24680e8fe013",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--7e4f4db4-f206-4816-967f-0b4b2c2bdcc3"
+        },
+        "action--7a8fb72a-1c35-4d90-bb73-24680e8fe013": {
+            "name": "Isolate compromised host from the network",
+            "description": "Block network traffic from the compromised host to prevent further actions.",
+            "on_completion": "while-condition--5a6aafc2-1e4b-4a7c-b661-ee04a8d98d5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <external_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--7e4f4db4-f206-4816-967f-0b4b2c2bdcc3"
+        },
+        "while-condition--5a6aafc2-1e4b-4a7c-b661-ee04a8d98d5b": {
+            "name": "Perform full scan and cleanup",
+            "description": "Repeat scanning and cleanup until no malware is detected.",
+            "on_completion": "end--c28d4663-f98c-46ac-b062-e6581cb0a105",
+            "type": "while-condition",
+            "condition": "scan_result == 'malware_detected'",
+            "on_true": "action--b2d1234f-b44f-4e10-9bd8-bcf7162b7d3a"
+        },
+        "action--b2d1234f-b44f-4e10-9bd8-bcf7162b7d3a": {
+            "name": "Perform full scan and cleanup",
+            "description": "Execute a full system scan and remove detected malware.",
+            "on_completion": "while-condition--5a6aafc2-1e4b-4a7c-b661-ee04a8d98d5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes; scan_result=$(echo 'no malware detected' && echo 'malware detected' && echo 'unknown')"
+                }
+            ],
+            "agent": "organization--7e4f4db4-f206-4816-967f-0b4b2c2bdcc3"
+        },
+        "end--c28d4663-f98c-46ac-b062-e6581cb0a105": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7e4f4db4-f206-4816-967f-0b4b2c2bdcc3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates whether a malicious PowerShell process is currently running.",
+            "value": "true",
+            "constant": false,
+            "external": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Contains the result of the scan.",
+            "value": "malware_detected",
+            "constant": false,
+            "external": false
+        },
+        "external_ip": {
+            "type": "string",
+            "description": "The IP address of the external entity that is a threat.",
+            "value": "<external_ip>",
+            "constant": false,
+            "external": true
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9242ba5-f3d2-4deb-b6f5-bf2c64925008",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the internal network via PowerShell script execution, leading to potential malware deployment.",
+    "created_by": "identity--b692073a-8c7a-4715-993f-2e703a4a5f4e",
+    "created": "2023-10-10T14:35:00Z",
+    "modified": "2023-10-10T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--6d544d2b-6cc0-417b-847c-16863ea71355",
+    "workflow": {
+        "action--3de1410d-8458-40b1-a86c-b151bc5e5f39": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes to stop execution of malicious scripts.",
+            "on_completion": "action--471f58e5-1a94-4a79-bb90-09be0cb7dce5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--ebd68d94-24f5-4abd-9d10-bf5e0c8cf02e"
+        },
+        "action--f62ab578-c2be-40b6-8437-86d06be18bae": {
+            "name": "Run antivirus scan on affected hosts",
+            "description": "Perform an antivirus scan on all affected hosts to locate and remove potential threats.",
+            "on_completion": "loop--09fd5adf-868a-4f53-85b3-a3ecc27167f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "av_scan --all"
+                }
+            ],
+            "agent": "organization--ebd68d94-24f5-4abd-9d10-bf5e0c8cf02e"
+        },
+        "action--471f58e5-1a94-4a79-bb90-09be0cb7dce5": {
+            "name": "Review and block suspicious IP addresses",
+            "description": "Block known malicious IP addresses to prevent further exploitation.",
+            "on_completion": "end--b204a108-4031-44ad-976a-df300f300082",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for ip in 192.168.1.100 198.51.100.15; do block-ip --ip $ip; done"
+                }
+            ],
+            "agent": "organization--ebd68d94-24f5-4abd-9d10-bf5e0c8cf02e"
+        },
+        "start--6d544d2b-6cc0-417b-847c-16863ea71355": {
+            "on_completion": "decision--c6286950-c276-4f59-88b9-a1de548fd648",
+            "type": "start"
+        },
+        "decision--c6286950-c276-4f59-88b9-a1de548fd648": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell.exe')",
+            "on_true": "action--3de1410d-8458-40b1-a86c-b151bc5e5f39",
+            "on_false": "action--f62ab578-c2be-40b6-8437-86d06be18bae"
+        },
+        "loop--09fd5adf-868a-4f53-85b3-a3ecc27167f5": {
+            "name": "Repeat antivirus scanning",
+            "description": "Continue to scan until no threats are detected.",
+            "condition": "threats_found()",
+            "on_true": "action--f62ab578-c2be-40b6-8437-86d06be18bae",
+            "on_false": "action--471f58e5-1a94-4a79-bb90-09be0cb7dce5",
+            "type": "while-condition"
+        },
+        "end--b204a108-4031-44ad-976a-df300f300082": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ebd68d94-24f5-4abd-9d10-bf5e0c8cf02e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,76 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b57c36e8-5678-414c-bb6f-003b10f78b14",
+    "name": "Mitigation Playbook for Data Exfiltration via HTTP/S",
+    "description": "This playbook addresses a data exfiltration incident where an attacker utilized HTTP/S to exfiltrate sensitive data disguised as legitimate traffic.",
+    "created_by": "identity--e385c15b-127e-412e-bfc9-7e52e1ed3711",
+    "created": "2025-04-09T08:57:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d5e5c7ab-bad2-4519-b659-3b5b5bb316b9",
+    "workflow": {
+        "start--d5e5c7ab-bad2-4519-b659-3b5b5bb316b9": {
+            "on_completion": "action--b37eae0a-5f6f-42f6-b970-cd6b9a5b15c1",
+            "type": "start"
+        },
+        "action--b37eae0a-5f6f-42f6-b970-cd6b9a5b15c1": {
+            "name": "Block unauthorized outbound connections",
+            "description": "Reject all outgoing connections on port 443 to prevent further data exfiltration.",
+            "on_completion": "action--f4c0dcfb-1f79-42cd-99b2-0bfb9645c9f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 443 -j REJECT"
+                }
+            ],
+            "agent": "organization--94cb1c76-c7f3-4c79-a488-c460ed5705a5"
+        },
+        "action--f4c0dcfb-1f79-42cd-99b2-0bfb9645c9f9": {
+            "name": "Kill suspicious exfiltration process",
+            "description": "Terminate any processes identified as responsible for the data exfiltration.",
+            "on_completion": "loop--aeb8ad20-007e-4fef-9cc7-e11f3fe257f5",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f exfiltration_process"
+                }
+            ],
+            "agent": "organization--94cb1c76-c7f3-4c79-a488-c460ed5705a5",
+            "condition": "if process is running"
+        },
+        "loop--aeb8ad20-007e-4fef-9cc7-e11f3fe257f5": {
+            "name": "Analyze network traffic logs",
+            "description": "Continuously monitor network traffic for anomalies until the situation is resolved.",
+            "on_completion": "end--f9e852e5-d6ee-4d3b-a1e7-d22e10096ffe",
+            "type": "while-condition",
+            "condition": "anomaly_detected == true",
+            "on_true": "action--aeb8ad20-007e-4fef-9cc7-e11f3fe257f5",
+            "on_false": "action--f4c0dcfb-1f79-42cd-99b2-0bfb9645c9f9"
+        },
+        "action--aeb8ad20-007e-4fef-9cc7-e11f3fe257f5": {
+            "name": "Tail network access logs",
+            "description": "Monitor the access log in real time for any suspicious activity related to data exfiltration.",
+            "on_completion": "loop--aeb8ad20-007e-4fef-9cc7-e11f3fe257f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/nginx/access.log"
+                }
+            ],
+            "agent": "organization--94cb1c76-c7f3-4c79-a488-c460ed5705a5"
+        },
+        "end--f9e852e5-d6ee-4d3b-a1e7-d22e10096ffe": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--94cb1c76-c7f3-4c79-a488-c460ed5705a5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

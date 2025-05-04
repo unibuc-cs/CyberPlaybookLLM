@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5e8b919e-9bdd-4f5e-868b-1e0346556396",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a command line interface to execute malicious scripts that tampered with system files.",
+    "created_by": "identity--743b4a7d-19ee-4543-8bd2-7a4f07285103",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:55:35.498Z",
+    "revoked": false,
+    "workflow_start": "start--bc160788-fc92-4d9f-abc1-e2ed1111d058",
+    "workflow": {
+        "start--bc160788-fc92-4d9f-abc1-e2ed1111d058": {
+            "on_completion": "action--72f9e66c-0699-4c6d-85a4-e68b0f5eecf2",
+            "type": "start"
+        },
+        "action--72f9e66c-0699-4c6d-85a4-e68b0f5eecf2": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--827f2a1d-8cb6-49c6-982f-2b6a91c2a1c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_script_name>"
+                }
+            ],
+            "agent": "organization--5334d77e-ed70-4732-9784-9e9e87bac6c5"
+        },
+        "action--827f2a1d-8cb6-49c6-982f-2b6a91c2a1c9": {
+            "name": "Isolate affected host",
+            "description": "Block any inbound connections from the malicious source.",
+            "on_completion": "while-condition--e6b5b50c-d728-400f-a093-64ce7d76babe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--5334d77e-ed70-4732-9784-9e9e87bac6c5"
+        },
+        "while-condition--e6b5b50c-d728-400f-a093-64ce7d76babe": {
+            "name": "Run integrity scan",
+            "description": "Perform an integrity scan to identify any issues.",
+            "on_completion": "action--e6b5b50c-d728-400f-a093-64ce7d76babe",
+            "type": "while-condition",
+            "condition": "scan_result == false",
+            "on_true": "action--e6b5b50c-d728-400f-a093-64ce7d76babe"
+        },
+        "action--e6b5b50c-d728-400f-a093-64ce7d76babe": {
+            "name": "Execute integrity check",
+            "description": "Run the integrity check tool to search for modifications or compromises.",
+            "on_completion": "condition--9acfa9f6-ff85-4260-a04a-9ba9ad9ca14d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity_check_tool --scan"
+                }
+            ],
+            "agent": "organization--5334d77e-ed70-4732-9784-9e9e87bac6c5",
+            "step_variables": {
+                "scan_result": {
+                    "type": "boolean",
+                    "description": "Indicates if the integrity scan found any issues",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--bc160788-fc92-4d9f-abc1-e2ed1111d058": {
+            "type": "end"
+        },
+        "condition--9acfa9f6-ff85-4260-a04a-9ba9ad9ca14d": {
+            "name": "Check integrity scan result",
+            "type": "if-condition",
+            "condition": "scan_result == true",
+            "on_true": "end--bc160788-fc92-4d9f-abc1-e2ed1111d058",
+            "on_false": "action--e6b5b50c-d728-400f-a093-64ce7d76babe"
+        }
+    },
+    "agent_definitions": {
+        "organization--5334d77e-ed70-4732-9784-9e9e87bac6c5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

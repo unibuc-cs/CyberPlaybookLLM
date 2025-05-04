@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6f1e5b8b-953e-4e14-80c2-e63f2d0a4c7b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses incidents where scripted commands were executed by an attacker to establish a backdoor on a target system.",
+    "created_by": "identity--0489862c-5ac8-40c8-ae6f-e488910cd885",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--6f1625fc-948c-4c6c-9b2b-c118f7112f02",
+    "workflow": {
+        "action--c5a1b26e-7201-4ea4-9c9f-99e166f64464": {
+            "name": "Kill malicious process",
+            "description": "Terminate any process that is executing the malicious script.",
+            "on_completion": "if-condition--d179e457-6c1d-4564-9bf7-fc7298147981",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--4f35250e-903d-4458-9864-93356a24b3f4"
+        },
+        "if-condition--d179e457-6c1d-4564-9bf7-fc7298147981": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "host_compromised == true",
+            "on_true": "action--d179e457-6c1d-4564-9bf7-fc7298147981",
+            "on_false": "loop--5f3b7c6b-b607-4637-b87f-a623b89aeac3"
+        },
+        "action--d179e457-6c1d-4564-9bf7-fc7298147981": {
+            "name": "Isolate infected host from network",
+            "description": "Disable network connectivity for the infected host to prevent further command and control communications.",
+            "on_completion": "loop--5f3b7c6b-b607-4637-b87f-a623b89aeac3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--4f35250e-903d-4458-9864-93356a24b3f4"
+        },
+        "loop--5f3b7c6b-b607-4637-b87f-a623b89aeac3": {
+            "name": "Perform full system scan",
+            "description": "Repeatedly perform a full system scan until the system is clean.",
+            "on_completion": "end--e0a64a88-7c97-42a3-99a6-5c543ffa3b6e",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--5f3b7c6b-b607-4637-b87f-a623b89aeac3",
+            "on_false": "end--e0a64a88-7c97-42a3-99a6-5c543ffa3b6e"
+        },
+        "action--5f3b7c6b-b607-4637-b87f-a623b89aeac3": {
+            "name": "Run system scan",
+            "description": "Perform a scan of the system to find any remaining threats.",
+            "on_completion": "loop--5f3b7c6b-b607-4637-b87f-a623b89aeac3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav-scan --recursive /home"
+                }
+            ],
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the system scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--4f35250e-903d-4458-9864-93356a24b3f4"
+        },
+        "end--e0a64a88-7c97-42a3-99a6-5c543ffa3b6e": {
+            "type": "end"
+        },
+        "start--6f1625fc-948c-4c6c-9b2b-c118f7112f02": {
+            "on_completion": "action--c5a1b26e-7201-4ea4-9c9f-99e166f64464",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--4f35250e-903d-4458-9864-93356a24b3f4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

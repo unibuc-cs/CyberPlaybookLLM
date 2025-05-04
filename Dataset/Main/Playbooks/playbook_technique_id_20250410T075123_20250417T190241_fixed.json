@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6da38b02-97e9-42d1-8cda-bdcb90f8394a",
+    "name": "Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident involving unauthorized script execution using a command and scripting interpreter.",
+    "created_by": "identity--7090a7d5-ca49-418f-9985-a28e792d9835",
+    "created": "2023-10-25T14:45:00Z",
+    "modified": "2023-10-25T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a548bf9-93f4-4b34-b729-d0b2910b012f",
+    "workflow": {
+        "start--1a548bf9-93f4-4b34-b729-d0b2910b012f": {
+            "on_completion": "parallel--2f4a8fb7-81e2-4298-9729-eea3ad8ca94a",
+            "type": "start"
+        },
+        "end--3a5c9c58-f1f3-4b68-b095-283013a4f0d4": {
+            "type": "end"
+        },
+        "parallel--2f4a8fb7-81e2-4298-9729-eea3ad8ca94a": {
+            "name": "Initial Actions in Parallel",
+            "description": "Execute initial mitigation steps simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d",
+                "if-condition--88c2cbaf-faf1-4fc8-a2f7-0d3c57b155b3"
+            ]
+        },
+        "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d": {
+            "name": "Kill Malicious Processes",
+            "description": "Terminate processes running malicious scripts.",
+            "on_completion": "loop--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f [malicious-script-name]"
+                }
+            ],
+            "agent": "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e"
+        },
+        "if-condition--88c2cbaf-faf1-4fc8-a2f7-0d3c57b155b3": {
+            "name": "Check for Unauthorized Access",
+            "description": "Determine if unauthorized remote shell access was detected.",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80",
+            "on_false": "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7"
+        },
+        "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80": {
+            "name": "Disable Remote Shell Access Temporarily",
+            "description": "Stop SSH service to prevent unauthorized access temporarily.",
+            "on_completion": "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service ssh stop; sleep 3600; service ssh start"
+                }
+            ],
+            "agent": "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e"
+        },
+        "loop--b1427707-f447-4daf-a073-f3ad72b5fe54": {
+            "name": "Scan and Clean Loop",
+            "description": "Repeat scanning and cleaning until no threats are detected.",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "on_false": "action--73781372-607a-49cf-9356-14645de79879"
+        },
+        "action--b1427707-f447-4daf-a073-f3ad72b5fe54": {
+            "name": "Scan and Clean Infected Hosts",
+            "description": "Perform a scan and remove detected threats.",
+            "on_completion": "loop--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e"
+        },
+        "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7": {
+            "name": "Deploy Updates",
+            "description": "Update software to address vulnerabilities.",
+            "on_completion": "end--3a5c9c58-f1f3-4b68-b095-283013a4f0d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e"
+        },
+        "action--73781372-607a-49cf-9356-14645de79879": {
+            "name": "Audit and Change Compromised Passwords",
+            "description": "Record and change all compromised passwords.",
+            "on_completion": "end--3a5c9c58-f1f3-4b68-b095-283013a4f0d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Require password change' > /var/log/sec-changes.log"
+                }
+            ],
+            "agent": "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e"
+        }
+    },
+    "agent_definitions": {
+        "organization--afe0fd7f-d699-458c-bbb2-5e060db8db4e": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

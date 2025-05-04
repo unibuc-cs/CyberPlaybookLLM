@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b89fac2e-d2fb-4cd6-9f95-abb3f3bcf6c8",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses incidents involving the use of a command interpreter to execute malicious scripts aimed at exfiltrating sensitive data.",
+    "created_by": "identity--e4ff3ad7-9c37-448f-a16f-98e6beed6086",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--c27d88a4-1a66-490b-bc77-0b9b690b21e5",
+            "type": "start"
+        },
+        "action--c27d88a4-1a66-490b-bc77-0b9b690b21e5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script that is executing malicious actions.",
+            "on_completion": "action--ff71977b-dc71-4c23-8e9b-07a2662a2c60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--a71f53bd-1401-4c86-9c59-848f554995c1"
+        },
+        "action--ff71977b-dc71-4c23-8e9b-07a2662a2c60": {
+            "name": "Disconnect from the network",
+            "description": "Shut down the network interface to prevent further data exfiltration.",
+            "on_completion": "while-condition--a0cc8891-847b-4b9f-b10f-90d5748eb65e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--a71f53bd-1401-4c86-9c59-848f554995c1",
+            "step_variables": {
+                "malicious_process_running": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the malicious process was running.",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--a0cc8891-847b-4b9f-b10f-90d5748eb65e": {
+            "name": "Scan for other threats",
+            "description": "Continuously scan the system until the scan is completed and no threats are found.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_completed != true",
+            "on_true": "action--28c8021d-0813-4568-86b6-7f03cc354de5",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "action--28c8021d-0813-4568-86b6-7f03cc354de5": {
+            "name": "Run antivirus scan",
+            "description": "Execute an antivirus scan to identify any other potential threats.",
+            "on_completion": "while-condition--a0cc8891-847b-4b9f-b10f-90d5748eb65e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_av_scan"
+                }
+            ],
+            "agent": "organization--a71f53bd-1401-4c86-9c59-848f554995c1"
+        }
+    },
+    "agent_definitions": {
+        "organization--a71f53bd-1401-4c86-9c59-848f554995c1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

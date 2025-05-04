@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f765d1e0-2b3c-4ae9-b08b-200f051ab4c7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "Playbook to respond to incidents involving unauthorized scripting execution in the network.",
+    "created_by": "identity--4a5e12c2-d9b3-448b-8dce-2b392f27e201",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1f9c123-4d1e-4bf8-9a87-7e219c367246",
+    "workflow": {
+        "start--e1f9c123-4d1e-4bf8-9a87-7e219c367246": {
+            "on_completion": "if-condition--d4567b9c-8b9b-4f1b-84c1-87e442b16491",
+            "type": "start"
+        },
+        "if-condition--d4567b9c-8b9b-4f1b-84c1-87e442b16491": {
+            "name": "Check for suspicious PowerShell process",
+            "type": "if-condition",
+            "condition": "suspicious_process_exists",
+            "on_true": "action--c9e8b7f5-4a49-4c7b-9f0b-6ab95febe73b",
+            "on_false": "action--faabbcd3-13e9-4e71-b81f-782a166b9ec0"
+        },
+        "end--d57c2812-b31a-4b55-97a1-d9a6c7f4adeb": {
+            "type": "end"
+        },
+        "action--c9e8b7f5-4a49-4c7b-9f0b-6ab95febe73b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes running on the host.",
+            "on_completion": "action--faabbcd3-13e9-4e71-b81f-782a166b9ec0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--6672b285-ee71-4784-a27b-2907cbdf1e3f"
+        },
+        "action--faabbcd3-13e9-4e71-b81f-782a166b9ec0": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate host-10 from the network to prevent further malicious activity.",
+            "on_completion": "while-condition--fb3ce515-b7bc-4d07-8273-db365771f208",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-10 -j DROP"
+                }
+            ],
+            "agent": "organization--6672b285-ee71-4784-a27b-2907cbdf1e3f"
+        },
+        "while-condition--fb3ce515-b7bc-4d07-8273-db365771f208": {
+            "name": "Full malware scan loop",
+            "description": "Repeat the malware scan until the system is clean.",
+            "on_true": "action--c2693299-3d72-46a2-8699-cd6b2c5924f6",
+            "condition": "scan_state != clean",
+            "type": "while-condition"
+        },
+        "action--c2693299-3d72-46a2-8699-cd6b2c5924f6": {
+            "name": "Initiate a full malware scan",
+            "on_completion": "while-condition--fb3ce515-b7bc-4d07-8273-db365771f208",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan / -r"
+                }
+            ],
+            "agent": "organization--6672b285-ee71-4784-a27b-2907cbdf1e3f"
+        }
+    },
+    "agent_definitions": {
+        "organization--6672b285-ee71-4784-a27b-2907cbdf1e3f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

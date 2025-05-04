@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7e5f8b98-d3d8-42b8-b4cd-7db7fd95d5bc",
+    "name": "Mitigation Playbook for RDP Keylogger Incident",
+    "description": "This playbook handles an incident involving unauthorized RDP access and keylogger deployment.",
+    "created_by": "identity--abcde12345-6789-0fed-cba9-0123456789ab",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1fbc85dc-6c4f-4ec5-bd09-6f03c9c8100d",
+    "workflow": {
+        "start--1fbc85dc-6c4f-4ec5-bd09-6f03c9c8100d": {
+            "on_completion": "action--b1c73530-d123-4f76-8316-1c9de3129b93",
+            "type": "start"
+        },
+        "action--b1c73530-d123-4f76-8316-1c9de3129b93": {
+            "name": "Enforce RDP restrictions",
+            "description": "Disable Remote Desktop Protocol access to prevent further unauthorized access.",
+            "on_completion": "action--fa85c35e-1b78-4a2e-b79f-7c6fe4750d2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh firewall set service type=remoteadmin mode=disable"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fa85c35e-1b78-4a2e-b79f-7c6fe4750d2f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running keylogger processes on the host.",
+            "on_completion": "while-condition--fbc541f2-e589-4b64-af54-f9d9bb5e3b81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f keylogger"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--fbc541f2-e589-4b64-af54-f9d9bb5e3b81": {
+            "name": "Network Scan Loop",
+            "description": "Repeat network scans until no unknown devices are detected.",
+            "condition": "unknown_devices_detected == true",
+            "on_true": "action--69f13741-bd2c-4c95-beb4-9c44b0be0a8e",
+            "on_false": "end--f451cf5d-301e-4b90-8d58-716c20d5ef1f",
+            "type": "while-condition",
+            "loop": {
+                "step_variables": {
+                    "max_attempts": {
+                        "type": "integer",
+                        "value": 3
+                    },
+                    "attempt": {
+                        "type": "integer",
+                        "value": 1
+                    }
+                }
+            }
+        },
+        "action--69f13741-bd2c-4c95-beb4-9c44b0be0a8e": {
+            "name": "Perform network scan",
+            "description": "Conduct a network scan to identify unknown devices.",
+            "on_completion": "if-condition--5e1c6411-14d5-4bf8-b9bb-1f522b879e51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--5e1c6411-14d5-4bf8-b9bb-1f522b879e51": {
+            "name": "Check for unknown devices",
+            "type": "if-condition",
+            "condition": "unknown_devices_detected",
+            "on_true": "while-condition--fbc541f2-e589-4b64-af54-f9d9bb5e3b81",
+            "on_false": "end--f451cf5d-301e-4b90-8d58-716c20d5ef1f"
+        },
+        "end--f451cf5d-301e-4b90-8d58-716c20d5ef1f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

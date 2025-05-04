@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d96f3673-5c61-4f78-b3e1-2c4b9ce78f78",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized access and script execution to exfiltrate sensitive data.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2023-10-23T11:00:00Z",
+    "modified": "2023-10-23T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c19b3e77-d29f-4876-a376-b1bfa2c62e91",
+    "workflow": {
+        "start--c19b3e77-d29f-4876-a376-b1bfa2c62e91": {
+            "on_completion": "action--5e0c95db-d306-4381-9004-2d5e203eb4f3",
+            "type": "start"
+        },
+        "action--5e0c95db-d306-4381-9004-2d5e203eb4f3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the detected malicious script.",
+            "on_completion": "if-condition--b6c815b1-f6c3-4c90-b58f-0f42c08ac38f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b6c815b1-f6c3-4c90-b58f-0f42c08ac38f": {
+            "name": "Check if suspicious activity detected",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected",
+            "on_true": "action--b6c815b1-f6c3-4c90-b58f-0f42c08ac38f",
+            "on_false": "action--e82f7e54-468c-4477-add9-3c3b90ac6097"
+        },
+        "action--b6c815b1-f6c3-4c90-b58f-0f42c08ac38f": {
+            "name": "Isolate affected host",
+            "description": "Block incoming traffic from suspicious IP addresses.",
+            "on_completion": "action--e82f7e54-468c-4477-add9-3c3b90ac6097",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e82f7e54-468c-4477-add9-3c3b90ac6097": {
+            "name": "Scan system for additional threats",
+            "description": "Run a malware scan to check for additional threats in the system.",
+            "on_completion": "while-condition--scan-loop-condition",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav --scan /home/user"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan indicating if clean or not.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--scan-loop-condition": {
+            "name": "Repeating scan until clean",
+            "description": "Repeat the scanning action until the scan status is clean.",
+            "on_completion": "end--f20cdb16-0b65-414f-99e0-6925fb75f789",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e82f7e54-468c-4477-add9-3c3b90ac6097"
+        },
+        "end--f20cdb16-0b65-414f-99e0-6925fb75f789": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

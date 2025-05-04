@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7a343c5-9b16-4ed9-af36-cfbff08eca74",
+    "name": "Mitigation Playbook for Script Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability, deployed a malicious script, and compromised sensitive data.",
+    "created_by": "identity--0c88c3a1-bd7b-43e4-9c1a-d961d629abb6",
+    "created": "2025-04-10T12:00:00Z",
+    "modified": "2025-04-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--cc921ab5-7993-4d5b-89c3-f37f2481d1fc",
+    "workflow": {
+        "start--cc921ab5-7993-4d5b-89c3-f37f2481d1fc": {
+            "on_completion": "action--fb7e6804-6c7c-4bb4-b159-1d68e3223473",
+            "type": "start"
+        },
+        "action--fb7e6804-6c7c-4bb4-b159-1d68e3223473": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that is running on the server.",
+            "on_completion": "action--d058f8b3-0a67-4f17-82ae-16e72c77d7ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d058f8b3-0a67-4f17-82ae-16e72c77d7ed": {
+            "name": "Block external IP address",
+            "description": "Block the IP address that initiated the malicious actions.",
+            "on_completion": "action--b1ea5ea9-3cdd-4e69-93cc-7235c5c5a4e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b1ea5ea9-3cdd-4e69-93cc-7235c5c5a4e1": {
+            "name": "Run full system scan",
+            "description": "Conduct a full system scan to detect any remaining threats.",
+            "on_completion": "if-condition--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": "repeat until no threats detected"
+        },
+        "if-condition--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f": {
+            "name": "Check for unauthorized access confirmation",
+            "type": "if-condition",
+            "condition": "unauthorized_access_confirmed",
+            "on_true": "action--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f",
+            "on_false": "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56"
+        },
+        "action--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f": {
+            "name": "Change all user passwords",
+            "description": "Reset all user passwords to ensure compromised accounts are secure.",
+            "on_completion": "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "password_reset_tool --all-users"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56": {
+            "name": "Monitor logs for suspicious activity",
+            "description": "Continuously monitor system logs for any further suspicious activity.",
+            "on_completion": "end--4fa5b21b-b342-4723-8857-dc4bc60197d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog"
+                }
+            ],
+            "agent": "organization--abc",
+            "variables": {
+                "log_file": "/var/log/syslog"
+            }
+        },
+        "end--4fa5b21b-b342-4723-8857-dc4bc60197d1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

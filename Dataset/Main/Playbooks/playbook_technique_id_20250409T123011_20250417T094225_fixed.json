@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5a3c4e29-9d3e-45f8-a447-b8dc27c0e661",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker used a malicious PowerShell script to exfiltrate sensitive data and set up persistence mechanisms.",
+    "created_by": "identity--f2eaed20-e8ac-4ab2-bd96-3c56e3241320",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a5d4d11c-e775-42e0-b128-d6f4e8b58e72",
+    "workflow": {
+        "start--a5d4d11c-e775-42e0-b128-d6f4e8b58e72": {
+            "on_completion": "parallel--a102a4a6-1b73-4877-b381-9e16d27abaf3",
+            "type": "start"
+        },
+        "parallel--a102a4a6-1b73-4877-b381-9e16d27abaf3": {
+            "name": "Execute mitigation steps",
+            "description": "Perform multiple actions to remediate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d90f2a2c-5c7e-4d9e-b5a1-fda9e2a63942",
+                "if-condition--6b7b7cee-6630-4173-a7be-849f45a1f2b5",
+                "action--951b6e7e-93f5-4c28-b0d5-a1c756c7d49f",
+                "action--c0649ae8-6667-4e73-a207-3b0b4b224d04"
+            ]
+        },
+        "action--d90f2a2c-5c7e-4d9e-b5a1-fda9e2a63942": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious PowerShell script.",
+            "on_completion": "end--e2ab1c8a-f7e9-45c4-b6cb-ee5d9c3a9026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--7eae0258-ec2b-4830-82c3-556a5117492c"
+        },
+        "if-condition--6b7b7cee-6630-4173-a7be-849f45a1f2b5": {
+            "name": "Check if scheduled task exists",
+            "type": "if-condition",
+            "condition": "task_exists('Malicious Task')",
+            "on_true": "action--6b7b7cee-6630-4173-a7be-849f45a1f2b5",
+            "on_false": "action--f478d4e5-e26e-44ca-9291-3e535727b7b1"
+        },
+        "action--6b7b7cee-6630-4173-a7be-849f45a1f2b5": {
+            "name": "Remove scheduled task if exists",
+            "description": "Delete the scheduled task to prevent future script execution.",
+            "on_completion": "action--f478d4e5-e26e-44ca-9291-3e535727b7b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /TN 'Malicious Task' /F"
+                }
+            ],
+            "agent": "organization--7eae0258-ec2b-4830-82c3-556a5117492c"
+        },
+        "action--f478d4e5-e26e-44ca-9291-3e535727b7b1": {
+            "name": "Perform a full system scan",
+            "description": "Scan the system for potential threats through a full system scan.",
+            "on_completion": "while-condition--8f8e1de6-de6b-4cbf-bd91-5b7b39667f82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --move=/quarantine/"
+                }
+            ],
+            "agent": "organization--7eae0258-ec2b-4830-82c3-556a5117492c"
+        },
+        "while-condition--8f8e1de6-de6b-4cbf-bd91-5b7b39667f82": {
+            "name": "Threat detection loop",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "end--e2ab1c8a-f7e9-45c4-b6cb-ee5d9c3a9026",
+            "type": "while-condition",
+            "condition": "threats_detected() == false",
+            "on_true": "action--f478d4e5-e26e-44ca-9291-3e535727b7b1"
+        },
+        "action--951b6e7e-93f5-4c28-b0d5-a1c756c7d49f": {
+            "name": "Update firewall rules to block external IP",
+            "description": "Block connections from the identified external IP to secure the network.",
+            "on_completion": "end--e2ab1c8a-f7e9-45c4-b6cb-ee5d9c3a9026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <external_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--7eae0258-ec2b-4830-82c3-556a5117492c"
+        },
+        "action--c0649ae8-6667-4e73-a207-3b0b4b224d04": {
+            "name": "Notify security team of incident",
+            "description": "Send an alert to the security team regarding the malicious activity.",
+            "on_completion": "end--e2ab1c8a-f7e9-45c4-b6cb-ee5d9c3a9026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --team security --message 'Malicious activity detected on host-22'"
+                }
+            ],
+            "agent": "organization--7eae0258-ec2b-4830-82c3-556a5117492c"
+        },
+        "end--e2ab1c8a-f7e9-45c4-b6cb-ee5d9c3a9026": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7eae0258-ec2b-4830-82c3-556a5117492c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

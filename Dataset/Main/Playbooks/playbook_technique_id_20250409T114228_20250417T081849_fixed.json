@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b67ac983-eb88-4707-8bf9-cb24ef9c7bd2",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a legitimate application layer protocol to exfiltrate sensitive data from the organization.",
+    "created_by": "identity--6b8eca21-d525-44ec-9736-601c0e4c0b12",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a3f9e1b2-5605-4b2d-b0cb-d2eca7b2b651",
+    "workflow": {
+        "start--a3f9e1b2-5605-4b2d-b0cb-d2eca7b2b651": {
+            "on_completion": "action--9cf9e569-bd5f-4a6e-8505-51dd45182b93",
+            "type": "start"
+        },
+        "action--9cf9e569-bd5f-4a6e-8505-51dd45182b93": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Blocking outbound connections to known malicious IP address.",
+            "on_completion": "action--2f9c476e-4615-4fe9-8751-d1fb2bd3e0f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--30ac7d9c-1981-4773-a37f-d1c373974ded"
+        },
+        "action--2f9c476e-4615-4fe9-8751-d1fb2bd3e0f4": {
+            "name": "Kill process communicating over HTTP",
+            "description": "Terminate any processes that are communicating over HTTP if they are running.",
+            "on_completion": "if-condition--ee1a8479-79b7-4e59-a9f6-254cf7be8630",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <process_name>"
+                }
+            ],
+            "agent": "organization--30ac7d9c-1981-4773-a37f-d1c373974ded"
+        },
+        "action--ab2de443-4891-4bce-b9aa-df97d756261d": {
+            "name": "Run full network scan",
+            "description": "Conduct a full network scan to identify any remaining issues.",
+            "next_steps": "while-condition--f71055df-66df-49ad-893e-a9aa38a767ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--30ac7d9c-1981-4773-a37f-d1c373974ded"
+        },
+        "end--a5b24a8a-5e4b-4f91-9f7f-456a7ed35465": {
+            "type": "end"
+        },
+        "if-condition--ee1a8479-79b7-4e59-a9f6-254cf7be8630": {
+            "name": "Check if process is running",
+            "type": "if-condition",
+            "condition": "process_is_running == true",
+            "on_true": "action--ab2de443-4891-4bce-b9aa-df97d756261d",
+            "on_false": "action--ab2de443-4891-4bce-b9aa-df97d756261d"
+        },
+        "while-condition--f71055df-66df-49ad-893e-a9aa38a767ac": {
+            "name": "Network Scan Loop",
+            "description": "Repeat scanning until no issues are found.",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--ab2de443-4891-4bce-b9aa-df97d756261d",
+            "on_false": "end--a5b24a8a-5e4b-4f91-9f7f-456a7ed35465",
+            "type": "if-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--30ac7d9c-1981-4773-a37f-d1c373974ded": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

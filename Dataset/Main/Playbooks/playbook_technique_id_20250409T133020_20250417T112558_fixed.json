@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f0d1c4ae-88ff-4252-bf2d-f1d7fd54c614",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts to escalate privileges on a target host. It includes actions to kill malicious processes, isolate the compromised host, and perform a full system scan.",
+    "created_by": "identity--202c8aaf-cbfd-4e14-8aaf-3de9eb1fe4ae",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--6bff3ada-5b9f-4161-9e04-7af938a106f4",
+    "workflow": {
+        "start--6bff3ada-5b9f-4161-9e04-7af938a106f4": {
+            "on_completion": "parallel--f50c9ff8-faca-4e4d-af0a-d64a0e6f53be",
+            "type": "start"
+        },
+        "parallel--f50c9ff8-faca-4e4d-af0a-d64a0e6f53be": {
+            "name": "Initiate Mitigation Actions",
+            "description": "Simultaneously execute multiple mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ef92b3cf-6e61-4f57-8e40-a5d5b601c01a",
+                "action--b9815bd7-9ef7-4f9e-a2cd-6a01781f5373",
+                "action--1a9ee5a3-bb82-4b58-a9db-736575edb8ea"
+            ]
+        },
+        "action--ef92b3cf-6e61-4f57-8e40-a5d5b601c01a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "if-condition--b0614fcb-4a68-4a1b-8106-baa788db80f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--456a2226-e9ed-4b4d-85b4-99c1aa89c240"
+        },
+        "if-condition--b0614fcb-4a68-4a1b-8106-baa788db80f3": {
+            "name": "Check if malicious process was killed",
+            "type": "if-condition",
+            "condition": "$(pgrep -f powershell) == ''",
+            "on_true": "loop--5f511ae0-e897-42da-bf9f-db6e1c6005e4",
+            "on_false": "end--dc9c9d3b-74bc-4c52-b2d4-881db3b28344"
+        },
+        "loop--5f511ae0-e897-42da-bf9f-db6e1c6005e4": {
+            "name": "Isolate compromised host ensure all threats are addressed",
+            "description": "Continuously check and isolate the compromised host until no threats are detected.",
+            "on_completion": "action--b9815bd7-9ef7-4f9e-a2cd-6a01781f5373",
+            "type": "while-condition",
+            "condition": "$(pgrep -f powershell) != ''",
+            "on_true": "action--b9815bd7-9ef7-4f9e-a2cd-6a01781f5373"
+        },
+        "action--b9815bd7-9ef7-4f9e-a2cd-6a01781f5373": {
+            "name": "Isolate compromised host",
+            "description": "Bring down network connection on the compromised host.",
+            "on_completion": "action--1a9ee5a3-bb82-4b58-a9db-736575edb8ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--456a2226-e9ed-4b4d-85b4-99c1aa89c240"
+        },
+        "action--1a9ee5a3-bb82-4b58-a9db-736575edb8ea": {
+            "name": "Perform full system scan",
+            "description": "Scan the entire system to detect any additional threats.",
+            "on_completion": "end--dc9c9d3b-74bc-4c52-b2d4-881db3b28344",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--456a2226-e9ed-4b4d-85b4-99c1aa89c240"
+        },
+        "end--dc9c9d3b-74bc-4c52-b2d4-881db3b28344": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--456a2226-e9ed-4b4d-85b4-99c1aa89c240": {
+            "type": "organization",
+            "name": "CompromisedHostOrganization"
+        }
+    }
+}

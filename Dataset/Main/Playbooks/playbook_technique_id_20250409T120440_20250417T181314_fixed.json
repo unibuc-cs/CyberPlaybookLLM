@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b6e1f12-8c2e-4d9e-99e4-f1f5f3c83f3b",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts using PowerShell on a compromised system.",
+    "created_by": "identity--abc12345-1234-5678-9876-abcde1234567",
+    "created": "2025-10-09T08:55:35.498Z",
+    "modified": "2025-10-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1e1f62f-69cb-4f5d-8f40-d16e41dced52",
+    "workflow": {
+        "start--b1e1f62f-69cb-4f5d-8f40-d16e41dced52": {
+            "on_completion": "action--4f0c7c62-bf57-4e7e-8f4f-4ba358c1d276",
+            "type": "start"
+        },
+        "action--4f0c7c62-bf57-4e7e-8f4f-4ba358c1d276": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script process to prevent further unauthorized actions.",
+            "on_completion": "action--6f9d1c1c-3a71-469b-89e3-1b0cc8eabd69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.exe"
+                }
+            ],
+            "agent": "organization--04d9b513-0b17-48ac-9477-674276d87f4c"
+        },
+        "action--6f9d1c1c-3a71-469b-89e3-1b0cc8eabd69": {
+            "name": "Isolate affected host",
+            "description": "Isolate the compromised host to prevent lateral movement.",
+            "on_completion": "parallel--8c7f23e6-3c8c-4ec5-bc17-4b650743bf68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set dev host-12 down"
+                }
+            ],
+            "agent": "organization--04d9b513-0b17-48ac-9477-674276d87f4c"
+        },
+        "parallel--8c7f23e6-3c8c-4ec5-bc17-4b650743bf68": {
+            "name": "Run subsequent mitigations",
+            "description": "Run anti-malware scan and review logs in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9f086a22-5991-4e1f-b453-6d123f6513b2",
+                "action--e53c15c9-5b92-4d41-a15a-af650b246e73"
+            ]
+        },
+        "action--9f086a22-5991-4e1f-b453-6d123f6513b2": {
+            "name": "Run anti-malware scan",
+            "description": "Perform a malware scan and repeat until the system is clean.",
+            "on_completion": "action--b1e734a0-d125-4c33-bc29-69e79e93ebda",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan --clean; do sleep 10; done"
+                }
+            ],
+            "agent": "organization--04d9b513-0b17-48ac-9477-674276d87f4c"
+        },
+        "action--e53c15c9-5b92-4d41-a15a-af650b246e73": {
+            "name": "Review logs for suspicious activity",
+            "description": "Check logs for entries related to the executed malware.",
+            "on_completion": "action--b1e734a0-d125-4c33-bc29-69e79e93ebda",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malware' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--04d9b513-0b17-48ac-9477-674276d87f4c",
+            "conditional": {
+                "condition": "logs show entry",
+                "on_true": "action--b1e734a0-d125-4c33-bc29-69e79e93ebda",
+                "on_false": "end--a248792f-3d75-403b-b739-878f8feb3045"
+            }
+        },
+        "action--b1e734a0-d125-4c33-bc29-69e79e93ebda": {
+            "name": "Patch vulnerabilities",
+            "description": "Ensure all applicable patches are applied to mitigate any vulnerabilities exploited.",
+            "on_completion": "end--a248792f-3d75-403b-b739-878f8feb3045",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_packages.sh"
+                }
+            ],
+            "agent": "organization--04d9b513-0b17-48ac-9477-674276d87f4c"
+        },
+        "end--a248792f-3d75-403b-b739-878f8feb3045": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--04d9b513-0b17-48ac-9477-674276d87f4c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

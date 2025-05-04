@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3d92e67-437d-4c8e-ba5b-b8e00c213c36",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed commands via PowerShell to enumerate active directories and dropped a malicious script.",
+    "created_by": "identity--40c1b530-b333-4f8f-a5b5-ac71430944c1",
+    "created": "2023-10-10T09:00:00Z",
+    "modified": "2023-10-10T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c2c923b9-5272-4d6b-8e10-e9e35db68ffd",
+    "workflow": {
+        "action--b87b2e56-d297-4fb7-b97b-31defaf11d5e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes executing the malicious script.",
+            "on_completion": "action--6b3b52f7-5705-472c-beb6-6c6901eb5cab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--6a81deb0-1b85-4a1e-8226-22909d18fc63"
+        },
+        "action--6b3b52f7-5705-472c-beb6-6c6901eb5cab": {
+            "name": "Delete dropped exploit script",
+            "description": "Remove the dropped malicious exploit script from the system.",
+            "on_completion": "parallel--a267dab9-656e-4034-b436-36cff6c82b47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/exploit_script.ps1"
+                }
+            ],
+            "agent": "organization--6a81deb0-1b85-4a1e-8226-22909d18fc63"
+        },
+        "action--f7f3ed48-e3c9-4f0f-8d0e-4ed74cd5351c": {
+            "name": "Run antivirus scan on affected hosts",
+            "description": "Initiate an antivirus scan to detect any remaining threats.",
+            "on_completion": "if-condition--93220faa-5f32-47f1-aa9c-23b290ccae72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan"
+                }
+            ],
+            "agent": "organization--6a81deb0-1b85-4a1e-8226-22909d18fc63"
+        },
+        "start--c2c923b9-5272-4d6b-8e10-e9e35db68ffd": {
+            "on_completion": "if-condition--fbc4365b-b647-443d-bf77-b44685027543",
+            "type": "start"
+        },
+        "if-condition--fbc4365b-b647-443d-bf77-b44685027543": {
+            "name": "Check for active PowerShell process",
+            "type": "if-condition",
+            "condition": "process_active == true",
+            "on_true": "action--b87b2e56-d297-4fb7-b97b-31defaf11d5e",
+            "on_false": "action--6b3b52f7-5705-472c-beb6-6c6901eb5cab"
+        },
+        "parallel--a267dab9-656e-4034-b436-36cff6c82b47": {
+            "name": "Running post-mitigation tasks",
+            "description": "Run antivirus scan on affected hosts while deleting the dropped exploit script.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f7f3ed48-e3c9-4f0f-8d0e-4ed74cd5351c",
+                "end--70e67d4b-7a63-4428-b745-687db66a8ed0"
+            ]
+        },
+        "if-condition--93220faa-5f32-47f1-aa9c-23b290ccae72": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == \"clean\"",
+            "on_true": "end--70e67d4b-7a63-4428-b745-687db66a8ed0",
+            "on_false": "action--f7f3ed48-e3c9-4f0f-8d0e-4ed74cd5351c"
+        },
+        "end--70e67d4b-7a63-4428-b745-687db66a8ed0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6a81deb0-1b85-4a1e-8226-22909d18fc63": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

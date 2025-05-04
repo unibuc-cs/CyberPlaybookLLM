@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d69e4f8c-4045-4ad5-9b23-03421cce1b0f",
+    "name": "Response Playbook for Script-Based Attacks",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on hosts following a phishing attempt, leading to potential data exfiltration.",
+    "created_by": "identity--fee22420-bc34-47f3-ad23-bdeadb366e95",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--91b82fff-d39b-47ef-967d-2440b7d460f8",
+    "workflow": {
+        "start--91b82fff-d39b-47ef-967d-2440b7d460f8": {
+            "on_completion": "action--c9f5eddf-902d-43ff-970e-90b9d0601c3f",
+            "type": "start"
+        },
+        "action--c9f5eddf-902d-43ff-970e-90b9d0601c3f": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes potentially executing malicious scripts.",
+            "on_completion": "if-condition--2c51e477-f2ad-4157-b227-bf68c4d3a18d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--cfec6f45-1774-4af7-9e21-7e3652934304"
+        },
+        "if-condition--2c51e477-f2ad-4157-b227-bf68c4d3a18d": {
+            "name": "Check if PowerShell process was running",
+            "type": "if-condition",
+            "condition": "ps aux | grep PowerShell",
+            "on_true": "action--3bd20de0-70e8-4c83-bd7c-96ebaef839ae",
+            "on_false": "action--dc4f650b-457f-4fc5-a904-09451edde2fb"
+        },
+        "action--3bd20de0-70e8-4c83-bd7c-96ebaef839ae": {
+            "name": "Isolate affected hosts",
+            "description": "Turn off all network profiles to isolate hosts affected by the attack.",
+            "on_completion": "action--dc4f650b-457f-4fc5-a904-09451edde2fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--cfec6f45-1774-4af7-9e21-7e3652934304"
+        },
+        "action--dc4f650b-457f-4fc5-a904-09451edde2fb": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive malware scan on affected hosts.",
+            "on_completion": "while-condition--7524ff58-c451-4d88-b0ab-ee2ded7c8f92",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "maldet -a /path/to/scan"
+                }
+            ],
+            "agent": "organization--cfec6f45-1774-4af7-9e21-7e3652934304"
+        },
+        "while-condition--7524ff58-c451-4d88-b0ab-ee2ded7c8f92": {
+            "name": "Scan loop until no threats detected",
+            "description": "Repeat the malware scan until no threats are found.",
+            "on_true": "action--dc4f650b-457f-4fc5-a904-09451edde2fb",
+            "condition": "maldet --report | grep 'malware found'",
+            "on_false": "action--1397839f-7a1e-4900-aae1-4561ca5469b9",
+            "type": "if-condition"
+        },
+        "action--1397839f-7a1e-4900-aae1-4561ca5469b9": {
+            "name": "Change credentials for impacted accounts",
+            "description": "Change passwords for all accounts affected by the attack.",
+            "on_completion": "action--86a94ad6-be76-4eb1-b5ec-b8feaf4068b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${affected_user}"
+                }
+            ],
+            "agent": "organization--cfec6f45-1774-4af7-9e21-7e3652934304",
+            "step_variables": {
+                "affected_user": {
+                    "type": "string",
+                    "description": "The username of the affected account",
+                    "value": "impacted_user",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--86a94ad6-be76-4eb1-b5ec-b8feaf4068b6": {
+            "name": "Review access logs for anomalies",
+            "description": "Check the authentication logs for any suspicious activity.",
+            "on_completion": "end--74e24d16-28d0-40f7-b8b0-ae0c70a82d07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--cfec6f45-1774-4af7-9e21-7e3652934304"
+        },
+        "end--74e24d16-28d0-40f7-b8b0-ae0c70a82d07": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cfec6f45-1774-4af7-9e21-7e3652934304": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

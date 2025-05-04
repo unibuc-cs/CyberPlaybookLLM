@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3f1a6b9-475f-418c-8ea2-e1bf2293d64a",
+    "name": "Mitigation Playbook for Incident with Command and Scripting Interpreter",
+    "description": "This playbook addresses an incident involving an attacker who gained initial access through a vulnerable application and executed scripts to collect sensitive data.",
+    "created_by": "identity--f7a327e2-7b85-4d7a-b1d7-c7af4861c0e9",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1c39f7ff-f9c6-4262-bf3e-117db3f0be63",
+    "workflow": {
+        "start--1c39f7ff-f9c6-4262-bf3e-117db3f0be63": {
+            "on_completion": "parallel--babbda67-a94d-4e46-816c-e89e0b40415a",
+            "type": "start"
+        },
+        "parallel--babbda67-a94d-4e46-816c-e89e0b40415a": {
+            "name": "Execute Mitigations",
+            "description": "Execute multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b3b8f7d5-85ed-4748-bf7b-6bfaef53f0a8",
+                "action--ca4b7d19-944f-44b2-93b6-d9bd1a8fdf4e",
+                "action--7ea08d16-7f07-4e3f-8ea8-a4dda23606e1",
+                "action--f51d0ef3-b324-4e3c-a731-ce0192497043"
+            ]
+        },
+        "action--b3b8f7d5-85ed-4748-bf7b-6bfaef53f0a8": {
+            "name": "Identify and kill malicious PowerShell processes",
+            "description": "Kill the processes running malicious PowerShell scripts detected.",
+            "on_completion": "loop--27b403b4-566a-4b5e-9c3a-a020aabf2f2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps aux | grep powershell | awk '{print $2}' | xargs kill -9"
+                }
+            ],
+            "agent": "organization--01258304-9c50-43c8-8481-372757c2391e"
+        },
+        "action--ca4b7d19-944f-44b2-93b6-d9bd1a8fdf4e": {
+            "name": "Revoke network access for compromised hosts",
+            "description": "Block network access for the identified compromised hosts.",
+            "on_completion": "action--f51d0ef3-b324-4e3c-a731-ce0192497043",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--01258304-9c50-43c8-8481-372757c2391e"
+        },
+        "action--f51d0ef3-b324-4e3c-a731-ce0192497043": {
+            "name": "Initiate security training for IT team",
+            "description": "Send training invitation to the IT team.",
+            "on_completion": "end--e035e4a1-b76d-41d2-942c-4f9759215cc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sendmail -v training@organization.com < /path/to/training/invitation.txt"
+                }
+            ],
+            "agent": "organization--01258304-9c50-43c8-8481-372757c2391e"
+        },
+        "loop--27b403b4-566a-4b5e-9c3a-a020aabf2f2d": {
+            "name": "Scan system for residual malicious scripts",
+            "description": "Perform a full system scan to ensure no malicious scripts remain.",
+            "on_completion": "conditional--c161257f-c9e1-4672-96e6-7b0bada5d602",
+            "type": "while-condition",
+            "condition": "Scan not clean",
+            "on_true": "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d"
+        },
+        "action--27b403b4-566a-4b5e-9c3a-a020aabf2f2d": {
+            "name": "Full system scan",
+            "description": "Run a full scan to verify system cleanliness.",
+            "on_completion": "loop--27b403b4-566a-4b5e-9c3a-a020aabf2f2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--01258304-9c50-43c8-8481-372757c2391e"
+        },
+        "conditional--c161257f-c9e1-4672-96e6-7b0bada5d602": {
+            "name": "Restore configuration files if scan is clean",
+            "description": "Restore system configuration files if the malicious scripts have been cleaned.",
+            "on_completion": "end--e035e4a1-b76d-41d2-942c-4f9759215cc2",
+            "type": "if-condition",
+            "condition": "hash clamscan 2>/dev/null; then restore; fi",
+            "on_true": "action--c161257f-c9e1-4672-96e6-7b0bada5d602",
+            "on_false": "end--e035e4a1-b76d-41d2-942c-4f9759215cc2"
+        },
+        "action--c161257f-c9e1-4672-96e6-7b0bada5d602": {
+            "name": "Restore system configuration files from backups",
+            "description": "Restore important configuration files from backup to ensure system integrity.",
+            "on_completion": "end--e035e4a1-b76d-41d2-942c-4f9759215cc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tar -xzf /backups/config-backup.tar.gz -C /etc/"
+                }
+            ],
+            "agent": "organization--01258304-9c50-43c8-8481-372757c2391e"
+        },
+        "end--e035e4a1-b76d-41d2-942c-4f9759215cc2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--01258304-9c50-43c8-8481-372757c2391e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

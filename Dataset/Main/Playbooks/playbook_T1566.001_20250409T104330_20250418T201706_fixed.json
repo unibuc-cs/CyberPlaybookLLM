@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0c440eb-f125-4e42-8a3f-f1a93b5df51c",
+    "name": "Mitigation Playbook for Spearphishing Attachment Incident",
+    "description": "This playbook mitigates a spearphishing incident where a backdoor was installed from a malicious email attachment.",
+    "created_by": "identity--f78e697d-8a99-46f9-a0ed-2de80427b092",
+    "created": "2025-04-09T10:43:30.000Z",
+    "modified": "2025-04-09T10:43:30.000Z",
+    "revoked": false,
+    "workflow_start": "start--e1c7491f-f66d-4b78-a0ea-11fa48e5678a",
+    "workflow": {
+        "start--e1c7491f-f66d-4b78-a0ea-11fa48e5678a": {
+            "on_completion": "action--d6c27418-9e98-4c12-abd3-5b2f2d83cc09",
+            "type": "start"
+        },
+        "action--d6c27418-9e98-4c12-abd3-5b2f2d83cc09": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate host-12 to prevent lateral movement.",
+            "on_completion": "action--a7c0d56c-6c91-4745-a9f6-d86a1aa45d80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set dev eth0 down"
+                }
+            ],
+            "agent": "organization--fb48cf65-3162-4fcb-bb65-fbf83c51f63c"
+        },
+        "action--a7c0d56c-6c91-4745-a9f6-d86a1aa45d80": {
+            "name": "Notify IT security team",
+            "description": "Alert the IT security team about the spearphishing incident.",
+            "on_completion": "loop--4b3770bb-458d-4d2b-a3c4-0b34c60757e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --to it@organizationxyz.com --message 'Spearphishing incident detected on host-12'"
+                }
+            ],
+            "agent": "organization--fb48cf65-3162-4fcb-bb65-fbf83c51f63c"
+        },
+        "loop--4b3770bb-458d-4d2b-a3c4-0b34c60757e5": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan on the affected host and repeat until cleanup is complete.",
+            "condition": "cleanup_complete == false",
+            "on_true": "action--4b3770bb-458d-4d2b-a3c4-0b34c60757e5",
+            "on_false": "end--df67094d-bbf6-4e44-8368-f2346ab0e0f8",
+            "type": "while-condition",
+            "step_variables": {
+                "cleanup_complete": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the cleanup is complete",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "next_steps": [
+                "action--4b3770bb-458d-4d2b-a3c4-0b34c60757e5"
+            ]
+        },
+        "action--4b3770bb-458d-4d2b-a3c4-0b34c60757e5": {
+            "name": "Scan host for malware",
+            "description": "Run the antivirus tool to check for additional malware.",
+            "on_completion": "decision--9e3c09b8-3243-4c1d-9eec-fc63b0579bd0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --scan /path/to/affected/host"
+                }
+            ],
+            "agent": "organization--fb48cf65-3162-4fcb-bb65-fbf83c51f63c"
+        },
+        "decision--9e3c09b8-3243-4c1d-9eec-fc63b0579bd0": {
+            "name": "Check if malware is detected",
+            "type": "if-condition",
+            "condition": "malware_detected == true",
+            "on_true": "loop--4b3770bb-458d-4d2b-a3c4-0b34c60757e5",
+            "on_false": {
+                "next_steps": [
+                    "end--b0c77428-ca2B-47a1-97a9-108beda47b54"
+                ]
+            }
+        },
+        "end--df67094d-bbf6-4e44-8368-f2346ab0e0f8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fb48cf65-3162-4fcb-bb65-fbf83c51f63c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

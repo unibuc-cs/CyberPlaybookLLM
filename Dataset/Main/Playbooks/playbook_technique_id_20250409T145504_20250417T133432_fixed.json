@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a574df2-8b0f-46a3-93b0-90e5a487d20e",
+    "name": "Mitigation Playbook for Web Application Command Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized commands were executed on a web server due to a vulnerability.",
+    "created_by": "identity--d2905936-96a2-4697-b129-d87e01768e12",
+    "created": "2023-10-10T13:00:00Z",
+    "modified": "2023-10-10T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--123e4567-e89b-12d3-a456-426614174000",
+    "workflow": {
+        "start--123e4567-e89b-12d3-a456-426614174000": {
+            "on_completion": "action--d2cdbd2b-f9f0-4f99-bf96-84c55bb63daf",
+            "type": "start"
+        },
+        "action--d2cdbd2b-f9f0-4f99-bf96-84c55bb63daf": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process associated with the dropped backdoor.",
+            "on_completion": "action--bc73c5c4-d3f4-4df2-ade1-cc5e9b965d60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'backdoor.sh'"
+                }
+            ],
+            "agent": "organization--49f98979-e9f8-417d-bfba-72e6f49cb273"
+        },
+        "action--bc73c5c4-d3f4-4df2-ade1-cc5e9b965d60": {
+            "name": "Remove dropped backdoor file",
+            "description": "Delete the backdoor file to prevent further unauthorized access.",
+            "on_completion": "loop--f72d7623-8920-4328-bd2c-620da58c4614",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--49f98979-e9f8-417d-bfba-72e6f49cb273"
+        },
+        "loop--f72d7623-8920-4328-bd2c-620da58c4614": {
+            "name": "Scan and remediate host for vulnerabilities",
+            "description": "Perform a security scan on the host and remediate vulnerabilities until clean.",
+            "type": "while-condition",
+            "condition": "scan_result_clean == false",
+            "on_true": "action--f72d7623-8920-4328-bd2c-620da58c4614",
+            "next_steps": [
+                "action--f72d7623-8920-4328-bd2c-620da58c4614"
+            ]
+        },
+        "action--f72d7623-8920-4328-bd2c-620da58c4614": {
+            "name": "Run security scanner",
+            "description": "Execute the security scanner to check for vulnerabilities.",
+            "on_completion": "loop--fa823c04-c77b-4c26-9e54-f6a8230a3f22",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scanner"
+                }
+            ],
+            "agent": "organization--49f98979-e9f8-417d-bfba-72e6f49cb273"
+        },
+        "loop--fa823c04-c77b-4c26-9e54-f6a8230a3f22": {
+            "name": "Check and revert suspicious file permissions",
+            "description": "Make sure that sensitive file permissions are correctly set.",
+            "type": "if-condition",
+            "condition": "permissions_not_set_correctly",
+            "on_true": "action--fa823c04-c77b-4c26-9e54-f6a8230a3f22",
+            "on_false": "action--e4817b9b-9ad8-42db-b1e4-ed06b455e0b2"
+        },
+        "action--fa823c04-c77b-4c26-9e54-f6a8230a3f22": {
+            "name": "Revert file permissions",
+            "description": "Set correct permissions on sensitive files.",
+            "on_completion": "action--e4817b9b-9ad8-42db-b1e4-ed06b455e0b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod 644 /etc/sensitive_file"
+                }
+            ],
+            "agent": "organization--49f98979-e9f8-417d-bfba-72e6f49cb273"
+        },
+        "action--e4817b9b-9ad8-42db-b1e4-ed06b455e0b2": {
+            "name": "Update firewall rules to block malicious IP",
+            "description": "Block the malicious IP to prevent further attacks.",
+            "on_completion": "end--e1b8cd0f-8b0c-4e9a-937e-2dac51fa75c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--49f98979-e9f8-417d-bfba-72e6f49cb273"
+        },
+        "end--e1b8cd0f-8b0c-4e9a-937e-2dac51fa75c1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--49f98979-e9f8-417d-bfba-72e6f49cb273": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

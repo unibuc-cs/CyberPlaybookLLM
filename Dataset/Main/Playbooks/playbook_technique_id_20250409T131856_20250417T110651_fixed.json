@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f29c6a8-47c5-4e7f-8ef7-7759455b442d",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to exfiltrate sensitive data.",
+    "created_by": "identity--d1c51809-aac3-4c9d-b303-4c7e47f49334",
+    "created": "2025-04-09T13:18:56.000Z",
+    "modified": "2025-04-09T13:18:56.000Z",
+    "revoked": false,
+    "workflow_start": "start--a2f6fe6b-1287-4d91-99cd-a1542bfe9da9",
+    "workflow": {
+        "start--a2f6fe6b-1287-4d91-99cd-a1542bfe9da9": {
+            "on_completion": "action--e2f1f67d-f3cf-41dd-8e71-518b26db0fc7",
+            "type": "start"
+        },
+        "action--e2f1f67d-f3cf-41dd-8e71-518b26db0fc7": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that are executing the malicious script.",
+            "on_completion": "action--9d5e7b94-763e-4b2d-b107-f3eb47c8c7fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--e260c62c-2a20-4bdf-b5e2-c8daad695dbe"
+        },
+        "action--9d5e7b94-763e-4b2d-b107-f3eb47c8c7fb": {
+            "name": "Remove the malicious scripts",
+            "description": "Delete the malicious PowerShell script if it exists.",
+            "on_completion": "action--3cda2b12-0c73-4abd-9fd1-8e5dcb4f27b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /path/to/malicious/script.ps1 ]; then rm /path/to/malicious/script.ps1; fi"
+                }
+            ],
+            "agent": "organization--e260c62c-2a20-4bdf-b5e2-c8daad695dbe",
+            "loop": "repeat until [ ! -f /path/to/malicious/script.ps1 ]"
+        },
+        "action--3cda2b12-0c73-4abd-9fd1-8e5dcb4f27b5": {
+            "name": "Disable the compromised account",
+            "description": "Lock the user account that was compromised to prevent further access.",
+            "on_completion": "action--f224b0b5-6536-4dc9-9bfa-9dcd144b8936",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--e260c62c-2a20-4bdf-b5e2-c8daad695dbe"
+        },
+        "action--f224b0b5-6536-4dc9-9bfa-9dcd144b8936": {
+            "name": "Run full system scan",
+            "description": "Conduct a full system scan to detect any remaining threats.",
+            "on_completion": "end--a1e5b74c-d244-4f09-9390-df20e6f7331c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--e260c62c-2a20-4bdf-b5e2-c8daad695dbe",
+            "loop": "repeat until [ scan_count > 0 ]",
+            "step_variables": {
+                "scan_count": {
+                    "type": "integer",
+                    "description": "Number of threats found during the scan",
+                    "value": "0",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--a1e5b74c-d244-4f09-9390-df20e6f7331c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e260c62c-2a20-4bdf-b5e2-c8daad695dbe": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

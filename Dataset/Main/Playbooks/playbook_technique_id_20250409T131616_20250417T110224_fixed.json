@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3b4e3c6-8729-4b67-8ede-75fbe752b26c",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker deployed a malicious script using a compromised user account, designed to extract sensitive data from the network.",
+    "created_by": "identity--64ec3b9c-06c6-4f52-8c78-21b0b12a7daa",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--45ec78de-bd6f-4e76-b910-eeb1ccabbf73",
+    "workflow": {
+        "action--d5907634-de53-4e36-ac9e-bb69378ebc4e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious process associated with the script execution.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--a498fd65-6829-499d-a186-f6ac1482b745",
+            "on_completion": "action--e3cb8e9c-f06b-4cb7-ab74-338248ee811d"
+        },
+        "action--e3cb8e9c-f06b-4cb7-ab74-338248ee811d": {
+            "name": "Disable compromised user account",
+            "description": "Lock the compromised user account to prevent further unauthorized access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--a498fd65-6829-499d-a186-f6ac1482b745",
+            "on_completion": "end--89623912-9a6a-4fc5-83b7-0c789025adc2"
+        },
+        "loop--92bf5d20-ecf8-4f9f-8b76-2cd61512e562": {
+            "name": "Audit recent account logins",
+            "description": "Audit the recent logins of the compromised user.",
+            "type": "while-condition",
+            "condition": "login_records_remaining > 0",
+            "on_true": "action--df7c6ff5-747c-4fee-8fed-24dbc92b1f02",
+            "on_false": "action--c202a760-13b3-4c6f-b34d-8c66b5aabc6b"
+        },
+        "loop--c202a760-13b3-4c6f-b34d-8c66b5aabc6b": {
+            "name": "Full malware scan loop",
+            "description": "Perform a full malware scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == false",
+            "on_true": "action--9d5b7087-18fb-4ced-920a-c31de58b03cb",
+            "on_false": "end--89623912-9a6a-4fc5-83b7-0c789025adc2"
+        },
+        "action--f4f3a198-3a94-4c57-bf0a-59e3e5d2704c": {
+            "name": "Isolate affected host",
+            "description": "Block any incoming traffic from the affected host.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--a498fd65-6829-499d-a186-f6ac1482b745"
+        },
+        "start--45ec78de-bd6f-4e76-b910-eeb1ccabbf73": {
+            "on_completion": "parallel--77f26625-bfb2-4cf1-9a6b-354f22beebce",
+            "type": "start"
+        },
+        "parallel--77f26625-bfb2-4cf1-9a6b-354f22beebce": {
+            "name": "Execute Mitigation Actions",
+            "description": "Parallel execution of mitigation actions to address the malicious script incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d5907634-de53-4e36-ac9e-bb69378ebc4e",
+                "action--f4f3a198-3a94-4c57-bf0a-59e3e5d2704c",
+                "loop--92bf5d20-ecf8-4f9f-8b76-2cd61512e562",
+                "loop--c202a760-13b3-4c6f-b34d-8c66b5aabc6b"
+            ]
+        },
+        "action--df7c6ff5-747c-4fee-8fed-24dbc92b1f02": {
+            "name": "Check login record",
+            "description": "Check the next login record for the compromised user.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "last -a | grep 'compromised_user'"
+                }
+            ],
+            "agent": "organization--a498fd65-6829-499d-a186-f6ac1482b745",
+            "on_completion": "loop--92bf5d20-ecf8-4f9f-8b76-2cd61512e562"
+        },
+        "action--9d5b7087-18fb-4ced-920a-c31de58b03cb": {
+            "name": "Perform full malware scan",
+            "description": "Run a full malware scan on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--a498fd65-6829-499d-a186-f6ac1482b745",
+            "on_completion": "loop--c202a760-13b3-4c6f-b34d-8c66b5aabc6b"
+        },
+        "end--89623912-9a6a-4fc5-83b7-0c789025adc2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a498fd65-6829-499d-a186-f6ac1482b745": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

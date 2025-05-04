@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9afcd8e-1698-4683-93f8-1d1e8e30c67f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a compromised user account, executing malicious scripts that created backdoors.",
+    "created_by": "identity--f0345bae-0e3b-4176-9e29-f463351670b5",
+    "created": "2025-04-10T09:00:00Z",
+    "modified": "2025-04-10T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--4b1e5c53-8f31-4f1c-90dc-15c7d469c7d6",
+    "workflow": {
+        "start--4b1e5c53-8f31-4f1c-90dc-15c7d469c7d6": {
+            "on_completion": "action--e9afcd8e-1698-4683-93f8-1d1e8e30c67f",
+            "type": "start"
+        },
+        "action--e9afcd8e-1698-4683-93f8-1d1e8e30c67f": {
+            "name": "Kill malicious script processes",
+            "description": "Terminate any processes executing unauthorized scripts.",
+            "on_completion": "if-condition--2078b394-db7e-4b1f-9d67-ff0f349798fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--be3683c0-9d5d-4353-9918-28e91b5b77e1"
+        },
+        "action--f83c9a3f-1d6f-4f07-8a10-7cf045a63d4f": {
+            "name": "Remove malicious files from the system",
+            "description": "Remove detected malicious backdoor files.",
+            "on_completion": "loop--2c3f9d0c-5e5f-4c43-820c-18ab6b54b4a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--be3683c0-9d5d-4353-9918-28e91b5b77e1"
+        },
+        "loop--2c3f9d0c-5e5f-4c43-820c-18ab6b54b4a0": {
+            "name": "Repeat scanning until the system is clean",
+            "description": "Continuously scan for residual threats until no threats are found.",
+            "on_completion": "end--0a4e5d8a-745d-413e-8db3-97f6aba550c1",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--db0e8a64-48a7-482e-9048-f2bca541d694"
+        },
+        "end--0a4e5d8a-745d-413e-8db3-97f6aba550c1": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        },
+        "if-condition--2078b394-db7e-4b1f-9d67-ff0f349798fc": {
+            "name": "Check for existence of malicious backdoor",
+            "type": "if-condition",
+            "condition": "malicious_backdoor_exists",
+            "on_true": "action--f83c9a3f-1d6f-4f07-8a10-7cf045a63d4f",
+            "on_false": "loop--2c3f9d0c-5e5f-4c43-820c-18ab6b54b4a0"
+        },
+        "action--db0e8a64-48a7-482e-9048-f2bca541d694": {
+            "name": "Run security scanner",
+            "description": "Run the security scanner to check for residual threats.",
+            "on_completion": "loop--2c3f9d0c-5e5f-4c43-820c-18ab6b54b4a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scanner"
+                }
+            ],
+            "agent": "organization--be3683c0-9d5d-4353-9918-28e91b5b77e1",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicator if the scan has returned clean results.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--be3683c0-9d5d-4353-9918-28e91b5b77e1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

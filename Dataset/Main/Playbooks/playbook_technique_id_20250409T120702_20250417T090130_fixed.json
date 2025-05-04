@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--048f594b-d67e-4e1b-987e-0a5b12f3c8fd",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a compromised user account, executing a PowerShell script that downloaded malware and created scheduled tasks for persistence.",
+    "created_by": "identity--2d7e821d-87bc-4d5f-b11c-b4f1adce53c3",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--10f39c07-f97e-4b44-a56b-fffa07b501f3",
+    "workflow": {
+        "start--10f39c07-f97e-4b44-a56b-fffa07b501f3": {
+            "on_completion": "action--a979446f-47ee-4c23-a1d5-145f26206df4",
+            "type": "start"
+        },
+        "if-condition--f96c4b9c-58ca-4e90-89e1-3ec6e3c3a2d1": {
+            "name": "Check if the scheduled task exists",
+            "type": "if-condition",
+            "condition": "task_exists",
+            "on_true": "action--2ef978b0-46dc-4e39-8acf-84539a611042",
+            "on_false": "action--a3eda820-fae8-4dcc-92bc-f38ebfa6ef24"
+        },
+        "while-condition--5ba8126f-a4d3-4454-b8a4-c8cf0b25870f": {
+            "name": "Check scan results",
+            "description": "Evaluate if the system scan found any issues.",
+            "type": "while-condition",
+            "condition": "scan_status == not_clean",
+            "on_true": "action--a3eda820-fae8-4dcc-92bc-f38ebfa6ef24",
+            "on_false": "end--4dda85b3-7c26-4b5e-a72c-5ad17c9e836f"
+        },
+        "end--4dda85b3-7c26-4b5e-a72c-5ad17c9e836f": {
+            "type": "end"
+        },
+        "action--a979446f-47ee-4c23-a1d5-145f26206df4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script execution.",
+            "on_completion": "if-condition--f96c4b9c-58ca-4e90-89e1-3ec6e3c3a2d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'malicious_process_name')"
+                }
+            ],
+            "agent": "organization--670074c7-6ece-4ac0-9712-0caff4e910f8"
+        },
+        "action--2ef978b0-46dc-4e39-8acf-84539a611042": {
+            "name": "Remove scheduled tasks created by attacker",
+            "description": "Delete scheduled tasks that were created during the attack.",
+            "on_completion": "action--a3eda820-fae8-4dcc-92bc-f38ebfa6ef24",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn 'MaliciousTaskName' /f"
+                }
+            ],
+            "agent": "organization--670074c7-6ece-4ac0-9712-0caff4e910f8"
+        },
+        "action--a3eda820-fae8-4dcc-92bc-f38ebfa6ef24": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --full"
+                }
+            ],
+            "agent": "organization--670074c7-6ece-4ac0-9712-0caff4e910f8",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan, initially set as not_clean.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--5ba8126f-a4d3-4454-b8a4-c8cf0b25870f"
+        }
+    },
+    "agent_definitions": {
+        "organization--670074c7-6ece-4ac0-9712-0caff4e910f8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

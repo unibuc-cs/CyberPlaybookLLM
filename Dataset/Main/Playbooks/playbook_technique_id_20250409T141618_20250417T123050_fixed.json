@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e09b3aba-fc36-4c45-802f-69a645dbcb67",
+    "name": "Mitigation Playbook for Application Layer Protocol Incident",
+    "description": "This playbook aims to mitigate an incident where an attacker used application layer protocols to exfiltrate sensitive data.",
+    "created_by": "identity--d0c3635d-f9aa-4a77-bb87-98f7e9ac3abc",
+    "created": "2025-10-12T10:00:00.000Z",
+    "modified": "2025-10-12T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--0bcaadf7-b827-4e2e-9771-7c9d94bdeeec",
+    "workflow": {
+        "start--0bcaadf7-b827-4e2e-9771-7c9d94bdeeec": {
+            "on_completion": "action--b5a8526c-4c44-4900-aeb3-6609e227b1c1",
+            "type": "start"
+        },
+        "action--b5a8526c-4c44-4900-aeb3-6609e227b1c1": {
+            "name": "Block outbound connections",
+            "description": "Block outbound connections to suspicious IP addresses.",
+            "on_completion": "action--f3d65d61-062f-45b2-be97-4912b8f0d67a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip_address -j DROP"
+                }
+            ],
+            "agent": "organization--f030647f-ca1b-4cf0-8580-f70a4c96cc17"
+        },
+        "action--f3d65d61-062f-45b2-be97-4912b8f0d67a": {
+            "name": "Kill malicious processes",
+            "description": "Kill any running processes related to the data transmission.",
+            "on_completion": "action--db6b1f28-97e3-4a82-883d-09a233e1c504",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--f030647f-ca1b-4cf0-8580-f70a4c96cc17"
+        },
+        "action--db6b1f28-97e3-4a82-883d-09a233e1c504": {
+            "name": "Perform full scan of the host",
+            "description": "Identify other potential threats on the host.",
+            "on_completion": "decision--22472779-5218-4a4e-9cbc-d525dc0f2f72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--f030647f-ca1b-4cf0-8580-f70a4c96cc17"
+        },
+        "action--c8b9e14c-1e79-4c1c-9d81-f88b4b2ae432": {
+            "name": "Update firewall rules",
+            "description": "Update firewall rules based on the incident findings.",
+            "on_completion": "loop--79538de4-11eb-4977-a3a0-f62efec05361",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'deny ip any to suspicious_ip_address' >> /etc/firewall.rules"
+                }
+            ],
+            "agent": "organization--f030647f-ca1b-4cf0-8580-f70a4c96cc17"
+        },
+        "end--a4f9bdf7-70c7-4b4c-8470-123e48b0f404": {
+            "type": "end"
+        },
+        "decision--22472779-5218-4a4e-9cbc-d525dc0f2f72": {
+            "name": "Review and update firewall rules",
+            "type": "if-condition",
+            "condition": "suspicious_ip_address_confirmed == true",
+            "on_true": "loop--79538de4-11eb-4977-a3a0-f62efec05361",
+            "on_false": "end--a4f9bdf7-70c7-4b4c-8470-123e48b0f404"
+        },
+        "loop--79538de4-11eb-4977-a3a0-f62efec05361": {
+            "name": "Repeat firewall rule update action",
+            "description": "Continue to update firewall rules until confirmed effective.",
+            "type": "while-condition",
+            "condition": "firewall_rule_effective == false",
+            "on_true": "action--c8b9e14c-1e79-4c1c-9d81-f88b4b2ae432"
+        }
+    },
+    "agent_definitions": {
+        "organization--f030647f-ca1b-4cf0-8580-f70a4c96cc17": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "suspicious_ip_address_confirmed": {
+            "type": "boolean",
+            "description": "Flag to check if suspicious IP address has been confirmed.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "firewall_rule_effective": {
+            "type": "boolean",
+            "description": "Flag to check if the firewall rule is effective.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

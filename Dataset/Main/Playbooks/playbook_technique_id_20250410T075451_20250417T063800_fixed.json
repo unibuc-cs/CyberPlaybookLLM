@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a5e3ef48-321e-4f54-ad0f-1de15c2048c3",
+    "name": "Mitigation Playbook for PowerShell Command Abuse Incident",
+    "description": "This playbook outlines steps to mitigate an incident involving unauthorized PowerShell scripts being executed to access sensitive files across the network.",
+    "created_by": "identity--12345678-abcd-1234-abcd-1234567890ab",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--25f6fffe-9085-4f72-a8f2-3381e2079e75",
+    "workflow": {
+        "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b": {
+            "name": "Terminate Unauthorized PowerShell Sessions",
+            "description": "Identify and terminate any unauthorized PowerShell sessions that may be running.",
+            "on_completion": "parallel--411355e1-b1f1-43f7-a181-cfa5091bb7be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729"
+        },
+        "action--f16b7fd4-2a98-42da-95a9-6a0d3d70d009": {
+            "name": "Isolate Compromised Hosts",
+            "description": "Isolate all compromised hosts from the network to prevent further unauthorized access.",
+            "on_completion": "end--e1c60dc5-6c92-4f90-8bf1-ac5d9475c22a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-NetAdapter -Name 'Ethernet' -AdminStatus Disabled"
+                }
+            ],
+            "agent": "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729"
+        },
+        "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089": {
+            "name": "Scan for Malicious Scripts",
+            "description": "Initiate a scan for any malicious scripts on all compromised hosts.",
+            "on_completion": "while-condition--7a9ab1f1-836a-41bb-a7ed-821fe734ce5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-Process -FilePath 'antivirus_scan_tool.exe' -ArgumentList '/scan'"
+                }
+            ],
+            "agent": "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729"
+        },
+        "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be": {
+            "name": "Patch Systems",
+            "description": "Patch all systems with the latest security updates if updates are available.",
+            "on_completion": "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729",
+            "condition": "if updates are available"
+        },
+        "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8": {
+            "name": "Restore Sensitive Data",
+            "description": "Restore sensitive data from backup to ensure no data loss occurs.",
+            "on_completion": "end--e1c60dc5-6c92-4f90-8bf1-ac5d9475c22a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/data/ /data/"
+                }
+            ],
+            "agent": "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729"
+        },
+        "start--25f6fffe-9085-4f72-a8f2-3381e2079e75": {
+            "on_completion": "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b",
+            "type": "start"
+        },
+        "parallel--411355e1-b1f1-43f7-a181-cfa5091bb7be": {
+            "name": "Conduct Further Mitigations",
+            "description": "Perform additional mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f16b7fd4-2a98-42da-95a9-6a0d3d70d009",
+                "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089",
+                "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be"
+            ]
+        },
+        "while-condition--7a9ab1f1-836a-41bb-a7ed-821fe734ce5b": {
+            "name": "Check Scan Results",
+            "description": "Repeat the scanning process until scan results are clean.",
+            "on_true": "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089",
+            "condition": "scan_results != 'clean'",
+            "type": "while-condition"
+        },
+        "end--e1c60dc5-6c92-4f90-8bf1-ac5d9475c22a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--298de898-6339-45cf-bbcc-ec8fd0dc1729": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

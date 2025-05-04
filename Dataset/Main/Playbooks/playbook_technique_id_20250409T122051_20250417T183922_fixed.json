@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b75af4e4-ccf6-4a23-9662-c9698b371ab8",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script leading to data exfiltration.",
+    "created_by": "identity--e1b67d70-19fe-42bc-a906-f82082f5439b",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--5d1a9f8e-7331-4863-98a5-5642a2480a12",
+    "workflow": {
+        "start--5d1a9f8e-7331-4863-98a5-5642a2480a12": {
+            "on_completion": "action--fa9b7d11-a2d5-4698-b1cb-591e9325e1b9",
+            "type": "start"
+        },
+        "action--fa9b7d11-a2d5-4698-b1cb-591e9325e1b9": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script that is currently running.",
+            "on_completion": "action--a9f7ecb0-ec02-47e4-91e3-d9a23183f6c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168"
+        },
+        "action--a9f7ecb0-ec02-47e4-91e3-d9a23183f6c3": {
+            "name": "Quarantine affected files",
+            "description": "Move files that may have been affected by the malicious script to quarantine.",
+            "on_completion": "if-condition--bc64e3c1-d379-4676-bc14-d75e0b9aac6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/affected/files /quarantine/"
+                }
+            ],
+            "agent": "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168"
+        },
+        "if-condition--bc64e3c1-d379-4676-bc14-d75e0b9aac6a": {
+            "name": "Check if files exist for quarantine",
+            "type": "if-condition",
+            "condition": "files_exist",
+            "on_true": "action--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab",
+            "on_false": "action--bd64e3c1-d379-4676-bc14-d75e0b9aac6a"
+        },
+        "action--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab": {
+            "name": "Perform system scan for malicious artifacts",
+            "description": "Scan the system for any remaining malicious artifacts.",
+            "on_completion": "while-condition--bef5fbf2-6305-4f8f-a6d5-678cdd65d74e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168"
+        },
+        "action--bd64e3c1-d379-4676-bc14-d75e0b9aac6a": {
+            "name": "Block external IP",
+            "description": "Block any established connections to suspicious external IPs.",
+            "on_completion": "action--e8fa420b-6891-45bc-b3ce-24657b7dbd74",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168"
+        },
+        "action--e8fa420b-6891-45bc-b3ce-24657b7dbd74": {
+            "name": "Update threat intelligence feeds",
+            "description": "Update the threat intelligence feeds from external sources.",
+            "on_completion": "end--b6935d9e-6e50-4f39-abe5-c00ab1635945",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-threat-intel --source external"
+                }
+            ],
+            "agent": "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168",
+            "step_variables": {
+                "source": {
+                    "type": "string",
+                    "description": "The source of the threat intelligence update.",
+                    "value": "external",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b6935d9e-6e50-4f39-abe5-c00ab1635945": {
+            "type": "end"
+        },
+        "while-condition--bef5fbf2-6305-4f8f-a6d5-678cdd65d74e": {
+            "name": "Check scan results",
+            "description": "Repeat the scanning process until a clean result is achieved.",
+            "type": "while-condition",
+            "condition": "scan_is_clean",
+            "on_true": "action--bd64e3c1-d379-4676-bc14-d75e0b9aac6a",
+            "on_false": "action--c5de0cea-95e5-4e6a-a8b3-e8a1f3b2c2ab"
+        }
+    },
+    "agent_definitions": {
+        "organization--3db2baf4-f1b4-4c49-ba56-f51e598d7168": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

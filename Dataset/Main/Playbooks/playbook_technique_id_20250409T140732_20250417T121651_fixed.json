@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fe56a3ec-a82b-4a75-9a8f-88c8e58b43ec",
+    "name": "Response Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability to execute malicious scripts, leading to data exfiltration and establishing a backdoor.",
+    "created_by": "identity--dc7ce153-a208-4606-967c-5c88ef16fb07",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T13:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--aabc4de5-1234-5678-90ab-cdef12345678",
+    "workflow": {
+        "start--aabc4de5-1234-5678-90ab-cdef12345678": {
+            "on_completion": "parallel--ee54b4cc-a419-415f-9de1-a1ba952bc1f5",
+            "type": "start"
+        },
+        "while-condition--efdeabcd-1234-5678-90ab-fedc43215678": {
+            "name": "Scan Until Clean",
+            "description": "Repeat scanning process until the system is confirmed clean.",
+            "on_completion": "if-condition--9876abcd-1234-5678-90ab-fe1234567890",
+            "type": "while-condition",
+            "condition": "scan_status == 'CLEAN'",
+            "on_true": "end--54fc6962-ab96-4fd8-9d10-e02b78abd612",
+            "on_false": "action--4c95d05f-02af-49cd-ab85-36b0947c9c52"
+        },
+        "if-condition--9876abcd-1234-5678-90ab-fe1234567890": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'CLEAN'",
+            "on_true": "end--54fc6962-ab96-4fd8-9d10-e02b78abd612",
+            "on_false": "action--4c95d05f-02af-49cd-ab85-36b0947c9c52"
+        },
+        "parallel--ee54b4cc-a419-415f-9de1-a1ba952bc1f5": {
+            "name": "Execute Mitigations",
+            "description": "Initiate actions for killing malicious processes and removing backdoor service.",
+            "type": "parallel",
+            "next_steps": [
+                "action--eb95c4cc-4c02-49d3-8813-f08aa4f711c3",
+                "action--1a4274e7-177a-4c20-a728-f151a8b37621"
+            ]
+        },
+        "action--eb95c4cc-4c02-49d3-8813-f08aa4f711c3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "action--4c95d05f-02af-49cd-ab85-36b0947c9c52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--85fa266d-a2ef-43f7-83bf-f0cec1747af8"
+        },
+        "action--1a4274e7-177a-4c20-a728-f151a8b37621": {
+            "name": "Remove backdoor service",
+            "description": "Stop and disable the backdoor service installed by the attacker.",
+            "on_completion": "action--4c95d05f-02af-49cd-ab85-36b0947c9c52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl stop malicious_service && systemctl disable malicious_service"
+                }
+            ],
+            "agent": "organization--85fa266d-a2ef-43f7-83bf-f0cec1747af8"
+        },
+        "action--4c95d05f-02af-49cd-ab85-36b0947c9c52": {
+            "name": "Run full system scan",
+            "description": "Perform a scanning session on the entire system to ensure no threats remain.",
+            "on_completion": "end--54fc6962-ab96-4fd8-9d10-e02b78abd612",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--85fa266d-a2ef-43f7-83bf-f0cec1747af8",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The variable represents the status of the scan.",
+                    "value": "PENDING",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "next_steps": "while-condition--efdeabcd-1234-5678-90ab-fedc43215678"
+        },
+        "end--54fc6962-ab96-4fd8-9d10-e02b78abd612": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--85fa266d-a2ef-43f7-83bf-f0cec1747af8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

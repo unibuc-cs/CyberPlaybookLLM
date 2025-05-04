@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1411071-f3e6-4c32-bc4f-b3e7e52a712d",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized commands through a PowerShell script on a compromised host.",
+    "created_by": "identity--0a3a54b3-3988-4a7b-815f-27d6821c172c",
+    "created": "2023-10-25T15:00:00Z",
+    "modified": "2023-10-25T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c282e1ee-847a-42f0-a000-4e28b177a4c7",
+    "workflow": {
+        "start--c282e1ee-847a-42f0-a000-4e28b177a4c7": {
+            "on_completion": "if-condition--69b7d22d-2c4c-44a6-be64-de48dd21408d",
+            "type": "start"
+        },
+        "if-condition--69b7d22d-2c4c-44a6-be64-de48dd21408d": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "running_process('powershell.exe')",
+            "on_true": "action--760bef7f-ec11-4121-9ea6-982fe0650fd3",
+            "on_false": "action--b2d5b64d-3053-48f7-9009-f5eeb4d662be"
+        },
+        "action--760bef7f-ec11-4121-9ea6-982fe0650fd3": {
+            "name": "Kill the malicious PowerShell process",
+            "on_completion": "parallel--dd573829-1763-477d-9496-a47fce226f6c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--fdc68822-6115-47cb-9a41-026ea73e919e"
+        },
+        "action--b2d5b64d-3053-48f7-9009-f5eeb4d662be": {
+            "name": "Delete the suspicious file from temp directory",
+            "description": "Delete the suspicious executable file in the temp folder.",
+            "on_completion": "parallel--dd573829-1763-477d-9496-a47fce226f6c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Temp\\suspicious.exe"
+                }
+            ],
+            "agent": "organization--fdc68822-6115-47cb-9a41-026ea73e919e",
+            "step_variables": {
+                "filepath": {
+                    "type": "string",
+                    "description": "The path of the suspicious file to delete.",
+                    "value": "C:\\Temp\\suspicious.exe",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "parallel--dd573829-1763-477d-9496-a47fce226f6c": {
+            "name": "Consolidate Threat Mitigations",
+            "description": "Perform subsequent actions for threat mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--b9f9cc0f-40f2-45c9-ad52-001564b9b90b",
+                "action--890ecbc9-c568-4b3e-9c3a-028b1313e460"
+            ]
+        },
+        "action--890ecbc9-c568-4b3e-9c3a-028b1313e460": {
+            "name": "Scan the system for additional threats",
+            "description": "Run a full antivirus scan to check for other threats.",
+            "on_completion": "end--b49ac77e-a3e8-4f3a-9188-269cd6fb6f01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--fdc68822-6115-47cb-9a41-026ea73e919e"
+        },
+        "loop--b9f9cc0f-40f2-45c9-ad52-001564b9b90b": {
+            "name": "Block malicious IPs",
+            "description": "Block outbound connections to identified malicious IP addresses.",
+            "type": "while-condition",
+            "condition": "malicious_ips_count > 0",
+            "next_steps": [
+                "action--f1e09a84-0e1f-42a5-bf59-7f7e7305b3ef"
+            ]
+        },
+        "action--f1e09a84-0e1f-42a5-bf59-7f7e7305b3ef": {
+            "name": "Block outbound connections to malicious IPs",
+            "description": "Block outbound connections to identified malicious IP addresses.",
+            "on_completion": "loop--b9f9cc0f-40f2-45c9-ad52-001564b9b90b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name=\"Block Malicious IP\" dir=out action=block remoteip=198.51.100.34"
+                }
+            ],
+            "agent": "organization--fdc68822-6115-47cb-9a41-026ea73e919e"
+        },
+        "action--b10b77d7-2d87-46d5-b6ea-bbb66599a77f": {
+            "name": "Monitor for re-execution attempts",
+            "description": "Set up monitoring for potential re-execution of malicious scripts.",
+            "on_completion": "end--b49ac77e-a3e8-4f3a-9188-269cd6fb6f01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "setup-intrusion-detection --monitor-command-execution"
+                }
+            ],
+            "agent": "organization--fdc68822-6115-47cb-9a41-026ea73e919e",
+            "step_variables": {
+                "duration": {
+                    "type": "string",
+                    "description": "Duration for monitoring.",
+                    "value": "24h",
+                    "constant": false
+                }
+            }
+        },
+        "end--b49ac77e-a3e8-4f3a-9188-269cd6fb6f01": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fdc68822-6115-47cb-9a41-026ea73e919e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

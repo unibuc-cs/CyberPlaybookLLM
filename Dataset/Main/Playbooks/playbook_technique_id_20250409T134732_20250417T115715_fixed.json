@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--26f2c28e-3c3b-4cda-92a4-ffb3bd4cb025",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook handles incidents involving PowerShell command execution leading to potential data exfiltration.",
+    "created_by": "identity--4fb5569c-4a6e-4b4f-b0c7-09f69084e3a0",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e089ba27-4878-4ebb-bc5a-1d5df29dbf44",
+    "workflow": {
+        "start--e089ba27-4878-4ebb-bc5a-1d5df29dbf44": {
+            "on_completion": "if-condition--70a96ff8-0625-4636-962b-027b3c10354e",
+            "type": "start"
+        },
+        "if-condition--70a96ff8-0625-4636-962b-027b3c10354e": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--b3d0fa26-20c3-4c02-b536-e472dc657436",
+            "on_false": "action--4eeeb32b-ae17-4838-b9bd-fd1c44188c0a"
+        },
+        "action--b3d0fa26-20c3-4c02-b536-e472dc657436": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes to stop further execution.",
+            "on_completion": "action--4eeeb32b-ae17-4838-b9bd-fd1c44188c0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a3fa3ee2-0171-45af-9451-bcde14a82914"
+        },
+        "action--4eeeb32b-ae17-4838-b9bd-fd1c44188c0a": {
+            "name": "Delete dropped malicious files",
+            "description": "Remove malicious files dropped by the attacker to prevent further exploitation.",
+            "on_completion": "parallel--e717c3d0-173f-43e2-bde3-b6ffab1235a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--a3fa3ee2-0171-45af-9451-bcde14a82914"
+        },
+        "parallel--e717c3d0-173f-43e2-bde3-b6ffab1235a7": {
+            "name": "Initiate Post-Incident Actions",
+            "description": "Conduct subsequent actions in parallel to enhance security and monitor network activity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1b0f982e-7f55-45f2-bb75-8ecbde6607a0",
+                "action--7086e6d9-ca55-4d8b-8b48-e57a7697a2a7",
+                "action--1a8c24b0-bb39-450e-841c-5341e8ba351e"
+            ]
+        },
+        "action--1b0f982e-7f55-45f2-bb75-8ecbde6607a0": {
+            "name": "Monitor network traffic for unauthorized connections",
+            "description": "Capture any unauthorized outbound connections that may indicate data exfiltration.",
+            "on_completion": "loop--a2df42c8-5b15-4a51-ae9e-aa54b58dc5c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any port 80 or port 443"
+                }
+            ],
+            "agent": "organization--a3fa3ee2-0171-45af-9451-bcde14a82914"
+        },
+        "loop--a2df42c8-5b15-4a51-ae9e-aa54b58dc5c8": {
+            "name": "Repeat network monitoring until clean",
+            "description": "Continue monitoring network traffic until it is confirmed clean.",
+            "type": "while-condition",
+            "condition": "network_scan_indicates_clean",
+            "on_true": "action--1b0f982e-7f55-45f2-bb75-8ecbde6607a0"
+        },
+        "action--7086e6d9-ca55-4d8b-8b48-e57a7697a2a7": {
+            "name": "Perform a full malware scan on affected hosts",
+            "description": "Conduct a comprehensive malware scan on the affected hosts to detect malicious activities.",
+            "on_completion": "action--1a8c24b0-bb39-450e-841c-5341e8ba351e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--a3fa3ee2-0171-45af-9451-bcde14a82914",
+            "step_variables": {
+                "scan_dir": {
+                    "type": "string",
+                    "description": "Directory to perform the malware scan",
+                    "value": "/",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--1a8c24b0-bb39-450e-841c-5341e8ba351e": {
+            "name": "Review logs for suspicious activity",
+            "description": "Examine logs for any unusual activity that may indicate further security incidents.",
+            "on_completion": "end--1f7c0fbc-88ba-45f3-b3f1-d35099a35767",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_command' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--a3fa3ee2-0171-45af-9451-bcde14a82914"
+        },
+        "end--1f7c0fbc-88ba-45f3-b3f1-d35099a35767": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a3fa3ee2-0171-45af-9451-bcde14a82914": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

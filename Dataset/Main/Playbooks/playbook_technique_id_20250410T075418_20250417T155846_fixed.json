@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1c2e70a-2e7a-4eef-9c72-8b7a80f167e0",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook responds to an incident involving unauthorized command execution and privilege escalation through exploited scripts.",
+    "created_by": "identity--7744086b-209c-4a0b-95e1-ac6f6c98f951",
+    "created": "2023-10-06T15:00:00Z",
+    "modified": "2023-10-06T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--bb3c221a-caa0-4c55-95e3-cb1dea0e16f0",
+    "workflow": {
+        "start--bb3c221a-caa0-4c55-95e3-cb1dea0e16f0": {
+            "on_completion": "action--9d8e9d9b-3d0f-4fc6-a682-68e1f4c838ad",
+            "type": "start"
+        },
+        "action--9d8e9d9b-3d0f-4fc6-a682-68e1f4c838ad": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are running the malicious script or payload.",
+            "on_completion": "action--884b7eb3-8f1a-4f02-92c4-44bcce37cbb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_process)"
+                }
+            ],
+            "agent": "organization--e359e2dc-8477-47b0-932b-0f633dc0a84b"
+        },
+        "action--884b7eb3-8f1a-4f02-92c4-44bcce37cbb5": {
+            "name": "Remove dropped files",
+            "description": "Remove any suspicious files dropped by the attacker.",
+            "on_completion": "while-condition--b6e4f29b-1f60-4c39-964a-b70c4e0ce0fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/payload_file"
+                }
+            ],
+            "agent": "organization--e359e2dc-8477-47b0-932b-0f633dc0a84b",
+            "conditional": {
+                "condition": "if [ -e /tmp/payload_file ]"
+            }
+        },
+        "while-condition--b6e4f29b-1f60-4c39-964a-b70c4e0ce0fb": {
+            "name": "Perform system scan",
+            "description": "Continuously scan the system until no threats are detected.",
+            "on_completion": "action--2af23abc-510e-41f6-baba-3fce9a0a8c94",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b6e4f29b-1f60-4c39-964a-b70c4e0ce0fb",
+            "on_false": "action--61d56e26-3e41-4bd7-8b1e-f0740f177817"
+        },
+        "action--2af23abc-510e-41f6-baba-3fce9a0a8c94": {
+            "name": "Reset user permissions",
+            "description": "Restore appropriate permissions for users affected by the breach.",
+            "on_completion": "action--61d56e26-3e41-4bd7-8b1e-f0740f177817",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -G original_group compromised_user"
+                }
+            ],
+            "agent": "organization--e359e2dc-8477-47b0-932b-0f633dc0a84b"
+        },
+        "action--61d56e26-3e41-4bd7-8b1e-f0740f177817": {
+            "name": "Deploy patches",
+            "description": "Deploy all necessary patches to secure the system.",
+            "on_completion": "action--bad43030-12a6-4515-bc63-622d2bfe7b9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "patch-deploy --all"
+                }
+            ],
+            "agent": "organization--29dd729e-2753-4e68-a1a1-8d1140c11073",
+            "step_variables": {
+                "patch_version": {
+                    "type": "string",
+                    "description": "The version of patches deployed",
+                    "value": "1.2.3",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--bad43030-12a6-4515-bc63-622d2bfe7b9a": {
+            "name": "Verify system integrity",
+            "description": "Check the system's integrity after patches are deployed.",
+            "on_completion": "end--cddf0ae6-43d0-4e53-bf3d-ab12412ef33b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity-check"
+                }
+            ],
+            "agent": "organization--29dd729e-2753-4e68-a1a1-8d1140c11073",
+            "conditional": {
+                "condition": "if [ $patch_version = '1.2.3' ]"
+            }
+        },
+        "end--cddf0ae6-43d0-4e53-bf3d-ab12412ef33b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e359e2dc-8477-47b0-932b-0f633dc0a84b": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--29dd729e-2753-4e68-a1a1-8d1140c11073": {
+            "type": "organization",
+            "name": "ABC Patch Management"
+        }
+    }
+}

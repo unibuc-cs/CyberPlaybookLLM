@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c67b1d6d-a459-42cf-a8df-2610aca67399",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts that manipulated system files and exfiltrated sensitive data.",
+    "created_by": "identity--1f394e93-727f-4a6b-8b77-7ef19879ae88",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a1b23f51-c12e-4a7f-aba0-dcc18ae12349",
+    "workflow": {
+        "start--a1b23f51-c12e-4a7f-aba0-dcc18ae12349": {
+            "on_completion": "action--ed8e6d94-0ece-472e-bda2-a555e2b45a82",
+            "type": "start"
+        },
+        "action--ed8e6d94-0ece-472e-bda2-a555e2b45a82": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "action--5ba5f3e1-a6fd-4736-b2c5-23ce7d3c1c82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--5ba5f3e1-a6fd-4736-b2c5-23ce7d3c1c82": {
+            "name": "Isolate affected host from network",
+            "description": "Block all network connections to and from the affected host.",
+            "on_completion": "loop--fa735342-1bb9-45b8-b3a8-a016fac02a1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP; iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--fa735342-1bb9-45b8-b3a8-a016fac02a1a": {
+            "name": "Audit scripts execution",
+            "description": "Audit all scripts executed in the last 24 hours to identify further malicious activities.",
+            "on_true": "action--fa735342-1bb9-45b8-b3a8-a016fac02a1a",
+            "condition": "audit_incomplete",
+            "type": "while-condition",
+            "next_steps": [
+                "action--fa735342-1bb9-45b8-b3a8-a016fac02a1a"
+            ]
+        },
+        "action--fa735342-1bb9-45b8-b3a8-a016fac02a1a": {
+            "name": "Audit all scripts executed in last 24 hours",
+            "description": "Check system logs for any suspicious script executions.",
+            "on_completion": "decision--audit-decision",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'script' /var/log/syslog | grep 'Oct 01' > suspicious_scripts.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "decision--audit-decision": {
+            "name": "Check for suspicious scripts",
+            "type": "if-condition",
+            "condition": "cat suspicious_scripts.log | grep -q 'suspicious_script.ps1'",
+            "on_true": "action--take_action_on_suspicious_scripts",
+            "on_false": "end--complete"
+        },
+        "action--take_action_on_suspicious_scripts": {
+            "name": "Take action on suspicious scripts",
+            "description": "Take appropriate actions based on the findings in suspicious_scripts.log.",
+            "on_completion": "end--complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Action required based on suspicious scripts logged.'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--complete": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

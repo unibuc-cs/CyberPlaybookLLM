@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c197c38b-9950-494e-ab52-6f63c92d200e",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on the compromised server and created a backdoor.",
+    "created_by": "identity--e61f4a56-1fdf-4fc8-aaf3-4a3566c94d73",
+    "created": "2023-10-23T14:45:00Z",
+    "modified": "2023-10-23T14:46:00Z",
+    "revoked": false,
+    "workflow_start": "start--e5cf5e60-245d-4b30-ad44-5c72b0ad6e3f",
+    "workflow": {
+        "start--e5cf5e60-245d-4b30-ad44-5c72b0ad6e3f": {
+            "on_completion": "action--327c1f49-b3c5-4bfa-b3ab-0e42e478c2da",
+            "type": "start"
+        },
+        "action--327c1f49-b3c5-4bfa-b3ab-0e42e478c2da": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious backdoor process running on the server.",
+            "on_completion": "if-condition--6891d0a5-f12a-4cda-b878-8597a708e9e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--fa64f932-5f9e-4544-9b74-29288fd5e7e0"
+        },
+        "if-condition--6891d0a5-f12a-4cda-b878-8597a708e9e6": {
+            "name": "Check if backdoor.sh exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/backdoor.sh ]",
+            "on_true": "action--6891d0a5-f12a-4cda-b878-8597a708e9e6",
+            "on_false": "action--3d85a393-8e1f-4f15-9ee1-3e81707eec9e"
+        },
+        "action--6891d0a5-f12a-4cda-b878-8597a708e9e6": {
+            "name": "Remove dropped files",
+            "description": "Remove malicious script dropped on the server.",
+            "on_completion": "action--3d85a393-8e1f-4f15-9ee1-3e81707eec9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--fa64f932-5f9e-4544-9b74-29288fd5e7e0"
+        },
+        "action--3d85a393-8e1f-4f15-9ee1-3e81707eec9e": {
+            "name": "Run security scan",
+            "description": "Perform a security scan on the system to ensure no additional threats are present.",
+            "on_completion": "while-condition--f23e4d7c-12f5-44dc-972a-9b2f2cd19580",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_results=$(run_scan)"
+                }
+            ],
+            "agent": "organization--fa64f932-5f9e-4544-9b74-29288fd5e7e0",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the security scan.",
+                    "value": "",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "while-condition--f23e4d7c-12f5-44dc-972a-9b2f2cd19580": {
+            "name": "Security Scan Loop",
+            "description": "Repeat the scan until the results show no threats.",
+            "on_completion": "end--8a0250c0-e95f-4c52-b222-2570ffb192c7",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--3d85a393-8e1f-4f15-9ee1-3e81707eec9e",
+            "on_false": "end--8a0250c0-e95f-4c52-b222-2570ffb192c7"
+        },
+        "end--8a0250c0-e95f-4c52-b222-2570ffb192c7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fa64f932-5f9e-4544-9b74-29288fd5e7e0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

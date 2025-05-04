@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1e08847-6247-4564-a9c8-e5c32c7ada5b",
+    "name": "Mitigation Playbook for PowerShell Abuse Incident",
+    "description": "This playbook addresses the incident where an attacker executed malicious PowerShell commands, leading to unauthorized user creation and data exfiltration.",
+    "created_by": "identity--f1e6432b-445d-4bc1-b225-bfa50f96b4a2",
+    "created": "2023-10-15T08:15:30Z",
+    "modified": "2023-10-15T09:00:00Z",
+    "workflow_start": "start--09876543-abcd-4cab-9633-0d4c663c8d9e",
+    "workflow": {
+        "start--09876543-abcd-4cab-9633-0d4c663c8d9e": {
+            "on_completion": "action--f4b9b46a-957f-4a67-8bff-220a3e261d59",
+            "type": "start"
+        },
+        "action--f4b9b46a-957f-4a67-8bff-220a3e261d59": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes currently running.",
+            "on_completion": "parallel--5e9a8493-f134-49ad-a9a1-f294d7e44a44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--5e9a8493-f134-49ad-a9a1-f294d7e44a44": {
+            "name": "Revoke user accounts and scan for malicious activity",
+            "description": "Simultaneously revoke unauthorized user accounts and scan for further malicious activity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84",
+                "action--df0be5fa-b205-4265-a0be-1110a249122e"
+            ]
+        },
+        "action--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84": {
+            "name": "Revoke created user accounts",
+            "description": "Remove all unauthorized user accounts created during the attack.",
+            "on_completion": "condition--user-exists-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r attacker_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "condition--user-exists-check": {
+            "name": "Check if user accounts still exist",
+            "type": "if-condition",
+            "condition": "user_exists(attacker_user)",
+            "on_true": "action--ab6b7cba-d9af-40b7-9ff1-b8b3fbc29d84",
+            "on_false": "action--df0be5fa-b205-4265-a0be-1110a249122e"
+        },
+        "action--df0be5fa-b205-4265-a0be-1110a249122e": {
+            "name": "Scan for further malicious activity",
+            "description": "Perform a scan to detect any remaining malicious activities.",
+            "on_completion": "loop--scan-status-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan()"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan-status-check": {
+            "name": "Check scan status",
+            "description": "Loop until the scan is clean.",
+            "on_completion": "end--c9fade3f-db5e-4e2a-a14e-5dc37de77ec1",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--df0be5fa-b205-4265-a0be-1110a249122e"
+        },
+        "end--c9fade3f-db5e-4e2a-a14e-5dc37de77ec1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

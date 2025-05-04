@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f23b4d21-bf0b-4c96-8c8f-254166e56843",
+    "name": "Mitigation Playbook for Application Layer Protocol Misuse",
+    "description": "This playbook addresses an incident where an attacker leveraged compromised credentials to send command and control traffic over HTTPS, utilizing a trusted application.",
+    "created_by": "identity--7528bf3f-2984-4ad0-9e0e-82d27a467f73",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a546c3e3-b9f6-4594-bfa2-69b3948b11e2",
+    "workflow": {
+        "start--a546c3e3-b9f6-4594-bfa2-69b3948b11e2": {
+            "on_completion": "action--3e4d6eaf-8ec3-463e-9c1b-e991d7ed5c05",
+            "type": "start"
+        },
+        "action--3e4d6eaf-8ec3-463e-9c1b-e991d7ed5c05": {
+            "name": "Kill the suspicious application process",
+            "description": "Terminate the suspicious application if it is running.",
+            "on_completion": "if-condition--c1f78335-1c68-4d31-9a75-956d2fabe7fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill suspicious_app"
+                }
+            ],
+            "agent": "organization--f923883b-5d34-42ad-b4eb-8878f1fb4c59"
+        },
+        "if-condition--c1f78335-1c68-4d31-9a75-956d2fabe7fb": {
+            "name": "Check if the process was killed",
+            "type": "if-condition",
+            "condition": "$(pgrep suspicious_app) != ''",
+            "on_true": "loop--7f234bdd-0ad2-45a4-b66b-ef368a69157e",
+            "on_false": "action--b8c79c11-755c-4936-88b1-fe4ce654c7f2"
+        },
+        "loop--7f234bdd-0ad2-45a4-b66b-ef368a69157e": {
+            "name": "Block outgoing traffic to suspicious IP",
+            "description": "Block outgoing connections to the suspicious IP addresses until traffic is cleared.",
+            "on_completion": "if-condition--c1f78335-1c68-4d31-9a75-956d2fabe7fb",
+            "type": "while-condition",
+            "condition": "traffic_exists",
+            "on_true": "action--7f234bdd-0ad2-45a4-b66b-ef368a69157e",
+            "on_false": "action--b8c79c11-755c-4936-88b1-fe4ce654c7f2"
+        },
+        "action--7f234bdd-0ad2-45a4-b66b-ef368a69157e": {
+            "name": "Block outgoing traffic to suspicious IP addresses",
+            "description": "Block network traffic to identified suspicious external IP addresses.",
+            "on_completion": "if-condition--c1f78335-1c68-4d31-9a75-956d2fabe7fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--f923883b-5d34-42ad-b4eb-8878f1fb4c59"
+        },
+        "action--b8c79c11-755c-4936-88b1-fe4ce654c7f2": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a comprehensive system scan to identify any further compromises.",
+            "on_completion": "end--b84a0689-efb3-4771-9653-432bb80c6e77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r / > scan_report"
+                }
+            ],
+            "agent": "organization--f923883b-5d34-42ad-b4eb-8878f1fb4c59",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The variable contains the scan report generated from the scan.",
+                    "value": "scan_report",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--b84a0689-efb3-4771-9653-432bb80c6e77": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f923883b-5d34-42ad-b4eb-8878f1fb4c59": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

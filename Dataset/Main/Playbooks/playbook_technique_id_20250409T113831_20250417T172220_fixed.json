@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7c29d41-cb68-4f55-94ff-4f5ed89f8cc8",
+    "name": "Mitigation Playbook for Log Deletion and Obfuscation Attack",
+    "description": "This playbook responds to an incident involving an attacker who deleted logs and altered system files to cover their tracks. It includes steps to restore logs, check integrity, and monitor for further unauthorized access.",
+    "created_by": "identity--abcdef01-1234-5678-9101-abcdef123456",
+    "created": "2023-10-21T15:00:00Z",
+    "modified": "2023-10-21T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1c23d51-c12e-4a7f-aba0-dcc18ae10123",
+    "workflow": {
+        "start--f1c23d51-c12e-4a7f-aba0-dcc18ae10123": {
+            "on_completion": "parallel--c74a0e12-a7ed-4b51-a51e-67872cbbd23e",
+            "type": "start"
+        },
+        "parallel--c74a0e12-a7ed-4b51-a51e-67872cbbd23e": {
+            "name": "Execute Mitigations",
+            "description": "Restore logs and check integrity while monitoring for further unauthorized access.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a7c29d41-cb68-4f55-94ff-4f5ed89f8cc8",
+                "action--b595c5ec-8129-4926-8c44-961ae1e84932",
+                "action--c8b4e2f4-f275-4ff6-81ee-9c77f659c018"
+            ]
+        },
+        "action--a7c29d41-cb68-4f55-94ff-4f5ed89f8cc8": {
+            "name": "Restore deleted logs from backup",
+            "description": "Restore system logs from backup to recover deleted log files.",
+            "on_completion": "action--b595c5ec-8129-4926-8c44-961ae1e84932",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/logs/* /var/logs/"
+                }
+            ],
+            "agent": "organization--4ce26d00-6bff-4b06-a9c1-fd513a916458"
+        },
+        "action--b595c5ec-8129-4926-8c44-961ae1e84932": {
+            "name": "Run integrity check on system files",
+            "description": "Perform an integrity check to ensure system files haven't been altered.",
+            "on_completion": "if-condition--a77aee2f-b7e9-4f4b-b41e-2ea5ac52181d",
+            "type": "action",
+            "loop": {
+                "on_completion": "if-condition--end-check",
+                "condition": "scan_clean == false"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "md5sum -c /etc/integrity_hashes.txt && echo 'scan_clean=true'"
+                }
+            ],
+            "agent": "organization--4ce26d00-6bff-4b06-a9c1-fd513a916458",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the integrity scan completed cleanly.",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--c8b4e2f4-f275-4ff6-81ee-9c77f659c018": {
+            "name": "Monitor for further unauthorized access attempts",
+            "description": "Continuously monitor the authentication log for any unauthorized access attempts.",
+            "on_completion": "end--e8cdb62d-bd68-4f77-acf5-bc1602fd029b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -F /var/log/auth.log | grep 'failed login'"
+                }
+            ],
+            "agent": "organization--4ce26d00-6bff-4b06-a9c1-fd513a916458",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "Path to the authentication log file.",
+                    "value": "/var/log/auth.log",
+                    "constant": true,
+                    "external": false
+                }
+            }
+        },
+        "end--e8cdb62d-bd68-4f77-acf5-bc1602fd029b": {
+            "type": "end"
+        },
+        "if-condition--a77aee2f-b7e9-4f4b-b41e-2ea5ac52181d": {
+            "name": "Check integrity scan results",
+            "type": "if-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--b595c5ec-8129-4926-8c44-961ae1e84932",
+            "on_false": "end--e8cdb62d-bd68-4f77-acf5-bc1602fd029b"
+        }
+    },
+    "agent_definitions": {
+        "organization--4ce26d00-6bff-4b06-a9c1-fd513a916458": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

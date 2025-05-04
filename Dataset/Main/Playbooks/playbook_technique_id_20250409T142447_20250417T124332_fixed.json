@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4dea22e-8a6e-48e5-8efc-3c84e232b8e0",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited PowerShell to execute malicious scripts and exfiltrate sensitive information.",
+    "created_by": "identity--32fc2f38-15b9-4c4e-86c8-fcb8d938a379",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--174f8b14-558d-4bb6-89cc-044b451680fc",
+    "workflow": {
+        "start--174f8b14-558d-4bb6-89cc-044b451680fc": {
+            "on_completion": "if-condition--1a1971b6-4abc-4310-8cbc-0087cee5a3e8",
+            "type": "start"
+        },
+        "if-condition--1a1971b6-4abc-4310-8cbc-0087cee5a3e8": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "ps -ef | grep 'powershell' | wc -l > 0",
+            "on_true": "action--1e48fb41-7b52-42e9-b292-dc69e44dc2ae",
+            "on_false": "action--9eecfe42-8ab4-4a33-933c-2f555a9555d4"
+        },
+        "action--1e48fb41-7b52-42e9-b292-dc69e44dc2ae": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be used for malicious purposes.",
+            "on_completion": "action--9eecfe42-8ab4-4a33-933c-2f555a9555d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--945c3f8b-9776-4bcb-a507-2ecb1bb06e5c"
+        },
+        "action--9eecfe42-8ab4-4a33-933c-2f555a9555d4": {
+            "name": "Isolate affected host from network",
+            "description": "Block the host from the network to prevent further data exfiltration.",
+            "on_completion": "loop--4bc46594-5893-4e95-8769-ac39da1d971f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--945c3f8b-9776-4bcb-a507-2ecb1bb06e5c"
+        },
+        "loop--4bc46594-5893-4e95-8769-ac39da1d971f": {
+            "name": "Run full antivirus scan",
+            "description": "Perform a full antivirus scan on the affected host until it is clean.",
+            "on_completion": "if-condition--00ae2a3d-eeb8-4f34-b3c0-63504bb117af",
+            "type": "while-condition",
+            "condition": "antivirus --status | grep -q 'clean'",
+            "on_true": "end--e5a7b728-5ea4-43c6-9f17-b72f1d2ef245"
+        },
+        "action--4bc46594-5893-4e95-8769-ac39da1d971f": {
+            "name": "Run Antivirus Scan",
+            "on_completion": "loop--4bc46594-5893-4e95-8769-ac39da1d971f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan /"
+                }
+            ],
+            "agent": "organization--945c3f8b-9776-4bcb-a507-2ecb1bb06e5c"
+        },
+        "if-condition--00ae2a3d-eeb8-4f34-b3c0-63504bb117af": {
+            "name": "Review network logs for suspicious outbound connections",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'OUTBOUND' network_logs.log"
+                }
+            ],
+            "step_variables": {
+                "last_extraction_time": "2023-10-10T14:22:10Z"
+            },
+            "on_completion": "end--e5a7b728-5ea4-43c6-9f17-b72f1d2ef245",
+            "agent": "organization--945c3f8b-9776-4bcb-a507-2ecb1bb06e5c"
+        },
+        "end--e5a7b728-5ea4-43c6-9f17-b72f1d2ef245": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--945c3f8b-9776-4bcb-a507-2ecb1bb06e5c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

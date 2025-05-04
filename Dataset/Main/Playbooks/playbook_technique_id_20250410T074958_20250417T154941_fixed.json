@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c03e9c83-b5c3-4a5b-b129-e3055f337d68",
+    "name": "Mitigation Playbook for Unauthorized Shell Command Execution",
+    "description": "This playbook addresses the incident of unauthorized shell command execution through a web application vulnerability, aiming to terminate unauthorized processes, isolate the affected host, restore the system, and enhance security.",
+    "created_by": "identity--e32c54c2-2e6f-4481-b95d-9b2f937afae7",
+    "created": "2023-11-01T11:00:00Z",
+    "modified": "2023-11-01T11:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fe2c5a2a-b220-4ee3-babe-d0f5e4cb1fb8",
+    "workflow": {
+        "start--fe2c5a2a-b220-4ee3-babe-d0f5e4cb1fb8": {
+            "on_completion": "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8",
+            "type": "start"
+        },
+        "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8": {
+            "name": "Terminate unauthorized shell processes",
+            "description": "Terminate any unauthorized shell processes that may be running.",
+            "on_completion": "decision--4dbe9ed7-4102-4f94-8416-d4017578c684",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_shell"
+                }
+            ],
+            "agent": "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71"
+        },
+        "decision--4dbe9ed7-4102-4f94-8416-d4017578c684": {
+            "name": "Check if host needs isolation",
+            "type": "if-condition",
+            "condition": "if [ $(netstat -tuln | grep ':80') ]; then",
+            "on_true": "action--4dbe9ed7-4102-4f94-8416-d4017578c684",
+            "on_false": "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492"
+        },
+        "action--4dbe9ed7-4102-4f94-8416-d4017578c684": {
+            "name": "Identify and isolate compromised host",
+            "description": "Bring down the network interface to isolate any compromised host.",
+            "on_completion": "parallel--2819fea6-9dac-4d82-8cbc-1a7f5e1d543f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71"
+        },
+        "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492": {
+            "name": "Restore system from known clean state",
+            "description": "Restore the system to a known clean state using the latest backup.",
+            "on_completion": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash restore_backup.sh"
+                }
+            ],
+            "agent": "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71"
+        },
+        "parallel--2819fea6-9dac-4d82-8cbc-1a7f5e1d543f": {
+            "name": "Scan for persistence mechanisms and update policies",
+            "description": "Scan for persistence mechanisms and update security policies in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f",
+                "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9"
+            ]
+        },
+        "action--2819fea6-9dac-4d82-8cbc-1a7f5e1d543f": {
+            "name": "Scan for persistence mechanisms",
+            "description": "Identify any persistence mechanisms left by the attacker.",
+            "on_completion": "loop--d9f50cc4-d534-4da7-8ca9-994a7f3ecfc3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' | xargs grep 'backdoor' | tee backdoor_results.txt"
+                }
+            ],
+            "agent": "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71"
+        },
+        "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9": {
+            "name": "Update security policy to log shell access attempts",
+            "description": "Enhance security policy to ensure logging of unauthorized shell access attempts.",
+            "on_completion": "end--0cd41907-3c67-482f-ac54-b4cfe0e4f521",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'logging enabled' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71"
+        },
+        "loop--d9f50cc4-d534-4da7-8ca9-994a7f3ecfc3": {
+            "name": "Scan Loop Until Clean",
+            "description": "Continue scanning for backdoors until the system is clean.",
+            "type": "while-condition",
+            "condition": "! grep -q 'backdoor' backdoor_results.txt",
+            "on_true": "action--2819fea6-9dac-4d82-8cbc-1a7f5e1d543f",
+            "on_false": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9"
+        },
+        "end--0cd41907-3c67-482f-ac54-b4cfe0e4f521": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ac8796e2-4f4d-4775-9316-ec74f9c0ab71": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

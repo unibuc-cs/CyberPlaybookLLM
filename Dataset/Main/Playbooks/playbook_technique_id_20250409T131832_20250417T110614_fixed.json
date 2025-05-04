@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4e5cfe1-0d14-4186-bfce-5276a90f0237",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands on an internal server to extract sensitive data.",
+    "created_by": "identity--dccc9f56-6462-4cec-a1e6-b3474e0da03c",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "decision--9d5fa6e1-3374-4195-989c-32cd34ccd2c3",
+            "type": "start"
+        },
+        "decision--9d5fa6e1-3374-4195-989c-32cd34ccd2c3": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "powershell_process_running == true",
+            "on_true": "action--ab106c71-96ef-4047-82e9-8cea76dd5660",
+            "on_false": "action--b96e8782-4145-44d3-a3cd-58020b05098b"
+        },
+        "action--ab106c71-96ef-4047-82e9-8cea76dd5660": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be malicious.",
+            "on_completion": "parallel--5eaa710e-b80f-4c5c-b921-7fc0be4d43f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--f4dda31e-4db7-47b4-aaae-754ce0cddcc2"
+        },
+        "action--b96e8782-4145-44d3-a3cd-58020b05098b": {
+            "name": "Isolate infected host",
+            "description": "Take the infected host offline to prevent further damage.",
+            "on_completion": "parallel--5eaa710e-b80f-4c5c-b921-7fc0be4d43f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down && systemctl stop networking"
+                }
+            ],
+            "agent": "organization--f4dda31e-4db7-47b4-aaae-754ce0cddcc2"
+        },
+        "parallel--5eaa710e-b80f-4c5c-b921-7fc0be4d43f1": {
+            "name": "Initiate isolation and scanning processes",
+            "type": "parallel",
+            "next_steps": [
+                "action--60e5d656-f0a3-4aa3-907b-fb4cb7df9bfb"
+            ]
+        },
+        "action--60e5d656-f0a3-4aa3-907b-fb4cb7df9bfb": {
+            "name": "Perform full system scan",
+            "description": "Perform a complete system scan for malware.",
+            "on_completion": "while-condition--920fef74-5342-4a00-a5bc-0fff609e8f3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav_scan.sh"
+                }
+            ],
+            "agent": "organization--f4dda31e-4db7-47b4-aaae-754ce0cddcc2"
+        },
+        "while-condition--920fef74-5342-4a00-a5bc-0fff609e8f3d": {
+            "name": "Repeat until scan is clean",
+            "description": "Continue scanning until no threats are found.",
+            "on_completion": "end--5c9120c9-92a1-4e24-84d8-a7e743fabb55",
+            "type": "while-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--5c9120c9-92a1-4e24-84d8-a7e743fabb55",
+            "on_false": "action--60e5d656-f0a3-4aa3-907b-fb4cb7df9bfb"
+        },
+        "end--5c9120c9-92a1-4e24-84d8-a7e743fabb55": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f4dda31e-4db7-47b4-aaae-754ce0cddcc2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "powershell_process_running": {
+            "type": "boolean",
+            "description": "Indicates if the malicious PowerShell process is running.",
+            "value": "true",
+            "constant": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Stores the result of the malware scan.",
+            "value": "dirty",
+            "constant": false
+        }
+    }
+}

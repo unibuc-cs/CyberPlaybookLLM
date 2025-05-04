@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6c6c5f0-4531-4c2c-87bb-f1f8c4c12367",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized commands executed via a scripting interpreter.",
+    "created_by": "identity--9646004b-2dc2-4113-b431-6a0f138d40a0",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5aa5a1ec-09fd-4ecd-ab34-4768e5070f30",
+    "workflow": {
+        "parallel--f9eabcd2-8f67-4c30-a658-aba5f61801af": {
+            "name": "Execute Mitigations",
+            "description": "Simultaneously execute actions to terminate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b34a5529-909a-4908-b4c4-224bbb0477de",
+                "action--e8cfc50a-f5b9-43ee-abc9-d0a671012727"
+            ]
+        },
+        "action--b34a5529-909a-4908-b4c4-224bbb0477de": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that executed unauthorized commands.",
+            "on_completion": "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--e91814bd-fcbb-4f4b-8e47-cb4024f5c3c5"
+        },
+        "action--e8cfc50a-f5b9-43ee-abc9-d0a671012727": {
+            "name": "Isolate host from the network",
+            "description": "Block all network traffic to and from the host to prevent further command execution.",
+            "on_completion": "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 0.0.0.0/0 -j DROP"
+                }
+            ],
+            "agent": "organization--e91814bd-fcbb-4f4b-8e47-cb4024f5c3c5"
+        },
+        "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7": {
+            "name": "Run malware scan",
+            "description": "Scan the system for malware and malicious scripts.",
+            "on_completion": "if-condition--2d8b61fe-a2ae-4c92-898a-00af456ea56d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/suspicious/files"
+                }
+            ],
+            "agent": "organization--e91814bd-fcbb-4f4b-8e47-cb4024f5c3c5",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Indicates if malware was found during scan.",
+                    "value": "malware_found",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--5aa5a1ec-09fd-4ecd-ab34-4768e5070f30": {
+            "on_completion": "parallel--f9eabcd2-8f67-4c30-a658-aba5f61801af",
+            "type": "start"
+        },
+        "if-condition--2d8b61fe-a2ae-4c92-898a-00af456ea56d": {
+            "name": "Check for Malware",
+            "description": "Determine if malware was detected in the scan results.",
+            "type": "if-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7",
+            "on_false": "end--ff23f3a7-2597-4ca1-94f3-8e4919ed70a3"
+        },
+        "end--ff23f3a7-2597-4ca1-94f3-8e4919ed70a3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e91814bd-fcbb-4f4b-8e47-cb4024f5c3c5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

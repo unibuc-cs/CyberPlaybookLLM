@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8d1c60b-2345-4341-93a4-1a4d6e50702f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts leading to data exfiltration and system compromise.",
+    "created_by": "identity--92b48369-362f-4225-aa7a-26dca09806c3",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--125c430a-dd8f-4f5c-a9d7-e9bf4ae9f6f3",
+    "workflow": {
+        "action--f4d508d7-9d01-4f5a-b193-1c56ce3a299e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--e55c5fca-ad59-45c8-a8b9-55719afe90ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--20b4cb00-2e78-42a3-96e6-c80c9901f19c"
+        },
+        "if-condition--e55c5fca-ad59-45c8-a8b9-55719afe90ef": {
+            "name": "Check if hosts are affected",
+            "type": "if-condition",
+            "condition": "hosts_affected == true",
+            "on_true": "loop--9e6b35c5-1f02-4426-a718-b8225c3fc735",
+            "on_false": "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219"
+        },
+        "action--e55c5fca-ad59-45c8-a8b9-55719afe90ef": {
+            "name": "Isolate affected hosts",
+            "description": "Bring down the network interface of the affected hosts.",
+            "on_completion": "loop--9e6b35c5-1f02-4426-a718-b8225c3fc735",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down && ifconfig host-02 down"
+                }
+            ],
+            "agent": "organization--20b4cb00-2e78-42a3-96e6-c80c9901f19c"
+        },
+        "action--7b329af0-a2a4-4a2e-9827-7e9c60eaa219": {
+            "name": "Perform comprehensive malware scan",
+            "description": "Conduct a thorough malware scan after isolation of affected hosts.",
+            "on_completion": "end--ba7bc10d-0197-4edf-bdcc-d04b2d314c5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --bell"
+                }
+            ],
+            "agent": "organization--20b4cb00-2e78-42a3-96e6-c80c9901f19c"
+        },
+        "start--125c430a-dd8f-4f5c-a9d7-e9bf4ae9f6f3": {
+            "on_completion": "action--f4d508d7-9d01-4f5a-b193-1c56ce3a299e",
+            "type": "start"
+        },
+        "loop--9e6b35c5-1f02-4426-a718-b8225c3fc735": {
+            "name": "Isolate affected hosts loop",
+            "on_completion": "if-condition--7b329af0-a2a4-4a2e-9827-7e9c60eaa219",
+            "type": "while-condition",
+            "condition": "isolation_confirmed == false",
+            "on_true": "action--e55c5fca-ad59-45c8-a8b9-55719afe90ef"
+        },
+        "end--ba7bc10d-0197-4edf-bdcc-d04b2d314c5f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--20b4cb00-2e78-42a3-96e6-c80c9901f19c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "hosts_affected": {
+            "type": "boolean",
+            "description": "Indicates whether any hosts are affected by the attack.",
+            "value": true,
+            "constant": false
+        },
+        "isolation_confirmed": {
+            "type": "boolean",
+            "description": "Indicates if the isolation of affected hosts has been confirmed.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1f15c71-9e4c-4e99-a1f3-c0f1d1e11d99",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker executed a malicious script through a misconfigured web server, leading to unauthorized file access and data exfiltration.",
+    "created_by": "identity--4fa89f2e-5c93-4dd3-adf4-4c39c82405f7",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d0c2b9bc-d9bb-462e-b756-9ac8924d7dcf",
+    "workflow": {
+        "start--d0c2b9bc-d9bb-462e-b756-9ac8924d7dcf": {
+            "on_completion": "action--bf1e8e23-cc4a-411c-8b6d-d1c964e3e579",
+            "type": "start"
+        },
+        "action--bf1e8e23-cc4a-411c-8b6d-d1c964e3e579": {
+            "name": "Kill the malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--e2c69a92-e9b1-40c9-9a58-61ac5e198646",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--24b47e7a-1b82-4de8-859b-7c1cc08bf9bb"
+        },
+        "action--e2c69a92-e9b1-40c9-9a58-61ac5e198646": {
+            "name": "Run an integrity check on affected files",
+            "description": "Check the integrity of sensitive files to ensure they have not been tampered with.",
+            "on_completion": "if-condition--c986e299-b3b3-4e21-9b36-c133badac1f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity_check --target /sensitive/path/config.txt"
+                }
+            ],
+            "agent": "organization--24b47e7a-1b82-4de8-859b-7c1cc08bf9bb"
+        },
+        "action--d3419d83-dbb7-44ae-b0de-962a3174eabc": {
+            "name": "Alert the security team and initiate a system scan",
+            "description": "Send an alert and start a full system scan to check for further threats.",
+            "on_completion": "while-condition--6ebee88f-4acf-4ec7-82b1-cebd340b70ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --team security --message 'Malicious activity detected'"
+                }
+            ],
+            "agent": "organization--24b47e7a-1b82-4de8-859b-7c1cc08bf9bb"
+        },
+        "end--87c1f633-5c2f-42c9-bb06-5e83e0462557": {
+            "type": "end"
+        },
+        "if-condition--c986e299-b3b3-4e21-9b36-c133badac1f9": {
+            "name": "Check if integrity check passed",
+            "type": "if-condition",
+            "condition": "integrity_check_result != 'ok'",
+            "on_true": "action--d3419d83-dbb7-44ae-b0de-962a3174eabc",
+            "on_false": "end--87c1f633-5c2f-42c9-bb06-5e83e0462557"
+        },
+        "while-condition--6ebee88f-4acf-4ec7-82b1-cebd340b70ab": {
+            "name": "Check if scan is clean",
+            "description": "Repeat scanning until the system is clean from threats.",
+            "on_completion": "end--87c1f633-5c2f-42c9-bb06-5e83e0462557",
+            "type": "while-condition",
+            "condition": "scan_status == 'initial'",
+            "on_true": "action--3627b227-fc7f-41c4-af45-a38b8eefd6ea"
+        },
+        "action--3627b227-fc7f-41c4-af45-a38b8eefd6ea": {
+            "name": "Run full system scan",
+            "description": "Execute a comprehensive system scan for malicious activities.",
+            "on_completion": "while-condition--6ebee88f-4acf-4ec7-82b1-cebd340b70ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_system_scan"
+                }
+            ],
+            "agent": "organization--24b47e7a-1b82-4de8-859b-7c1cc08bf9bb"
+        }
+    },
+    "agent_definitions": {
+        "organization--24b47e7a-1b82-4de8-859b-7c1cc08bf9bb": {
+            "type": "organization",
+            "name": "SecurityTeamXYZ"
+        }
+    }
+}

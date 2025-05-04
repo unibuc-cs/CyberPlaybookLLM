@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f83abf3b-3657-4efb-9429-e4b875b9d38f",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to extract sensitive data. It implements actions for terminating malicious processes, isolating affected hosts, scanning for malware, reviewing logs, and changing passwords for compromised accounts.",
+    "created_by": "identity--0b5eda21-cd7a-41b4-b2b6-caa51409cb36",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1c0d098-2a5d-4d88-a610-2935cec12034",
+    "workflow": {
+        "start--f1c0d098-2a5d-4d88-a610-2935cec12034": {
+            "on_completion": "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530",
+            "type": "start"
+        },
+        "end--5f3c8aba-dc2a-489b-8f49-2fb04f0b3c54": {
+            "type": "end"
+        },
+        "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530": {
+            "name": "Execute Mitigation Actions",
+            "description": "Execute actions in parallel to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1c0a877-7749-4c0c-b0d7-17e075b3d0c4",
+                "action--dde01841-d77b-4306-81be-41ba8d6e575b",
+                "action--a246b3a1-434b-49fa-86f3-67dc6b9fe38b",
+                "action--f3f75ad7-5a51-4cfa-bbc2-36d7fb96c2e8",
+                "action--39ec0619-e5c9-47e7-b18d-92c9a6c42f1c"
+            ]
+        },
+        "action--b1c0a877-7749-4c0c-b0d7-17e075b3d0c4": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the process associated with the detected malicious PowerShell command.",
+            "on_completion": "action--dde01841-d77b-4306-81be-41ba8d6e575b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--1a036d38-5404-4613-a903-5420d194e343"
+        },
+        "action--dde01841-d77b-4306-81be-41ba8d6e575b": {
+            "name": "Isolate Affected Host",
+            "description": "Isolate the host where the malicious activity was detected.",
+            "on_completion": "action--a246b3a1-434b-49fa-86f3-67dc6b9fe38b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then echo 'Isolating...' && iptables -A INPUT -s 192.168.1.10 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--1a036d38-5404-4613-a903-5420d194e343"
+        },
+        "action--a246b3a1-434b-49fa-86f3-67dc6b9fe38b": {
+            "name": "Scan System for Malware",
+            "description": "Perform a malware scan and repeat until the system is clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/check"
+                }
+            ],
+            "agent": "organization--1a036d38-5404-4613-a903-5420d194e343",
+            "loop": {
+                "condition": "scan_result != 'clean'",
+                "loop_until": "scan_result == 'clean'"
+            }
+        },
+        "action--f3f75ad7-5a51-4cfa-bbc2-36d7fb96c2e8": {
+            "name": "Review User Access Logs",
+            "description": "Check user access logs for signs of suspicious activity.",
+            "on_completion": "action--39ec0619-e5c9-47e7-b18d-92c9a6c42f1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'failed login'"
+                }
+            ],
+            "agent": "organization--1a036d38-5404-4613-a903-5420d194e343",
+            "conditional": {
+                "condition": "suspicious_activity_found",
+                "on_true": "action--39ec0619-e5c9-47e7-b18d-92c9a6c42f1c"
+            }
+        },
+        "action--39ec0619-e5c9-47e7-b18d-92c9a6c42f1c": {
+            "name": "Change Passwords for Compromised Accounts",
+            "description": "Reset passwords for accounts that may have been compromised.",
+            "on_completion": "end--5f3c8aba-dc2a-489b-8f49-2fb04f0b3c54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'change password for user account'"
+                }
+            ],
+            "agent": "organization--1a036d38-5404-4613-a903-5420d194e343"
+        }
+    },
+    "agent_definitions": {
+        "organization--1a036d38-5404-4613-a903-5420d194e343": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

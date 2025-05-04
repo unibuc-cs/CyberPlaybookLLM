@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2709a1e-edc5-4331-9146-a003877fa7ca",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, diverting traffic to a malicious server for potential data exfiltration.",
+    "created_by": "identity--5628190d-0fcd-4558-969e-0b8727264ee0",
+    "created": "2023-10-09T08:55:35.498Z",
+    "modified": "2023-10-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--7d241962-148d-4e30-bc2a-3422cbb723c7",
+    "workflow": {
+        "action--16b8fbbc-92a8-4eef-b369-917c19544a09": {
+            "name": "Block outbound connection to malicious IP",
+            "description": "Block all outbound traffic to the malicious IP address to prevent further communication.",
+            "on_completion": "if-condition--3a857b8c-b2f9-432b-a642-160f374b3d3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--b6b2e6f1-09f2-4d63-bb70-dd1ea89a5b56"
+        },
+        "if-condition--3a857b8c-b2f9-432b-a642-160f374b3d3a": {
+            "name": "Analyze traffic logs for suspicious activity",
+            "type": "if-condition",
+            "condition": "if suspicious activity detected",
+            "on_true": "action--3a857b8c-b2f9-432b-a642-160f374b3d3a",
+            "on_false": "action--f9c7df3c-acbb-4d0b-9b5e-3ddc5082cb09"
+        },
+        "action--3a857b8c-b2f9-432b-a642-160f374b3d3a": {
+            "name": "Investigate traffic logs",
+            "description": "Analyze traffic logs to understand the details of the suspicious outbound connections.",
+            "on_completion": "action--f9c7df3c-acbb-4d0b-9b5e-3ddc5082cb09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep '192.0.2.1' /var/log/traffic.log"
+                }
+            ],
+            "agent": "organization--b6b2e6f1-09f2-4d63-bb70-dd1ea89a5b56"
+        },
+        "action--f9c7df3c-acbb-4d0b-9b5e-3ddc5082cb09": {
+            "name": "Isolate affected system for further investigation",
+            "description": "Shut down the affected system to prevent further data exfiltration.",
+            "on_completion": "end--7476b8ca-b1f7-4745-af35-fe40a3be4140",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh root@host-15 'shutdown -h now'"
+                }
+            ],
+            "agent": "organization--b6b2e6f1-09f2-4d63-bb70-dd1ea89a5b56",
+            "loop": {
+                "repeat": {
+                    "until": "investigation_complete",
+                    "next_steps": [
+                        "action--3a857b8c-b2f9-432b-a642-160f374b3d3a"
+                    ]
+                }
+            }
+        },
+        "start--7d241962-148d-4e30-bc2a-3422cbb723c7": {
+            "on_completion": "action--16b8fbbc-92a8-4eef-b369-917c19544a09",
+            "type": "start"
+        },
+        "end--7476b8ca-b1f7-4745-af35-fe40a3be4140": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b6b2e6f1-09f2-4d63-bb70-dd1ea89a5b56": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

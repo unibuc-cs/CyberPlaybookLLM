@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--13e92577-cf3b-4c39-82df-f6c09e3c034a",
+    "name": "OS Credential Dumping Mitigation Playbook",
+    "description": "This playbook addresses OS Credential Dumping incidents, specifically from LSASS Memory.",
+    "created_by": "identity--411c96be-dd74-4f6a-8a2d-4d54d324e627",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1e4f69a-3dfc-4212-961c-18f9f33189b2",
+    "workflow": {
+        "start--b1e4f69a-3dfc-4212-961c-18f9f33189b2": {
+            "on_completion": "action--ab45e240-ecf1-4e16-9158-e7a72e6870ba",
+            "type": "start"
+        },
+        "action--ab45e240-ecf1-4e16-9158-e7a72e6870ba": {
+            "name": "Kill malicious process accessing LSASS",
+            "description": "Terminate the malicious process that is attempting to dump credentials.",
+            "on_completion": "action--b625677c-ef9e-4b9e-a891-1ce8b035e7ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f lsass.exe"
+                }
+            ],
+            "agent": "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19"
+        },
+        "action--b625677c-ef9e-4b9e-a891-1ce8b035e7ae": {
+            "name": "Initiate memory scan for malicious activity",
+            "description": "Run a memory scan on the LSASS process to find any malicious remnants.",
+            "on_completion": "while-condition--c6a4ab68-e227-4e85-83bf-097248b7669b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "memscanner --scan --target lsass.exe"
+                }
+            ],
+            "agent": "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19"
+        },
+        "action--845ae6c8-a12b-4a2b-828e-a6bfb9e21aec": {
+            "name": "Review system logs for unauthorized access",
+            "description": "Check system logs for any unauthorized access attempts.",
+            "on_completion": "if-condition--09451c98-1d3d-4228-9724-cdc2b43bde1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'Unauthorized Access' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19"
+        },
+        "action--b32e0cf5-fb15-48f3-8b7d-a759f405eb3b": {
+            "name": "Isolate affected host from network",
+            "description": "Take actions to isolate the suspicious host to prevent further incidents.",
+            "on_completion": "action--d59762fc-ba22-4569-8dcd-5424d8f5cb9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-42 -j DROP"
+                }
+            ],
+            "agent": "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19"
+        },
+        "action--d59762fc-ba22-4569-8dcd-5424d8f5cb9a": {
+            "name": "Notify security team of potential breach",
+            "description": "Send a notification to the security team about the detected breach.",
+            "on_completion": "end--b0a4e210-b4bf-4417-b3f8-168d44c5ae4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification --team 'Security' --message 'Potential breach detected on host-42'"
+                }
+            ],
+            "agent": "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19"
+        },
+        "end--b0a4e210-b4bf-4417-b3f8-168d44c5ae4e": {
+            "type": "end"
+        },
+        "while-condition--c6a4ab68-e227-4e85-83bf-097248b7669b": {
+            "name": "Repeat memory scan until clean",
+            "on_true": "action--b625677c-ef9e-4b9e-a891-1ce8b035e7ae",
+            "condition": "scan_results != 'clean'",
+            "type": "while-condition"
+        },
+        "if-condition--09451c98-1d3d-4228-9724-cdc2b43bde1e": {
+            "name": "If unauthorized access found",
+            "type": "if-condition",
+            "condition": "unauthorized_access_found == true",
+            "on_true": "action--b32e0cf5-fb15-48f3-8b7d-a759f405eb3b",
+            "on_false": "action--d59762fc-ba22-4569-8dcd-5424d8f5cb9a"
+        }
+    },
+    "agent_definitions": {
+        "organization--1789399e-09c8-4b4d-80a8-b2a571da5a19": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--84d9be6a-cd6c-4df8-ac68-bfa87a065112",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook coordinates various actions to mitigate a detected malicious script execution attack.",
+    "created_by": "identity--5fbb0288-9c1e-4b8f-a9fe-33f18aed5ae4",
+    "created": "2023-10-18T14:30:00Z",
+    "modified": "2023-10-18T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--109e6f8b-1234-4fcb-9e2c-b0e80bd4321f",
+    "workflow": {
+        "start--109e6f8b-1234-4fcb-9e2c-b0e80bd4321f": {
+            "on_completion": "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68",
+            "type": "start"
+        },
+        "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68": {
+            "name": "Terminate PowerShell Processes",
+            "description": "Kill all running PowerShell processes that might be malicious.",
+            "on_completion": "parallel--395c64f2-3c86-41a1-8b30-575c500281dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for pid in $(pgrep -x PowerShell); do kill -9 $pid; done"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--395c64f2-3c86-41a1-8b30-575c500281dd": {
+            "name": "Concurrent Mitigation Steps",
+            "description": "Execute multiple remediation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "decision--e7b74ebf-188b-46e3-96f1-537e19752504",
+                "loop--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+                "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce",
+                "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65"
+            ]
+        },
+        "decision--e7b74ebf-188b-46e3-96f1-537e19752504": {
+            "name": "Check Compromise Condition",
+            "description": "Conditionally change access permissions if the files are compromised.",
+            "type": "if-condition",
+            "condition": "compromised",
+            "on_true": "action--3427c9bc-3b51-42e0-bf0e-90746dce3678",
+            "on_false": "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42"
+        },
+        "action--3427c9bc-3b51-42e0-bf0e-90746dce3678": {
+            "name": "Change Access Permissions for Sensitive Directories",
+            "description": "Restrict access to sensitive file directories.",
+            "on_completion": "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /sensitive_data/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13": {
+            "name": "Scan for Residual Malicious Scripts",
+            "description": "Repeat scanning until no malicious scripts are detected.",
+            "type": "while-condition",
+            "condition": "scan_not_clean",
+            "on_true": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "on_false": "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42"
+        },
+        "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13": {
+            "name": "Perform ClamAV Scan",
+            "description": "Scan the filesystem for malicious PowerShell scripts.",
+            "on_completion": "loop--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --include='*.ps1'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce": {
+            "name": "Update Firewall Rules",
+            "description": "Deny remote command execution by blocking relevant ports.",
+            "on_completion": "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny proto tcp from any to any port 5985"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65": {
+            "name": "Monitor Network Traffic",
+            "description": "Capture and analyze network traffic for anomalies.",
+            "on_completion": "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e3d82b5a-a99b-4852-a9fe-2983d5dafd42": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

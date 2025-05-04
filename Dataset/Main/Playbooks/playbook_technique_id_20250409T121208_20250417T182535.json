@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7b2e56e-e5c7-4dc4-a76d-57112f92a15b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious script executed commands remotely, causing unauthorized data access.",
+    "created_by": "identity--12345678-abcd-ef12-3456-7890abcdef12",
+    "created": "2023-10-19T12:00:00Z",
+    "modified": "2023-10-19T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1f4e3e4-c263-4632-ba90-349a5671cc87",
+    "workflow": {
+        "start--b1f4e3e4-c263-4632-ba90-349a5671cc87": {
+            "on_completion": "if-condition--e3af9410-7c92-4c02-9d80-aeb28c65c400",
+            "type": "start"
+        },
+        "if-condition--e3af9410-7c92-4c02-9d80-aeb28c65c400": {
+            "name": "Check for malicious script process",
+            "type": "if-condition",
+            "condition": "malicious_script_running === true",
+            "on_true": "action--a1ec0f65-b2e2-4b2b-8cce-0d8a63f77d1e",
+            "on_false": "action--d12c721b-f35e-4b57-9a6c-bc84cf8416e4"
+        },
+        "action--a1ec0f65-b2e2-4b2b-8cce-0d8a63f77d1e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process if it is running.",
+            "on_completion": "parallel--cb7d2e6b-2a2b-4d29-9dce-ec045f91acd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f malicious_script)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--cb7d2e6b-2a2b-4d29-9dce-ec045f91acd1": {
+            "name": "Perform subsequent mitigations",
+            "description": "Conduct a system scan and revoke access to the compromised user in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a9b135a8-06e1-4f60-a60f-6e84dc0a65c9",
+                "action--d12c721b-f35e-4b57-9a6c-bc84cf8416e4"
+            ]
+        },
+        "action--a9b135a8-06e1-4f60-a60f-6e84dc0a65c9": {
+            "name": "Conduct a full system scan",
+            "description": "Run a complete system scan to detect any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_full_scan.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-loop--fdb680ca-e27d-4e3d-b01b-2ac0d58784ed"
+        },
+        "while-loop--fdb680ca-e27d-4e3d-b01b-2ac0d58784ed": {
+            "name": "Repeat scan until clean",
+            "description": "Continue conducting system scans until a clean state is achieved.",
+            "type": "while-condition",
+            "condition": "scan_results.clean === false",
+            "on_true": "action--a9b135a8-06e1-4f60-a60f-6e84dc0a65c9",
+            "on_false": "action--d12c721b-f35e-4b57-9a6c-bc84cf8416e4"
+        },
+        "action--d12c721b-f35e-4b57-9a6c-bc84cf8416e4": {
+            "name": "Revoke user access",
+            "description": "Revoke access for the compromised user to prevent further unauthorized actions.",
+            "on_completion": "end--e1cda9e6-36c5-48a2-94c5-7c31ab32756e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./revoke_access.sh --user compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--e1cda9e6-36c5-48a2-94c5-7c31ab32756e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_script_running": {
+            "type": "boolean",
+            "description": "Indicates if the malicious script process is currently running.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "scan_results": {
+            "type": "object",
+            "description": "Holds the results of the system scan.",
+            "value": {
+                "clean": false
+            },
+            "constant": false,
+            "external": true
+        }
+    }
+}

@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4bca995-2ff2-4cc0-b4dd-ae42f34bd121",
+    "name": "Mitigation Playbook for C2 Channel Established via HTTP",
+    "description": "This playbook addresses an incident where an attacker established a command and control channel over HTTP, aiming to exfiltrate sensitive data.",
+    "created_by": "identity--abc12345-7c9d-4493-8ada-86e92da116a2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--1eb3de4e-6b9e-4ad7-b867-2d49d94deb22",
+            "type": "start"
+        },
+        "action--1eb3de4e-6b9e-4ad7-b867-2d49d94deb22": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious process that might be communicating with the C2 server.",
+            "on_completion": "action--2e909338-02a1-43b3-aeb7-bf42f5e6b02b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2e909338-02a1-43b3-aeb7-bf42f5e6b02b": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Block any outbound traffic to the known command and control server.",
+            "on_completion": "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d known_c2_server -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f": {
+            "name": "Scan for malware until system is clean",
+            "description": "Continuously scan the system for other malware until the system is determined to be clean.",
+            "on_true": "action--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "on_false": "end--81f56ce7-17fc-45e3-9a40-a5b64d706c2e",
+            "type": "while-condition",
+            "condition": "!is_clean",
+            "next_steps": "action--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f"
+        },
+        "action--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f": {
+            "name": "Scan system for other malware",
+            "on_completion": "loop--5c2305b1-c0f4-4db7-a396-1b3cc8db2f9f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_system"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--81f56ce7-17fc-45e3-9a40-a5b64d706c2e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

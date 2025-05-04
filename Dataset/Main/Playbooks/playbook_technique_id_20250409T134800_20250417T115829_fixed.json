@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b47f197d-c5f4-45c0-a53f-39acce12a9c3",
+    "name": "Mitigation Playbook for Malicious Email Attachment Incident",
+    "description": "This playbook addresses an incident involving the exploitation for client execution through a malicious email attachment.",
+    "created_by": "identity--5bb8bfb6-8f7a-4e93-8304-db4d07182ced",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f9e96023-9b78-4b0f-abc5-dc818a032dc3",
+    "workflow": {
+        "start--f9e96023-9b78-4b0f-abc5-dc818a032dc3": {
+            "on_completion": "action--e248875f-7cd9-4f5e-89d7-002c8408e074",
+            "type": "start"
+        },
+        "action--e248875f-7cd9-4f5e-89d7-002c8408e074": {
+            "name": "Disconnect from the network",
+            "description": "Disable the network interface to prevent further data exfiltration.",
+            "on_completion": "action--ac520ed5-b589-4d54-8450-42b0cae9b0f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--cdd8509d-c2fb-4899-9d47-546977b4c51b"
+        },
+        "action--ac520ed5-b589-4d54-8450-42b0cae9b0f2": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that are currently running.",
+            "on_completion": "loop--c48ddc8f-5ee7-42e1-97fc-1e9ed5c992c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--cdd8509d-c2fb-4899-9d47-546977b4c51b"
+        },
+        "loop--c48ddc8f-5ee7-42e1-97fc-1e9ed5c992c6": {
+            "name": "Scan for Malware",
+            "description": "Scan the system for malware and continue until no threats are detected.",
+            "on_completion": "if-condition--c6f4e403-35b7-4b5c-b907-2f8899671123",
+            "type": "while-condition",
+            "condition": "threat_detected == true",
+            "on_true": "action--c48ddc8f-5ee7-42e1-97fc-1e9ed5c992c6",
+            "on_false": "end--f28ec1d3-c4c1-48e4-84eb-05db737c5ce1"
+        },
+        "action--c48ddc8f-5ee7-42e1-97fc-1e9ed5c992c6": {
+            "name": "Scan the system for malware",
+            "description": "Perform a recursive scan to find any malware present in the system.",
+            "on_completion": "if-condition--c6f4e403-35b7-4b5c-b907-2f8899671123",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--cdd8509d-c2fb-4899-9d47-546977b4c51b"
+        },
+        "if-condition--c6f4e403-35b7-4b5c-b907-2f8899671123": {
+            "name": "Check for remaining threats",
+            "type": "if-condition",
+            "condition": "threat_detected == true",
+            "on_true": "loop--c48ddc8f-5ee7-42e1-97fc-1e9ed5c992c6",
+            "on_false": "end--f28ec1d3-c4c1-48e4-84eb-05db737c5ce1"
+        },
+        "end--f28ec1d3-c4c1-48e4-84eb-05db737c5ce1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cdd8509d-c2fb-4899-9d47-546977b4c51b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "threat_detected": {
+            "type": "boolean",
+            "description": "Indicates if any malware was detected during the scan.",
+            "value": true,
+            "constant": false,
+            "external": true
+        }
+    }
+}

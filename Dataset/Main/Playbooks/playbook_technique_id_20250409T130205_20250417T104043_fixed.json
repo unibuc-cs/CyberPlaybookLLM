@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c876c5e5-857d-4b9b-967f-03463b896e9b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via a command interpreter leading to unauthorized data access.",
+    "created_by": "identity--bcd861a0-fbc1-4f46-90dd-887135ee3347",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--44b2a848-5830-426c-a0d8-f940e837c2a9",
+    "workflow": {
+        "start--44b2a848-5830-426c-a0d8-f940e837c2a9": {
+            "on_completion": "if-condition--ac24d653-a617-4891-8f1a-1c59f54c0a70",
+            "type": "start"
+        },
+        "if-condition--ac24d653-a617-4891-8f1a-1c59f54c0a70": {
+            "name": "Check if malicious process is detected",
+            "type": "if-condition",
+            "condition": "process_detected == true",
+            "on_true": "action--d9b2837e-fd60-49a0-a2a1-11fe96de610a",
+            "on_false": "loop--9a1cc785-e045-489b-a9ee-ad5d1a866f67"
+        },
+        "loop--9a1cc785-e045-489b-a9ee-ad5d1a866f67": {
+            "name": "Delete dropped malicious files",
+            "type": "while-condition",
+            "condition": "no_files_remaining == false",
+            "on_true": "action--eac456d6-0694-464f-a6a0-3f745bcafcf2"
+        },
+        "action--d9b2837e-fd60-49a0-a2a1-11fe96de610a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "parallel--8a2b185c-7732-4d92-a771-efa3f2d9865d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--c99104a3-7457-4e3b-9edd-6f873a700d6e"
+        },
+        "action--eac456d6-0694-464f-a6a0-3f745bcafcf2": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious files dropped on the system.",
+            "on_completion": "loop--9a1cc785-e045-489b-a9ee-ad5d1a866f67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c99104a3-7457-4e3b-9edd-6f873a700d6e"
+        },
+        "action--fe608ca6-4460-4d56-b4d2-1a80f529c7ae": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a scan of the entire system to detect any other threats.",
+            "on_completion": "end--36e12757-1132-4871-b426-9d8f7efa1636",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--c99104a3-7457-4e3b-9edd-6f873a700d6e",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the system scan",
+                    "value": "in_progress",
+                    "constant": false
+                }
+            }
+        },
+        "parallel--8a2b185c-7732-4d92-a771-efa3f2d9865d": {
+            "name": "Follow-up Actions",
+            "description": "Execute follow-up actions after killing the malicious process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fe608ca6-4460-4d56-b4d2-1a80f529c7ae",
+                "loop--9a1cc785-e045-489b-a9ee-ad5d1a866f67"
+            ]
+        },
+        "end--36e12757-1132-4871-b426-9d8f7efa1636": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c99104a3-7457-4e3b-9edd-6f873a700d6e": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5e99c0a6-f1b3-4df4-83de-b1671b8b2b9e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses a command and scripting interpreter incident where a malicious actor executed scripts to exploit vulnerabilities on a critical server.",
+    "created_by": "identity--3f236d87-95d2-4912-bf6b-816b54c23ef6",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a2fa30eb-ba14-43e8-840d-dfd4839d285a",
+    "workflow": {
+        "if-condition--123e4567-e89b-12d3-a456-426614174001": {
+            "name": "Check for malicious script process",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_script')",
+            "on_true": "action--e99c0a6d-f1b3-4df4-83de-b1671b8b2b9e",
+            "on_false": "action--f80c6f43-9b82-43a7-8c8b-0a96bc9b1c3c"
+        },
+        "action--e99c0a6d-f1b3-4df4-83de-b1671b8b2b9e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process if it exists.",
+            "on_completion": "action--f80c6f43-9b82-43a7-8c8b-0a96bc9b1c3c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--abaf7209-a027-4e24-846b-d08040713652"
+        },
+        "action--f80c6f43-9b82-43a7-8c8b-0a96bc9b1c3c": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate host-45 to prevent further malicious activity.",
+            "on_completion": "parallel--c76b3d04-e403-40f1-9e73-ea02f53f8388",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--abaf7209-a027-4e24-846b-d08040713652"
+        },
+        "parallel--c76b3d04-e403-40f1-9e73-ea02f53f8388": {
+            "name": "Run malware scan and notify team",
+            "description": "Run a malware scan and notify the incident response team.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c76b3d04-e403-40f1-9e73-ea02f53f8388",
+                "action--93c1c44e-2470-451d-bb59-d5c121e48d8f"
+            ]
+        },
+        "action--c76b3d04-e403-40f1-9e73-ea02f53f8388": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on host-45.",
+            "on_completion": "while-condition--3c45a5f3-0b95-4649-882b-9c256e36ce70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-malware-scan --host host-45"
+                }
+            ],
+            "agent": "organization--abaf7209-a027-4e24-846b-d08040713652"
+        },
+        "action--93c1c44e-2470-451d-bb59-d5c121e48d8f": {
+            "name": "Notify incident response team",
+            "description": "Send notification to the incident response team regarding detected malicious activity.",
+            "on_completion": "action--7cb4654e-d2a0-4872-8faf-7907c6b862b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-notification --team 'Incident Response' --message 'Malicious activity detected on host-45.'"
+                }
+            ],
+            "agent": "organization--abaf7209-a027-4e24-846b-d08040713652"
+        },
+        "action--7cb4654e-d2a0-4872-8faf-7907c6b862b9": {
+            "name": "Review logs for other affected hosts",
+            "description": "Check logs for signs of similar malicious activities on other hosts.",
+            "on_completion": "end--9afd8c40-f875-4a95-892a-9ee7c37a780f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'suspicious_activity' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--abaf7209-a027-4e24-846b-d08040713652"
+        },
+        "start--a2fa30eb-ba14-43e8-840d-dfd4839d285a": {
+            "on_completion": "if-condition--123e4567-e89b-12d3-a456-426614174001",
+            "type": "start"
+        },
+        "while-condition--3c45a5f3-0b95-4649-882b-9c256e36ce70": {
+            "name": "Check if malware scan is clean",
+            "description": "Loop until the malware scan is confirmed clean.",
+            "on_completion": "action--93c1c44e-2470-451d-bb59-d5c121e48d8f",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--c76b3d04-e403-40f1-9e73-ea02f53f8388"
+        },
+        "end--9afd8c40-f875-4a95-892a-9ee7c37a780f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abaf7209-a027-4e24-846b-d08040713652": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

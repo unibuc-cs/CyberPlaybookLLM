@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ffbd6c06-ff99-44d8-8edc-38a4c0afe12b",
+    "name": "Mitigation Playbook for Unauthorized Command Execution and Data Exfiltration",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts leading to data exfiltration and backdoor access.",
+    "created_by": "identity--dc9a3d0b-fc22-4e7f-bc57-b0a6bc766118",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1a27c7b-7b5c-480c-bff1-871353777c62",
+    "workflow": {
+        "start--b1a27c7b-7b5c-480c-bff1-871353777c62": {
+            "on_completion": "action--3c7d354b-c8a9-4e93-bf8b-4b3c5b3c4e76",
+            "type": "start"
+        },
+        "action--3c7d354b-c8a9-4e93-bf8b-4b3c5b3c4e76": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that is executing the script.",
+            "on_completion": "if-condition--b175c888-0e2c-4ab3-9a2e-aa7f4df59f46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f script_name.sh"
+                }
+            ],
+            "agent": "organization--6529048a-9236-4f1f-a087-c64b9b8a66ab"
+        },
+        "if-condition--b175c888-0e2c-4ab3-9a2e-aa7f4df59f46": {
+            "name": "Check for dropped files",
+            "type": "if-condition",
+            "condition": "file_exists(/tmp/suspicious_file.exe)",
+            "on_true": "loop--a4dbadfa-0e98-4f3d-a698-284575e0b177",
+            "on_false": "action--5d2234f7-8e67-44d4-a2ec-8c724f3daf0f"
+        },
+        "loop--a4dbadfa-0e98-4f3d-a698-284575e0b177": {
+            "name": "Remove dropped files",
+            "description": "Remove suspicious dropped files until they are deleted.",
+            "on_completion": "if-condition--b175c888-0e2c-4ab3-9a2e-aa7f4df59f46",
+            "type": "while-condition",
+            "condition": "file_exists(/tmp/suspicious_file.exe)",
+            "agent": "organization--6529048a-9236-4f1f-a087-c64b9b8a66ab",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious_file.exe"
+                }
+            ]
+        },
+        "action--5d2234f7-8e67-44d4-a2ec-8c724f3daf0f": {
+            "name": "Shut down network access",
+            "description": "Block all outbound network connections to prevent data exfiltration.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -j DROP"
+                }
+            ],
+            "agent": "organization--6529048a-9236-4f1f-a087-c64b9b8a66ab"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6529048a-9236-4f1f-a087-c64b9b8a66ab": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

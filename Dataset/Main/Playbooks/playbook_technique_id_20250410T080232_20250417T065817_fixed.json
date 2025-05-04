@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d131557e-3f02-4ec9-8a4b-3f7cf2e3b31f",
+    "name": "Mitigation Playbook for PowerShell Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the system through a compromised SSH key and executed malicious PowerShell scripts.",
+    "created_by": "identity--e09667f5-29a1-4ea2-bcf4-7e59d0cd9e9b",
+    "created": "2023-10-11T15:00:00Z",
+    "modified": "2023-10-11T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b0f7d6c4-09b4-4f02-85db-eee8b5e7a092",
+            "type": "start"
+        },
+        "action--b0f7d6c4-09b4-4f02-85db-eee8b5e7a092": {
+            "name": "Terminate PowerShell process",
+            "description": "Terminate any active PowerShell processes running malicious scripts.",
+            "on_completion": "if-condition--d3c8f725-7f12-4530-8914-4aeba8edc256",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--1e2d2cce-81d3-4ce2-8c12-a014266c16af"
+        },
+        "if-condition--d3c8f725-7f12-4530-8914-4aeba8edc256": {
+            "name": "Check for compromised SSH keys",
+            "type": "if-condition",
+            "condition": "compromised_key_found",
+            "on_true": "action--d3c8f725-7f12-4530-8914-4aeba8edc256",
+            "on_false": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d"
+        },
+        "action--d3c8f725-7f12-4530-8914-4aeba8edc256": {
+            "name": "Revoke compromised SSH keys",
+            "description": "Remove the compromised SSH key to prevent further unauthorized access.",
+            "on_completion": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh-keygen -R compromised-key"
+                }
+            ],
+            "agent": "organization--1e2d2cce-81d3-4ce2-8c12-a014266c16af"
+        },
+        "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d": {
+            "name": "Scan for remaining malicious scripts",
+            "description": "Search for any malicious PowerShell scripts on the system.",
+            "on_completion": "while-condition--c0e8e731-1d8b-4e30-9867-783c393b48d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec grep 'suspicious-pattern' {} +"
+                }
+            ],
+            "agent": "organization--1e2d2cce-81d3-4ce2-8c12-a014266c16af"
+        },
+        "while-condition--c0e8e731-1d8b-4e30-9867-783c393b48d5": {
+            "name": "Loop until no suspicious scripts found",
+            "description": "Continue scanning until no more suspicious scripts are detected.",
+            "on_true": "action--5bda8e2c-3b25-46f9-b1c8-e3f402b0871d",
+            "on_completion": "action--e3ae1f68-472e-4fb1-9016-9d2c3f5db1df",
+            "condition": "suspicious_scripts_found == true",
+            "type": "while-condition"
+        },
+        "action--e3ae1f68-472e-4fb1-9016-9d2c3f5db1df": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Block connections from all identified malicious IP addresses.",
+            "on_completion": "end--d0c03525-4c03-48f0-ae9a-4ffb0a888d1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--1e2d2cce-81d3-4ce2-8c12-a014266c16af"
+        },
+        "end--d0c03525-4c03-48f0-ae9a-4ffb0a888d1a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1e2d2cce-81d3-4ce2-8c12-a014266c16af": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "compromised_key_found": {
+            "type": "boolean",
+            "description": "Indicates if a compromised SSH key was found",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "suspicious_scripts_found": {
+            "type": "boolean",
+            "description": "Tracks if suspicious scripts were found during scanning",
+            "value": true,
+            "constant": false,
+            "external": true
+        }
+    }
+}

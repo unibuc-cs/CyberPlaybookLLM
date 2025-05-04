@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b75d4e92-bbb0-43e4-8b7b-15c52a3a2666",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution, handling mitigation using a combination of parallel actions, conditional branches, and iterative processes.",
+    "created_by": "identity--201aad8a-8492-46ee-9589-0f106678778c",
+    "created": "2023-10-11T10:00:00Z",
+    "modified": "2023-10-11T10:00:00Z",
+    "workflow_start": "start--d455aa43-6c22-4cbb-b7ad-1a2f005913b7",
+    "workflow": {
+        "start--d455aa43-6c22-4cbb-b7ad-1a2f005913b7": {
+            "on_completion": "parallel--b452e466-6c33-4bfa-8235-8fe4e9eb7981",
+            "type": "start"
+        },
+        "end--77cc8c08-8fbb-4e8f-b7d5-7e4b0df3e0a2": {
+            "type": "end"
+        },
+        "parallel--b452e466-6c33-4bfa-8235-8fe4e9eb7981": {
+            "name": "Simultaneous Mitigations",
+            "description": "Execute script termination, cleanup, and initial scanning steps concurrently",
+            "type": "parallel",
+            "next_steps": [
+                "action--20a7aba1-f082-4722-8794-2613cee4eb4c",
+                "action--f3c9a071-ceb8-4c3a-9dca-8a51f853324f",
+                "action--deb322bc-881f-42d0-89c7-9ce313ff5c58"
+            ]
+        },
+        "action--f3c9a071-ceb8-4c3a-9dca-8a51f853324f": {
+            "name": "Delete Malicious Script",
+            "description": "Remove the identified malicious script file from the system",
+            "on_completion": "action--385b20f8-4caf-4ccc-a71e-9a3ccf0d54ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--4715954a-ac74-4c4a-be28-68b877e49395"
+        },
+        "action--deb322bc-881f-42d0-89c7-9ce313ff5c58": {
+            "name": "Conduct Virus Scan",
+            "description": "Perform a comprehensive virus scan, iteratively until clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--982c2063-7d47-464d-8cdb-0ce7d135321b",
+            "on_completion": "loop--3c12f9c8-8903-4a6b-ae18-0e4e731f0ad9"
+        },
+        "loop--3c12f9c8-8903-4a6b-ae18-0e4e731f0ad9": {
+            "name": "Repeat Virus Scans",
+            "description": "Loop virus scans until no threats detected",
+            "type": "while-condition",
+            "condition": "threat_detected != 'false'",
+            "on_true": "action--deb322bc-881f-42d0-89c7-9ce313ff5c58",
+            "on_false": "action--caf2cb72-8b58-40d4-82c8-722b0335f4b9"
+        },
+        "action--caf2cb72-8b58-40d4-82c8-722b0335f4b9": {
+            "name": "Ensure PowerShell Restrictions",
+            "description": "Apply PowerShell script execution policy restrictions if not already set",
+            "type": "if-condition",
+            "condition": "script_policy != 'restricted'",
+            "on_true": "action--bbf505e1-c488-4418-8bb2-e77703f8f71e",
+            "on_false": "end--77cc8c08-8fbb-4e8f-b7d5-7e4b0df3e0a2"
+        },
+        "action--20a7aba1-f082-4722-8794-2613cee4eb4c": {
+            "name": "Terminate Suspicious Script",
+            "description": "Identify and kill the running script process",
+            "on_completion": "action--caf2cb72-8b58-40d4-82c8-722b0335f4b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--4715954a-ac74-4c4a-be28-68b877e49395"
+        },
+        "action--bbf505e1-c488-4418-8bb2-e77703f8f71e": {
+            "name": "Restrict PowerShell Execution",
+            "description": "Set PowerShell execution policy to Restricted",
+            "on_completion": "end--77cc8c08-8fbb-4e8f-b7d5-7e4b0df3e0a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--8050fa33-4dca-42e5-8b06-c81dca033e31"
+        },
+        "action--385b20f8-4caf-4ccc-a71e-9a3ccf0d54ab": {
+            "name": "Block External IP",
+            "description": "Block the external IP address of concern at the firewall",
+            "on_completion": "end--77cc8c08-8fbb-4e8f-b7d5-7e4b0df3e0a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d Malicious.IP.Address -j DROP"
+                }
+            ],
+            "agent": "organization--0349c83b-b33a-4ba6-b301-0c09a554c351"
+        }
+    },
+    "agent_definitions": {
+        "organization--4715954a-ac74-4c4a-be28-68b877e49395": {
+            "type": "organization",
+            "name": "Admin Team"
+        },
+        "organization--982c2063-7d47-464d-8cdb-0ce7d135321b": {
+            "type": "organization",
+            "name": "IT Support"
+        },
+        "organization--8050fa33-4dca-42e5-8b06-c81dca033e31": {
+            "type": "organization",
+            "name": "Security Operations"
+        },
+        "organization--0349c83b-b33a-4ba6-b301-0c09a554c351": {
+            "type": "organization",
+            "name": "Network Team"
+        }
+    }
+}

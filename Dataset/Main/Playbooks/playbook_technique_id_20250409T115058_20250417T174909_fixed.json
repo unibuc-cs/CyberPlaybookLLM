@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f77e64a3-5359-4c95-8fcb-21997c267416",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents involving unauthorized command execution leading to data exfiltration.",
+    "created_by": "identity--46719ee7-a399-425e-acd0-b1d7ad81b8f2",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b71b3e55-c7a6-4b21-b0b6-164aad5de057",
+    "workflow": {
+        "action--c22b8562-367e-4d09-bd2e-a6d3b0bf7251": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that has been executed.",
+            "on_completion": "parallel--4f7d9e64-6308-4d18-b029-0fe37c9c1124",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--fa3bbdc1-df09-4f75-a2c9-a01d6652df92"
+        },
+        "parallel--4f7d9e64-6308-4d18-b029-0fe37c9c1124": {
+            "name": "Execute Cleanup Actions",
+            "description": "Run security scan and verify file integrity concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b61c8ab4-6545-49d2-8118-9633cc6f3962",
+                "action--f0bc88f1-702b-4583-afe2-b992b4b17f45"
+            ]
+        },
+        "action--b61c8ab4-6545-49d2-8118-9633cc6f3962": {
+            "name": "Run security scan on host",
+            "description": "Perform a security scan to detect any threats.",
+            "on_completion": "if-condition--7c2e22ff-f61b-4dbb-8b5f-2560fd4e6d71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--fa3bbdc1-df09-4f75-a2c9-a01d6652df92"
+        },
+        "if-condition--7c2e22ff-f61b-4dbb-8b5f-2560fd4e6d71": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results.has_threats",
+            "on_true": "loop--8f679c40-c648-401e-a86f-1f7d6c8ba973",
+            "on_false": "action--f0bc88f1-702b-4583-afe2-b992b4b17f45"
+        },
+        "loop--8f679c40-c648-401e-a86f-1f7d6c8ba973": {
+            "name": "Repeat scan until clean",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "action--b61c8ab4-6545-49d2-8118-9633cc6f3962",
+            "type": "while-condition",
+            "condition": "scan_results.has_threats == true"
+        },
+        "action--f0bc88f1-702b-4583-afe2-b992b4b17f45": {
+            "name": "Verify integrity of critical files",
+            "description": "Ensure that the important files have not been altered.",
+            "on_completion": "end--a5c5dbb0-c07a-4295-bd46-03e64cfe5199",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "md5sum -c /etc/md5sums.txt"
+                }
+            ],
+            "agent": "organization--fa3bbdc1-df09-4f75-a2c9-a01d6652df92",
+            "step_variables": {
+                "expected_checksum": {
+                    "type": "string",
+                    "description": "Expected checksum of the file",
+                    "value": "a3f7b8cd10bef2d58caa3e0cd5d85b63"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Path to the critical file",
+                    "value": "/etc/important_file"
+                }
+            }
+        },
+        "end--a5c5dbb0-c07a-4295-bd46-03e64cfe5199": {
+            "type": "end"
+        },
+        "start--b71b3e55-c7a6-4b21-b0b6-164aad5de057": {
+            "on_completion": "action--c22b8562-367e-4d09-bd2e-a6d3b0bf7251",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--fa3bbdc1-df09-4f75-a2c9-a01d6652df92": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

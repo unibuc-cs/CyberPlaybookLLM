@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2a834ec-4e8e-49e0-8d09-55c0061541a1",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook mitigates incidents of unauthorized script execution, focusing on PowerShell abuse and its effects.",
+    "created_by": "identity--34f2975c-e998-4837-bfa9-8ddff0935548",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b2a834ec-4e8e-49e0-8d09-55c0061541a1",
+    "workflow": {
+        "start--b2a834ec-4e8e-49e0-8d09-55c0061541a1": {
+            "on_completion": "if-condition--d2147ce4-bd7e-459b-9763-fb7f58ece760",
+            "type": "start"
+        },
+        "if-condition--d2147ce4-bd7e-459b-9763-fb7f58ece760": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "powerShellProcessCount > 0",
+            "on_true": "action--fa7eca30-c43a-4dd7-8473-53f587c9fe58",
+            "on_false": "action--5aed4385-7045-4ee9-ad7b-95a6b31fddfb"
+        },
+        "action--fa7eca30-c43a-4dd7-8473-53f587c9fe58": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that may be running.",
+            "on_completion": "action--5a3bf5ff-79a8-41b7-a38e-d5695f14a072",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--ca9b2498-4ade-422a-ade9-90947a8c15ef"
+        },
+        "action--5aed4385-7045-4ee9-ad7b-95a6b31fddfb": {
+            "name": "Check for dropped malicious files",
+            "on_completion": "while-condition--827415c5-6d0b-4c7b-8682-9b46ff50c133",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ls /temp/malicious_payload.exe || echo 'No files found.'"
+                }
+            ],
+            "agent": "organization--ca9b2498-4ade-422a-ade9-90947a8c15ef"
+        },
+        "while-condition--827415c5-6d0b-4c7b-8682-9b46ff50c133": {
+            "name": "Remove malicious files loop",
+            "description": "Loop until no malicious files are found.",
+            "on_completion": "action--5a3bf5ff-79a8-41b7-a38e-d5695f14a072",
+            "type": "while-condition",
+            "condition": "malicious_files_exist == true",
+            "on_true": "action--cabc7dd3-51b0-4981-a7ae-120926cea67d"
+        },
+        "action--cabc7dd3-51b0-4981-a7ae-120926cea67d": {
+            "name": "Remove dropped malicious files",
+            "description": "Permanently delete the malicious files from the system.",
+            "on_completion": "while-condition--827415c5-6d0b-4c7b-8682-9b46ff50c133",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /temp/malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--ca9b2498-4ade-422a-ade9-90947a8c15ef"
+        },
+        "action--5a3bf5ff-79a8-41b7-a38e-d5695f14a072": {
+            "name": "Monitor network traffic for unusual connections",
+            "description": "Monitor the network to detect any suspicious outgoing connections.",
+            "on_completion": "end--ccb8df7f-455c-45fa-bbd3-637666c3ad90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -n port not 22"
+                }
+            ],
+            "agent": "organization--ca9b2498-4ade-422a-ade9-90947a8c15ef"
+        },
+        "end--ccb8df7f-455c-45fa-bbd3-637666c3ad90": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ca9b2498-4ade-422a-ade9-90947a8c15ef": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

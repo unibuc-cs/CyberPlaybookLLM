@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1b2c947-1f3c-4df6-9a14-dee28267bb10",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Commands Incident",
+    "description": "This playbook manages an incident where an attacker executed unauthorized PowerShell commands to exfiltrate sensitive data from a compromised user account.",
+    "created_by": "identity--abc-1234-5678-90ef-dcba98765432",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c947-1f3c-4df6-9a14-dee28267bb10",
+    "workflow": {
+        "start--a1b2c947-1f3c-4df6-9a14-dee28267bb10": {
+            "on_completion": "parallel--0f8e0267-b9a8-4f7d-bb48-aecf12b66f94",
+            "type": "start"
+        },
+        "parallel--0f8e0267-b9a8-4f7d-bb48-aecf12b66f94": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute kill process and isolate host simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5e0c8a61-84e0-4fbc-9199-a692c28b0ed8",
+                "action--f9f26d96-bcd0-4821-a66d-b0292c4dbddc"
+            ]
+        },
+        "action--5e0c8a61-84e0-4fbc-9199-a692c28b0ed8": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell commands that may have been executed by the attacker.",
+            "on_completion": "if-condition--c2e1bce2-4d61-4ab7-bf67-5f454c067318",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f9f26d96-bcd0-4821-a66d-b0292c4dbddc": {
+            "name": "Isolate compromised host",
+            "description": "Take the compromised host offline to prevent further data exfiltration.",
+            "on_completion": "if-condition--c2e1bce2-4d61-4ab7-bf67-5f454c067318",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = 'host-22' ]; then ifconfig eth0 down; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c2e1bce2-4d61-4ab7-bf67-5f454c067318": {
+            "name": "Check for network anomalies",
+            "type": "if-condition",
+            "condition": "network_anomaly_detected",
+            "on_true": "loop--f1d2f76e-c5d7-4a4e-83c1-7e9e65ef2998",
+            "on_false": "end--f4e1c34e-a7b8-4c3c-b11f-e0a00c193ecb"
+        },
+        "loop--f1d2f76e-c5d7-4a4e-83c1-7e9e65ef2998": {
+            "name": "Monitor outbound network traffic",
+            "description": "Continually monitor the network for any suspicious traffic.",
+            "on_completion": "if-condition--c2e1bce2-4d61-4ab7-bf67-5f454c067318",
+            "type": "while-condition",
+            "condition": "repeat until no abnormal traffic",
+            "next_steps": [
+                "action--2ff0381d-6f8b-40ef-8439-fb74b43af654"
+            ]
+        },
+        "action--2ff0381d-6f8b-40ef-8439-fb74b43af654": {
+            "name": "Capture suspicious traffic",
+            "description": "Start a tcpdump session to capture outbound packets to a suspicious IP.",
+            "on_completion": "loop--f1d2f76e-c5d7-4a4e-83c1-7e9e65ef2998",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host suspicious-ip -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f4e1c34e-a7b8-4c3c-b11f-e0a00c193ecb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

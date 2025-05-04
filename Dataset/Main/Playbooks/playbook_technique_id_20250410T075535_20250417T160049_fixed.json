@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--69d4c424-b9ba-4ef4-958c-bbcf540315f8",
+    "name": "Mitigation Playbook for Unauthorized Command Execution",
+    "description": "This playbook addresses an incident where an attacker utilized a scripting interpreter to execute unauthorized commands leading to the exfiltration of sensitive data.",
+    "created_by": "identity--5239f1f3-e32e-45b8-bb05-de6e401d3146",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.043Z",
+    "revoked": false,
+    "workflow_start": "start--08f8f576-b6ff-4a33-8b88-8c111f1fd87e",
+    "workflow": {
+        "start--08f8f576-b6ff-4a33-8b88-8c111f1fd87e": {
+            "on_completion": "action--9e1cb378-74f5-4761-922e-f812e4dac8b4",
+            "type": "start"
+        },
+        "action--9e1cb378-74f5-4761-922e-f812e4dac8b4": {
+            "name": "Kill malicious process",
+            "description": "Terminate the executed malicious script.",
+            "on_completion": "if-condition--12f4b908-59b8-411e-8aea-d4b6f60152c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-script.sh'"
+                }
+            ],
+            "agent": "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b"
+        },
+        "if-condition--12f4b908-59b8-411e-8aea-d4b6f60152c5": {
+            "name": "Check if connection is established",
+            "type": "if-condition",
+            "condition": "connection_established",
+            "on_true": "action--12f4b908-59b8-411e-8aea-d4b6f60152c5",
+            "on_false": "loop--a5f6af13-0fd1-48bb-903e-e42fd579b8c3"
+        },
+        "action--12f4b908-59b8-411e-8aea-d4b6f60152c5": {
+            "name": "Block outbound traffic to unapproved IP",
+            "description": "Prevent further data exfiltration by blocking outbound traffic.",
+            "on_completion": "loop--a5f6af13-0fd1-48bb-903e-e42fd579b8c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j REJECT"
+                }
+            ],
+            "agent": "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b"
+        },
+        "loop--a5f6af13-0fd1-48bb-903e-e42fd579b8c3": {
+            "name": "Scan for additional unauthorized scripts",
+            "description": "Search the server for any other potentially harmful scripts.",
+            "type": "while-condition",
+            "condition": "scan_completes == false",
+            "on_true": "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3",
+            "on_false": "if-condition--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8"
+        },
+        "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3": {
+            "name": "Execute script scan",
+            "description": "Find unauthorized scripts on the server.",
+            "on_completion": "loop--a5f6af13-0fd1-48bb-903e-e42fd579b8c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'malicious-pattern' {} \\;"
+                }
+            ],
+            "agent": "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b"
+        },
+        "if-condition--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8": {
+            "name": "Check for new signature detection",
+            "type": "if-condition",
+            "condition": "new_signature_detected",
+            "on_true": "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8",
+            "on_false": "if-condition--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d"
+        },
+        "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8": {
+            "name": "Update firewall rules and IDS signatures",
+            "description": "Enhance security by updating firewall rules and IDS signatures.",
+            "on_completion": "if-condition--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-source=192.168.1.101 && ids-update -f signatures.txt"
+                }
+            ],
+            "agent": "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b"
+        },
+        "if-condition--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d": {
+            "name": "Check if scan results are clean",
+            "type": "if-condition",
+            "condition": "scan_results_clean",
+            "on_true": "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d",
+            "on_false": "end--414a71c5-9536-4f90-918c-9d31655576e2"
+        },
+        "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d": {
+            "name": "Restart compromised server after cleaning",
+            "description": "Restart the server to apply changes and clear any remaining threats.",
+            "on_completion": "end--414a71c5-9536-4f90-918c-9d31655576e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reboot"
+                }
+            ],
+            "agent": "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b"
+        },
+        "end--414a71c5-9536-4f90-918c-9d31655576e2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--90f7ffce-5066-4aa1-b12d-8084fd4b834b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

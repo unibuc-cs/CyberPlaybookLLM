@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--81c4b9d5-d450-4a44-b128-cf341452c5ee",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script through a phishing email, allowing remote access to the system.",
+    "created_by": "identity--abc8f36b-4689-4b41-b9f5-115b5e19d3a1",
+    "created": "2023-10-12T14:00:00Z",
+    "modified": "2023-10-12T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--81c4b9d5-0000-0000-0000-cf341452c5ee",
+    "workflow": {
+        "start--81c4b9d5-0000-0000-0000-cf341452c5ee": {
+            "on_completion": "action--24676e61-e8d9-4e43-b5d7-009e6aaec79f",
+            "type": "start"
+        },
+        "end--81c4b9d5-eeee-eeee-eeee-cf341452c5ee": {
+            "type": "end"
+        },
+        "action--24676e61-e8d9-4e43-b5d7-009e6aaec79f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell process that is executing malicious commands.",
+            "on_completion": "if-condition--check-attack-detected",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--check-attack-detected": {
+            "name": "Check if attack is detected",
+            "type": "if-condition",
+            "condition": "attack_detected == true",
+            "on_true": "action--c528e1de-9573-40ba-a134-c74adef2996a",
+            "on_false": "loop--scan-for-compromised-hosts"
+        },
+        "action--c528e1de-9573-40ba-a134-c74adef2996a": {
+            "name": "Block outbound traffic to attacker's IP",
+            "description": "Block outgoing traffic to prevent communication with the attacker's IP.",
+            "on_completion": "loop--scan-for-compromised-hosts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--scan-for-compromised-hosts": {
+            "name": "Scan for other compromised hosts",
+            "description": "Regularly scan the network to identify any additional compromised hosts.",
+            "type": "loop",
+            "condition": "found_no_compromised_hosts == false",
+            "on_true": "action--fe4054fc-1131-4d1c-a8a3-2a3616be999f",
+            "repeat_interval": "5m"
+        },
+        "action--fe4054fc-1131-4d1c-a8a3-2a3616be999f": {
+            "name": "Network scan for compromised hosts",
+            "description": "Perform a network scan to identify compromised hosts within the subnet.",
+            "on_completion": "set-variable--found-no-compromised-hosts",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sT 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-variable--found-no-compromised-hosts": {
+            "name": "Determine scan result",
+            "description": "Set variable based on the results of the previous scan.",
+            "on_completion": "loop--scan-for-compromised-hosts",
+            "type": "action",
+            "step_variables": {
+                "found_no_compromised_hosts": {
+                    "type": "boolean",
+                    "description": "Indicates if no additional compromised hosts were found.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

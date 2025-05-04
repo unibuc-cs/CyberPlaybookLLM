@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0e4c2b6-68b8-4f2b-b00d-1cf5fde91c7d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the incident where attackers exploited a web application vulnerability and executed commands to exfiltrate sensitive data.",
+    "created_by": "identity--cf6bee2b-6402-4e84-80d4-332600a0a463",
+    "created": "2025-04-10T08:55:23.000Z",
+    "modified": "2025-04-10T08:55:23.000Z",
+    "revoked": false,
+    "workflow_start": "start--3a8e9167-8dd0-4ef8-858d-db671569fc3e",
+    "workflow": {
+        "action--c3f3a3f1-e26f-42a2-a6fa-a4ded8234fe1": {
+            "name": "Terminate suspicious PowerShell session",
+            "description": "Terminate any active PowerShell sessions that could be executing malicious scripts.",
+            "on_completion": "parallel--4b243c40-2d66-437f-9679-5fa45de1d649",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--59af0fa1-3423-48ec-b6a0-c64e55ebe7d8"
+        },
+        "action--0dfe5efc-1848-4e9c-a795-e0c7b4eeec12": {
+            "name": "Scan for malware across the network",
+            "description": "Run network scan for malware and repeat until scan is clean.",
+            "on_completion": "if-condition--b714022a-c3b6-4c18-a5e5-69f11bf1aee2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-Expression \"./ScanNetwork.ps1\""
+                }
+            ],
+            "agent": "organization--59af0fa1-3423-48ec-b6a0-c64e55ebe7d8"
+        },
+        "action--79c337c1-fc46-43c5-bc71-0cb7ffecf4c4": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Create a firewall rule to block known malicious IP addresses from sending or receiving traffic.",
+            "on_completion": "end--79c2af03-a824-4c30-9813-23cc676462d9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Malicious IP' -Direction Outbound -Action Block -RemoteAddress '192.168.1.10'"
+                }
+            ],
+            "agent": "organization--59af0fa1-3423-48ec-b6a0-c64e55ebe7d8"
+        },
+        "start--3a8e9167-8dd0-4ef8-858d-db671569fc3e": {
+            "on_completion": "action--c3f3a3f1-e26f-42a2-a6fa-a4ded8234fe1",
+            "type": "start"
+        },
+        "parallel--4b243c40-2d66-437f-9679-5fa45de1d649": {
+            "name": "Conduct Follow-Up Actions",
+            "description": "Run multiple follow-up actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--0dfe5efc-1848-4e9c-a795-e0c7b4eeec12",
+                "action--79c337c1-fc46-43c5-bc71-0cb7ffecf4c4"
+            ]
+        },
+        "if-condition--b714022a-c3b6-4c18-a5e5-69f11bf1aee2": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--79c337c1-fc46-43c5-bc71-0cb7ffecf4c4",
+            "on_false": "action--0dfe5efc-1848-4e9c-a795-e0c7b4eeec12"
+        },
+        "end--79c2af03-a824-4c30-9813-23cc676462d9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--59af0fa1-3423-48ec-b6a0-c64e55ebe7d8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the network scan indicating whether it is clean",
+            "value": "not_clean",
+            "constant": false,
+            "external": false
+        }
+    }
+}

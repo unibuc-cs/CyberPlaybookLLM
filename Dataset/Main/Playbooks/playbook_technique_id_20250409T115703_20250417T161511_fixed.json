@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dde76399-0a98-4076-82c7-2c617a675b7f",
+    "name": "Mitigation Playbook for Unauthorized Access via Scripting Interpreter",
+    "description": "This playbook addresses an incident where an attacker executed malicious commands through a scripting interpreter, causing high CPU usage on multiple hosts.",
+    "created_by": "identity--3562537f-36b2-4de9-b451-3d21ce40cbfa",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9f0585c5-c42a-485b-9863-a1954554dc0c",
+    "workflow": {
+        "start--9f0585c5-c42a-485b-9863-a1954554dc0c": {
+            "on_completion": "action--74092737-24fe-4a77-9644-101d1d5dff30",
+            "type": "start"
+        },
+        "action--74092737-24fe-4a77-9644-101d1d5dff30": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script running on the detected hosts.",
+            "on_completion": "if-condition--fba2b3c3-b87c-4746-a2d0-ba88624b7dfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--368f5bf7-e033-44ed-8a59-dc52878a4be4"
+        },
+        "if-condition--fba2b3c3-b87c-4746-a2d0-ba88624b7dfc": {
+            "name": "Check CPU usage for isolation",
+            "type": "if-condition",
+            "condition": "(get_cpu_usage host-22 > 80) || (get_cpu_usage host-23 > 80)",
+            "on_true": "parallel--c86da285-e2aa-408b-8dff-1470239bb7f3",
+            "on_false": "action--eec63962-5ca8-4633-8b11-93fa24f0afdf"
+        },
+        "parallel--c86da285-e2aa-408b-8dff-1470239bb7f3": {
+            "name": "Isolate compromised hosts",
+            "description": "Isolate hosts with high CPU usage to prevent further damage.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e5404c1b-1140-4fa4-a31a-bc439f3358f7"
+            ]
+        },
+        "action--e5404c1b-1140-4fa4-a31a-bc439f3358f7": {
+            "name": "Isolate hosts",
+            "description": "Disable network interfaces for affected hosts.",
+            "on_completion": "while-condition--d9e5d834-bb39-43fd-a86f-5c9ec3dd18eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down && ifconfig host-23 down"
+                }
+            ],
+            "agent": "organization--368f5bf7-e033-44ed-8a59-dc52878a4be4"
+        },
+        "while-condition--d9e5d834-bb39-43fd-a86f-5c9ec3dd18eb": {
+            "name": "Run security scan",
+            "description": "Perform security scan on isolated hosts until clean.",
+            "on_completion": "action--eec63962-5ca8-4633-8b11-93fa24f0afdf",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--eec63962-5ca8-4633-8b11-93fa24f0afdf"
+        },
+        "action--eec63962-5ca8-4633-8b11-93fa24f0afdf": {
+            "name": "Run security scan",
+            "description": "Initiate a security scan on the isolated hosts.",
+            "on_completion": "end--fdfd2a70-d459-4313-be84-46d7a5d6c24c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_tool --scan"
+                }
+            ],
+            "agent": "organization--368f5bf7-e033-44ed-8a59-dc52878a4be4"
+        },
+        "end--fdfd2a70-d459-4313-be84-46d7a5d6c24c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--368f5bf7-e033-44ed-8a59-dc52878a4be4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

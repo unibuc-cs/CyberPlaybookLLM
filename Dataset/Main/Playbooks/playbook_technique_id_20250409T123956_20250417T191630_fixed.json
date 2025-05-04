@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f9a2e643-1c26-41fa-aa62-e1074935c1ae",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook addresses an incident where an attacker utilized a PowerShell script to execute malicious commands and manipulate system files.",
+    "created_by": "identity--a8deda36-b7bb-4dff-af3c-5c3e2825c800",
+    "created": "2023-10-03T14:32:10Z",
+    "modified": "2023-10-03T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1d7f6e7-c123-4a90-b076-7d9f7f8c2e5f",
+    "workflow": {
+        "start--a1d7f6e7-c123-4a90-b076-7d9f7f8c2e5f": {
+            "on_completion": "if-condition--c4e51fce-e2be-49fc-bc92-e87ef1debc45",
+            "type": "start"
+        },
+        "if-condition--c4e51fce-e2be-49fc-bc92-e87ef1debc45": {
+            "name": "Check for Suspicious Activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--b5225efc-f460-4f4f-b929-e2c82f026fe6",
+            "on_false": "end--b26de203-dc3b-4262-ba5f-ddd1ea3563f4"
+        },
+        "action--b5225efc-f460-4f4f-b929-e2c82f026fe6": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate the PowerShell process exploiting the system.",
+            "on_completion": "parallel--c315bd59-764e-4229-9bb3-de006b59ef7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f PowerShell)"
+                }
+            ],
+            "agent": "organization--8f4abd8d-ca47-438f-bd98-470ee86f8619"
+        },
+        "parallel--c315bd59-764e-4229-9bb3-de006b59ef7e": {
+            "name": "Simultaneous Mitigation Steps",
+            "description": "Execute network and file restoration mitigations concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2e309856-91dc-41b8-8160-0bc1e3f8e438",
+                "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b"
+            ]
+        },
+        "action--2e309856-91dc-41b8-8160-0bc1e3f8e438": {
+            "name": "Block Network Connection",
+            "description": "Block the known malicious IP address to stop further exploitation.",
+            "on_completion": "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--8f4abd8d-ca47-438f-bd98-470ee86f8619"
+        },
+        "loop--9abb6571-9bec-4c70-a2b5-8e102a97e72b": {
+            "name": "Scan and Restore Modified Files",
+            "description": "Iteratively scan and restore modified configuration files.",
+            "on_completion": "end--b26de203-dc3b-4262-ba5f-ddd1ea3563f4",
+            "type": "while-condition",
+            "condition": "all_files_scanned == false",
+            "next_steps": "action--9abb6571-9bec-4c70-a2b5-8e102a97e72b"
+        },
+        "action--9abb6571-9bec-4c70-a2b5-8e102a97e72b": {
+            "name": "Restore Files",
+            "description": "Restore each modified configuration file that has been detected.",
+            "on_completion": "update_file_status--a91ca441-59e4-4775-b416-91b4bf4567f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for file in /path/to/config/files/*; do restore_file $file; done"
+                }
+            ],
+            "agent": "organization--8f4abd8d-ca47-438f-bd98-470ee86f8619"
+        },
+        "end--b26de203-dc3b-4262-ba5f-ddd1ea3563f4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8f4abd8d-ca47-438f-bd98-470ee86f8619": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

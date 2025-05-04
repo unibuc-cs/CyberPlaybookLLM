@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3f3e76a-7c00-4bb2-88c5-004cf237eb7d",
+    "name": "Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident of unauthorized script execution leading to system configuration changes and data exfiltration attempts.",
+    "created_by": "identity--1c35515b-86b2-4b93-aaeb-7e22c75fb435",
+    "created": "2023-10-15T13:00:00Z",
+    "modified": "2023-10-15T13:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b5e1f8de-9e8e-431c-b8af-8621cf7056a4",
+    "workflow": {
+        "start--b5e1f8de-9e8e-431c-b8af-8621cf7056a4": {
+            "on_completion": "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd",
+            "type": "start"
+        },
+        "action--6abc73fd-cef5-4ba4-bb9a-d7976e3d73cd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script being executed.",
+            "on_completion": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7": {
+            "name": "Revert system configurations",
+            "description": "Restore system settings altered by the unauthorized script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -Rv /etc"
+                }
+            ],
+            "agent": "organization--abc",
+            "next_steps": "while-condition--fb7d6e70-ce2c-4b3b-82f7-fc28cb583469"
+        },
+        "while-condition--fb7d6e70-ce2c-4b3b-82f7-fc28cb583469": {
+            "name": "Monitor for system anomalies",
+            "description": "Continue to revert system settings until no anomalies are detected.",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--79682e27-c556-4f64-85ae-4a8a6c2c74c7",
+            "on_false": "action--da56e2c8-d5b4-4112-b048-1c8035d0423"
+        },
+        "action--da56e2c8-d5b4-4112-b048-1c8035d0423": {
+            "name": "Analyze and isolate compromised account",
+            "description": "Lock the compromised user account to prevent further access.",
+            "on_completion": "action--d8245e66-c943-45e9-9279-b0faef813ced",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d8245e66-c943-45e9-9279-b0faef813ced": {
+            "name": "Monitor network for suspicious activities",
+            "description": "Capture critical network packets to identify ongoing attacks.",
+            "on_completion": "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host 192.0.2.1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e4a7550a-90ac-4935-b2cd-93ac1f6cb7e0": {
+            "name": "Update firewall rules to block outgoing traffic",
+            "description": "Block outgoing connections to known malicious IP addresses.",
+            "on_completion": "end--f53a2b4e-e04b-45eb-a091-782f4279337c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "if_condition": "if alert from monitoring detected"
+        },
+        "end--f53a2b4e-e04b-45eb-a091-782f4279337c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,140 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b45f5f26-3c9a-4f97-ae40-e58c3e5a4b2d",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter",
+    "description": "Responds to an incident involving malicious PowerShell execution to establish persistence and download additional payloads.",
+    "created_by": "identity--7dc843ee-2a53-4bd6-83f0-7dbc90111094",
+    "created": "2023-10-15T14:40:00Z",
+    "modified": "2023-10-15T14:42:00Z",
+    "revoked": false,
+    "workflow_start": "start--f4975b7d-bd2e-4f6a-b30f-cdb80b0b7f30",
+    "workflow": {
+        "start--f4975b7d-bd2e-4f6a-b30f-cdb80b0b7f30": {
+            "on_completion": "parallel--7b8f4e9d-6e2c-4639-90a4-7afb6358bd97",
+            "type": "start"
+        },
+        "parallel--7b8f4e9d-6e2c-4639-90a4-7afb6358bd97": {
+            "name": "Concurrent Initial Mitigations",
+            "description": "Simultaneously execute multiple initial mitigation steps.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9b2a567b-df13-45e6-a234-89417fe3b7da",
+                "action--7e3c4a65-c812-49f9-bc91-def2a759f99f"
+            ]
+        },
+        "action--9b2a567b-df13-45e6-a234-89417fe3b7da": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate malicious PowerShell process running on the host.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--bd2fe639-c242-4ade-8c86-633904b2d254",
+            "on_completion": "action--5c8e9a21-d216-4e14-8746-02d234a79e33"
+        },
+        "action--7e3c4a65-c812-49f9-bc91-def2a759f99f": {
+            "name": "Isolate Compromised Host",
+            "description": "Disconnect the compromised host from the network.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev disconnect wlp3s0"
+                }
+            ],
+            "agent": "organization--bd2fe639-c242-4ade-8c86-633904b2d254",
+            "on_completion": "action--37e29d8c-1dd2-4c93-ace5-8f7e9e1430fa"
+        },
+        "action--5c8e9a21-d216-4e14-8746-02d234a79e33": {
+            "name": "Scan and Remove Downloaded Payloads",
+            "description": "Continuously scan the system for infected files and remove them.",
+            "type": "while-condition",
+            "condition": "infected_files_present",
+            "on_true": "action--43d1231d-f588-4e6b-bf79-0892376d2957",
+            "step_variables": {
+                "infected_files_present": {
+                    "type": "boolean",
+                    "description": "Indicates if infected files are present.",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "action--37e29d8c-1dd2-4c93-ace5-8f7e9e1430fa": {
+            "name": "Delete Malicious Service",
+            "description": "Disable and remove the malicious service created by the attacker.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl disable --now malicious.service"
+                }
+            ],
+            "agent": "organization--bd2fe639-c242-4ade-8c86-633904b2d254",
+            "on_completion": "end--110861ae-5106-4bb6-932d-e5c08209aea9"
+        },
+        "action--4f2a7d1b-2345-49c8-bb99-a7d7a9e47fd1": {
+            "name": "Verify Known Scripts",
+            "description": "Cross-reference all known scripts with a whitelist to ensure legitimacy.",
+            "type": "if-condition",
+            "condition": "scripts_legitimate == true",
+            "on_true": "action--ae64b237-71da-4d2d-bbb2-ad012ef26c95",
+            "on_false": "end--d447f021-0d37-4199-bb45-c452c4317ebe"
+        },
+        "action--ae64b237-71da-4d2d-bbb2-ad012ef26c95": {
+            "name": "Restore Network Connectivity",
+            "description": "Reconnect the host to the network once the threat is mitigated.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev connect wlp3s0"
+                }
+            ],
+            "agent": "organization--bd2fe639-c242-4ade-8c86-633904b2d254",
+            "on_completion": "end--02f2fff5-39a6-45ce-ab1c-b69a90b33d0e"
+        },
+        "action--43d1231d-f588-4e6b-bf79-0892376d2957": {
+            "name": "Execute ClamAV Scan",
+            "description": "Scan the system using ClamAV to identify and remove infected files.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--bd2fe639-c242-4ade-8c86-633904b2d254",
+            "on_completion": "action--4f2a7d1b-2345-49c8-bb99-a7d7a9e47fd1"
+        },
+        "action--6f74a707-2456-4ef3-b54b-117b44e9eac5": {
+            "name": "Query Script Check",
+            "description": "Query system to identify and cross-reference PS1 script legitimacy.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec sha256sum {} +"
+                }
+            ]
+        },
+        "end--110861ae-5106-4bb6-932d-e5c08209aea9": {
+            "type": "end"
+        },
+        "end--d447f021-0d37-4199-bb45-c452c4317ebe": {
+            "type": "end"
+        },
+        "end--02f2fff5-39a6-45ce-ab1c-b69a90b33d0e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bd2fe639-c242-4ade-8c86-633904b2d254": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        }
+    }
+}

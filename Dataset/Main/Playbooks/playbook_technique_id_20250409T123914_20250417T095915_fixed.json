@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1d70fa5-a30f-4d06-9af3-1162435f03c8",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation Incident",
+    "description": "This playbook automates the response to an incident where an attacker exploited a web application to exfiltrate sensitive data over HTTP.",
+    "created_by": "identity--9c681479-2299-48d3-b534-11050be536d0",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a35c8a02-28d2-4ca0-918c-e2d7c6a42edc",
+    "workflow": {
+        "action--f1e4a9f1-f8fc-45db-8fd6-139e70fa721a": {
+            "name": "Block outbound connections to suspicious IPs",
+            "description": "Block unauthorized outbound connections to the attacker's server.",
+            "on_completion": "parallel--b2c82d49-db88-4a2d-9c40-62bc56338e12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--932015d8-31d5-42ae-a330-9d2324c5a594"
+        },
+        "action--e5a65336-953f-4f6e-bcc9-dcaaf5d382b9": {
+            "name": "Analyze HTTP logs for anomalous patterns",
+            "description": "Check the HTTP access logs for any suspicious activity.",
+            "on_completion": "action--3f187f5e-c1d3-421f-b98d-bb99c703ad6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/httpd/access.log"
+                }
+            ],
+            "agent": "organization--932015d8-31d5-42ae-a330-9d2324c5a594"
+        },
+        "action--3f187f5e-c1d3-421f-b98d-bb99c703ad6a": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "end--7f111815-df05-42d6-8bec-688ff28593f3",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--932015d8-31d5-42ae-a330-9d2324c5a594",
+            "condition": "if process exists",
+            "loop": "repeat until process is terminated",
+            "next_steps": [
+                "action--3f187f5e-c1d3-421f-b98d-bb99c703ad6a"
+            ]
+        },
+        "parallel--b2c82d49-db88-4a2d-9c40-62bc56338e12": {
+            "name": "Execute log analysis and script termination",
+            "description": "Simultaneously analyze logs and kill the malicious script process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e5a65336-953f-4f6e-bcc9-dcaaf5d382b9",
+                "action--3f187f5e-c1d3-421f-b98d-bb99c703ad6a"
+            ]
+        },
+        "start--a35c8a02-28d2-4ca0-918c-e2d7c6a42edc": {
+            "on_completion": "action--f1e4a9f1-f8fc-45db-8fd6-139e70fa721a",
+            "type": "start"
+        },
+        "end--7f111815-df05-42d6-8bec-688ff28593f3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--932015d8-31d5-42ae-a330-9d2324c5a594": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

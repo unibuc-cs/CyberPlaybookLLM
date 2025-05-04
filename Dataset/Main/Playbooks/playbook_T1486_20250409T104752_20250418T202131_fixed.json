@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f8b85e7-8eb2-4c8c-b1c5-66b04ced79e3",
+    "name": "Data Encryption Incident Response Playbook",
+    "description": "This playbook is designed to address incidents where adversaries encrypt critical data files, isolating affected hosts, terminating malicious scripts, and restoring files from backups.",
+    "created_by": "identity--456c0b31-b147-47c8-8e4f-362abb589a0e",
+    "created": "2023-10-01T14:30:00Z",
+    "modified": "2023-10-01T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--a5e9da5c-b113-4be9-9450-d0467d9c5e8f",
+    "workflow": {
+        "start--a5e9da5c-b113-4be9-9450-d0467d9c5e8f": {
+            "on_completion": "action--d15e00a8-db45-4e0e-aca0-79bb2ae0ec43",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initiate the incident response for data encryption."
+        },
+        "action--d15e00a8-db45-4e0e-aca0-79bb2ae0ec43": {
+            "name": "Isolate Infected Host",
+            "description": "Immediately isolate the infected host to prevent further encryption.",
+            "on_completion": "action--eaf0b66f-5d22-4074-8ebd-1c4af5f7ab3c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-15 -j DROP"
+                }
+            ],
+            "agent": "organization--4a4e0571-7f7f-445c-b8de-bc78bcff741f"
+        },
+        "action--eaf0b66f-5d22-4074-8ebd-1c4af5f7ab3c": {
+            "name": "Kill Malicious Scripts",
+            "description": "Terminate any running malicious scripts that may be encrypting files.",
+            "on_completion": "decision--b4c01398-58c7-4931-b864-930735482348",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--4a4e0571-7f7f-445c-b8de-bc78bcff741f"
+        },
+        "decision--b4c01398-58c7-4931-b864-930735482348": {
+            "name": "Check for Active Scripts",
+            "type": "if-condition",
+            "condition": "malicious_script_running == True",
+            "on_true": "action--eaf0b66f-5d22-4074-8ebd-1c4af5f7ab3c",
+            "on_false": "action--3d23976d-33a4-4e2c-961e-e91ed85d2c77"
+        },
+        "action--3d23976d-33a4-4e2c-961e-e91ed85d2c77": {
+            "name": "Restore Files from Backup",
+            "description": "Restore encrypted files from backup if available.",
+            "on_completion": "end--aa2b8859-36c5-4a1e-b6cf-e5e746f60c45",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --progress /backup/financial/ /data/financial/"
+                }
+            ],
+            "agent": "organization--4a4e0571-7f7f-445c-b8de-bc78bcff741f",
+            "condition": "if backups available"
+        },
+        "end--aa2b8859-36c5-4a1e-b6cf-e5e746f60c45": {
+            "type": "end",
+            "name": "End Incident Response",
+            "description": "End of the playbook execution."
+        }
+    },
+    "agent_definitions": {
+        "organization--4a4e0571-7f7f-445c-b8de-bc78bcff741f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_script_running": {
+            "type": "boolean",
+            "description": "Indicates if malicious scripts are still running.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

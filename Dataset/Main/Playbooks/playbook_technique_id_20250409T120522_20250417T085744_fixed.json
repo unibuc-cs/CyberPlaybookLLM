@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2fee7c5-e528-4330-86f4-d9a0cb915c3f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident (T1059)",
+    "description": "This playbook outlines steps to mitigate an incident where an unauthorized user executed malicious scripts on an internal server, leading to data exfiltration.",
+    "created_by": "identity--1a91c9b0-8880-48c7-b87f-ccee12bfcfa2",
+    "created": "2025-04-09T08:55:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--fa8a0a78-4af8-4c5d-b624-d581e7997c76",
+    "workflow": {
+        "start--fa8a0a78-4af8-4c5d-b624-d581e7997c76": {
+            "on_completion": "action--8f94aebf-f3be-4fe3-bb83-f053d5b73c01",
+            "type": "start"
+        },
+        "action--8f94aebf-f3be-4fe3-bb83-f053d5b73c01": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell process responsible for the malicious activity.",
+            "on_completion": "action--f9fe8be2-0b4f-4aeb-b36c-beda258bdc76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--4596df64-fac6-4b45-a151-f78cfe17faeb"
+        },
+        "action--f9fe8be2-0b4f-4aeb-b36c-beda258bdc76": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host from the network to prevent further exploitation.",
+            "on_completion": "while-condition--a161bb9d-d4bc-4176-939e-e1aff7c7b780",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--4596df64-fac6-4b45-a151-f78cfe17faeb",
+            "condition": "malicious activity detected"
+        },
+        "while-condition--a161bb9d-d4bc-4176-939e-e1aff7c7b780": {
+            "name": "Scan for additional threats",
+            "description": "Conduct a scan for other potential threats and repeat if any are found.",
+            "on_completion": "action--e78b245d-ec1f-4e65-9f38-4acfaec62831",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--a161bb9d-d4bc-4176-939e-e1aff7c7b780",
+            "on_false": "action--e78b245d-ec1f-4e65-9f38-4acfaec62831"
+        },
+        "action--e78b245d-ec1f-4e65-9f38-4acfaec62831": {
+            "name": "Change access credentials",
+            "on_completion": "action--1691553b-aabb-42e7-b86c-4f329a492fd0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd -e username"
+                }
+            ],
+            "agent": "organization--4596df64-fac6-4b45-a151-f78cfe17faeb"
+        },
+        "action--1691553b-aabb-42e7-b86c-4f329a492fd0": {
+            "name": "Review firewall rules",
+            "on_completion": "end--4e3b6337-00e2-4f8c-8988-f7779c0c3547",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -L > current_rules"
+                }
+            ],
+            "agent": "organization--4596df64-fac6-4b45-a151-f78cfe17faeb"
+        },
+        "end--4e3b6337-00e2-4f8c-8988-f7779c0c3547": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4596df64-fac6-4b45-a151-f78cfe17faeb": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

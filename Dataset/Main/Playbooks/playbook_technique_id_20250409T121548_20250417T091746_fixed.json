@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2d5f86a-66b0-4e59-8f1c-65eb5a11b497",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts on the corporate network to exfiltrate sensitive data and establish a command-and-control channel.",
+    "created_by": "identity--2ccacc52-9a1a-4887-9c58-d6251f9d93ce",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d18b3e75-1281-4741-902a-4cf5f67c4b2f",
+    "workflow": {
+        "start--d18b3e75-1281-4741-902a-4cf5f67c4b2f": {
+            "on_completion": "action--d18b3e75-1281-4741-902a-4cf5f67c4b2f",
+            "type": "start"
+        },
+        "action--d18b3e75-1281-4741-902a-4cf5f67c4b2f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are executing malicious scripts.",
+            "on_completion": "action--e0d25b4c-d22e-4bbe-a3f3-7d9d33928e90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--11d0e5db-16b2-46f5-bffb-30a953ae889b"
+        },
+        "action--e0d25b4c-d22e-4bbe-a3f3-7d9d33928e90": {
+            "name": "Delete dropped malicious files",
+            "description": "Remove any malicious files dropped to the temporary directory.",
+            "on_completion": "while-condition--f743e83e-7d10-45a3-87c2-b1a3f467ef0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload*"
+                }
+            ],
+            "agent": "organization--11d0e5db-16b2-46f5-bffb-30a953ae889b"
+        },
+        "while-condition--f743e83e-7d10-45a3-87c2-b1a3f467ef0c": {
+            "name": "Run Antivirus Scan",
+            "description": "Run an antivirus scan until the system is clean.",
+            "on_true": "action--f743e83e-7d10-45a3-87c2-b1a3f467ef0c",
+            "condition": "scan_found == true",
+            "type": "while-condition",
+            "next_steps": [
+                "action--f743e83e-7d10-45a3-87c2-b1a3f467ef0c"
+            ]
+        },
+        "action--f743e83e-7d10-45a3-87c2-b1a3f467ef0c": {
+            "name": "Run Antivirus",
+            "description": "Perform an antivirus scan on the system.",
+            "on_completion": "while-condition--f743e83e-7d10-45a3-87c2-b1a3f467ef0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_antivirus"
+                },
+                {
+                    "type": "bash",
+                    "command": "scan_found=$(check_scan_results); sleep 5"
+                }
+            ],
+            "agent": "organization--11d0e5db-16b2-46f5-bffb-30a953ae889b"
+        },
+        "end--da121953-de81-4b17-ab50-c53cf98f5626": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--11d0e5db-16b2-46f5-bffb-30a953ae889b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e8bd7c3-5666-4f73-a056-02b207302c16",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script that provided unauthorized access and resulted in data exfiltration.",
+    "created_by": "identity--73f1cd99-b349-4376-8c5e-1a01b4ed2324",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--02d841be-e4dc-4ce0-b10b-ec23ee0a0e73",
+            "type": "start"
+        },
+        "action--02d841be-e4dc-4ce0-b10b-ec23ee0a0e73": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f": {
+            "name": "Check for script persistence",
+            "type": "if-condition",
+            "condition": "script_persistence_exists",
+            "on_true": "action--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f",
+            "on_false": "loop--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f"
+        },
+        "action--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f": {
+            "name": "Remove persistence mechanism for the script",
+            "description": "Remove the malicious script's persistence mechanism from startup.",
+            "on_completion": "loop--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious_script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f": {
+            "name": "Perform system scan until no vulnerabilities are found",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_result != 'no vulnerabilities'",
+            "on_true": "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f": {
+            "name": "Perform a full system scan",
+            "description": "Run a complete security scan to find any remaining threats.",
+            "on_completion": "loop--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "script_persistence_exists": {
+            "type": "boolean",
+            "description": "Indicates if the malicious script has a persistence mechanism.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "The status of the scan completion (e.g., 'no vulnerabilities', 'some vulnerabilities found').",
+            "value": "some vulnerabilities found",
+            "constant": false,
+            "external": true
+        }
+    }
+}

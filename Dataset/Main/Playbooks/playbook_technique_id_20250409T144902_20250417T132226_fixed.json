@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2f398c5a-4c4a-4f8e-b8a4-8b4265238b76",
+    "name": "Playbook for Malicious Script Execution and Data Exfiltration",
+    "description": "This playbook mitigates an incident where an attacker deployed a script that exfiltrated sensitive data from the network.",
+    "created_by": "identity--18b714ae-3bd7-4862-a26f-4dc9ac3c023a",
+    "created": "2023-10-01T09:00:00Z",
+    "modified": "2023-10-01T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b18f6c11-8ac9-4f1f-8d72-a3c2c3e8fd7f",
+    "workflow": {
+        "start--b18f6c11-8ac9-4f1f-8d72-a3c2c3e8fd7f": {
+            "on_completion": "action--bc1f19cf-44c1-4b37-b0b3-005a250d28c3",
+            "type": "start"
+        },
+        "action--bc1f19cf-44c1-4b37-b0b3-005a250d28c3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "parallel--7d8f8dfd-1b43-4a1a-bc8e-8ac1359f22f6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--5ae41d43-3835-40c9-ab3f-200546e18128"
+        },
+        "parallel--7d8f8dfd-1b43-4a1a-bc8e-8ac1359f22f6": {
+            "name": "Post-Malicious Activity Mitigations",
+            "description": "Executing further mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c8a0e80c-1cb5-4c13-9123-889055dd74f1",
+                "action--f596f37d-07cd-4b6b-8172-6bbf1fb4e108",
+                "action--1bcd7b03-1a2c-489d-b27b-18b85f345d44",
+                "action--77b28adc-9b8a-48eb-aa1a-0b53be7d78a0"
+            ]
+        },
+        "action--c8a0e80c-1cb5-4c13-9123-889055dd74f1": {
+            "name": "Isolate compromised host",
+            "description": "Disconnect the compromised host from the network to prevent further exfiltration.",
+            "on_completion": "end--c4f95bcb-bbb1-4f0f-85b6-e34160fdbb23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == host-12 ]; then nmcli device disconnect eth0; fi"
+                }
+            ],
+            "agent": "organization--5ae41d43-3835-40c9-ab3f-200546e18128"
+        },
+        "action--f596f37d-07cd-4b6b-8172-6bbf1fb4e108": {
+            "name": "Run full malware scan",
+            "description": "Run a full malware scan to detect any additional threats.",
+            "on_completion": "end--c4f95bcb-bbb1-4f0f-85b6-e34160fdbb23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--5ae41d43-3835-40c9-ab3f-200546e18128"
+        },
+        "action--1bcd7b03-1a2c-489d-b27b-18b85f345d44": {
+            "name": "Collect and analyze logs",
+            "description": "Analyze logs related to the malicious script execution.",
+            "on_completion": "end--c4f95bcb-bbb1-4f0f-85b6-e34160fdbb23",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_script' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--5ae41d43-3835-40c9-ab3f-200546e18128",
+            "condition": "only_if_previous_success"
+        },
+        "action--77b28adc-9b8a-48eb-aa1a-0b53be7d78a0": {
+            "name": "Notify incident response team",
+            "description": "Send an alert to the incident response team.",
+            "on_completion": "end--c4f95bcb-bbb1-4f0f-85b6-e34160fdbb23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-12' | mail -s 'Urgent: Security Breach' ir_team@example.com"
+                }
+            ],
+            "agent": "organization--5ae41d43-3835-40c9-ab3f-200546e18128"
+        },
+        "end--c4f95bcb-bbb1-4f0f-85b6-e34160fdbb23": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5ae41d43-3835-40c9-ab3f-200546e18128": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

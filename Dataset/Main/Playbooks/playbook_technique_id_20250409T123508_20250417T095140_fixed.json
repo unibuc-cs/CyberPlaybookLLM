@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7a8e37b-8e3f-4e44-a7da-ec1e1ebf1854",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution via phishing, leading to a command-and-control breach.",
+    "created_by": "identity--b21ac3cc-77de-4b47-a818-6d8940f21aef",
+    "created": "2023-10-15T09:00:00Z",
+    "modified": "2023-10-15T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fae4b8c2-c83f-4de6-bcfc-fa430e7726ae",
+    "workflow": {
+        "start--fae4b8c2-c83f-4de6-bcfc-fa430e7726ae": {
+            "on_completion": "action--c12f4d05-8cde-4c57-bc8e-5e5e5a5f45bd",
+            "type": "start"
+        },
+        "action--c12f4d05-8cde-4c57-bc8e-5e5e5a5f45bd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the executing malicious script to prevent further exploitation.",
+            "on_completion": "if-condition--82250e08-3b6e-49ac-a5a3-fdcde9ed5fd0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--71138779-767f-4658-8dce-d53a20988c89"
+        },
+        "loop--b76a4e3b-e14f-4049-bd33-e5a5cade2ee2": {
+            "name": "Perform network scan until clean",
+            "description": "Continuous scanning of the network until all threats are cleared.",
+            "on_completion": "end--b5e6e7e6-7c72-4022-b85c-571b262c5027",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b76a4e3b-e14f-4049-bd33-e5a5cade2ee2",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the network scan.",
+                    "value": "dirty",
+                    "constant": false
+                }
+            }
+        },
+        "action--b76a4e3b-e14f-4049-bd33-e5a5cade2ee2": {
+            "name": "Perform network scan",
+            "description": "Conduct a network scan to identify any unsafe hosts.",
+            "on_completion": {
+                "type": "set_variable--5a7822df-e9a7-43e4-916e-d4679a41e410",
+                "variables": {
+                    "scan_status": "check_scan_results()--004f47d4-52cd-4cde-9df8-127c77890eb0"
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--71138779-767f-4658-8dce-d53a20988c89"
+        },
+        "end--b5e6e7e6-7c72-4022-b85c-571b262c5027": {
+            "type": "end"
+        },
+        "if-condition--82250e08-3b6e-49ac-a5a3-fdcde9ed5fd0": {
+            "name": "Check if malicious process is still running",
+            "type": "if-condition",
+            "condition": "is_process_running('malicious_script.sh')",
+            "on_true": "loop--b76a4e3b-e14f-4049-bd33-e5a5cade2ee2",
+            "on_false": "action--b76a4e3b-e14f-4049-bd33-e5a5cade2ee2"
+        }
+    },
+    "agent_definitions": {
+        "organization--71138779-767f-4658-8dce-d53a20988c89": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

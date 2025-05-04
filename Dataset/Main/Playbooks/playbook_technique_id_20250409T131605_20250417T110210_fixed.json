@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5f1c6a60-e2b5-4a56-8d0a-dcacedbfc9e4",
+    "name": "Mitigation Playbook for Command and Control (C2) Connection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, established a C2 channel, and began data exfiltration.",
+    "created_by": "identity--374b8f74-e2b4-4bff-b749-59c0edd908c1",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--1b2f4931-d953-4bce-a62a-235531ed4f80",
+    "workflow": {
+        "start--1b2f4931-d953-4bce-a62a-235531ed4f80": {
+            "on_completion": "action--c9f4e879-58c3-4863-af4b-b3e0f5a058a5",
+            "type": "start"
+        },
+        "action--c9f4e879-58c3-4863-af4b-b3e0f5a058a5": {
+            "name": "Block outgoing traffic to known malicious IP",
+            "description": "Prevent outbound connections to the malicious IP address associated with the C2 server.",
+            "on_completion": "if-condition--c98ccdf2-49f4-46c4-a576-f00653731828",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--8a50db3d-25b8-4a51-9411-10e8d639b230"
+        },
+        "if-condition--c98ccdf2-49f4-46c4-a576-f00653731828": {
+            "name": "Check for suspicious processes",
+            "type": "if-condition",
+            "condition": "$(pgrep -f suspicious_process) != ''",
+            "on_true": "action--c98ccdf2-49f4-46c4-a576-f00653731828",
+            "on_false": "action--46217d86-0742-4a50-aa1a-0bc41b4ef91c"
+        },
+        "action--c98ccdf2-49f4-46c4-a576-f00653731828": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any malicious processes associated with the C2 communication.",
+            "on_completion": "action--46217d86-0742-4a50-aa1a-0bc41b4ef91c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--8a50db3d-25b8-4a51-9411-10e8d639b230"
+        },
+        "action--46217d86-0742-4a50-aa1a-0bc41b4ef91c": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Continuously scan system logs until a clean result is obtained.",
+            "on_completion": "end--a4b1131f-742d-40fc-8d54-94551deda8fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while grep -q 'indicator' /var/log/syslog; do sleep 60; done"
+                }
+            ],
+            "agent": "organization--8a50db3d-25b8-4a51-9411-10e8d639b230"
+        },
+        "end--a4b1131f-742d-40fc-8d54-94551deda8fa": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8a50db3d-25b8-4a51-9411-10e8d639b230": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

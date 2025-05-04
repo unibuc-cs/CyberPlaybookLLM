@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9b23e563-41b2-4f32-9881-d5f9d59434b2",
+    "name": "Mitigation Playbook for Backdoor Script Execution Incident",
+    "description": "This playbook responds to an incident of unauthorized access via a phishing email that executed a malicious script, creating a backdoor. It includes steps to mitigate the threat and ensure system safety.",
+    "created_by": "identity--8d6fcb4b-b6a5-46b3-b6ee-1b61b64259a1",
+    "created": "2023-10-04T08:55:35.498Z",
+    "modified": "2023-10-04T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--68f4f6d4-7539-464c-8fab-697f3e6ead39",
+    "workflow": {
+        "action--8d6fcb4b-b6a5-46b3-b6ee-1b61b64259a1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--66e02474-758b-46a0-958f-d6887a2aadc7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--5e2695c2-a0b2-4433-a061-faed76e3c70a"
+        },
+        "action--66e02474-758b-46a0-958f-d6887a2aadc7": {
+            "name": "Block outbound connection",
+            "description": "Block any outbound connections to the unknown IP address.",
+            "on_completion": "while-condition--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d unknown_ip -j DROP"
+                }
+            ],
+            "agent": "organization--5e2695c2-a0b2-4433-a061-faed76e3c70a"
+        },
+        "while-condition--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7": {
+            "name": "Scan for additional threats",
+            "description": "Continuously scan the system for additional threats until the system is clean.",
+            "on_true": "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "type": "while-condition",
+            "condition": "system_clean == false",
+            "on_false": "end--1063b396-7f65-4832-ad10-cefcc59e327e"
+        },
+        "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7": {
+            "name": "Perform system scan",
+            "description": "Run a scan to find any additional threats on the system.",
+            "on_completion": "while-condition--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--5e2695c2-a0b2-4433-a061-faed76e3c70a"
+        },
+        "start--68f4f6d4-7539-464c-8fab-697f3e6ead39": {
+            "on_completion": "if-condition--0b3cc64e-30b8-4581-a513-dca69217fe2c",
+            "type": "start"
+        },
+        "if-condition--0b3cc64e-30b8-4581-a513-dca69217fe2c": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--8d6fcb4b-b6a5-46b3-b6ee-1b61b64259a1",
+            "on_false": "action--66e02474-758b-46a0-958f-d6887a2aadc7"
+        },
+        "end--1063b396-7f65-4832-ad10-cefcc59e327e": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5e2695c2-a0b2-4433-a061-faed76e3c70a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

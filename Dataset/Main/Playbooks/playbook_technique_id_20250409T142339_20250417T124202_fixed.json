@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9f82b300-d59a-481d-a1fb-e92f8f0b34fc",
+    "name": "Malicious Script Execution Incident Response",
+    "description": "This playbook addresses an incident where an attacker utilized a command and scripting interpreter to execute malicious scripts on a target server, establishing a backdoor and exfiltrating sensitive data.",
+    "created_by": "identity--bc6239d7-4039-4c64-835c-55d79b854424",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c33bbc3f-103c-4526-b0ca-17a0f89e1e8d",
+    "workflow": {
+        "start--c33bbc3f-103c-4526-b0ca-17a0f89e1e8d": {
+            "on_completion": "action--e56b682c-4cbc-466b-b7ab-b3f4c0cb0c1f",
+            "type": "start"
+        },
+        "action--e56b682c-4cbc-466b-b7ab-b3f4c0cb0c1f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "action--7b639a23-341d-4731-b8c8-fd7e5dcbc026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--16e208ca-f7f1-4546-be78-2bd089e6c5bb"
+        },
+        "action--7b639a23-341d-4731-b8c8-fd7e5dcbc026": {
+            "name": "Disable network access for infected host",
+            "description": "Block incoming traffic from the identified malicious IP.",
+            "on_completion": "while-condition--f9b802c0-b123-45de-ac6a-36bbfd4a3bc3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--16e208ca-f7f1-4546-be78-2bd089e6c5bb"
+        },
+        "while-condition--f9b802c0-b123-45de-ac6a-36bbfd4a3bc3": {
+            "name": "Repeat until security scan is clean",
+            "description": "Continually run security scans until no threats are detected.",
+            "condition": "scan_status == 'in_progress'",
+            "on_true": "action--ed0ac7f5-8c23-48cd-b0e9-4951d4250983",
+            "on_false": "end--d88f9828-7c0c-4a72-bdab-c3e64a470049",
+            "type": "while-condition"
+        },
+        "action--ed0ac7f5-8c23-48cd-b0e9-4951d4250983": {
+            "name": "Run security scan on affected host",
+            "description": "Perform a security scan on the infected directory.",
+            "on_completion": "set-scan-status--d4ae0123-202d-470a-bfec-54f87352f0d9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/infected_directory"
+                }
+            ],
+            "agent": "organization--6b15e9e9-36b7-40c5-81ff-d7831cb9492a",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the security scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--d88f9828-7c0c-4a72-bdab-c3e64a470049": {
+            "type": "end"
+        },
+        "set-scan-status--d4ae0123-202d-470a-bfec-54f87352f0d9": {
+            "name": "Check scan results",
+            "on_completion": "while-condition--f9b802c0-b123-45de-ac6a-36bbfd4a3bc3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(clamscan -r /path/to/infected_directory | grep 'Infected files: 0') ]; then scan_status='clean'; else scan_status='in_progress'; fi"
+                }
+            ],
+            "agent": "organization--6b15e9e9-36b7-40c5-81ff-d7831cb9492a"
+        }
+    },
+    "agent_definitions": {
+        "organization--16e208ca-f7f1-4546-be78-2bd089e6c5bb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--6b15e9e9-36b7-40c5-81ff-d7831cb9492a": {
+            "type": "organization",
+            "name": "ClientSecurity"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c80a8745-1e56-4a88-a4e3-a7ab2bacec3f",
+    "name": "Mitigation Playbook for Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker exfiltrated sensitive data via application layer protocols utilizing an insecure web server.",
+    "created_by": "identity--abcdefab-12d3-4576-b203-654321fedcba",
+    "created": "2023-10-01T12:45:00Z",
+    "modified": "2023-10-01T12:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1d5e8d7d-7b83-4c38-a3c2-5f9de2893409",
+    "workflow": {
+        "start--1d5e8d7d-7b83-4c38-a3c2-5f9de2893409": {
+            "on_completion": "action--c85b0f0e-7d71-4486-a6e7-c6f91e252b3a",
+            "type": "start"
+        },
+        "action--fbcf71d1-8b2d-4b5e-9c81-3c164522b397": {
+            "name": "Kill unauthorized process",
+            "description": "Kill the malicious process if it is running.",
+            "on_completion": "if-condition--82ca942d-e27c-4831-8434-045d06e060b7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--87f82c35-671a-487a-b73b-8651675061ce"
+        },
+        "action--a5b6f275-ec19-4e27-8bfe-b5adaf0b6f9b": {
+            "name": "Conduct a thorough system scan",
+            "description": "Perform a recursive scan through the specified directory.",
+            "on_completion": "while-condition--d9f5d6b3-2ed0-4fd8-b644-83d00ffb04b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory"
+                }
+            ],
+            "agent": "organization--87f82c35-671a-487a-b73b-8651675061ce"
+        },
+        "end--e84f7572-035e-4d28-8c34-e94f95100c7f": {
+            "type": "end"
+        },
+        "action--c85b0f0e-7d71-4486-a6e7-c6f91e252b3a": {
+            "name": "Block malicious IP address",
+            "description": "Block outbound traffic to the known malicious IP address.",
+            "on_completion": "action--fbcf71d1-8b2d-4b5e-9c81-3c164522b397",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--87f82c35-671a-487a-b73b-8651675061ce"
+        },
+        "if-condition--82ca942d-e27c-4831-8434-045d06e060b7": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_id_exists()",
+            "on_true": "action--a5b6f275-ec19-4e27-8bfe-b5adaf0b6f9b",
+            "on_false": "end--e84f7572-035e-4d28-8c34-e94f95100c7f"
+        },
+        "while-condition--d9f5d6b3-2ed0-4fd8-b644-83d00ffb04b5": {
+            "name": "Scan until clean",
+            "description": "Repeat scanning process until the system is clean.",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--e84f7572-035e-4d28-8c34-e94f95100c7f",
+            "on_false": "action--a5b6f275-ec19-4e27-8bfe-b5adaf0b6f9b",
+            "type": "if-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--87f82c35-671a-487a-b73b-8651675061ce": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

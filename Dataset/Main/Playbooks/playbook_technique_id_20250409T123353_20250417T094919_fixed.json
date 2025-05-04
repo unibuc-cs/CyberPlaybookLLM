@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0e4a2351-fd58-4de6-89c9-def2455810bb",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where a malicious script was executed to exfiltrate data and modify critical files after initial access via phishing.",
+    "created_by": "identity--9f623856-927c-4c71-aacd-b62f4a9eec02",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--e272c60e-a701-4c3b-b900-da8ec8a8acf5",
+            "type": "start"
+        },
+        "action--e272c60e-a701-4c3b-b900-da8ec8a8acf5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--fb01c56b-468d-43a7-b20d-00b6e02c6db2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--f28e8973-d984-4cd5-9119-a527f715f8de"
+        },
+        "if-condition--fb01c56b-468d-43a7-b20d-00b6e02c6db2": {
+            "name": "Check if process is suspicious",
+            "type": "if-condition",
+            "condition": "process_is_suspicious",
+            "on_true": "action--fb01c56b-468d-43a7-b20d-00b6e02c6db2",
+            "on_false": "action--c16c23c2-0e30-4646-b54c-7812e65ef954"
+        },
+        "action--fb01c56b-468d-43a7-b20d-00b6e02c6db2": {
+            "name": "Isolate affected host",
+            "description": "Block traffic from the affected host to prevent further data exfiltration.",
+            "on_completion": "action--c16c23c2-0e30-4646-b54c-7812e65ef954",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--f28e8973-d984-4cd5-9119-a527f715f8de"
+        },
+        "action--c16c23c2-0e30-4646-b54c-7812e65ef954": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to identify any remaining threats.",
+            "type": "action",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan is clean.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--f28e8973-d984-4cd5-9119-a527f715f8de",
+            "on_completion": "while-condition--879ee834-168e-4546-b9a3-f7315296f746"
+        },
+        "while-condition--879ee834-168e-4546-b9a3-f7315296f746": {
+            "name": "Check if scan is clean",
+            "description": "Continue the scan until the system is confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_complete == false",
+            "on_true": "action--c16c23c2-0e30-4646-b54c-7812e65ef954",
+            "on_false": "end--1a7492f7-08db-4f19-b6a6-050ea1cf91b0"
+        },
+        "end--1a7492f7-08db-4f19-b6a6-050ea1cf91b0": {
+            "description": "End of the playbook execution.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f28e8973-d984-4cd5-9119-a527f715f8de": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

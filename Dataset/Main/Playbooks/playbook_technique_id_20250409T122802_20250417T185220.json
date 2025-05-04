@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4e55c77-9c52-4e68-bb78-f60f4c383e3f",
+    "name": "Mitigation Playbook for PowerShell Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell commands to drop and execute a payload.",
+    "created_by": "identity--01f8c418-8136-45d6-8aad-5772b278c891",
+    "created": "2023-10-06T08:00:00.000Z",
+    "modified": "2023-10-06T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c3f0f1ca-2d70-4072-8467-aacb6ccd7a1c",
+    "workflow": {
+        "start--c3f0f1ca-2d70-4072-8467-aacb6ccd7a1c": {
+            "on_completion": "action--c53bbcde-d18f-4b18-849a-64bc4e706953",
+            "type": "start"
+        },
+        "action--c53bbcde-d18f-4b18-849a-64bc4e706953": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Checks if the malicious PowerShell process exists and kills it.",
+            "on_completion": "if-condition--f75e4944-974f-4ea8-9f66-72e22fbc5b74",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ]
+        },
+        "if-condition--f75e4944-974f-4ea8-9f66-72e22fbc5b74": {
+            "name": "Check if malicious script exists",
+            "type": "if-condition",
+            "condition": "payload_exists == true",
+            "on_true": "action--f6ed503b-9f0f-4fbc-9ef4-e3dc68987b56",
+            "on_false": "loop--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4"
+        },
+        "action--f6ed503b-9f0f-4fbc-9ef4-e3dc68987b56": {
+            "name": "Remove the dropped malicious file",
+            "description": "Deletes the malicious payload dropped on the system.",
+            "on_completion": "loop--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f payload.ps1"
+                }
+            ]
+        },
+        "loop--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4": {
+            "name": "Conduct full system scan",
+            "description": "Repeat system scan until it is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4",
+            "on_completion": "end--b4e39070-88ee-4c1a-b2f8-e7cf0c7c4789"
+        },
+        "action--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan for threats.",
+            "on_completion": "loop--e4b807dc-4c55-4cc7-ad57-dc24e209c3e4",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ]
+        },
+        "end--b4e39070-88ee-4c1a-b2f8-e7cf0c7c4789": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "payload_exists": {
+            "type": "boolean",
+            "description": "Checks if the 'payload.ps1' file exists.",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the system scan.",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

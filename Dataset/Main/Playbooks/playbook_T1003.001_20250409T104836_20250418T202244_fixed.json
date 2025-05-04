@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a29b4b93-18b6-423e-a705-7403e1c6c99f",
+    "name": "Mitigation Playbook for LSASS Memory Dump Incident",
+    "description": "This playbook addresses an incident involving credential dumping from the LSASS memory, focusing on containment and detection measures.",
+    "created_by": "identity--bc4a12ab-dd96-4f24-910b-777cfeac8bc3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.543Z",
+    "revoked": false,
+    "workflow_start": "start--6829c5f4-d674-4049-bf15-4c9a56876a62",
+    "workflow": {
+        "start--6829c5f4-d674-4049-bf15-4c9a56876a62": {
+            "on_completion": "action--d5aaa14f-9188-414e-bcf7-f3f7eab893e2",
+            "type": "start"
+        },
+        "action--d5aaa14f-9188-414e-bcf7-f3f7eab893e2": {
+            "name": "Kill malicious LSASS process",
+            "description": "Terminate the LSASS process if accessed maliciously.",
+            "on_completion": "parallel--7dfbfb9d-c7cc-46d1-a2dd-56b915b38f27",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f lsass"
+                }
+            ],
+            "agent": "organization--680b94b0-b384-4552-b2e0-dd305630534c"
+        },
+        "action--ef8ea0d4-8b7f-4936-9cee-ecc1bb3b9b49": {
+            "name": "Monitor memory accesses",
+            "description": "Set up monitoring for unauthorized memory accesses.",
+            "on_completion": "action--b6a6fa7c-e26b-4b4e-8911-e235d5c88c46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditd -w /proc/*/mem -p rwxa"
+                }
+            ],
+            "agent": "organization--680b94b0-b384-4552-b2e0-dd305630534c"
+        },
+        "parallel--7dfbfb9d-c7cc-46d1-a2dd-56b915b38f27": {
+            "name": "Execute parallel actions to enhance security",
+            "description": "Start monitoring and deploying EDR simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ef8ea0d4-8b7f-4936-9cee-ecc1bb3b9b49",
+                "action--b6a6fa7c-e26b-4b4e-8911-e235d5c88c46"
+            ]
+        },
+        "action--b6a6fa7c-e26b-4b4e-8911-e235d5c88c46": {
+            "name": "Deploy endpoint detection and response (EDR)",
+            "description": "Install EDR agent to improve detection capabilities.",
+            "on_completion": "end--c86490de-56a0-4308-aa9c-bfe13fd516f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "install-edr-agent"
+                }
+            ],
+            "agent": "organization--680b94b0-b384-4552-b2e0-dd305630534c"
+        },
+        "while-condition--4f7f45a3-a2f2-43fe-a803-dfb3ad9d7a8e": {
+            "name": "Check for unauthorized memory access violations",
+            "description": "Repeat monitoring until no unauthorized access is detected.",
+            "on_completion": "decision--c3bdbbcf-29b3-405d-9214-81862e7c012e",
+            "type": "while-condition",
+            "condition": "violation_count > 0",
+            "on_true": "action--ef8ea0d4-8b7f-4936-9cee-ecc1bb3b9b49",
+            "on_false": "end--c86490de-56a0-4308-aa9c-bfe13fd516f5"
+        },
+        "decision--c3bdbbcf-29b3-405d-9214-81862e7c012e": {
+            "name": "Check detection results",
+            "type": "if-condition",
+            "condition": "unauthorized_memory_access_detected == true",
+            "on_true": "while-condition--4f7f45a3-a2f2-43fe-a803-dfb3ad9d7a8e",
+            "on_false": "end--c86490de-56a0-4308-aa9c-bfe13fd516f5"
+        },
+        "end--c86490de-56a0-4308-aa9c-bfe13fd516f5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--680b94b0-b384-4552-b2e0-dd305630534c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

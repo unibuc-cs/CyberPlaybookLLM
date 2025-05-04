@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7ad3d4b-573e-4c2d-b502-7ae6e42d6c1e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter",
+    "description": "This playbook addresses an incident where malicious scripts were used to establish persistence and collect sensitive data on a web server.",
+    "created_by": "identity--596952e3-49ca-4dbd-a44b-a1e70a86b672",
+    "created": "2023-10-15T08:30:00Z",
+    "modified": "2023-10-15T08:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a0f4c5b-cdea-493b-bd4e-a51fd9f7e68d",
+    "workflow": {
+        "start--1a0f4c5b-cdea-493b-bd4e-a51fd9f7e68d": {
+            "on_completion": "parallel--b5f1eab0-2f52-4cd8-830c-1673158a1e9d",
+            "type": "start"
+        },
+        "parallel--b5f1eab0-2f52-4cd8-830c-1673158a1e9d": {
+            "name": "Execute Mitigations Simultaneously",
+            "description": "Kill malicious processes, block outbound connections, and verify system integrity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--73aba804-eff8-4515-a8d2-f5d2d8b8905e",
+                "action--390298ef-c57d-4d9b-a6e5-3f4d97be8456",
+                "while-loop--f8d059c5-2d57-4d17-8ca4-5a8e7aca6b62"
+            ]
+        },
+        "action--73aba804-eff8-4515-a8d2-f5d2d8b8905e": {
+            "name": "Kill Malicious Processes",
+            "description": "Terminate processes identified as malicious.",
+            "on_completion": "action--ab9d7531-db90-4a44-b957-832e2b6d9d50",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process || echo 'No process found'"
+                }
+            ],
+            "agent": "organization--7aa05cf3-4468-4056-8feb-4231ef49c613"
+        },
+        "action--ab9d7531-db90-4a44-b957-832e2b6d9d50": {
+            "name": "Scan and Remove Malicious Scripts",
+            "description": "Remove detected malicious scripts if they exist.",
+            "type": "if-condition",
+            "condition": "if malicious_scripts_detected == true",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--7aa05cf3-4468-4056-8feb-4231ef49c613",
+            "on_completion": "end--efe56f4e-1511-454f-bd5e-5692cb87a46c"
+        },
+        "action--390298ef-c57d-4d9b-a6e5-3f4d97be8456": {
+            "name": "Block Outbound Connections to Malicious IPs",
+            "description": "Prevent any outgoing connections to known malicious IP addresses.",
+            "on_completion": "end--efe56f4e-1511-454f-bd5e-5692cb87a46c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--7aa05cf3-4468-4056-8feb-4231ef49c613"
+        },
+        "while-loop--f8d059c5-2d57-4d17-8ca4-5a8e7aca6b62": {
+            "name": "Verify System Integrity Loop",
+            "description": "Perform integrity checks till the system is declared clean.",
+            "type": "while-condition",
+            "condition": "system_integrity != 'clean'",
+            "on_true": "action--78af999d-1171-4f96-bfb4-01412d8aa8fb",
+            "on_completion": "end--efe56f4e-1511-454f-bd5e-5692cb87a46c"
+        },
+        "action--e15f94e0-2687-48a5-b712-e34baf3855b0": {
+            "name": "Patch Web Application Vulnerability",
+            "description": "Apply the latest patch to fix vulnerabilities.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_patch --version $patch_version"
+                }
+            ],
+            "agent": "organization--7aa05cf3-4468-4056-8feb-4231ef49c613",
+            "step_variables": {
+                "patch_version": {
+                    "type": "string",
+                    "description": "The version of the patch to be applied.",
+                    "value": "v1.2.3",
+                    "constant": false
+                }
+            },
+            "on_completion": "end--efe56f4e-1511-454f-bd5e-5692cb87a46c"
+        },
+        "end--efe56f4e-1511-454f-bd5e-5692cb87a46c": {
+            "type": "end"
+        },
+        "action--78af999d-1171-4f96-bfb4-01412d8aa8fb": {
+            "name": "Check System Integrity",
+            "description": "Continuously check system integrity till it's deemed clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "audctl check --mode complete"
+                }
+            ],
+            "agent": "organization--7aa05cf3-4468-4056-8feb-4231ef49c613"
+        }
+    },
+    "agent_definitions": {
+        "organization--7aa05cf3-4468-4056-8feb-4231ef49c613": {
+            "type": "organization",
+            "name": "XYZ Organization"
+        }
+    }
+}

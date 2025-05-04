@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1b9f2f7-c19f-44c8-82f3-ace0a8e4732f",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates a security incident involving unauthorized access via a remote script interpreter.",
+    "created_by": "identity--e7e6f8ea-d29f-4fcb-a749-4a7d7d75d9b1",
+    "created": "2023-10-15T10:30:00Z",
+    "modified": "2023-10-15T10:30:00Z",
+    "workflow_start": "start--9a5f9988-b8ad-4009-922a-024e35e69876",
+    "workflow": {
+        "start--9a5f9988-b8ad-4009-922a-024e35e69876": {
+            "type": "start",
+            "on_completion": "parallel--bc1f0e58-9e23-48f8-ab32-49f5e0b60fd0"
+        },
+        "end--69a5fbad-862b-47cd-888f-517e8c2c3e70": {
+            "type": "end"
+        },
+        "parallel--bc1f0e58-9e23-48f8-ab32-49f5e0b60fd0": {
+            "type": "parallel",
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate mitigations in parallel",
+            "next_steps": [
+                "action--9f1c4a5e-bd0d-4e4e-af8a-ec8b6b44d5f1",
+                "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d"
+            ]
+        },
+        "action--9f1c4a5e-bd0d-4e4e-af8a-ec8b6b44d5f1": {
+            "type": "action",
+            "name": "Terminate unauthorized process",
+            "description": "Terminate any unauthorized processes running on the host.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_process"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "if-condition--03c86c59-f0e5-448c-b65c-e4924ef03264"
+        },
+        "if-condition--03c86c59-f0e5-448c-b65c-e4924ef03264": {
+            "type": "if-condition",
+            "name": "Check if unauthorized process is running",
+            "condition": "unauthorized_process_running",
+            "on_true": "action--03c86c59-f0e5-448c-b65c-e4924ef03264",
+            "on_false": "loop--b8f3b07b-718b-42fb-bc14-8f924b35c4c9"
+        },
+        "action--03c86c59-f0e5-448c-b65c-e4924ef03264": {
+            "type": "action",
+            "name": "Quarantine affected host",
+            "description": "Isolate the host that is running unauthorized processes.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--b8f3b07b-718b-42fb-bc14-8f924b35c4c9"
+        },
+        "loop--b8f3b07b-718b-42fb-bc14-8f924b35c4c9": {
+            "type": "while-condition",
+            "name": "Scan for rootkits",
+            "description": "Loop until the system is cleaned of any rootkits.",
+            "condition": "system_status == 'infected'",
+            "on_true": "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9",
+            "on_false": "end--69a5fbad-862b-47cd-888f-517e8c2c3e70"
+        },
+        "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9": {
+            "type": "action",
+            "name": "Scan host for rootkits",
+            "description": "Perform a rootkit scan on the affected host.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "set-system-status"
+        },
+        "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d": {
+            "type": "action",
+            "name": "Review and apply strict firewall rules",
+            "description": "Apply new firewall rules to restrict unauthorized access.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_firewall_rules.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": [
+                "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b",
+                "end--69a5fbad-862b-47cd-888f-517e8c2c3e70"
+            ]
+        },
+        "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b": {
+            "type": "action",
+            "name": "Update system access controls",
+            "description": "Enhance access control settings on sensitive data directories.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /restricted/data"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--69a5fbad-862b-47cd-888f-517e8c2c3e70"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityTeamOrganization"
+        }
+    },
+    "target_definitions": {
+        "individual--host-22": {
+            "type": "individual",
+            "name": "Compromised Host (host-22)"
+        }
+    }
+}

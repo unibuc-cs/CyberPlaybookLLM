@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6c2e9f2-8b61-4846-b78a-04c33c1b4e7e",
+    "name": "Mitigation Playbook for Application Layer Protocol Abuse",
+    "description": "This playbook addresses an incident where an attacker used application layer protocols to communicate with a Command and Control server.",
+    "created_by": "identity--2b52aee6-c6bd-4ace-9de1-703567138abd",
+    "created": "2023-10-08T12:00:00Z",
+    "modified": "2023-10-08T12:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--de9c98c9-f5ec-4c04-8b31-f259e3e2cdcc",
+    "workflow": {
+        "start--de9c98c9-f5ec-4c04-8b31-f259e3e2cdcc": {
+            "type": "start",
+            "on_completion": "parallel--03f5f47c-8b99-4ba3-b29c-32791854c124"
+        },
+        "parallel--03f5f47c-8b99-4ba3-b29c-32791854c124": {
+            "type": "parallel",
+            "name": "Mitigation Actions",
+            "next_steps": [
+                "action--1f3e8b7e-ab1c-4c31-bfbe-799ef88cbf87",
+                "decision--e3e92e76-baf6-4eaf-bc5f-1cb084c62a17",
+                "action--cdfbcd2b-7db4-45a2-b7dd-0135d75dd2a5"
+            ],
+            "description": "Execute mitigation actions in parallel."
+        },
+        "action--1f3e8b7e-ab1c-4c31-bfbe-799ef88cbf87": {
+            "name": "Block connection to known malicious IP",
+            "description": "Block all outbound connections to the known malicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--031069e2-c610-4978-93e5-a82bc61c2c22",
+            "on_completion": "decision--e3e92e76-baf6-4eaf-bc5f-1cb084c62a17"
+        },
+        "decision--e3e92e76-baf6-4eaf-bc5f-1cb084c62a17": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--7581cd3e-c40a-4517-8b8e-8f3acfd736de",
+            "on_false": "action--cdfbcd2b-7db4-45a2-b7dd-0135d75dd2a5"
+        },
+        "action--cdfbcd2b-7db4-45a2-b7dd-0135d75dd2a5": {
+            "name": "Scan network for unusual traffic patterns",
+            "description": "Continuously monitor the network for unusual traffic on port 80.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -A 'port 80'"
+                }
+            ],
+            "agent": "organization--031069e2-c610-4978-93e5-a82bc61c2c22",
+            "loop": {
+                "condition": "scan_results_clean == false",
+                "on_completion": "end--f2c8a587-e3cb-4873-8dad-0f31b1340f58"
+            }
+        },
+        "end--f2c8a587-e3cb-4873-8dad-0f31b1340f58": {
+            "type": "end"
+        },
+        "action--7581cd3e-c40a-4517-8b8e-8f3acfd736de": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious process that may be running.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--031069e2-c610-4978-93e5-a82bc61c2c22",
+            "on_completion": "action--cdfbcd2b-7db4-45a2-b7dd-0135d75dd2a5"
+        }
+    },
+    "agent_definitions": {
+        "organization--031069e2-c610-4978-93e5-a82bc61c2c22": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

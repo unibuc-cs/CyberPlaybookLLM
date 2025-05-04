@@ -1,0 +1,139 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f83e1d6-22b5-4c9d-b28b-49d3d938e4d1",
+    "name": "Command and Scripting Interpreter Mitigation Playbook",
+    "description": "Playbook to mitigate threats from script execution attempting to connect to an external C2 server.",
+    "created_by": "identity--3ab78de5-0b15-4ac1-8892-6cc452bcd5c8",
+    "created": "2023-10-18T12:00:00Z",
+    "modified": "2023-10-18T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d6f342d0-fd94-4cde-83b9-9561b5ed5091",
+    "workflow": {
+        "start--d6f342d0-fd94-4cde-83b9-9561b5ed5091": {
+            "on_completion": "parallel--90eb4508-8e5d-4ac0-8180-13b3149deb15",
+            "type": "start"
+        },
+        "action--b0a537b0-aba6-4c5a-b1f8-bc8d43482db6": {
+            "name": "Terminate malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "while--ac0d7777-007a-4193-9393-b4917ddf469e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "action--84c0bfd2-6e00-4e4e-9144-d930a479ef41": {
+            "name": "Scan host for additional malware",
+            "description": "Perform a full scan of the host.",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Outcome of the malware scan",
+                    "value": "unknown",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "if-condition--a31d5a84-f2b7-4aa1-b13f-3922702fd8ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan_script.sh --full-scan"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "action--c4e9cc4a-e276-4d72-8c94-2573a607c8b5": {
+            "name": "Notify IT security team",
+            "description": "Send an alert to the IT security team if malware is found.",
+            "on_completion": "end--f94f61ba-385b-4364-a6a9-aeb3199aa798",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert.sh IT_Security 'Incident detected on host-47'"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "action--a73522a8-5475-4762-9b1d-82a65a3c0413": {
+            "name": "Update firewall rules to block malicious IP",
+            "description": "Add firewall rule to block outbound connections to a malicious IP.",
+            "on_completion": "action--faab8137-1375-4037-9917-d5a2c8f6ec58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "action--faab8137-1375-4037-9917-d5a2c8f6ec58": {
+            "name": "Verify firewall rule application",
+            "description": "Check if the firewall rule was applied successfully.",
+            "on_completion": "action--96492f6f-7edd-440c-9433-5f945c67a105",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_firewall.sh 192.0.2.0"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "action--96492f6f-7edd-440c-9433-5f945c67a105": {
+            "name": "Investigate unauthorized file access",
+            "description": "Review logs for unauthorized file access.",
+            "on_completion": "end--f94f61ba-385b-4364-a6a9-aeb3199aa798",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "review_logs.sh /var/log/file_access.log"
+                }
+            ],
+            "agent": "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6"
+        },
+        "end--f94f61ba-385b-4364-a6a9-aeb3199aa798": {
+            "type": "end"
+        },
+        "parallel--90eb4508-8e5d-4ac0-8180-13b3149deb15": {
+            "name": "Parallel Actions",
+            "description": "Execute parallel actions to handle script and connection.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b0a537b0-aba6-4c5a-b1f8-bc8d43482db6",
+                "action--a73522a8-5475-4762-9b1d-82a65a3c0413"
+            ]
+        },
+        "while--ac0d7777-007a-4193-9393-b4917ddf469e": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the scan result is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--84c0bfd2-6e00-4e4e-9144-d930a479ef41",
+            "on_false": "end--f94f61ba-385b-4364-a6a9-aeb3199aa798"
+        },
+        "if-condition--a31d5a84-f2b7-4aa1-b13f-3922702fd8ce": {
+            "name": "Check scan result",
+            "description": "Check if the scan finds malware.",
+            "type": "if-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--c4e9cc4a-e276-4d72-8c94-2573a607c8b5",
+            "on_false": "end--f94f61ba-385b-4364-a6a9-aeb3199aa798"
+        }
+    },
+    "agent_definitions": {
+        "organization--7c1c978e-5d20-4270-8a6e-0490f4e37ca6": {
+            "type": "organization",
+            "name": "SecurityIncidentResponseTeam"
+        }
+    }
+}

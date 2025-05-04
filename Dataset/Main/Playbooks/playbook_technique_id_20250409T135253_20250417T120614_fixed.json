@@ -1,0 +1,77 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1d2e001-5004-4f27-8cc8-0cab05d32ecd",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to a user account and executed malicious scripts to extract sensitive data.",
+    "created_by": "identity--b1c68c84-22af-4ef4-88c4-d2858e9f8d6b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c16b58be-8a7c-4c7f-a6a3-c2ae878b9974",
+    "workflow": {
+        "start--c16b58be-8a7c-4c7f-a6a3-c2ae878b9974": {
+            "on_completion": "action--f8509e4a-024b-460c-b800-dd60b11539dc",
+            "type": "start"
+        },
+        "action--f8509e4a-024b-460c-b800-dd60b11539dc": {
+            "name": "Terminate malicious scripts",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--d3b1f51d-3e73-415c-b728-3a6ef342d231",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--b5fea74b-ca80-4ae4-9916-35d735d30eea"
+        },
+        "if-condition--d3b1f51d-3e73-415c-b728-3a6ef342d231": {
+            "name": "Check if the system is compromised",
+            "type": "if-condition",
+            "condition": "is_system_compromised == true",
+            "on_true": "action--1487e894-e0a7-469b-bcf1-ec05a61510f5",
+            "on_false": "action--302b1c64-235b-4c2b-ae58-e0afe567b6d7"
+        },
+        "action--1487e894-e0a7-469b-bcf1-ec05a61510f5": {
+            "name": "Isolate affected system from network",
+            "description": "Take the affected system offline to prevent further data loss.",
+            "on_completion": "action--302b1c64-235b-4c2b-ae58-e0afe567b6d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--b5fea74b-ca80-4ae4-9916-35d735d30eea"
+        },
+        "action--302b1c64-235b-4c2b-ae58-e0afe567b6d7": {
+            "name": "Run full disk scan",
+            "description": "Perform a full disk scan to detect any other potential threats.",
+            "on_completion": "end--5e2f7803-d99d-4d97-bb84-5e93b1bc65e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--b5fea74b-ca80-4ae4-9916-35d735d30eea",
+            "loop": {
+                "condition": "scan_result == 'dirty'",
+                "step": "action--302b1c64-235b-4c2b-ae58-e0afe567b6d7"
+            }
+        },
+        "end--5e2f7803-d99d-4d97-bb84-5e93b1bc65e6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b5fea74b-ca80-4ae4-9916-35d735d30eea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

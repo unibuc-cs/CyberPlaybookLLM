@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b14d9f1e-b6f0-4074-b9ad-8b6b9fca3e4b",
+    "name": "Mitigation Playbook for Persistence via Startup Folder",
+    "description": "This playbook addresses an incident where an attacker added a malicious executable to the startup folder for persistence. The playbook includes removing the executable, monitoring for unauthorized changes, and checking the registry for unauthorized entries.",
+    "created_by": "identity--19c898a4-680b-47bc-b37f-16f4f67ed9f0",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1f2d3e4-5678-4234-bf1c-56789abcdef0",
+    "workflow": {
+        "start--b1f2d3e4-5678-4234-bf1c-56789abcdef0": {
+            "on_completion": "parallel--c12f4e9f-7654-42a3-bf12-56789abcdef0",
+            "type": "start"
+        },
+        "parallel--c12f4e9f-7654-42a3-bf12-56789abcdef0": {
+            "name": "Execute Mitigation Steps",
+            "description": "Simultaneously execute steps for mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--dffdd0ab-1f8b-4cbb-a5a5-864176b175d6",
+                "action--11d3e5bb-ef1d-4c5a-afe6-146ed4b28c98",
+                "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22"
+            ]
+        },
+        "action--dffdd0ab-1f8b-4cbb-a5a5-864176b175d6": {
+            "name": "Remove Malicious Executable",
+            "description": "Remove the malicious executable from the startup folder.",
+            "on_completion": "action--11d3e5bb-ef1d-4c5a-afe6-146ed4b28c98",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/startup/folder/malicious.exe"
+                }
+            ],
+            "agent": "organization--c87a70f9-afa0-4978-bdc0-0dcaebbebfea"
+        },
+        "action--11d3e5bb-ef1d-4c5a-afe6-146ed4b28c98": {
+            "name": "Monitor Startup Folder",
+            "description": "Monitor the startup folder for unauthorized changes.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "watch -n 60 'ls /path/to/startup/folder/'"
+                }
+            ],
+            "agent": "organization--c87a70f9-afa0-4978-bdc0-0dcaebbebfea",
+            "step_variables": {
+                "unauthorized_detected": {
+                    "type": "boolean",
+                    "description": "Tracks if an unauthorized file is detected.",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "loop": {
+                "condition": "unauthorized_detected == true",
+                "on_true": "action--dffdd0ab-1f8b-4cbb-a5a5-864176b175d6",
+                "on_false": "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22"
+            }
+        },
+        "action--fb434d00-ccc5-4331-8b8c-7d559c8b9a22": {
+            "name": "Check Registry for Unauthorized Entries",
+            "description": "Check the registry for unauthorized entries and remove them if found.",
+            "on_completion": "end--3f3f4a5e-7890-4321-bf45-67890abcdef0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+                }
+            ],
+            "agent": "organization--c87a70f9-afa0-4978-bdc0-0dcaebbebfea",
+            "step_variables": {
+                "unauthorized_entry_found": {
+                    "type": "boolean",
+                    "description": "Tracks if an unauthorized registry entry is detected.",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "loop": {
+                "condition": "unauthorized_entry_found == true",
+                "on_true": "action--remove_registry_entry",
+                "on_false": "end--3f3f4a5e-7890-4321-bf45-67890abcdef0"
+            }
+        },
+        "end--3f3f4a5e-7890-4321-bf45-67890abcdef0": {
+            "type": "end"
+        },
+        "remove_registry_entry--2dc988e4-f66f-4324-866c-e74930b56e33": {
+            "status": "To be implemented",
+            "description": "Implement the command to delete the unauthorized registry entry if found."
+        }
+    },
+    "agent_definitions": {
+        "organization--c87a70f9-afa0-4978-bdc0-0dcaebbebfea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

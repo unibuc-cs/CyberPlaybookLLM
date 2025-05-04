@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7fa3b02-d15b-4d94-b89e-3aacc3765e54",
+    "name": "Command and Scripting Interpreter Incident Response Playbook",
+    "description": "This playbook automates the response to incidents involving unauthorized access using command and scripting interpreters.",
+    "created_by": "identity--9b0f0023-2483-46f2-8eef-6513ec5be476",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a25a51-c12e-4a7f-aba0-dcc18ae56789",
+    "workflow": {
+        "start--f1a25a51-c12e-4a7f-aba0-dcc18ae56789": {
+            "on_completion": "action--a3c598e9-0c4e-4a88-b658-6e1510a20e66",
+            "type": "start"
+        },
+        "action--a3c598e9-0c4e-4a88-b658-6e1510a20e66": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script currently running.",
+            "on_completion": "action--f05f5a43-08f5-41f1-a7d3-d35eaa435147",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--a3c6a3cb-fa43-4940-b44a-dfb330797270"
+        },
+        "action--f05f5a43-08f5-41f1-a7d3-d35eaa435147": {
+            "name": "Block External IPs",
+            "description": "Block any outgoing connections to the identified malicious IPs.",
+            "on_completion": "while-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--a3c6a3cb-fa43-4940-b44a-dfb330797270"
+        },
+        "while-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2": {
+            "name": "Perform System-wide Scan",
+            "description": "Scanning the entire system for any threats.",
+            "condition": "threats_found == true",
+            "on_true": "action--b1f8f0b1-ec93-4589-8105-c96a20c295c2",
+            "on_false": "end--e1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+            "type": "while-condition"
+        },
+        "loop--scan-action--b1f8f0b1-ec93-4589-8105-c96a20c295c2": {
+            "name": "Conducting System Scan",
+            "on_completion": "while-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--a3c6a3cb-fa43-4940-b44a-dfb330797270",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Indicator of whether threats are found in the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a3c6a3cb-fa43-4940-b44a-dfb330797270": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

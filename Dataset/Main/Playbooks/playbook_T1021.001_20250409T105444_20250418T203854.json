@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c6bce5b9-4337-4db4-8f5f-508b4256b1c3",
+    "name": "Mitigation Playbook for RDP Credential Exploitation Incident",
+    "description": "This playbook addresses an incident involving unauthorized access via RDP due to weak credentials, focusing on mitigating malicious activity and securing RDP access.",
+    "created_by": "identity--72a8d2c5-d06a-4b51-9446-7a44bc0f4ab2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.048Z",
+    "revoked": false,
+    "workflow_start": "start--a0e59a35-8f8a-4eb0-a188-e827f98dfd64",
+    "workflow": {
+        "start--a0e59a35-8f8a-4eb0-a188-e827f98dfd64": {
+            "on_completion": "parallel--3a525e3b-5e05-45a5-8469-11fcd5d9aedc",
+            "type": "start"
+        },
+        "parallel--3a525e3b-5e05-45a5-8469-11fcd5d9aedc": {
+            "name": "Initiate Mitigation Actions",
+            "description": "Begin mitigation steps for addressing RDP security issues.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7c7e9e91-1fda-4d75-891f-1c23834c9e68",
+                "action--1c0e87b3-1c76-4038-ba79-577f693b90c8",
+                "action--d61e98a4-fe36-4379-a8c5-dfdf1b99fa84"
+            ]
+        },
+        "action--7c7e9e91-1fda-4d75-891f-1c23834c9e68": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the trojan.",
+            "on_completion": "action--be8f8d42-82e4-4d7d-98e3-1f8b83c6b7a5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f trojan_name"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1c0e87b3-1c76-4038-ba79-577f693b90c8": {
+            "name": "Restrict RDP access",
+            "description": "Block further RDP access attempts.",
+            "on_completion": "action--d61e98a4-fe36-4379-a8c5-dfdf1b99fa84",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='Restrict RDP' dir=in action=block protocol=TCP localport=3389"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d61e98a4-fe36-4379-a8c5-dfdf1b99fa84": {
+            "name": "Implement Multi-Factor Authentication for RDP",
+            "description": "Enforce MFA for better security in RDP access.",
+            "on_completion": "action--f10274ef-d80e-4056-b76b-569b4f3f1e2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Enable MFA for RDP users"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--be8f8d42-82e4-4d7d-98e3-1f8b83c6b7a5": {
+            "name": "Audit RDP login attempts",
+            "description": "Check RDP logs for any suspicious login attempts.",
+            "on_completion": "end--c9b1b0d1-6ff5-4308-83e1-60b3196aef11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'RDP' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "suspicious_entries_found",
+                "do": "audit_log_action"
+            }
+        },
+        "action--f10274ef-d80e-4056-b76b-569b4f3f1e2e": {
+            "name": "Change RDP credentials",
+            "description": "Update RDP credentials if compromised.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--abc",
+            "if-condition": {
+                "condition": "credentials_compromised",
+                "on_true": "end--c9b1b0d1-6ff5-4308-83e1-60b3196aef11",
+                "on_false": "end--c9b1b0d1-6ff5-4308-83e1-60b3196aef11"
+            }
+        },
+        "end--c9b1b0d1-6ff5-4308-83e1-60b3196aef11": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

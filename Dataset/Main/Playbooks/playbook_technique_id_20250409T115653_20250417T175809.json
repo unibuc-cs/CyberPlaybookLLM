@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d46a7c0d-cd2f-4f5a-ba3b-61f9fc045db6",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user executed a script that initiated data exfiltration under the disguise of a legitimate process.",
+    "created_by": "identity--abc123",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--00000000-0000-0000-0000-000000000001",
+    "workflow": {
+        "start--00000000-0000-0000-0000-000000000001": {
+            "on_completion": "action--b2c72c8d-7f36-475b-8d2a-eb3060d94983",
+            "type": "start"
+        },
+        "action--b2c72c8d-7f36-475b-8d2a-eb3060d94983": {
+            "name": "Isolate affected host",
+            "description": "Block incoming traffic from known infiltrated IP.",
+            "on_completion": "action--f7a7eb0e-85df-4d8a-9f93-25c6a45c3a77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <infiltrated_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f7a7eb0e-85df-4d8a-9f93-25c6a45c3a77": {
+            "name": "Kill malicious process if exists",
+            "description": "Terminate the suspicious process if it is running.",
+            "on_completion": "while-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "process_status": {
+                    "type": "string",
+                    "description": "Status of the malicious process",
+                    "value": "exists",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--scan-check": {
+            "name": "Check if process exists",
+            "description": "Repeat scanning until the malicious process is not found.",
+            "on_true": "action--ff4da68e-f827-4871-8736-5c980d1d6b01",
+            "on_false": "end--end-condition",
+            "type": "while-condition",
+            "condition": "process_status == 'exists'"
+        },
+        "action--ff4da68e-f827-4871-8736-5c980d1d6b01": {
+            "name": "Conduct full system scan",
+            "description": "Perform a complete system scan to identify any remaining threats.",
+            "on_completion": "while-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--end-condition": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

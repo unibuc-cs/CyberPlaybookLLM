@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9b88d506-7f0c-4f89-b855-78979c4aa45e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where unauthorized shell commands were executed via a web application vulnerability, leading to privilege escalation.",
+    "created_by": "identity--ce5fed67-a5a8-4f8d-b2e3-fab67c50b294",
+    "created": "2023-11-01T10:30:00Z",
+    "modified": "2023-11-01T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d3f9f1e5-ae47-4cbd-b64b-fdc7b8af291e",
+    "workflow": {
+        "start--d3f9f1e5-ae47-4cbd-b64b-fdc7b8af291e": {
+            "on_completion": "parallel--b529597f-710f-4854-9975-5ec4b087e84e",
+            "type": "start"
+        },
+        "end--fe39177a-e9d5-4be6-b3b3-b30268a9bb9e": {
+            "type": "end"
+        },
+        "parallel--b529597f-710f-4854-9975-5ec4b087e84e": {
+            "name": "Execute Mitigation Actions in Parallel",
+            "description": "Terminate unauthorized processes and isolate host in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8",
+                "if-condition--c8e8231f-4c36-4222-a6a6-825aaef35764"
+            ]
+        },
+        "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8": {
+            "name": "Terminate Unauthorized Shell Processes",
+            "description": "Kill all unauthorized shell processes running on the host.",
+            "on_completion": "action--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_shell"
+                }
+            ],
+            "agent": "organization--9214969d-804c-4075-983e-f455fede540f"
+        },
+        "if-condition--c8e8231f-4c36-4222-a6a6-825aaef35764": {
+            "name": "Check for Web Connection",
+            "description": "Check if host is serving on port 80 before isolating.",
+            "type": "if-condition",
+            "condition": "if [ $(netstat -tuln | grep ':80') ]; then",
+            "on_true": "action--4dbe9ed7-4102-4f94-8416-d4017578c684",
+            "on_false": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9"
+        },
+        "action--4dbe9ed7-4102-4f94-8416-d4017578c684": {
+            "name": "Isolate Compromised Host",
+            "description": "Disable network interface on the compromised host.",
+            "on_completion": "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--9214969d-804c-4075-983e-f455fede540f"
+        },
+        "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492": {
+            "name": "Restore System from Backup",
+            "description": "Restore the system from a known clean backup state.",
+            "on_completion": "end--fe39177a-e9d5-4be6-b3b3-b30268a9bb9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash restore_backup.sh"
+                }
+            ],
+            "agent": "organization--9214969d-804c-4075-983e-f455fede540f"
+        },
+        "action--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f": {
+            "name": "Scan for Persistence Mechanisms",
+            "description": "Scan systems for backdoor persistence mechanisms.",
+            "type": "loop",
+            "loop_condition": "while [ \"$(find / -name '*.sh' | xargs grep 'backdoor')\" != \"clean\" ]; do",
+            "on_completion": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' | xargs grep 'backdoor'"
+                }
+            ],
+            "agent": "organization--9214969d-804c-4075-983e-f455fede540f"
+        },
+        "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9": {
+            "name": "Update Security Policy",
+            "description": "Update security policies to log shell access attempts.",
+            "on_completion": "end--fe39177a-e9d5-4be6-b3b3-b30268a9bb9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'logging enabled' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--9214969d-804c-4075-983e-f455fede540f"
+        }
+    },
+    "agent_definitions": {
+        "organization--9214969d-804c-4075-983e-f455fede540f": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

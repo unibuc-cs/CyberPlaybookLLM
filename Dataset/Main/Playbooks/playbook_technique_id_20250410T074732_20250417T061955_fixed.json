@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d9a6effd-cb79-4a5b-a05e-f9c2cf2a24d6",
+    "name": "Incident Response Playbook for Malicious Command Execution",
+    "description": "This playbook is designed to respond to incidents involving unauthorized command execution facilitated through a command line interface. It aims to promptly mitigate risks and secure the environment.",
+    "created_by": "identity--21927f82-1192-4a3d-b1da-03823420016f",
+    "created": "2023-10-07T14:00:00Z",
+    "modified": "2023-10-07T14:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--8494ce31-3b6e-43b9-8b6e-8f7bca4317b3",
+    "workflow": {
+        "start--8494ce31-3b6e-43b9-8b6e-8f7bca4317b3": {
+            "on_completion": "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605",
+            "type": "start"
+        },
+        "action--b97a4df3-9bd7-4e80-a5c8-3f4b1b5f7605": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts currently executing.",
+            "on_completion": "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 malicious_script"
+                }
+            ],
+            "agent": "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a"
+        },
+        "action--faa3abf0-1eb9-4c6f-ae59-e9315878e391": {
+            "name": "Identify affected hosts",
+            "description": "Scan the network for hosts that may have been compromised.",
+            "on_completion": "if-condition--1d76e234-14a1-4dbb-a6c8-cb0f153521fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -F -Pn -p 22 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a"
+        },
+        "if-condition--1d76e234-14a1-4dbb-a6c8-cb0f153521fb": {
+            "name": "Check for new hosts",
+            "type": "if-condition",
+            "condition": "new_hosts_found > 0",
+            "on_true": "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e",
+            "on_false": "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2"
+        },
+        "action--523c1892-fb75-4b6d-bb92-bb3e0e1eab6e": {
+            "name": "Remove unauthorized scripts",
+            "description": "Find and remove any unauthorized or malicious scripts identified in the system.",
+            "on_completion": "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_script.sh' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a"
+        },
+        "action--e78e40b5-dbc2-4dc4-a6f7-697234e6e4d2": {
+            "name": "Network isolation",
+            "description": "Block all network traffic from potentially compromised hosts.",
+            "on_completion": "action--a1e4935b-2276-4322-9e61-0b873bb6fec0",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -I INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a",
+            "condition": {
+                "if": "find compromised host"
+            }
+        },
+        "action--a1e4935b-2276-4322-9e61-0b873bb6fec0": {
+            "name": "Restore from backup",
+            "description": "Restore systems using the latest backups to ensure integrity.",
+            "on_completion": "end--d2b2614c-4f0b-4beb-8c53-84bff0abf67b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/restore_backup.sh"
+                }
+            ],
+            "agent": "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a",
+            "variables": {
+                "backup_date": "October 2023"
+            }
+        },
+        "end--d2b2614c-4f0b-4beb-8c53-84bff0abf67b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d332dd9c-e71f-43e5-8c2e-cca63c620a1a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

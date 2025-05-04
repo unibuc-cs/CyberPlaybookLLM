@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9aabbc55-dc51-4a1c-9145-f8e9ef67faa7",
+    "name": "Mitigation Playbook for Unauthorized RDP Access Incident",
+    "description": "This playbook handles incidents of unauthorized access via Remote Desktop Protocol (RDP) and associated malicious activities.",
+    "created_by": "identity--b9d726ee-6c0a-48e5-b17d-be2f45bfe4cb",
+    "created": "2025-04-09T09:43:00.000Z",
+    "modified": "2025-04-09T09:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b5d50719-4e73-44de-9f8e-0dfa4d472601",
+    "workflow": {
+        "start--b5d50719-4e73-44de-9f8e-0dfa4d472601": {
+            "on_completion": "decision--decide-connection",
+            "type": "start"
+        },
+        "decision--decide-connection": {
+            "name": "Check for active RDP sessions",
+            "type": "if-condition",
+            "condition": "session_exists == true",
+            "on_true": "action--disconnect-unauthorized-sessions",
+            "on_false": "action--secure-remote-access"
+        },
+        "action--disconnect-unauthorized-sessions": {
+            "name": "Disconnect Unauthorized RDP Sessions",
+            "description": "Log off any active RDP sessions from unauthorized IPs.",
+            "type": "action",
+            "agent": "organization--abc",
+            "on_completion": "action--secure-remote-access",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net session | findstr /C:\"<USERNAME>\" | for /F \"tokens=2\" %i in ('findstr \"<HOSTNAME>\"') do logoff %i"
+                }
+            ]
+        },
+        "action--secure-remote-access": {
+            "name": "Secure Remote Access",
+            "description": "Change RDP port and enforce strong passwords.",
+            "type": "action",
+            "agent": "organization--abc",
+            "on_completion": "loop--run-security-scans",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='RDP Change Port' protocol=TCP dir=in localport=<NEW_PORT> action=allow"
+                }
+            ]
+        },
+        "loop--run-security-scans": {
+            "name": "Run Security Scans",
+            "description": "Start security scans on the affected host and loop until scans are complete and clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'running'",
+            "on_true": "action--start-security-scan",
+            "next_steps": [
+                "action--finish-scans"
+            ]
+        },
+        "action--start-security-scan": {
+            "name": "Start Security Scan",
+            "description": "Initiate scanning on the indicated host to uncover any remaining threats.",
+            "type": "action",
+            "agent": "organization--abc",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "start-scan --host=<HOST>"
+                }
+            ],
+            "on_completion": "loop--run-security-scans"
+        },
+        "action--finish-scans": {
+            "name": "Handle Completion of Security Scans",
+            "description": "Review scan results and finalize incident response.",
+            "type": "action",
+            "agent": "organization--abc",
+            "on_completion": "end--playbook-complete",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "evaluate-scan-results"
+                }
+            ]
+        },
+        "end--playbook-complete": {
+            "name": "End Playbook",
+            "description": "End of the incident response playbook.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

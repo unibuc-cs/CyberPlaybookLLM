@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b0207e79-c202-4c00-9c5c-e1ea3dfd9083",
+    "name": "Mitigation Playbook for WMI Script Execution Incident",
+    "description": "This playbook addresses an incident where attackers used Windows Management Instrumentation to execute malicious scripts across multiple hosts in the network.",
+    "created_by": "identity--2d8a10c2-ebb3-4f2a-86a9-83a622efc516",
+    "created": "2025-04-10T09:00:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a0c55e99-3408-4904-a992-ab2b0918f0d2",
+    "workflow": {
+        "start--a0c55e99-3408-4904-a992-ab2b0918f0d2": {
+            "on_completion": "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a",
+            "type": "start"
+        },
+        "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a": {
+            "name": "Terminate malicious PowerShell instances",
+            "description": "Terminate any running PowerShell instances that may be executing malicious scripts.",
+            "on_completion": "while-condition--bf55e8fb-b15a-4e86-a48f-5da721bff82c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /f /im powershell.exe"
+                }
+            ],
+            "agent": "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21"
+        },
+        "while-condition--bf55e8fb-b15a-4e86-a48f-5da721bff82c": {
+            "name": "Check for remaining malicious instances",
+            "on_completion": "action--3c1e223d-ae29-4bf9-8167-1e9e6a7ca594",
+            "type": "while-condition",
+            "condition": "check_if_malicious_process_running",
+            "on_true": "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a"
+        },
+        "action--3c1e223d-ae29-4bf9-8167-1e9e6a7ca594": {
+            "name": "Block WMI access for untrusted users",
+            "description": "Restrict WMI access for known untrusted users to prevent further exploitation.",
+            "on_completion": "action--acc407be-b2a1-4ebe-97c8-821bb9e432a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-WmiNamespaceSecurity -Namespace 'root' -Account 'untrusted_user' -Permission 'Deny'"
+                }
+            ],
+            "agent": "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21"
+        },
+        "action--acc407be-b2a1-4ebe-97c8-821bb9e432a6": {
+            "name": "Inspect and isolate affected hosts",
+            "description": "Check the status of hosts suspected to be compromised and isolate them if necessary.",
+            "on_completion": "if-condition--b187a2c4-2eae-4af0-a015-152130121c85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Checking host status'"
+                }
+            ],
+            "agent": "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21"
+        },
+        "if-condition--b187a2c4-2eae-4af0-a015-152130121c85": {
+            "name": "Check if hosts are compromised",
+            "type": "if-condition",
+            "condition": "are_hosts_compromised",
+            "on_true": "action--dedc93de-e53b-4db8-95da-b6e1d275863f",
+            "on_false": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229"
+        },
+        "action--dedc93de-e53b-4db8-95da-b6e1d275863f": {
+            "name": "Reset compromised credentials",
+            "description": "Reset credentials for any compromised accounts to prevent further unauthorized access.",
+            "on_completion": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user newpassword /domain"
+                }
+            ],
+            "agent": "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21"
+        },
+        "action--e2701f21-2041-4bef-b86f-1c7f9ff63229": {
+            "name": "Deploy EDR toolscan for malicious scripts",
+            "description": "Scan all hosts using EDR tools to detect and clean any malicious scripts.",
+            "on_completion": "while-condition--2951e629-d8b9-4594-8c86-de62e3a0b060",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "EDRTool --scan"
+                }
+            ],
+            "step_variables": {
+                "scan_type": {
+                    "type": "string",
+                    "description": "The type of scan being performed",
+                    "value": "full",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21"
+        },
+        "while-condition--2951e629-d8b9-4594-8c86-de62e3a0b060": {
+            "name": "Repeat scan until clean",
+            "on_completion": "end--c5a05e28-b0f9-4662-83ef-f7d41ca08e0d",
+            "type": "while-condition",
+            "condition": "is_scan_clean",
+            "on_true": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229"
+        },
+        "end--c5a05e28-b0f9-4662-83ef-f7d41ca08e0d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8fd4b7de-6b54-41a0-86dc-508f5fa23a21": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

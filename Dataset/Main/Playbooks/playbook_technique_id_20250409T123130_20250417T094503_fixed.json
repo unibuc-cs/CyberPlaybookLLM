@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--682734a4-2e44-4f9f-bf44-744e9b785a6f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application using malicious PowerShell commands.",
+    "created_by": "identity--b60da321-b0d9-4e1c-9aa0-8a2b1f399d12",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c56fb55f-bccd-48ad-b699-53aace17503c",
+    "workflow": {
+        "action--badc0ffe-e21b-4db7-b10f-ea967e6f3c1f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are executing malicious scripts.",
+            "on_completion": "if-condition--eb0365cc-c642-4047-ad98-71c71d6d6c5d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--97175a38-817f-467e-a4eb-358350698e1a"
+        },
+        "action--3a17bc47-b403-46de-9fd9-206e324b7fe9": {
+            "name": "Scan for malware",
+            "description": "Repeatedly scan for malware until the system is clean.",
+            "on_completion": "loop--8a2aea88-2d6e-49bd-95cd-ff90c15a7e09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /path/to/infected/files"
+                }
+            ],
+            "agent": "organization--97175a38-817f-467e-a4eb-358350698e1a"
+        },
+        "action--19faafef-e057-4659-aa28-c0f9e178cae8": {
+            "name": "Review user permissions",
+            "description": "Check user permissions to identify potentially compromised accounts.",
+            "on_completion": "end--3a2930ea-8d42-48fa-9afc-e867310193e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "getent passwd | grep attacker_user > user_permissions.txt"
+                }
+            ],
+            "agent": "organization--97175a38-817f-467e-a4eb-358350698e1a"
+        },
+        "start--c56fb55f-bccd-48ad-b699-53aace17503c": {
+            "on_completion": "action--badc0ffe-e21b-4db7-b10f-ea967e6f3c1f",
+            "type": "start"
+        },
+        "if-condition--eb0365cc-c642-4047-ad98-71c71d6d6c5d": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f PowerShell)",
+            "on_true": "action--3a17bc47-b403-46de-9fd9-206e324b7fe9",
+            "on_false": "action--19faafef-e057-4659-aa28-c0f9e178cae8"
+        },
+        "loop--8a2aea88-2d6e-49bd-95cd-ff90c15a7e09": {
+            "name": "Malware Scan Loop",
+            "description": "Continue scanning until a clean state is achieved.",
+            "on_completion": "action--19faafef-e057-4659-aa28-c0f9e178cae8",
+            "type": "while-condition",
+            "condition": "scan_result == 'dirty'",
+            "on_true": "action--3a17bc47-b403-46de-9fd9-206e324b7fe9"
+        },
+        "end--3a2930ea-8d42-48fa-9afc-e867310193e9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--97175a38-817f-467e-a4eb-358350698e1a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

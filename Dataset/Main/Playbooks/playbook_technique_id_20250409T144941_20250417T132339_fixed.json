@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fabda0a2-2ae6-4ef1-8ab1-7b0d78de3299",
+    "name": "Data Exfiltration Mitigation Playbook",
+    "description": "This playbook addresses unauthorized data exfiltration attempts using application layer protocols.",
+    "created_by": "identity--dcb9f4d4-adb0-4b7c-8f20-7d34744ce6c9",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--eadbb2f9-a6db-4705-83fe-af6d37b9dc12",
+    "workflow": {
+        "action--a3b5d6ee-5678-4f8f-9b10-fddb694cc346": {
+            "name": "Inspect and log all outbound traffic for anomalies",
+            "description": "Log all outbound traffic to detect any anomalies.",
+            "on_completion": "loop--c0be88be-4cc0-42d1-99d1-63b226711f3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -A"
+                }
+            ],
+            "agent": "organization--96f5a37f-65c2-47a3-8b87-7be44209f402"
+        },
+        "loop--c0be88be-4cc0-42d1-99d1-63b226711f3a": {
+            "name": "Initiate System Audit Loop",
+            "description": "Perform a system audit on affected hosts and repeat until completed.",
+            "on_true": "action--c0be88be-4cc0-42d1-99d1-63b226711f3a",
+            "on_false": "end--410a5cae-df63-441f-80f5-c545efee4a6d",
+            "type": "while-condition",
+            "condition": "traffic_anomaly_exists == true",
+            "next_steps": [
+                "action--c0be88be-4cc0-42d1-99d1-63b226711f3a"
+            ]
+        },
+        "action--c0be88be-4cc0-42d1-99d1-63b226711f3a": {
+            "name": "Initiate a full system audit for affected hosts",
+            "description": "Run an audit script to scan for any threats or unusual activity.",
+            "on_completion": "loop--c0be88be-4cc0-42d1-99d1-63b226711f3a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash audit_script.sh"
+                }
+            ],
+            "agent": "organization--96f5a37f-65c2-47a3-8b87-7be44209f402"
+        },
+        "start--eadbb2f9-a6db-4705-83fe-af6d37b9dc12": {
+            "on_completion": "parallel--85e839cc-5314-48de-8c8d-37eb3d02ee45",
+            "type": "start"
+        },
+        "parallel--85e839cc-5314-48de-8c8d-37eb3d02ee45": {
+            "name": "Mitigation Actions",
+            "description": "Executing parallel actions to mitigate data exfiltration.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a4aada3e-da3b-4930-a1ad-16b886df7279",
+                "action--a3b5d6ee-5678-4f8f-9b10-fddb694cc346",
+                "loop--c0be88be-4cc0-42d1-99d1-63b226711f3a"
+            ]
+        },
+        "action--a4aada3e-da3b-4930-a1ad-16b886df7279": {
+            "name": "Block malicious outbound IP addresses",
+            "description": "Block any connections to identified malicious IP addresses.",
+            "on_completion": "action--a3b5d6ee-5678-4f8f-9b10-fddb694cc346",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--96f5a37f-65c2-47a3-8b87-7be44209f402"
+        },
+        "end--410a5cae-df63-441f-80f5-c545efee4a6d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--96f5a37f-65c2-47a3-8b87-7be44209f402": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

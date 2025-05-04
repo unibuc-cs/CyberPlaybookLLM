@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0f750b5-8e99-4aec-9fb9-d812cbedb569",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution on multiple compromised hosts.",
+    "created_by": "identity--ee4f92d9-1883-49e6-8fab-be8ebe52bbfc",
+    "created": "2023-10-25T15:00:00Z",
+    "modified": "2023-10-25T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--9e33c7ae-6602-4374-b458-f09816c65173",
+    "workflow": {
+        "start--9e33c7ae-6602-4374-b458-f09816c65173": {
+            "on_completion": "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d",
+            "type": "start"
+        },
+        "action--16f07ae3-a348-4baf-a276-3d4e48d6cd0d": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any unauthorized scripts that may be running.",
+            "on_completion": "if-condition--fc153e6b-2938-450d-9a6e-155d1dbb7d80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f [malicious-script-name]"
+                }
+            ],
+            "agent": "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda"
+        },
+        "if-condition--fc153e6b-2938-450d-9a6e-155d1dbb7d80": {
+            "name": "Check for unauthorized access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80",
+            "on_false": "action--b1427707-f447-4daf-a073-f3ad72b5fe54"
+        },
+        "action--fc153e6b-2938-450d-9a6e-155d1dbb7d80": {
+            "name": "Disable Remote Shell Access Temporarily",
+            "description": "Stop SSH service to prevent further unauthorized access.",
+            "on_completion": "action--b1427707-f447-4daf-a073-f3ad72b5fe54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service ssh stop; sleep 3600; service ssh start"
+                }
+            ],
+            "agent": "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda"
+        },
+        "action--b1427707-f447-4daf-a073-f3ad72b5fe54": {
+            "name": "Scan and clean infected hosts",
+            "description": "Perform a scan and clean on infected hosts repeatedly until no threats detected.",
+            "on_completion": "while-condition--7859f009-1ff3-4980-ad4f-3d86496a1878",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda"
+        },
+        "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7": {
+            "name": "Deploy updates to address vulnerabilities",
+            "description": "Update packages to patch potential vulnerabilities.",
+            "on_completion": "action--73781372-607a-49cf-9356-14645de79879",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda"
+        },
+        "action--73781372-607a-49cf-9356-14645de79879": {
+            "name": "Audit and change all compromised passwords",
+            "description": "Log the need for a password change for compromised accounts.",
+            "on_completion": "end--f6b3cf98-4527-4a1f-947e-d644e0e63470",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Require password change' > /var/log/sec-changes.log"
+                }
+            ],
+            "agent": "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda"
+        },
+        "end--f6b3cf98-4527-4a1f-947e-d644e0e63470": {
+            "type": "end"
+        },
+        "while-condition--7859f009-1ff3-4980-ad4f-3d86496a1878": {
+            "name": "Scan loop until clean",
+            "description": "Ensure scans are clean before proceeding.",
+            "on_completion": "action--2468b67c-8e93-4a02-9be8-f1a6a5631da7",
+            "type": "while-condition",
+            "condition": "threats_detected == false",
+            "on_true": "action--b1427707-f447-4daf-a073-f3ad72b5fe54"
+        }
+    },
+    "agent_definitions": {
+        "organization--7cd621d0-c8e0-4f2d-abf1-be0d242f7bda": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

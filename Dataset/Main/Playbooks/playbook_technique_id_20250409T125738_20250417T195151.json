@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6a25d58-0042-4524-bbc6-fb495bcc37c1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates incidents involving unauthorized script execution and data exfiltration.",
+    "created_by": "identity--9d1e592a-eae0-43d7-a6aa-6ac3fd3d1c6e",
+    "created": "2023-10-16T10:00:00Z",
+    "modified": "2023-10-16T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a0e4c15c-e2ef-4f59-af43-a71de0a2747a",
+    "workflow": {
+        "start--a0e4c15c-e2ef-4f59-af43-a71de0a2747a": {
+            "on_completion": "action--ff1739e9-e6ea-499e-bfd0-79072fd5b596",
+            "type": "start"
+        },
+        "action--ff1739e9-e6ea-499e-bfd0-79072fd5b596": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--fa2085f1-2354-424a-9283-ee1cce52fda5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fa2085f1-2354-424a-9283-ee1cce52fda5": {
+            "name": "Isolate compromised host",
+            "description": "Take the host offline to prevent further data exfiltration.",
+            "on_completion": "while-condition--c9e524a5-685d-469b-b558-dcdf7e949099",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--c9e524a5-685d-469b-b558-dcdf7e949099": {
+            "name": "Run malware scan loop",
+            "description": "Continue scanning the network until no malware is detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--c9e524a5-685d-469b-b558-dcdf7e949099",
+            "on_false": "action--5f9c5f24-f7fd-4f21-9cee-8c88baf9b8c3"
+        },
+        "action--c9e524a5-685d-469b-b558-dcdf7e949099": {
+            "name": "Run malware scan on network",
+            "description": "Perform a scan of the network for malicious files.",
+            "on_completion": "while-condition--c9e524a5-685d-469b-b558-dcdf7e949099",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan /home --recursive"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--5f9c5f24-f7fd-4f21-9cee-8c88baf9b8c3": {
+            "name": "Review firewall rules",
+            "description": "Check firewall rules for any unauthorized external connections.",
+            "on_completion": "action--9a567b77-2c8a-4a3b-aef2-bc3aca849fb2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -L -n"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "external_connections": {
+                    "type": "boolean",
+                    "description": "True if external connections were made.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--9a567b77-2c8a-4a3b-aef2-bc3aca849fb2": {
+            "name": "Update incident response logs",
+            "description": "Log the incident for future reference and compliance.",
+            "on_completion": "end--fc9c3a35-1dcd-4fec-80f0-6a6733db605f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident T1059 detected' >> /var/log/incident_responses.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--fc9c3a35-1dcd-4fec-80f0-6a6733db605f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

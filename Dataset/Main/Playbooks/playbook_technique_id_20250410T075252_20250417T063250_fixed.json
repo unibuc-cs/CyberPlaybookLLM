@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a750e033-4f8b-4005-aebe-a4a1f478cd33",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a vulnerable scripting interpreter to execute a malicious script, allowing further unauthorized actions.",
+    "created_by": "identity--fe1f3ce2-794c-4a36-9bac-12caaa4b0522",
+    "created": "2023-10-11T15:00:00Z",
+    "modified": "2023-10-11T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1bc9c12c-ee8f-4ff6-bd59-b1a7c0ca4667",
+    "workflow": {
+        "action--bd80e4fb-4ae2-4b2f-9eb8-f9c6a23d5df8": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any ongoing processes associated with the malicious script.",
+            "on_completion": "action--c2d43b1e-9c6e-4a2a-8e59-b2af77d56e05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d"
+        },
+        "action--c2d43b1e-9c6e-4a2a-8e59-b2af77d56e05": {
+            "name": "Restore modified system files from backup",
+            "description": "Recover files that were altered during the attack.",
+            "on_completion": "action--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/system_files /system_files"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d"
+        },
+        "action--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0": {
+            "name": "Scan the system for additional scripts",
+            "description": "Locate any other scripts that may be present in the system.",
+            "on_completion": "decision--c4407392-ae66-4694-9d18-f89d7b399f62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d"
+        },
+        "action--d47c91ee-7c04-418c-9a62-45d8e0498cc8": {
+            "name": "Deploy network monitoring agents",
+            "description": "Initiate network monitoring to detect unauthorized connections.",
+            "on_completion": "action--dd0b4d57-742b-4500-b1bf-d348b296574f",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deploy-monitoring-agent --approve"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d",
+            "condition": "if unauthorized connections detected"
+        },
+        "action--dd0b4d57-742b-4500-b1bf-d348b296574f": {
+            "name": "Restrict script interpreter permissions",
+            "description": "Limit access to the script interpreter to prevent further exploits.",
+            "on_completion": "action--51cbfda4-aa9f-4ad2-bfdb-ba3e44f7ae66",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod 750 /usr/bin/interpreter"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d",
+            "step_variables": {
+                "interpreter_path": {
+                    "type": "string",
+                    "value": "/usr/bin/interpreter"
+                }
+            }
+        },
+        "action--51cbfda4-aa9f-4ad2-bfdb-ba3e44f7ae66": {
+            "name": "Update all interpreter applications",
+            "description": "Ensure all interpreter applications are up to date to mitigate vulnerabilities.",
+            "on_completion": "end--3cdef456-7890-1234-abcd-e123456789ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d"
+        },
+        "end--3cdef456-7890-1234-abcd-e123456789ef": {
+            "type": "end"
+        },
+        "start--1bc9c12c-ee8f-4ff6-bd59-b1a7c0ca4667": {
+            "on_completion": "action--bd80e4fb-4ae2-4b2f-9eb8-f9c6a23d5df8",
+            "type": "start"
+        },
+        "decision--c4407392-ae66-4694-9d18-f89d7b399f62": {
+            "name": "Check for more suspicious scripts",
+            "type": "if-condition",
+            "condition": "suspicious_scripts_found == true",
+            "on_true": "action--a9bb44d0-45af-4f8a-9bc8-bf9c40e376f0",
+            "on_false": "action--d47c91ee-7c04-418c-9a62-45d8e0498cc8"
+        }
+    },
+    "agent_definitions": {
+        "organization--0ca9ebbe-3d7b-4ffe-80ca-e2475a3f3a9d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--820cd264-9584-44ba-aa9c-da7fee215876",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter",
+    "description": "This playbook addresses the incident where a misconfigured RDP allowed unauthorized access, leading to script execution and data exfiltration.",
+    "created_by": "identity--0bb4b861-3717-40f8-939f-5df3b58c3df2",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "workflow_start": "start--820cd264-9584-44ba-aa9c-312a4e4b00df",
+    "workflow": {
+        "start--820cd264-9584-44ba-aa9c-312a4e4b00df": {
+            "on_completion": "parallel--4e613530-3b01-47ef-901c-9ef153079181",
+            "type": "start"
+        },
+        "decision--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d": {
+            "name": "Check for Unauthorized Access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected",
+            "on_true": "action--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d",
+            "on_false": "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f"
+        },
+        "action--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d": {
+            "name": "Terminate Unauthorized Remote Sessions",
+            "description": "Terminate any unauthorized remote desktop sessions.",
+            "on_completion": "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo pkill -u remote_user"
+                }
+            ],
+            "agent": "organization--4f4716e6-0076-4146-8710-50da57811e51"
+        },
+        "action--66cf8b24-4e0d-4319-9806-a0470927e503": {
+            "name": "Remove Unauthorized User Accounts",
+            "description": "Remove any unauthorized user accounts created by the adversary.",
+            "on_completion": "action--3c6e5a2f-b3ab-400a-bd18-656e2d060a8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo deluser malign_user"
+                }
+            ],
+            "agent": "organization--4f4716e6-0076-4146-8710-50da57811e51"
+        },
+        "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f": {
+            "name": "Scan System for Malicious Scripts",
+            "description": "Scan the system to ensure no residual malicious scripts are present.",
+            "on_completion": "action--f27a58c0-5b25-4d35-9b68-6b6015179fbe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/remote_user/"
+                }
+            ],
+            "agent": "organization--4f4716e6-0076-4146-8710-50da57811e51",
+            "loop_condition": "no_malware_found == false"
+        },
+        "action--f27a58c0-5b25-4d35-9b68-6b6015179fbe": {
+            "name": "Deploy Network Monitoring",
+            "description": "Deploy network monitoring tools to detect further malicious activities.",
+            "on_completion": "action--3c6e5a2f-b3ab-400a-bd18-656e2d060a8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -Pn 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--4f4716e6-0076-4146-8710-50da57811e51"
+        },
+        "action--3c6e5a2f-b3ab-400a-bd18-656e2d060a8a": {
+            "name": "Reset RDP Policies",
+            "description": "Reset RDP policies and enhance logs for future monitoring.",
+            "on_completion": "end--98fe42d1-ebb5-4b31-9724-42c19b4a421c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw deny 3389 && sudo systemctl restart rsyslog"
+                }
+            ],
+            "agent": "organization--4f4716e6-0076-4146-8710-50da57811e51"
+        },
+        "end--98fe42d1-ebb5-4b31-9724-42c19b4a421c": {
+            "type": "end"
+        },
+        "parallel--4e613530-3b01-47ef-901c-9ef153079181": {
+            "name": "Initial Mitigations",
+            "description": "Start with immediate actions and checks.",
+            "type": "parallel",
+            "next_steps": [
+                "decision--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d",
+                "action--66cf8b24-4e0d-4319-9806-a0470927e503"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--4f4716e6-0076-4146-8710-50da57811e51": {
+            "type": "organization",
+            "name": "SecurityOpsTeam"
+        }
+    }
+}

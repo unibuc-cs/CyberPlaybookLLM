@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0112a1e1-67d7-4e28-a99b-38ec841150ed",
+    "name": "Mitigation Playbook for Phishing Attack with Malicious Download",
+    "description": "This playbook addresses a phishing attack incident where a malicious link resulted in the download of a backdoor on an employee's workstation.",
+    "created_by": "identity--3e1f7c2a-b3de-4b05-99d4-1955dbcc28b2",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--774365c2-bc2e-43ae-be66-a717bd408b73",
+    "workflow": {
+        "action--5fe50477-2484-4851-b963-5cf817e0cfa2": {
+            "name": "Isolate affected workstation from the network",
+            "description": "Disable the network interface to isolate the compromised workstation.",
+            "on_completion": "parallel--03aa1d7b-0ff4-4fd7-ae01-e315596449e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--e11e393c-9c71-4007-92e7-3d502638abee"
+        },
+        "parallel--03aa1d7b-0ff4-4fd7-ae01-e315596449e0": {
+            "name": "Execute remediation steps",
+            "description": "Run a set of remediation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6a2e6acd-bbff-4c1b-8884-c903e0b6a7e3",
+                "action--22e5076a-b9e9-469f-8b75-5ed72fe3ef90",
+                "action--711a1826-3b89-4b90-8b84-bcbf9a2a2e3c",
+                "action--6020b43e-5ffd-4f24-88c7-b915b6e4521c"
+            ]
+        },
+        "action--6a2e6acd-bbff-4c1b-8884-c903e0b6a7e3": {
+            "name": "Run full antivirus scan",
+            "description": "Conduct a full scan of the system for other threats.",
+            "on_completion": "while-condition--d84a1922-ee54-4b11-bc2f-98e0f6b8e4f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-av-scan --full"
+                }
+            ],
+            "agent": "organization--e11e393c-9c71-4007-92e7-3d502638abee"
+        },
+        "while-condition--d84a1922-ee54-4b11-bc2f-98e0f6b8e4f8": {
+            "name": "Check scan status",
+            "description": "Repeat antivirus scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--6a2e6acd-bbff-4c1b-8884-c903e0b6a7e3",
+            "on_false": "action--711a1826-3b89-4b90-8b84-bcbf9a2a2e3c"
+        },
+        "action--22e5076a-b9e9-469f-8b75-5ed72fe3ef90": {
+            "name": "Remove malicious executable",
+            "description": "Remove the malicious executable that was downloaded.",
+            "on_completion": "action--711a1826-3b89-4b90-8b84-bcbf9a2a2e3c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious.exe"
+                }
+            ],
+            "agent": "organization--e11e393c-9c71-4007-92e7-3d502638abee",
+            "targets": [
+                "individual--host-12"
+            ],
+            "on_condition": "if [ -f /path/to/malicious.exe ]; then"
+        },
+        "action--711a1826-3b89-4b90-8b84-bcbf9a2a2e3c": {
+            "name": "Patch software vulnerabilities",
+            "description": "Update software to secure against known vulnerabilities.",
+            "on_completion": "end--08d482a8-f6e2-4e42-b1da-b67c45c0ecae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--e11e393c-9c71-4007-92e7-3d502638abee"
+        },
+        "action--6020b43e-5ffd-4f24-88c7-b915b6e4521c": {
+            "name": "Inform user about phishing attack",
+            "description": "Notify the user about the phishing attack.",
+            "on_completion": "end--08d482a8-f6e2-4e42-b1da-b67c45c0ecae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-notification user@domain.com"
+                }
+            ],
+            "agent": "organization--e11e393c-9c71-4007-92e7-3d502638abee",
+            "on_condition": "if phishing_report_confirmed"
+        },
+        "start--774365c2-bc2e-43ae-be66-a717bd408b73": {
+            "on_completion": "action--5fe50477-2484-4851-b963-5cf817e0cfa2",
+            "type": "start"
+        },
+        "end--08d482a8-f6e2-4e42-b1da-b67c45c0ecae": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e11e393c-9c71-4007-92e7-3d502638abee": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "target_definitions": {
+        "individual--host-12": {
+            "type": "individual",
+            "name": "Employee Workstation"
+        }
+    }
+}

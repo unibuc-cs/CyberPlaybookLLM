@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--abc12345-6789-0abc-def0-1234567890ab",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook mitigates an incident where an attacker executed a malicious script via phishing email, establishing a reverse shell connection.",
+    "created_by": "identity--xyz78901-2345-6789-a012-345678901234",
+    "created": "2023-10-12T09:00:00Z",
+    "modified": "2023-10-12T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-1234-5678-90ab-1234567890ab",
+    "workflow": {
+        "start--12345678-1234-5678-90ab-1234567890ab": {
+            "on_completion": "action--362c53b9-7ca4-4c3a-ad6c-3af689d5b4bb",
+            "type": "start"
+        },
+        "action--362c53b9-7ca4-4c3a-ad6c-3af689d5b4bb": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate the malicious PowerShell process if it exists.",
+            "on_completion": "if-condition--9384762c-1c05-45b0-ae94-6b9033efc7cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--9384762c-1c05-45b0-ae94-6b9033efc7cc": {
+            "name": "Check if PowerShell Process Exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--d7e7c2e3-5902-4e39-9c37-30b2f820710f",
+            "on_false": "action--1e68720d-1e79-493c-ae89-c03f0ca5ac02"
+        },
+        "action--d7e7c2e3-5902-4e39-9c37-30b2f820710f": {
+            "name": "Isolate Host from the Network",
+            "description": "Take the compromised host offline to prevent further exploitation.",
+            "on_completion": "action--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1e68720d-1e79-493c-ae89-c03f0ca5ac02": {
+            "name": "Clean Up Dropped Payloads",
+            "description": "Remove malicious payloads from the system.",
+            "on_completion": "action--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661",
+            "type": "action",
+            "step_variables": {
+                "payload_path": {
+                    "type": "string",
+                    "description": "The path to the dropped malicious payloads.",
+                    "value": "/tmp/malicious_payload.*",
+                    "constant": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ${payload_path}"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661": {
+            "name": "Deploy Endpoint Protection Scan",
+            "description": "Run a full scan on the endpoint to detect any remnants of the malicious activity.",
+            "on_completion": "while-condition--3f493e3e-f590-4b5c-85bc-8c8f3440d963",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --full"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--3f493e3e-f590-4b5c-85bc-8c8f3440d963": {
+            "name": "Scan Until Clean",
+            "description": "Repeat scan until the system is clean.",
+            "on_completion": "end--09876543-1234-5678-90ab-1234567890ab",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661"
+        },
+        "end--09876543-1234-5678-90ab-1234567890ab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

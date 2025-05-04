@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4e1bfc3-ea5b-4851-b9e1-ee02476105eb",
+    "name": "Playbook for Command and Scripting Interpreter Attack Mitigation",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts using a command interpreter, potentially deploying ransomware.",
+    "created_by": "identity--c9d67b69-a61f-4ec8-a80f-f3a73c728b2d",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:55:35.498Z",
+    "revoked": false,
+    "workflow_start": "start--d5c064ac-397a-4a18-add4-ecc1b0f3f44c",
+    "workflow": {
+        "start--d5c064ac-397a-4a18-add4-ecc1b0f3f44c": {
+            "on_completion": "action--c1eb7af5-6e32-4091-8c5a-7ae55b9801d0",
+            "type": "start"
+        },
+        "action--c1eb7af5-6e32-4091-8c5a-7ae55b9801d0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--bd865a43-1db9-4e98-8a8e-3a4a86a700dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--0e5bb2d1-fa5b-4fc2-905d-5dcc4c1aadf4"
+        },
+        "if-condition--bd865a43-1db9-4e98-8a8e-3a4a86a700dd": {
+            "name": "Check if malicious process was killed",
+            "type": "if-condition",
+            "condition": "process_not_found",
+            "on_true": "action--57a6bab0-5f83-4594-b7b5-b554a5bd1c15",
+            "on_false": "action--bc9eb7a3-cd54-4297-ade1-488b342007b8"
+        },
+        "action--bc9eb7a3-cd54-4297-ade1-488b342007b8": {
+            "name": "Delete dropped files",
+            "description": "Remove files dropped by the malicious process.",
+            "on_completion": "action--a8166b91-3c77-498c-ba82-b091c3eb6230",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/dropped/files/*"
+                }
+            ],
+            "agent": "organization--0e5bb2d1-fa5b-4fc2-905d-5dcc4c1aadf4"
+        },
+        "action--a8166b91-3c77-498c-ba82-b091c3eb6230": {
+            "name": "Block outgoing connections to known C2 server",
+            "description": "Prevent the system from connecting to the command and control server.",
+            "on_completion": "loop--f5e1b7df-b5b5-4041-80c6-0586e71f9e7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d 192.0.2.0 --dport 443 -j DROP"
+                }
+            ],
+            "agent": "organization--0e5bb2d1-fa5b-4fc2-905d-5dcc4c1aadf4"
+        },
+        "loop--f5e1b7df-b5b5-4041-80c6-0586e71f9e7b": {
+            "name": "Scan system for malware",
+            "description": "Perform a recursive scan for malware.",
+            "on_completion": "action--57a6bab0-5f83-4594-b7b5-b554a5bd1c15",
+            "type": "while-condition",
+            "condition": "scan_not_clean",
+            "on_true": "action--f5e1b7df-b5b5-4041-80c6-0586e71f9e7b",
+            "step_variable": {
+                "scan_not_clean": {
+                    "type": "boolean",
+                    "value": "True"
+                }
+            }
+        },
+        "action--57a6bab0-5f83-4594-b7b5-b554a5bd1c15": {
+            "name": "Update firewall rules",
+            "description": "Update firewall to reject connections from known malicious servers.",
+            "on_completion": "end--e2e05e2d-1d64-4186-ab53-001a560f1c47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=192.0.2.0/24 reject'"
+                }
+            ],
+            "agent": "organization--0e5bb2d1-fa5b-4fc2-905d-5dcc4c1aadf4",
+            "conditions": {
+                "preceded_by": "action--bc9eb7a3-cd54-4297-ade1-488b342007b8"
+            }
+        },
+        "end--e2e05e2d-1d64-4186-ab53-001a560f1c47": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0e5bb2d1-fa5b-4fc2-905d-5dcc4c1aadf4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

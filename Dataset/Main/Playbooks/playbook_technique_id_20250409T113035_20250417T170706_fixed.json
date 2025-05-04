@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1a05ac1-3940-4cfe-8d46-fdb4818e0acc",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts via a command-line interface. It includes actions to mitigate the threat by killing malicious processes, isolating affected hosts, and running full system scans.",
+    "created_by": "identity--5b388c79-14fd-4365-a7e2-656152a2c2bc",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f28e3340-1a34-4515-8c00-a60fddc2fffd",
+    "workflow": {
+        "action--d3f8af75-9295-45e8-b9e0-4326470d1e69": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--6707792e-77e1-4d9b-9782-17cd1f6a6cfd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c29ec79f-e1f3-4d13-a997-9f6330ab5a00"
+        },
+        "action--6707792e-77e1-4d9b-9782-17cd1f6a6cfd": {
+            "name": "Isolate affected host from the network",
+            "description": "Bring down the affected host to prevent further exploitation.",
+            "on_completion": "while-condition--a7b6c8e8-9987-41a3-b36b-98cc1b8c34bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c29ec79f-e1f3-4d13-a997-9f6330ab5a00"
+        },
+        "while-condition--a7b6c8e8-9987-41a3-b36b-98cc1b8c34bc": {
+            "name": "Run malware scan until clean",
+            "description": "Perform a full system scan for malware and repeat until no threats are found.",
+            "on_completion": "end--f7e23bff-3ff7-49b9-a5b9-ba983bbf0ae3",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--20709f41-7fc5-4ebd-9b58-ffd204972650"
+        },
+        "action--20709f41-7fc5-4ebd-9b58-ffd204972650": {
+            "name": "Run a full system scan for malware",
+            "description": "Scan the entire system for malware.",
+            "on_completion": "while-condition--a7b6c8e8-9987-41a3-b36b-98cc1b8c34bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan / --recursive"
+                }
+            ],
+            "agent": "organization--c29ec79f-e1f3-4d13-a997-9f6330ab5a00",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the malware scan ('clean' or 'infected')",
+                    "value": "infected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--f7e23bff-3ff7-49b9-a5b9-ba983bbf0ae3": {
+            "type": "end"
+        },
+        "start--f28e3340-1a34-4515-8c00-a60fddc2fffd": {
+            "on_completion": "action--d3f8af75-9295-45e8-b9e0-4326470d1e69",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--c29ec79f-e1f3-4d13-a997-9f6330ab5a00": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

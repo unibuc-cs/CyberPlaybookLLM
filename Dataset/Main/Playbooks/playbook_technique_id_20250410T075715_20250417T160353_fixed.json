@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a5463b3-67f3-410c-b670-4a53dcbfc885",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an adversary executed a PowerShell script for lateral movement across network hosts.",
+    "created_by": "identity--57c6e76d-e5e5-43cb-bace-98d4e68a01ef",
+    "created": "2023-04-10T08:15:00Z",
+    "modified": "2023-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-ba60-dcc18ae98513",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-ba60-dcc18ae98513": {
+            "on_completion": "action--b9c6d1e9-2e54-4318-a08e-6d2737b51439",
+            "type": "start"
+        },
+        "action--b9c6d1e9-2e54-4318-a08e-6d2737b51439": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running instances of PowerShell that executed the malicious script.",
+            "on_completion": "action--edd3f620-3aed-4c8b-8496-d5c9f7211d97",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--3cf190b7-4a71-448c-9d88-8eb4153f131e"
+        },
+        "action--edd3f620-3aed-4c8b-8496-d5c9f7211d97": {
+            "name": "Remove dropped payload",
+            "description": "Delete the suspicious payload dropped by the malicious script.",
+            "condition": "if file exists",
+            "on_completion": "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Temp\\malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--3cf190b7-4a71-448c-9d88-8eb4153f131e"
+        },
+        "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3": {
+            "name": "Check for payload existence",
+            "type": "if-condition",
+            "condition": "payload_deleted == true",
+            "on_true": "action--5489ae97-ff73-4f4f-a870-2f9b39413c0d",
+            "on_false": "action--5489ae97-ff73-4f4f-a870-2f9b39413c0d"
+        },
+        "action--5489ae97-ff73-4f4f-a870-2f9b39413c0d": {
+            "name": "Scan all hosts for additional threats",
+            "description": "Run antivirus scans on all network hosts to identify any latent threats.",
+            "on_completion": "while-condition--bc560742-c0b3-4fd5-93a1-1b40f7a53614",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --all"
+                }
+            ],
+            "agent": "organization--29192c5c-7e92-4862-bff3-30dda0ebcb58"
+        },
+        "action--f4abf1d8-2911-42e5-b5ac-0b83b8f74084": {
+            "name": "Reset SSH keys to prevent further unauthorized access",
+            "description": "Ensure no unauthorized access by resetting SSH keys.",
+            "on_completion": "action--9493d198-b0a1-44b5-bad7-19ceecadc3a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh-keygen -R host-47 ; ssh-keygen -R host-45"
+                }
+            ],
+            "agent": "organization--29192c5c-7e92-4862-bff3-30dda0ebcb58"
+        },
+        "action--9493d198-b0a1-44b5-bad7-19ceecadc3a7": {
+            "name": "Block command and scripting interpreter execution",
+            "description": "Set policy to block execution of potentially malicious scripts.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--3cf190b7-4a71-448c-9d88-8eb4153f131e"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "while-condition--bc560742-c0b3-4fd5-93a1-1b40f7a53614": {
+            "name": "Threat scan loop",
+            "description": "Repeat scanning until the system is confirmed clean.",
+            "on_completion": "action--f4abf1d8-2911-42e5-b5ac-0b83b8f74084",
+            "type": "while-condition",
+            "condition": "scan_status == dirty",
+            "on_true": "action--5489ae97-ff73-4f4f-a870-2f9b39413c0d"
+        }
+    },
+    "agent_definitions": {
+        "organization--3cf190b7-4a71-448c-9d88-8eb4153f131e": {
+            "type": "organization",
+            "name": "ClientOrganization ABC"
+        },
+        "organization--29192c5c-7e92-4862-bff3-30dda0ebcb58": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

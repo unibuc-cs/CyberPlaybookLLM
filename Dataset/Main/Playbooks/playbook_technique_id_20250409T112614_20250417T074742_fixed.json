@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1a8a56f-feed-41c1-bed1-90a7abcd1234",
+    "name": "Mitigation Playbook for PowerShell Script Exfiltration",
+    "description": "This playbook addresses a security incident where an attacker used PowerShell scripts for data exfiltration.",
+    "created_by": "identity--001d2ac6-9f33-4cf6-8f04-ec626c647c29",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--1ee4ac85-3fc3-43d6-83c3-a14f594b2b51",
+    "workflow": {
+        "action--a7c57a41-eef0-4e9e-8e84-417bbbc9ebdf": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "if-condition--b78945c7-9a7d-4b34-a3bf-3ecdc1a8c915",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--e6f9d9d8-05aa-4e51-aa09-917235d26b1f"
+        },
+        "if-condition--b78945c7-9a7d-4b34-a3bf-3ecdc1a8c915": {
+            "name": "Check if malicious process detected",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--b2d69c45-40a7-45eb-9cda-8d51d513e375",
+            "on_false": "action--c3f44b88-e45f-46de-b768-e8a1e83f967b"
+        },
+        "action--b2d69c45-40a7-45eb-9cda-8d51d513e375": {
+            "name": "Isolate affected hosts",
+            "description": "Disconnect the affected hosts from the network until the situation is under control.",
+            "on_completion": "while-condition--c732d1a4-f2f7-4a90-9e95-5f4b5be69258",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli device disconnect host-05"
+                }
+            ],
+            "agent": "organization--e6f9d9d8-05aa-4e51-aa09-917235d26b1f"
+        },
+        "while-condition--c732d1a4-f2f7-4a90-9e95-5f4b5be69258": {
+            "name": "Monitor critical alerts",
+            "description": "Repeat the isolation of affected hosts until critical alerts are resolved.",
+            "on_true": "action--b2d69c45-40a7-45eb-9cda-8d51d513e375",
+            "condition": "critical_alerts_resolved == false",
+            "type": "if-condition"
+        },
+        "action--c3f44b88-e45f-46de-b768-e8a1e83f967b": {
+            "name": "Scan for additional threats using antivirus",
+            "description": "Perform a thorough scan of the system to identify any additional threats.",
+            "on_completion": "end--d4e7c9a1-36b6-45c7-9732-2533e1638239",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--e6f9d9d8-05aa-4e51-aa09-917235d26b1f",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "description": "The directory path to be scanned for threats.",
+                    "value": "/path/to/scan",
+                    "constant": false
+                },
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scan indicating any found threats.",
+                    "value": "result",
+                    "constant": false
+                }
+            }
+        },
+        "end--d4e7c9a1-36b6-45c7-9732-2533e1638239": {
+            "type": "end"
+        },
+        "start--1ee4ac85-3fc3-43d6-83c3-a14f594b2b51": {
+            "on_completion": "action--a7c57a41-eef0-4e9e-8e84-417bbbc9ebdf",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--e6f9d9d8-05aa-4e51-aa09-917235d26b1f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5c9cc3f-4a46-4cf7-acee-c8b5c4b23682",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook addresses an incident where a malicious actor executed PowerShell scripts that downloaded additional payloads on an internal machine.",
+    "created_by": "identity--3a15e576-050b-4c4a-b2c5-3df25be84bde",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1a1f243-e847-4e58-b3e2-768f5a58e90f",
+    "workflow": {
+        "start--b1a1f243-e847-4e58-b3e2-768f5a58e90f": {
+            "on_completion": "if-condition--2b4e7e76-f57a-4f91-9823-627882c31eec",
+            "type": "start"
+        },
+        "if-condition--2b4e7e76-f57a-4f91-9823-627882c31eec": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--d58db9a7-579c-4b51-b87b-a2502b3a3ae8",
+            "on_false": "action--1366a6e9-7bf2-4ea1-b2c2-3461b6d55378"
+        },
+        "action--d58db9a7-579c-4b51-b87b-a2502b3a3ae8": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--1366a6e9-7bf2-4ea1-b2c2-3461b6d55378",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--328166c8-979a-424e-a5c2-ce16b2bf260f"
+        },
+        "action--1366a6e9-7bf2-4ea1-b2c2-3461b6d55378": {
+            "name": "Isolate infected host from network",
+            "description": "Disconnect the affected host from the network to prevent further damage.",
+            "on_completion": "action--b4c8f61e-1f3d-45ab-9c4e-0a1b4b11d5ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--328166c8-979a-424e-a5c2-ce16b2bf260f"
+        },
+        "action--b4c8f61e-1f3d-45ab-9c4e-0a1b4b11d5ea": {
+            "name": "Conduct a full antivirus scan",
+            "description": "Scan the affected host thoroughly for additional threats.",
+            "on_completion": "while-condition--fc1b11d5-06e3-4ae4-a12a-b02082985b36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--328166c8-979a-424e-a5c2-ce16b2bf260f"
+        },
+        "while-condition--fc1b11d5-06e3-4ae4-a12a-b02082985b36": {
+            "name": "Antivirus Scan Loop",
+            "description": "Repeat the antivirus scan until no threats are found.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b4c8f61e-1f3d-45ab-9c4e-0a1b4b11d5ea",
+            "on_false": "action--c6fcee2b-fcde-435b-8f06-4900734d59ff",
+            "type": "if-condition"
+        },
+        "action--c6fcee2b-fcde-435b-8f06-4900734d59ff": {
+            "name": "Review and clean up firewall rules",
+            "description": "Reset firewall rules to ensure the security of the network.",
+            "on_completion": "action--07b98dee-4ab7-4522-8c00-fc8967ec6b48",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -F"
+                }
+            ],
+            "agent": "organization--328166c8-979a-424e-a5c2-ce16b2bf260f",
+            "step_variables": {
+                "current_rules": {
+                    "type": "string",
+                    "description": "Current firewall rules",
+                    "value": "get_current_firewall_rules()",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--07b98dee-4ab7-4522-8c00-fc8967ec6b48": {
+            "name": "Update PowerShell execution policy to restrict scripts",
+            "description": "Set the PowerShell execution policy to the most restrictive setting.",
+            "on_completion": "end--843ad939-6e85-4959-9146-b465c27b83c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope CurrentUser"
+                }
+            ],
+            "agent": "organization--328166c8-979a-424e-a5c2-ce16b2bf260f"
+        },
+        "end--843ad939-6e85-4959-9146-b465c27b83c7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--328166c8-979a-424e-a5c2-ce16b2bf260f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

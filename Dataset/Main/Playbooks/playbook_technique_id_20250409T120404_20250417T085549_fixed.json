@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c1b5944b-b1b5-4f9c-b96e-21cf2b793971",
+    "name": "Mitigation Playbook for PowerShell Credential Harvesting Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to harvest credentials from user sessions.",
+    "created_by": "identity--521de71e-60f3-4a07-a29a-c9f49ed0b5d7",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--2f7d8022-9d99-4a58-97ec-e907889199bd",
+    "workflow": {
+        "start--2f7d8022-9d99-4a58-97ec-e907889199bd": {
+            "on_completion": "action--c3f78b7f-d36f-4b26-9a60-0a2115b8cf4d",
+            "type": "start"
+        },
+        "action--c3f78b7f-d36f-4b26-9a60-0a2115b8cf4d": {
+            "name": "Kill malicious script processes",
+            "description": "Terminate any running PowerShell scripts that were used in credential harvesting.",
+            "on_completion": "action--d9306809-4ad1-49e7-9c93-08547b2d8adc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell -ExecutionPolicy Bypass'"
+                }
+            ],
+            "agent": "organization--de0a013c-2f7a-48b1-8983-c30cf7c87bf6"
+        },
+        "action--d9306809-4ad1-49e7-9c93-08547b2d8adc": {
+            "name": "Isolate affected host from network",
+            "description": "Isolate host-15 to prevent further data exfiltration.",
+            "on_completion": "while-condition--70da53d6-ffae-4a16-81ed-d13dd5dce802",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-15 down"
+                }
+            ],
+            "agent": "organization--de0a013c-2f7a-48b1-8983-c30cf7c87bf6"
+        },
+        "while-condition--70da53d6-ffae-4a16-81ed-d13dd5dce802": {
+            "name": "Perform malware scan until clean",
+            "description": "Continuously scan the affected host until no malware is detected.",
+            "condition": "status == 'infected'",
+            "on_true": "action--70da53d6-ffae-4a16-81ed-d13dd5dce802",
+            "on_false": "end--fbc79d82-fb47-41ef-9bfc-60be092bb7c0",
+            "type": "if-condition"
+        },
+        "action--70da53d6-ffae-4a16-81ed-d13dd5dce802": {
+            "name": "Perform malware scan",
+            "description": "Initiate a malware scan on the compromised host.",
+            "on_completion": "while-condition--70da53d6-ffae-4a16-81ed-d13dd5dce802",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan-tool -target host-15"
+                }
+            ],
+            "agent": "organization--de0a013c-2f7a-48b1-8983-c30cf7c87bf6",
+            "step_variables": {
+                "status": {
+                    "type": "string",
+                    "description": "Status of the malware scan result.",
+                    "value": "infected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--fbc79d82-fb47-41ef-9bfc-60be092bb7c0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--de0a013c-2f7a-48b1-8983-c30cf7c87bf6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a89fcd5c-65d9-42a8-8587-89b47d5a8e39",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious scripts and installed backdoors.",
+    "created_by": "identity--25d47dee-1d8a-46d8-a2d5-c15eb4e41a87",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--50ae0a78-d42f-47ce-84e0-b969c2b46659",
+    "workflow": {
+        "start--50ae0a78-d42f-47ce-84e0-b969c2b46659": {
+            "on_completion": "parallel--6da28803-4b6b-47b8-8dec-140001a35798",
+            "type": "start"
+        },
+        "action--efdcfb0c-27b3-44c7-8547-64e960fbfd13": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--a5e99bc4-acad-452c-8124-06d114df82ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--3b4132d5-f536-4e8d-a5fa-4b9928fa8fe0"
+        },
+        "action--a5e99bc4-acad-452c-8124-06d114df82ec": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious script files from the temporary directory.",
+            "on_completion": "action--fb8acd6a-6621-465e-86ad-e520ba1d4ec7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--3b4132d5-f536-4e8d-a5fa-4b9928fa8fe0"
+        },
+        "while-condition--d6f787ed-6e94-48fb-9057-2551912b47a0": {
+            "name": "Run Full System Scan",
+            "description": "Continuously run the scan until it is clean.",
+            "on_completion": "action--fb8acd6a-6621-465e-86ad-e520ba1d4ec7",
+            "type": "while-condition",
+            "condition": "scan_success == false",
+            "on_true": "action--1e987742-2b74-401b-a4e1-ede3e29ec01c"
+        },
+        "action--1e987742-2b74-401b-a4e1-ede3e29ec01c": {
+            "name": "Execute System Scan",
+            "description": "Run a full system scan to ensure no malicious components persist.",
+            "on_completion": "if-condition--c0e42eea-ffac-43d0-a32d-eb34cb9d7016",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--3b4132d5-f536-4e8d-a5fa-4b9928fa8fe0",
+            "step_variables": {
+                "scan_success": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan was successful and clean.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--c0e42eea-ffac-43d0-a32d-eb34cb9d7016": {
+            "name": "Check Scan Result",
+            "type": "if-condition",
+            "condition": "scan_report_clean == true",
+            "on_true": "end--da080436-4cc8-4f83-843d-624059297d1a",
+            "on_false": "while-condition--d6f787ed-6e94-48fb-9057-2551912b47a0"
+        },
+        "action--fb8acd6a-6621-465e-86ad-e520ba1d4ec7": {
+            "name": "Check for service persistence",
+            "description": "Verify if any malicious services exist.",
+            "on_completion": "end--da080436-4cc8-4f83-843d-624059297d1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl list-units --type=service | grep malicious_service"
+                }
+            ],
+            "agent": "organization--3b4132d5-f536-4e8d-a5fa-4b9928fa8fe0"
+        },
+        "end--da080436-4cc8-4f83-843d-624059297d1a": {
+            "type": "end",
+            "description": "All steps completed; mitigation is finalized."
+        },
+        "parallel--6da28803-4b6b-47b8-8dec-140001a35798": {
+            "name": "Parallel Execution of Critical Actions",
+            "description": "Execute critical mitigation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--efdcfb0c-27b3-44c7-8547-64e960fbfd13",
+                "while-condition--d6f787ed-6e94-48fb-9057-2551912b47a0"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--3b4132d5-f536-4e8d-a5fa-4b9928fa8fe0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

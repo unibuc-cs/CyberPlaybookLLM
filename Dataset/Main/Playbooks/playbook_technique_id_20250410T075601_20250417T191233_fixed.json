@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b079db62-bd01-477a-ad3b-30d37663c1c0",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a command and scripting interpreter vulnerability to gain unauthorized server access.",
+    "created_by": "identity--1d1a2a59-b05d-4d61-a179-4668bdddfb3e",
+    "created": "2023-11-03T16:00:00Z",
+    "modified": "2023-11-03T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b079db62-bd01-477a-ad3b-30d37663c1c0",
+    "workflow": {
+        "start--b079db62-bd01-477a-ad3b-30d37663c1c0": {
+            "on_completion": "parallel--dbf76281-aeb8-4f79-9422-f2d70c77b1b3",
+            "type": "start"
+        },
+        "parallel--dbf76281-aeb8-4f79-9422-f2d70c77b1b3": {
+            "name": "Parallel Execution for Immediate Actions",
+            "description": "Terminate malicious process and revoke compromised credentials simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--dbf76281-aeb8-4f79-9422-f2d70c77b1b3",
+                "action--c202d3a7-5b4e-4970-9925-50dfb1a16b23"
+            ]
+        },
+        "action--dbf76281-aeb8-4f79-9422-f2d70c77b1b3": {
+            "name": "Terminate Malicious Process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--de987887-15cb-47cf-aed0-796d8b5c8229",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--a5cfa246-65a1-471f-9c05-c75eca561844"
+        },
+        "action--c202d3a7-5b4e-4970-9925-50dfb1a16b23": {
+            "name": "Revoke Compromised User Credentials",
+            "description": "Lock the compromised user account to prevent further unauthorized access.",
+            "on_completion": "if-condition--0caf445f-dacb-4965-8f52-0b08b0cb5ec6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L root"
+                }
+            ],
+            "agent": "organization--a5cfa246-65a1-471f-9c05-c75eca561844"
+        },
+        "action--2c986ad5-3e51-4769-a92a-cb04f2fa9eda": {
+            "name": "Block Outbound Network Traffic",
+            "description": "Block any detected suspicious outbound network traffic from host-45.",
+            "on_completion": "while-loop--4c7f5817-3ff4-48bf-afa8-0c1ab88afb20",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <unknown destination IP> -j DROP"
+                }
+            ],
+            "agent": "organization--a5cfa246-65a1-471f-9c05-c75eca561844"
+        },
+        "action--23ebab58-1251-4e5f-b08d-e91f1b78a8c9": {
+            "name": "Run Malware Scan",
+            "description": "Run a malware scan on host-45.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --host host-45"
+                }
+            ],
+            "agent": "organization--a5cfa246-65a1-471f-9c05-c75eca561844",
+            "on_completion": "while-loop--4c7f5817-3ff4-48bf-afa8-0c1ab88afb20"
+        },
+        "action--a81b1d09-f302-4b74-a54d-efa5e5619dc4": {
+            "name": "Remove File Permissions for Unauthorized Scripts",
+            "description": "Remove file permissions from any unauthorized scripts found on host-45.",
+            "on_completion": "end--dbf89a5d-30ab-45de-9df6-41e5a27f677a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 000 /path/to/suspicious/files"
+                }
+            ],
+            "agent": "organization--a5cfa246-65a1-471f-9c05-c75eca561844"
+        },
+        "if-condition--de987887-15cb-47cf-aed0-796d8b5c8229": {
+            "name": "Check for Suspicious Network Activity",
+            "type": "if-condition",
+            "condition": "suspicious_network_activity_detected",
+            "on_true": "action--2c986ad5-3e51-4769-a92a-cb04f2fa9eda",
+            "on_false": "while-loop--4c7f5817-3ff4-48bf-afa8-0c1ab88afb20"
+        },
+        "while-loop--4c7f5817-3ff4-48bf-afa8-0c1ab88afb20": {
+            "name": "Malware Scan Loop",
+            "description": "Perform malware scan repeatedly on host-45 until no threat is detected.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--23ebab58-1251-4e5f-b08d-e91f1b78a8c9",
+            "on_false": "end--dbf89a5d-30ab-45de-9df6-41e5a27f677a"
+        },
+        "if-condition--0caf445f-dacb-4965-8f52-0b08b0cb5ec6": {
+            "name": "Check for Unauthorized Scripts",
+            "type": "if-condition",
+            "condition": "unauthorized_scripts_found",
+            "on_true": "action--a81b1d09-f302-4b74-a54d-efa5e5619dc4",
+            "on_false": "end--dbf89a5d-30ab-45de-9df6-41e5a27f677a"
+        },
+        "end--dbf89a5d-30ab-45de-9df6-41e5a27f677a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a5cfa246-65a1-471f-9c05-c75eca561844": {
+            "type": "organization",
+            "name": "Targeted Organization for Mitigation"
+        }
+    }
+}

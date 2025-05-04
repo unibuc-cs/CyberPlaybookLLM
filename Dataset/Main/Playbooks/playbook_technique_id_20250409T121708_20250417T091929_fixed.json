@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6e7f9c5-b060-4a2e-9560-485b6f74841c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates the exploitation of administrative privileges through suspicious scripting detected on a compromised host.",
+    "created_by": "identity--9f5c203d-c8c5-4f60-a06b-44179ff30c99",
+    "created": "2023-10-05T14:30:00Z",
+    "modified": "2023-10-05T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--a7606a29-4e14-4b2b-9edf-7f2f2d9d1550",
+    "workflow": {
+        "parallel--11223344-fdd8-4567-89ab-cdef12345678": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate actions to kill processes and delete dropped files.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c5be4567-117a-4e31-9f76-660349a647c4",
+                "action--e256b473-fc5a-4c9c-bfb7-3b98150365b8"
+            ]
+        },
+        "action--c5be4567-117a-4e31-9f76-660349a647c4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "action--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.*payload.ps1'"
+                }
+            ],
+            "agent": "organization--7c02170f-76bb-4c1d-8e58-008d01b59714"
+        },
+        "action--e256b473-fc5a-4c9c-bfb7-3b98150365b8": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious files detected during the attack.",
+            "on_completion": "action--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ~/payload.ps1"
+                }
+            ],
+            "agent": "organization--7c02170f-76bb-4c1d-8e58-008d01b59714"
+        },
+        "action--8f1e9d3d-db79-4ae7-89be-8e44f8a74709": {
+            "name": "Run malware scan",
+            "description": "Start a malware scan on the compromised host, iteration until clean.",
+            "on_completion": "end--865a8d9d-b08a-4501-a260-51b5d46ea2a8",
+            "type": "action",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the malware scan",
+                    "value": "pending",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --target host-12"
+                }
+            ],
+            "agent": "organization--7c02170f-76bb-4c1d-8e58-008d01b59714",
+            "next_steps": "while-condition--aed9a84a-3735-4748-8e34-36332fecdc45"
+        },
+        "start--a7606a29-4e14-4b2b-9edf-7f2f2d9d1550": {
+            "on_completion": "parallel--11223344-fdd8-4567-89ab-cdef12345678",
+            "type": "start"
+        },
+        "while-condition--aed9a84a-3735-4748-8e34-36332fecdc45": {
+            "name": "Repeat until scan is clean",
+            "description": "Check the scan status and continue scanning if not completed.",
+            "on_true": "action--8f1e9d3d-db79-4ae7-89be-8e44f8a74709",
+            "on_false": "end--865a8d9d-b08a-4501-a260-51b5d46ea2a8",
+            "type": "while-condition",
+            "condition": "scan_status == 'pending'"
+        },
+        "end--865a8d9d-b08a-4501-a260-51b5d46ea2a8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7c02170f-76bb-4c1d-8e58-008d01b59714": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

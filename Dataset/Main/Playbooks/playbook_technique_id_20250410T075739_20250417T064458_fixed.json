@@ -1,0 +1,154 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bde893e6-af4f-4d6b-a0ab-74d1e9b517d4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute commands, escalate privileges, and deploy a backdoor.",
+    "created_by": "identity--a82caeec-5a12-4887-8264-4fee9f86ea3c",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--bde893e6-af4f-4d6b-a0ab-74d1e9b517d4",
+    "workflow": {
+        "start--bde893e6-af4f-4d6b-a0ab-74d1e9b517d4": {
+            "on_completion": "parallel--1f2f3c0b-8a08-4a1e-818e-d36cd59af5cf",
+            "type": "start"
+        },
+        "parallel--1f2f3c0b-8a08-4a1e-818e-d36cd59af5cf": {
+            "name": "Execute Mitigation Actions",
+            "description": "Simultaneously perform multiple mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "while-condition--1d7305ec-c4ca-481c-84c2-ce75c5655ca9",
+                "if-condition--238f6c07-872e-46e9-84e8-9db5b87308ed",
+                "action--95858580-2f83-4c12-a328-25d6e337c21b",
+                "while-condition--8abae8a7-b366-4673-9c6c-d5e542e0dca3",
+                "if-condition--50069391-3aca-4277-a7ea-2e54dbe734ba",
+                "action--e799e9f1-e880-4c6e-ab9e-566ab5cd8e48"
+            ]
+        },
+        "while-condition--1d7305ec-c4ca-481c-84c2-ce75c5655ca9": {
+            "name": "Terminate Malicious Processes Loop",
+            "description": "Keep terminating malicious processes until all are stopped.",
+            "type": "while-condition",
+            "on_true": "action--a0e8da70-477f-469a-aaeb-273939d83c0c",
+            "condition": "malicious_processes_exist",
+            "on_completion": "action--0522bce6-24c5-4c4c-a0d1-22730a900380"
+        },
+        "action--a0e8da70-477f-469a-aaeb-273939d83c0c": {
+            "name": "Terminate Suspicious Processes",
+            "on_completion": "while-condition--1d7305ec-c4ca-481c-84c2-ce75c5655ca9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-process'"
+                }
+            ],
+            "agent": "organization--28cc013e-3dad-4cd1-a596-b170e4bb045e"
+        },
+        "if-condition--238f6c07-872e-46e9-84e8-9db5b87308ed": {
+            "name": "Check Compromised User",
+            "type": "if-condition",
+            "condition": "user_is_flagged as compromised",
+            "on_true": "action--0522bce6-24c5-4c4c-a0d1-22730a900380",
+            "on_false": "action--95858580-2f83-4c12-a328-25d6e337c21b"
+        },
+        "action--0522bce6-24c5-4c4c-a0d1-22730a900380": {
+            "name": "Reset Compromised Accounts",
+            "on_completion": "action--95858580-2f83-4c12-a328-25d6e337c21b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo passwd --expire username"
+                }
+            ],
+            "agent": "organization--28cc013e-3dad-4cd1-a596-b170e4bb045e"
+        },
+        "action--95858580-2f83-4c12-a328-25d6e337c21b": {
+            "name": "Deploy Updated WAF Rules",
+            "on_completion": "while-condition--8abae8a7-b366-4673-9c6c-d5e542e0dca3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw reload"
+                }
+            ],
+            "agent": "organization--28cc013e-3dad-4cd1-a596-b170e4bb045e",
+            "step_variables": {
+                "rules_id": {
+                    "type": "string",
+                    "description": "WAF Rules version",
+                    "value": "WAF-v1.3",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--8abae8a7-b366-4673-9c6c-d5e542e0dca3": {
+            "name": "Conduct Antivirus Scan Loop",
+            "description": "Repeat the antivirus scan until a clean state is achieved.",
+            "on_true": "action--d9169463-e3af-4c0f-9f6f-cedb84fca80f",
+            "condition": "scan_is_clean == false",
+            "on_completion": "if-condition--50069391-3aca-4277-a7ea-2e54dbe734ba",
+            "type": "if-condition"
+        },
+        "action--d9169463-e3af-4c0f-9f6f-cedb84fca80f": {
+            "name": "Conduct Full System Antivirus Scan",
+            "on_completion": "while-condition--8abae8a7-b366-4673-9c6c-d5e542e0dca3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--6d38a47a-8a2b-4eb6-bf32-15c70139185a"
+        },
+        "if-condition--50069391-3aca-4277-a7ea-2e54dbe734ba": {
+            "name": "Check for Unauthorized Modifications",
+            "type": "if-condition",
+            "condition": "config_modifications_unauthorized",
+            "on_true": "action--c52b4164-1723-4a6e-8b31-b5c8be8a4ab5",
+            "on_false": "action--e799e9f1-e880-4c6e-ab9e-566ab5cd8e48"
+        },
+        "action--c52b4164-1723-4a6e-8b31-b5c8be8a4ab5": {
+            "name": "Backup and Clean Configuration Files",
+            "on_completion": "action--e799e9f1-e880-4c6e-ab9e-566ab5cd8e48",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /etc/config /backup/ && cat /etc/config.default > /etc/config"
+                }
+            ],
+            "agent": "organization--6d38a47a-8a2b-4eb6-bf32-15c70139185a"
+        },
+        "action--e799e9f1-e880-4c6e-ab9e-566ab5cd8e48": {
+            "name": "Monitor External Connections for Anomalies",
+            "on_completion": "end--f75fe5ea-a83c-4b02-a1e4-34e5ef81ca96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --track --threshold 10 --alert Email-Alert"
+                }
+            ],
+            "agent": "organization--6d38a47a-8a2b-4eb6-bf32-15c70139185a"
+        },
+        "end--f75fe5ea-a83c-4b02-a1e4-34e5ef81ca96": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--28cc013e-3dad-4cd1-a596-b170e4bb045e": {
+            "type": "organization",
+            "name": "Incident Response Team (XYZ)"
+        },
+        "organization--6d38a47a-8a2b-4eb6-bf32-15c70139185a": {
+            "type": "organization",
+            "name": "Antivirus and Monitoring Team (ABC)"
+        }
+    }
+}

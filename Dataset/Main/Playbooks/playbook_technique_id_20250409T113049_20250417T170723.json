@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7f5b2aa-7316-41c3-8e95-292ed3ff1d87",
+    "name": "Response Playbook for Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--abc",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1c23b24-1e5b-4104-b0a8-1f944e311233",
+    "workflow": {
+        "start--a1c23b24-1e5b-4104-b0a8-1f944e311233": {
+            "on_completion": "action--b3c0871c-ada1-46ea-9e46-bb3875901c93",
+            "type": "start"
+        },
+        "action--b3c0871c-ada1-46ea-9e46-bb3875901c93": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--e7c31d2a-b239-45dc-b0c7-f675bca8b407",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e7c31d2a-b239-45dc-b0c7-f675bca8b407": {
+            "name": "Isolate affected host",
+            "description": "Bring down the network interface of the compromised host.",
+            "on_completion": "action--d64a2ee5-320b-442a-b991-9cc509b7ddf8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d64a2ee5-320b-442a-b991-9cc509b7ddf8": {
+            "name": "Block outbound traffic to suspicious IP",
+            "description": "Block any outbound traffic to suspicious IP addresses.",
+            "on_completion": "action--3d904740-1b94-4c16-9854-008557983287",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3d904740-1b94-4c16-9854-008557983287": {
+            "name": "Notify incident response team",
+            "description": "Send notification to the incident response team about the detected incident.",
+            "on_completion": "while-condition--12ac4f34-50c0-479c-8227-dcde67b4705f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_notification -i 'Incident detected on host-22'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--12ac4f34-50c0-479c-8227-dcde67b4705f": {
+            "name": "Run endpoint scan until clean",
+            "description": "Continuously scan the affected host until the scan shows no threats.",
+            "on_completion": "end--f57c34c6-9e3d-4cf0-9752-9234562fa4e1",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--run_scan",
+            "on_false": "end--f57c34c6-9e3d-4cf0-9752-9234562fa4e1"
+        },
+        "action--run_scan": {
+            "name": "Run scan on host-22",
+            "description": "Run an endpoint scan to detect other threats.",
+            "on_completion": "set_scan_result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set_scan_result": {
+            "name": "Set scan result variable",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates whether the last scan identified any threats.",
+                    "value": "result_of_last_scan",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--12ac4f34-50c0-479c-8227-dcde67b4705f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_result"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f57c34c6-9e3d-4cf0-9752-9234562fa4e1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Threat Response Team"
+        }
+    }
+}

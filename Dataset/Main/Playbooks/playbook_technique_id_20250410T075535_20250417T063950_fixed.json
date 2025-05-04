@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--12f5d019-e805-4e8f-bfd1-3c46d7c80b78",
+    "name": "Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook handles incidents related to the execution of unauthorized commands via a scripting interpreter and focuses on mitigating the threat through various actions.",
+    "created_by": "identity--df314ecb-524f-474c-b1b9-059cc272b7bf",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--78f6881b-d3e6-4c65-b785-b681deddd6ba",
+    "workflow": {
+        "start--78f6881b-d3e6-4c65-b785-b681deddd6ba": {
+            "on_completion": "action--9e1cb378-74f5-4761-922e-f812e4dac8b4",
+            "type": "start"
+        },
+        "action--9e1cb378-74f5-4761-922e-f812e4dac8b4": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that is executing.",
+            "on_completion": "parallel--c3a776f8-5ec9-4561-b1cc-0be9c40de89d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-script.sh'"
+                }
+            ],
+            "agent": "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5"
+        },
+        "parallel--c3a776f8-5ec9-4561-b1cc-0be9c40de89d": {
+            "name": "Mitigate Threat",
+            "description": "Execute parallel mitigation actions to contain the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--12f4b908-59b8-411e-8aea-d4b6f60152c5",
+                "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3"
+            ]
+        },
+        "action--12f4b908-59b8-411e-8aea-d4b6f60152c5": {
+            "name": "Block outbound traffic to unapproved IP",
+            "description": "Prevent outgoing connections to an unapproved IP address.",
+            "on_completion": "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j REJECT"
+                }
+            ],
+            "agent": "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5",
+            "on_condition": "if connection_established"
+        },
+        "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3": {
+            "name": "Scan for additional unauthorized scripts",
+            "description": "Search for any other unauthorized scripts on the compromised server.",
+            "on_completion": "loop--8b3a0d3a-b938-4f3c-a3dd-9842851c8d7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'malicious-pattern' {} \\;"
+                }
+            ],
+            "agent": "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5"
+        },
+        "loop--8b3a0d3a-b938-4f3c-a3dd-9842851c8d7e": {
+            "name": "Check for scan completion",
+            "description": "Continuously check if the scan for unauthorized scripts is complete.",
+            "on_true": "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8",
+            "on_false": "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3",
+            "type": "while-condition",
+            "condition": "scan_completes == false"
+        },
+        "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8": {
+            "name": "Update firewall rules and IDS signatures",
+            "description": "Update firewall rules to block further access and IDS signatures for detection.",
+            "on_completion": "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-source=192.168.1.101 && ids-update -f signatures.txt"
+                }
+            ],
+            "agent": "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5",
+            "on_condition": "if new_signature_detected"
+        },
+        "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d": {
+            "name": "Restart compromised server after cleaning",
+            "description": "Reboot the server following the successful cleanup.",
+            "on_completion": "end--5d8c3c80-f13a-4f47-9144-7a5e6ac55c2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reboot"
+                }
+            ],
+            "agent": "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5",
+            "on_condition": "if scan_results_clean"
+        },
+        "end--5d8c3c80-f13a-4f47-9144-7a5e6ac55c2f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c9fb64d9-62d1-4d18-b0e7-be82381537f5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

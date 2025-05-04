@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dee43c98-66c0-46a8-b0e1-4c8b6b534e69",
+    "name": "Malicious PowerShell Execution Response Playbook",
+    "description": "This playbook addresses incidents involving the execution of malicious PowerShell scripts that have manipulated system files and established unauthorized network connections.",
+    "created_by": "identity--e827c8f0-45c6-4fad-b0c3-5e05dde85c23",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--7d5339ff-b9ec-46ed-be53-53783ebf58bd",
+    "workflow": {
+        "start--7d5339ff-b9ec-46ed-be53-53783ebf58bd": {
+            "on_completion": "if-condition--21bc8e11-9b49-404b-b78d-170d5f1cdd31",
+            "type": "start"
+        },
+        "if-condition--21bc8e11-9b49-404b-b78d-170d5f1cdd31": {
+            "name": "Check for running malicious PowerShell processes",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--d2f3b68a-6094-41e9-bc9d-1e09c14e57c5",
+            "on_false": "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2"
+        },
+        "action--d2f3b68a-6094-41e9-bc9d-1e09c14e57c5": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any running instances of malicious PowerShell scripts.",
+            "on_completion": "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--c38a1b84-77a5-435c-81eb-375ec11fdd79"
+        },
+        "action--721dc5ef-b0cd-43a5-9e77-abdfd307c7c2": {
+            "name": "Disconnect compromised host from network",
+            "description": "Disable network connectivity for the compromised host.",
+            "on_completion": "while-condition--e8c413d0-1e4a-4668-8880-90f383b95154",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c38a1b84-77a5-435c-81eb-375ec11fdd79"
+        },
+        "while-condition--e8c413d0-1e4a-4668-8880-90f383b95154": {
+            "name": "Run antivirus scan until clean",
+            "description": "Repeat the antivirus scan until no malicious files are found.",
+            "condition": "scan_status != clean",
+            "on_true": "action--59e6f03e-e24f-4c9e-b4a4-ccf6ebc24b8f",
+            "on_false": "end--0b4dc682-bb79-4592-b940-c4804b6b9601",
+            "type": "if-condition"
+        },
+        "action--59e6f03e-e24f-4c9e-b4a4-ccf6ebc24b8f": {
+            "name": "Run antivirus scan",
+            "description": "Perform a recursive antivirus scan across the system.",
+            "on_completion": "while-condition--e8c413d0-1e4a-4668-8880-90f383b95154",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--c38a1b84-77a5-435c-81eb-375ec11fdd79"
+        },
+        "end--0b4dc682-bb79-4592-b940-c4804b6b9601": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c38a1b84-77a5-435c-81eb-375ec11fdd79": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

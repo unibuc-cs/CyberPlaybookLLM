@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4f6f2bc-1336-4b49-b305-563cb0f45000",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command and scripting interpreter to execute malicious scripts on a compromised server, exhibiting unusual behavior.",
+    "created_by": "identity--b46d9856-b97a-4a49-8a65-d7664c750dd3",
+    "created": "2025-10-01T12:00:00.000Z",
+    "modified": "2025-10-01T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e43d0d2c-c514-4bc0-8b08-a7cfbdfd9379",
+    "workflow": {
+        "action--cd0a4bfa-019d-42b5-a3f4-6b78fc93793b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--f65c725c-230c-42af-8612-354f2d31f942",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--66fbef1a-bf31-438f-b2d9-cc7e1f309cd6"
+        },
+        "if-condition--f65c725c-230c-42af-8612-354f2d31f942": {
+            "name": "Check if process is not running",
+            "type": "if-condition",
+            "condition": "$(pgrep -f malware.sh) == ''",
+            "on_true": "action--f65c725c-230c-42af-8612-354f2d31f942",
+            "on_false": "action--8ec064a1-b1a3-470c-9770-7f8bc857f565"
+        },
+        "action--f65c725c-230c-42af-8612-354f2d31f942": {
+            "name": "Remove malicious files",
+            "description": "Delete the malicious file from the /tmp directory.",
+            "on_completion": "action--8ec064a1-b1a3-470c-9770-7f8bc857f565",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--66fbef1a-bf31-438f-b2d9-cc7e1f309cd6"
+        },
+        "action--8ec064a1-b1a3-470c-9770-7f8bc857f565": {
+            "name": "Block malicious IP from firewall",
+            "description": "Block outbound connections to the known malicious IP address.",
+            "type": "loop",
+            "loop": {
+                "condition": "true",
+                "repeat_until": "secure"
+            },
+            "on_completion": "check--176199ea-26e7-415a-9b44-a57c63014031",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--66fbef1a-bf31-438f-b2d9-cc7e1f309cd6"
+        },
+        "start--e43d0d2c-c514-4bc0-8b08-a7cfbdfd9379": {
+            "on_completion": "action--cd0a4bfa-019d-42b5-a3f4-6b78fc93793b",
+            "type": "start"
+        },
+        "check--176199ea-26e7-415a-9b44-a57c63014031": {
+            "on_completion": "end--e0468c62-603a-417f-a380-07247d594bec",
+            "type": "if-condition",
+            "condition": "check_if_secure()",
+            "on_true": "end--e0468c62-603a-417f-a380-07247d594bec",
+            "on_false": "action--8ec064a1-b1a3-470c-9770-7f8bc857f565"
+        },
+        "end--e0468c62-603a-417f-a380-07247d594bec": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--66fbef1a-bf31-438f-b2d9-cc7e1f309cd6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

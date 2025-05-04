@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c5de1df3-8ac8-4d95-9f4f-ec1c0f0b3450",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where an attacker exploited a web application to execute shell commands and exfiltrate data.",
+    "created_by": "identity--e70485bb-f41e-4638-816b-23f85e710e2e",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1e28dcc-9e7e-4398-893d-73c202735456",
+    "workflow": {
+        "start--b1e28dcc-9e7e-4398-893d-73c202735456": {
+            "on_completion": "action--c2e2e093-b744-4c20-8f4f-a0e8e8f1e1ec",
+            "type": "start"
+        },
+        "action--c2e2e093-b744-4c20-8f4f-a0e8e8f1e1ec": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process associated with the malicious activity.",
+            "on_completion": "parallel--0d3e7b26-e04a-4cac-afa1-ba3caffc941a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f malicious_process)"
+                }
+            ],
+            "agent": "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd"
+        },
+        "parallel--0d3e7b26-e04a-4cac-afa1-ba3caffc941a": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7cc2a728-f30d-4773-ac7b-3cc2c7d4e5b1",
+                "action--d1e7c705-4d75-4ad4-84f7-44e788b9f0d1",
+                "action--a7d7e9c1-4b6f-4237-88b1-de8aa1fe3d1c",
+                "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf"
+            ]
+        },
+        "action--7cc2a728-f30d-4773-ac7b-3cc2c7d4e5b1": {
+            "name": "Remove unauthorized user",
+            "description": "Remove the backdoor user if it exists.",
+            "on_completion": "action--d1e7c705-4d75-4ad4-84f7-44e788b9f0d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if getent passwd backdoor_user; then userdel backdoor_user; fi"
+                }
+            ],
+            "agent": "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd"
+        },
+        "action--d1e7c705-4d75-4ad4-84f7-44e788b9f0d1": {
+            "name": "Scan for malware",
+            "description": "Perform a recursive scan for malware until the system is clean.",
+            "on_completion": "end--a34e7bc8-9e5a-4ccd-bc44-b25160d89e8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! clamscan -r /home | grep 'Infected files: 0'; do sleep 60; done"
+                }
+            ],
+            "agent": "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd"
+        },
+        "action--a7d7e9c1-4b6f-4237-88b1-de8aa1fe3d1c": {
+            "name": "Block external IP addresses",
+            "description": "Block communications to known malicious external IP addresses.",
+            "on_completion": "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.45 -j DROP"
+                }
+            ],
+            "agent": "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd"
+        },
+        "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf": {
+            "name": "Review user activity logs",
+            "description": "Check the activity logs for suspicious actions by the unauthorized user.",
+            "on_completion": "end--a34e7bc8-9e5a-4ccd-bc44-b25160d89e8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'backdoor_user' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "The unauthorized user's account",
+                    "value": "backdoor_user",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--a34e7bc8-9e5a-4ccd-bc44-b25160d89e8f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--58856d6a-b015-4e0f-9c86-cb79e7b891fd": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

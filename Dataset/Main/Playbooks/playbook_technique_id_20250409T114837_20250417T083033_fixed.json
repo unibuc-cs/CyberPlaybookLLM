@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c0282f79-f9f7-4d29-93b8-29e56e16a89f",
+    "name": "Mitigation Playbook for PowerShell Script Exploitation",
+    "description": "This playbook addresses an incident where an attacker utilized a PowerShell script to execute commands on a compromised server through a scheduled task, leading to unauthorized access to sensitive files.",
+    "created_by": "identity--3aa7cc62-2911-432f-bbc2-e7206f8e8f06",
+    "created": "2023-10-01T10:15:30Z",
+    "modified": "2023-10-01T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e12b5e34-42b2-427b-91b9-1b36287f698d",
+    "workflow": {
+        "start--e12b5e34-42b2-427b-91b9-1b36287f698d": {
+            "on_completion": "if-condition--bf3a8c2f-335e-4ae0-aa92-29fcb2795368",
+            "type": "start"
+        },
+        "if-condition--bf3a8c2f-335e-4ae0-aa92-29fcb2795368": {
+            "name": "Check if PowerShell process exists",
+            "condition": "process_exists('powershell')",
+            "type": "if-condition",
+            "on_true": "action--c573f3a4-e721-4c9b-b572-68b2d27502c8",
+            "on_false": "action--4f26ca0f-7bab-4771-80cf-6e69ff9fbf77"
+        },
+        "action--c573f3a4-e721-4c9b-b572-68b2d27502c8": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "action--4f26ca0f-7bab-4771-80cf-6e69ff9fbf77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--cebee418-af7f-4fd1-bf4f-41a7b9069609"
+        },
+        "action--4f26ca0f-7bab-4771-80cf-6e69ff9fbf77": {
+            "name": "Remove scheduled task used for malicious script execution",
+            "description": "Delete the scheduled task that triggers the malicious PowerShell script.",
+            "on_completion": "parallel--6a294bab-fd1e-4f9b-bc47-fd317fa574e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /tn 'MaliciousTask' /f"
+                }
+            ],
+            "agent": "organization--cebee418-af7f-4fd1-bf4f-41a7b9069609"
+        },
+        "parallel--6a294bab-fd1e-4f9b-bc47-fd317fa574e0": {
+            "name": "Initiate scanning and monitoring",
+            "description": "Begin scanning for potential backdoors and other threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--98f12db9-817f-4a09-9a77-1133a3d2c90d"
+            ]
+        },
+        "action--98f12db9-817f-4a09-9a77-1133a3d2c90d": {
+            "name": "Initiate scanning and monitoring for potential backdoors",
+            "description": "Perform scans and monitor the system for indications of backdoors.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan.sh"
+                }
+            ],
+            "agent": "organization--cebee418-af7f-4fd1-bf4f-41a7b9069609",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan",
+                    "value": "initial",
+                    "constant": false
+                }
+            },
+            "on_completion": "while-condition--a8745f7a-2503-4692-9a58-2cb16537e94c"
+        },
+        "while-condition--a8745f7a-2503-4692-9a58-2cb16537e94c": {
+            "name": "Scan for threats",
+            "description": "Repeat scanning process until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_status == 'found'",
+            "on_true": "action--98f12db9-817f-4a09-9a77-1133a3d2c90d",
+            "on_false": "end--d92ed697-9afe-4692-a59f-d85e5e943e39"
+        },
+        "end--d92ed697-9afe-4692-a59f-d85e5e943e39": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cebee418-af7f-4fd1-bf4f-41a7b9069609": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

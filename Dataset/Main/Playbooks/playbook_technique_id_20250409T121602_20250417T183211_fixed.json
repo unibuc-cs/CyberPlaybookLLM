@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d39a24e5-aea4-4523-8cf0-e958face5571",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via the command line, creating backdoors and exfiltrating sensitive data.",
+    "created_by": "identity--a1f4567c-89b1-4b98-97a8-1ad32573042b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e112c452-e9fb-4698-bc94-aa4744e0fec8",
+    "workflow": {
+        "start--e112c452-e9fb-4698-bc94-aa4744e0fec8": {
+            "on_completion": "action--b7f6c4e4-143f-42b9-8fb8-938730e50448",
+            "type": "start"
+        },
+        "action--b7f6c4e4-143f-42b9-8fb8-938730e50448": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--8a5c73c6-4eb2-438f-bd42-7918f3718b0c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61"
+        },
+        "if-condition--8a5c73c6-4eb2-438f-bd42-7918f3718b0c": {
+            "name": "Check for backdoor script",
+            "type": "if-condition",
+            "condition": "[ -f /path/to/backdoor.sh ]",
+            "on_true": "action--8a5c73c6-4eb2-438f-bd42-7918f3718b0c",
+            "on_false": "action--3e7a41dc-0f3e-46f6-b8e5-a5bb5b253260"
+        },
+        "action--8a5c73c6-4eb2-438f-bd42-7918f3718b0c": {
+            "name": "Remove dropped backdoor files",
+            "description": "Delete the backdoor script to prevent future access.",
+            "on_completion": "action--3e7a41dc-0f3e-46f6-b8e5-a5bb5b253260",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/backdoor.sh"
+                }
+            ],
+            "agent": "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61"
+        },
+        "action--3e7a41dc-0f3e-46f6-b8e5-a5bb5b253260": {
+            "name": "Initiate full system scan",
+            "description": "Run a comprehensive scan on the system to detect any remaining threats.",
+            "on_completion": "while-condition--0681ecad-98a1-42bb-9446-a9fad25f2f23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan.sh"
+                }
+            ],
+            "agent": "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61"
+        },
+        "action--ef5d52c1-1d58-41cf-b4b9-98f8ab24e911": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Analyze network traffic for any suspicious activity to the external IP.",
+            "on_completion": "action--059fa3ad-e1af-45ee-847a-826e0f292e86",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any host 192.0.2.1"
+                }
+            ],
+            "agent": "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61"
+        },
+        "action--059fa3ad-e1af-45ee-847a-826e0f292e86": {
+            "name": "Update all security patches",
+            "description": "Ensure that all security patches are applied to protect the system.",
+            "on_completion": "end--23a3c151-ae11-4485-b9ae-d4b9df6d4b88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61"
+        },
+        "end--23a3c151-ae11-4485-b9ae-d4b9df6d4b88": {
+            "type": "end"
+        },
+        "while-condition--0681ecad-98a1-42bb-9446-a9fad25f2f23": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Continue scanning the system until no threats are detected.",
+            "on_completion": "action--ef5d52c1-1d58-41cf-b4b9-98f8ab24e911",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--3e7a41dc-0f3e-46f6-b8e5-a5bb5b253260"
+        }
+    },
+    "agent_definitions": {
+        "organization--c70bb244-f2c4-423f-bf19-1d4d23458f61": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

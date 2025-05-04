@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2d09e4a8-ab63-4c99-94a3-4ba0f858015a",
+    "name": "Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates incidents where an attacker has executed malicious scripts using command-line interpreters, leading to potential backdoors and data exfiltration.",
+    "created_by": "identity--a1f0d312-9eef-4e5b-84b8-cf3c5369d032",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--73c2e287-5db2-43b8-bfdb-3df125577281",
+    "workflow": {
+        "start--73c2e287-5db2-43b8-bfdb-3df125577281": {
+            "on_completion": "action--f127bcb1-2ac3-4e44-a6ff-3e1f89cb0f90",
+            "type": "start"
+        },
+        "action--f127bcb1-2ac3-4e44-a6ff-3e1f89cb0f90": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "if-condition--c94f8e29-ee9c-48ea-bb68-1495d20e9204",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-script.sh"
+                }
+            ],
+            "agent": "organization--87cd04da-c500-4fee-be93-ca5c7a38704a"
+        },
+        "if-condition--c94f8e29-ee9c-48ea-bb68-1495d20e9204": {
+            "name": "Check if external IP connection exists",
+            "type": "if-condition",
+            "condition": "external_ip_connection_exists == true",
+            "on_true": "action--c94f8e29-ee9c-48ea-bb68-1495d20e9204",
+            "on_false": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73"
+        },
+        "action--c94f8e29-ee9c-48ea-bb68-1495d20e9204": {
+            "name": "Block external IP communications",
+            "description": "Prevent communication with the malicious external IP addresses.",
+            "on_completion": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--87cd04da-c500-4fee-be93-ca5c7a38704a"
+        },
+        "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73": {
+            "name": "Scan system for other malicious artifacts",
+            "description": "Conduct a thorough scan of the system to identify any other threats.",
+            "on_completion": "while-condition--976546b3-de5c-48c3-aed6-cee79ef78e4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--87cd04da-c500-4fee-be93-ca5c7a38704a"
+        },
+        "end--bedeacb3-f1a2-4891-b017-b49d705c6620": {
+            "type": "end"
+        },
+        "while-condition--976546b3-de5c-48c3-aed6-cee79ef78e4e": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is confirmed clean.",
+            "on_completion": "end--bedeacb3-f1a2-4891-b017-b49d705c6620",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73"
+        }
+    },
+    "agent_definitions": {
+        "organization--87cd04da-c500-4fee-be93-ca5c7a38704a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "external_ip_connection_exists": {
+            "type": "boolean",
+            "description": "Flag indicating if an external IP connection is detected.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the system scan.",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

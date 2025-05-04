@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e55c66d6-93ca-4e1b-9963-cb9702ca1923",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a PowerShell script to drop a malicious file onto multiple hosts and initiated suspicious outbound connections.",
+    "created_by": "identity--355dbe61-c7c0-487a-b9df-e839186ace6d",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d440e56d-394b-4fa3-bba6-686d4071c31b",
+    "workflow": {
+        "start--d440e56d-394b-4fa3-bba6-686d4071c31b": {
+            "on_completion": "action--5a1f560e-8ff4-4c97-9ba5-007505e6a4f9",
+            "type": "start"
+        },
+        "action--5a1f560e-8ff4-4c97-9ba5-007505e6a4f9": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "on_completion": "parallel--34b3f1bb-df4b-4c4c-91ae-ec3c5e4a4e64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /FI \"IMAGENAME eq powershell.exe\" /F"
+                }
+            ],
+            "agent": "organization--7dbb4bec-8d72-46a7-a90e-3f6a9ebf5cd3"
+        },
+        "parallel--34b3f1bb-df4b-4c4c-91ae-ec3c5e4a4e64": {
+            "name": "Execute Mitigation Actions",
+            "description": "Run parallel actions for removing malicious files and updating security policies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d0cf6f36-4335-403d-9193-b975357b453a",
+                "action--f3278c6f-2a3d-4afe-bf23-3c130fb5f8c2"
+            ]
+        },
+        "action--d0cf6f36-4335-403d-9193-b975357b453a": {
+            "name": "Remove malicious file from infected hosts",
+            "description": "Delete the malicious files from each infected host.",
+            "on_completion": "action--c980eb2b-f630-4e09-9645-d857c667f3cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "foreach ($file in $maliciousFiles) { Remove-Item -Path $file -Force }"
+                }
+            ],
+            "step_variables": {
+                "maliciousFiles": {
+                    "type": "array",
+                    "description": "List of malicious file paths to remove.",
+                    "value": [],
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--0ac27c4b-511d-4014-a189-5ee67806a44f"
+        },
+        "action--c980eb2b-f630-4e09-9645-d857c667f3cc": {
+            "name": "Scan network for additional infections",
+            "description": "Perform a network scan to detect any additional infections.",
+            "on_completion": "end--52ec63da-65af-4a8c-8b2a-59f447d31875",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-Scan -NetworkRange 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--e68876b3-4b40-483e-8b5b-2266dd36d151"
+        },
+        "action--f3278c6f-2a3d-4afe-bf23-3c130fb5f8c2": {
+            "name": "Update security policies to block script execution",
+            "description": "Change the execution policy to restrict script execution.",
+            "on_completion": "end--52ec63da-65af-4a8c-8b2a-59f447d31875",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope CurrentUser"
+                }
+            ],
+            "agent": "organization--7d0abecf-710b-4ce9-8f83-3ff4653c2353"
+        },
+        "end--52ec63da-65af-4a8c-8b2a-59f447d31875": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7dbb4bec-8d72-46a7-a90e-3f6a9ebf5cd3": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--0ac27c4b-511d-4014-a189-5ee67806a44f": {
+            "type": "organization",
+            "name": "Organization DEF"
+        },
+        "organization--e68876b3-4b40-483e-8b5b-2266dd36d151": {
+            "type": "organization",
+            "name": "Organization GHI"
+        },
+        "organization--7d0abecf-710b-4ce9-8f83-3ff4653c2353": {
+            "type": "organization",
+            "name": "Organization JKL"
+        }
+    }
+}

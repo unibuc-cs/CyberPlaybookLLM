@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3f4956b-4c8b-4b0a-9989-f15762ae4f35",
+    "name": "Mitigation Playbook for PowerShell Malware Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to download malware on the network.",
+    "created_by": "identity--9f9e3e5f-e4eb-4c5a-8295-64f13e4bcb82",
+    "created": "2023-10-01T14:32:00Z",
+    "modified": "2023-10-01T14:32:00Z",
+    "revoked": false,
+    "workflow_start": "start--768c501f-fcfd-411c-8716-7ebaa96e241b",
+    "workflow": {
+        "action--a1e6f526-3d5a-4f12-9000-9d43cce1d6b5": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that are potentially malicious.",
+            "on_completion": "if-condition--d7d3081b-a51b-4a24-b9de-d8d6cd3f61c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--93f0f92d-b8d3-4233-bd57-abbeada7821c"
+        },
+        "if-condition--d7d3081b-a51b-4a24-b9de-d8d6cd3f61c0": {
+            "name": "Check if malicious files exist",
+            "type": "if-condition",
+            "condition": "malicious_file_exists == true",
+            "on_true": "action--d7d3081b-a51b-4a24-b9de-d8d6cd3f61c0",
+            "on_false": "loop--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a"
+        },
+        "action--d7d3081b-a51b-4a24-b9de-d8d6cd3f61c0": {
+            "name": "Remove dropped malware files",
+            "description": "Delete any dropped malware files from the system.",
+            "on_completion": "loop--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malware"
+                }
+            ],
+            "agent": "organization--93f0f92d-b8d3-4233-bd57-abbeada7821c",
+            "step_variables": {
+                "malicious_file_exists": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "loop--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a": {
+            "name": "Run antivirus scan",
+            "description": "Perform a scan of the system to ensure no malware remains.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a",
+            "next_steps": [
+                "action--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a"
+            ]
+        },
+        "action--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a": {
+            "name": "Execute antivirus scan command",
+            "description": "Run the antivirus to scan for malware in the specified directory.",
+            "on_completion": "update-scan-status--51df35a3-131c-4928-869c-772563b7a083",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ClamAV --scan /path/to/directory"
+                }
+            ],
+            "agent": "organization--93f0f92d-b8d3-4233-bd57-abbeada7821c",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the system scan",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--fb0f7bba-8c84-4e1d-b9a9-81aed7a98f3e": {
+            "type": "end"
+        },
+        "start--768c501f-fcfd-411c-8716-7ebaa96e241b": {
+            "on_completion": "action--a1e6f526-3d5a-4f12-9000-9d43cce1d6b5",
+            "type": "start"
+        },
+        "update-scan-status--51df35a3-131c-4928-869c-772563b7a083": {
+            "name": "Update scan status",
+            "type": "action",
+            "on_completion": "loop--c0bfe080-15c3-4fb5-9f70-f99b5c4f7b7a",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_status"
+                }
+            ],
+            "agent": "organization--93f0f92d-b8d3-4233-bd57-abbeada7821c"
+        }
+    },
+    "agent_definitions": {
+        "organization--93f0f92d-b8d3-4233-bd57-abbeada7821c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

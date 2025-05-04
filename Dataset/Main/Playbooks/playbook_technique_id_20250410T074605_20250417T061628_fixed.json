@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f58c98b8-6f79-4dcc-9997-8b56e9bb1bdf",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where a malicious script was executed to establish a foothold in the system. It includes steps for mitigation actions and monitoring.",
+    "created_by": "identity--d9ba1e5b-5f95-4aad-bbc9-123e457d9db8",
+    "created": "2025-04-10T07:46:05.498Z",
+    "modified": "2025-04-10T07:46:05.498Z",
+    "revoked": false,
+    "workflow_start": "start--a3e80f8c-4c43-4b66-8f34-b953e0475862",
+    "workflow": {
+        "start--a3e80f8c-4c43-4b66-8f34-b953e0475862": {
+            "on_completion": "action--ecb6d320-0bbe-4de9-b0c6-35d1b85283b5",
+            "type": "start"
+        },
+        "action--ecb6d320-0bbe-4de9-b0c6-35d1b85283b5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts currently executing.",
+            "on_completion": "if-condition--b57e1b2e-ef51-4bbf-853f-01edc15c6886",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_script.sh)"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "if-condition--b57e1b2e-ef51-4bbf-853f-01edc15c6886": {
+            "name": "Check if malicious script exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malicious_script.sh ]",
+            "on_true": "action--b57e1b2e-ef51-4bbf-853f-01edc15c6886",
+            "on_false": "loop--f1c28136-4518-42ea-9ff3-a927763428c6"
+        },
+        "action--b57e1b2e-ef51-4bbf-853f-01edc15c6886": {
+            "name": "Remove malicious files",
+            "on_completion": "loop--f1c28136-4518-42ea-9ff3-a927763428c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "loop--f1c28136-4518-42ea-9ff3-a927763428c6": {
+            "name": "Scan and clean affected host",
+            "description": "Continuously run antivirus scan until the system is clean.",
+            "on_completion": "action--4c0c47bf-d5d7-49db-902a-0f6faab2c171",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f1c28136-4518-42ea-9ff3-a927763428c6",
+            "next_steps": [
+                "action--f1c28136-4518-42ea-9ff3-a927763428c6"
+            ]
+        },
+        "action--f1c28136-4518-42ea-9ff3-a927763428c6": {
+            "name": "Run Antivirus Scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan.sh host-17"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "action--4c0c47bf-d5d7-49db-902a-0f6faab2c171": {
+            "name": "Remove persistence mechanisms",
+            "description": "Delete registry entries associated with the malicious process.",
+            "on_completion": "action--12738ee8-5983-40a3-935f-69e8d1b3ee33",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v malicious_process /f"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "action--12738ee8-5983-40a3-935f-69e8d1b3ee33": {
+            "name": "Monitor network for further suspicious activity",
+            "description": "Start monitoring network activity for anomalies.",
+            "on_completion": "action--e2a0ef31-b7ab-4b0b-a66e-8f067858e464",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network_monitor.sh start"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "action--e2a0ef31-b7ab-4b0b-a66e-8f067858e464": {
+            "name": "Parallel system integrity verification",
+            "description": "Verify system integrity against expected checksums.",
+            "on_completion": "end--b2b1e9f2-84bb-4e1b-9899-9094bbffdd10",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity_check.sh host-17"
+                }
+            ],
+            "agent": "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf"
+        },
+        "end--b2b1e9f2-84bb-4e1b-9899-9094bbffdd10": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--83ad8b9e-29d0-413a-99ca-77dab2f7bbcf": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

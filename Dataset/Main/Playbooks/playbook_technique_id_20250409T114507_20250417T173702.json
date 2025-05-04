@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5b0fe31-1d35-4e1f-bc73-a52e3fa6323a",
+    "name": "Mitigation Playbook for Data Exfiltration via Application Layer Protocols",
+    "description": "This playbook addresses an incident where an attacker exfiltrated sensitive data by tunneling it through application layer protocols through an insecure web server configuration.",
+    "created_by": "identity--8b6ec14b-af06-4b88-9f61-b30798e1aeb2",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c0a4f1b4-76c0-4bc5-bfa6-752ac10cea52",
+    "workflow": {
+        "start--c0a4f1b4-76c0-4bc5-bfa6-752ac10cea52": {
+            "on_completion": "parallel--d2fbf40a-a4f6-4a96-a77b-f74d4c335f8b",
+            "type": "start"
+        },
+        "parallel--d2fbf40a-a4f6-4a96-a77b-f74d4c335f8b": {
+            "name": "Execute Primary Mitigations",
+            "description": "Execute mitigations to block malicious activities and scan for further threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--493b66fa-dc2b-4a79-bbc7-8c0544fb444d",
+                "action--ea16cdee-4554-446c-a5a5-38c4c7cc4a03",
+                "action--ef7d3465-8e1c-4731-9e77-8a152c5a7180"
+            ]
+        },
+        "action--493b66fa-dc2b-4a79-bbc7-8c0544fb444d": {
+            "name": "Block malicious IP address",
+            "description": "Block outbound connections to the malicious IP address.",
+            "on_completion": "action--ea16cdee-4554-446c-a5a5-38c4c7cc4a03",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--ea16cdee-4554-446c-a5a5-38c4c7cc4a03": {
+            "name": "Kill the unauthorized process",
+            "description": "Terminate any processes related to the malicious script if they exist.",
+            "on_completion": "if-condition--c42775d0-0c59-494d-9d66-186003c189f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--c42775d0-0c59-494d-9d66-186003c189f4": {
+            "name": "Check if malicious process was terminated",
+            "type": "if-condition",
+            "condition": "process_id_exists()",
+            "on_true": "action--ef7d3465-8e1c-4731-9e77-8a152c5a7180",
+            "on_false": "action--ef7d3465-8e1c-4731-9e77-8a152c5a7180"
+        },
+        "action--ef7d3465-8e1c-4731-9e77-8a152c5a7180": {
+            "name": "Conduct a thorough system scan",
+            "description": "Perform a recursive scan to detect malicious files or remnants.",
+            "next_steps": [
+                "while-condition--391dcb6b-c131-4b73-91c3-d255d37e66ac"
+            ],
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--391dcb6b-c131-4b73-91c3-d255d37e66ac": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Continue scanning until the scan results indicate no more threats.",
+            "type": "while-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--c80a1234-3fd9-4a51-b776-2e4a3eb60e05",
+            "on_false": "action--ef7d3465-8e1c-4731-9e77-8a152c5a7180"
+        },
+        "end--c80a1234-3fd9-4a51-b776-2e4a3eb60e05": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

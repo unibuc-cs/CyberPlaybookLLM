@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c7b75d88-7b78-4827-9de0-8f6e045cc645",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook addresses an incident where an internal employee executed a malicious PowerShell script, leading to unauthorized data access and potential data exfiltration.",
+    "created_by": "identity--52d88e38-c453-4d2e-8a8c-bb7e242f77e2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--7f159727-73c4-4301-a568-bad4ea95cbfe",
+    "workflow": {
+        "action--e9bde222-7f64-4c0f-a127-2a894be77a29": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are executing malicious scripts.",
+            "on_completion": "action--a6f63fb5-2dd1-4b9e-a3fd-9b963f00f8d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--bc2ce42a-13e0-44fd-a7ae-43882b812778"
+        },
+        "action--a6f63fb5-2dd1-4b9e-a3fd-9b963f00f8d3": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent any further outbound connections to the known malicious IP address.",
+            "on_completion": "while-condition--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s hostile_ip -j DROP"
+                }
+            ],
+            "agent": "organization--bc2ce42a-13e0-44fd-a7ae-43882b812778"
+        },
+        "while-condition--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58": {
+            "name": "Perform incident response scan",
+            "description": "Repeat the security scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--6d223f2f-c550-4bbf-af40-d539cd028c8d",
+            "on_false": "end--44d2f4c7-6787-49ba-ab2d-b1562fa7342b",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the security scan",
+                    "value": "threat_found",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--7f159727-73c4-4301-a568-bad4ea95cbfe": {
+            "on_completion": "action--e9bde222-7f64-4c0f-a127-2a894be77a29",
+            "type": "start"
+        },
+        "action--6d223f2f-c550-4bbf-af40-d539cd028c8d": {
+            "name": "Run security scan",
+            "description": "Execute the security scan to check for weaknesses or threats.",
+            "on_completion": "while-condition--bc9f06b2-013b-4da4-9e3b-f1ac2e6a4a58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_security_scan.sh"
+                }
+            ],
+            "agent": "organization--bc2ce42a-13e0-44fd-a7ae-43882b812778",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the most recent scan.",
+                    "value": "clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--44d2f4c7-6787-49ba-ab2d-b1562fa7342b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bc2ce42a-13e0-44fd-a7ae-43882b812778": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

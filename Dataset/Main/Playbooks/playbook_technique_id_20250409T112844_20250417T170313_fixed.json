@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d80dcb0b-e9c2-464e-8c85-9f13c215cb09",
+    "name": "Mitigation Playbook for Command Execution via Exploited Web Server",
+    "description": "This playbook addresses an incident where an attacker exploited a web server vulnerability allowing arbitrary command execution. The playbook implements multiple mitigation steps to resolve the issue.",
+    "created_by": "identity--c31fffc2-8385-47a1-b02d-d6aed5c44609",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a001d2c0-e9c2-464e-8c85-9f13c215cb01",
+    "workflow": {
+        "start--a001d2c0-e9c2-464e-8c85-9f13c215cb01": {
+            "on_completion": "action--e37a2f8b-12bc-4c34-8cf9-177eabc2c0d0",
+            "type": "start"
+        },
+        "action--e37a2f8b-12bc-4c34-8cf9-177eabc2c0d0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the suspicious script.",
+            "on_completion": "action--a1f65e98-1cb9-4b50-86fb-3a0ed9623f02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5"
+        },
+        "action--a1f65e98-1cb9-4b50-86fb-3a0ed9623f02": {
+            "name": "Remove dropped malicious files",
+            "description": "Remove any malicious files that may have been dropped on the system.",
+            "on_completion": "if-condition--1649a432-ee8f-4a64-bd4d-259ddbad349b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_file"
+                }
+            ],
+            "agent": "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5"
+        },
+        "action--0cdd96ae-b0b2-41c1-b1d8-f5b0097e6930": {
+            "name": "Investigate network connections",
+            "description": "Check current network connections to identify any unusual activity.",
+            "on_completion": "while-condition--9b3ab0d0-3b40-450e-95b0-d1dc002eb48c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -an | grep 'malicious_ip'"
+                }
+            ],
+            "agent": "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5"
+        },
+        "action--7cb9c0b1-d622-43c8-91be-78b2ae32ad46": {
+            "name": "Restore affected host from backup",
+            "description": "Restore the affected host to a previous state using a backup.",
+            "on_completion": "end--f8bf2b75-f9e7-4cc8-98d6-020452b0c1af",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_backup --host host-22"
+                }
+            ],
+            "step_variables": {
+                "backup_location": {
+                    "type": "string",
+                    "description": "The backup file location for restoration.",
+                    "value": "/backups/host-22_latest.tar.gz",
+                    "constant": false
+                }
+            },
+            "agent": "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5"
+        },
+        "end--f8bf2b75-f9e7-4cc8-98d6-020452b0c1af": {
+            "type": "end"
+        },
+        "if-condition--1649a432-ee8f-4a64-bd4d-259ddbad349b": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "file_exists(/tmp/malicious_file)",
+            "on_true": "action--0cdd96ae-b0b2-41c1-b1d8-f5b0097e6930",
+            "on_false": "action--4a558469-4ca2-4af4-bb8a-b1f2bfd8a391"
+        },
+        "while-condition--9b3ab0d0-3b40-450e-95b0-d1dc002eb48c": {
+            "name": "Investigate network connections loop",
+            "description": "Repeat investigation until there are no connections found to the malicious IP.",
+            "on_true": "action--0cdd96ae-b0b2-41c1-b1d8-f5b0097e6930",
+            "type": "while-condition",
+            "condition": "connections_found == true"
+        },
+        "action--4a558469-4ca2-4af4-bb8a-b1f2bfd8a391": {
+            "name": "Update firewall rules to block malicious IP",
+            "description": "Configure the firewall to block outgoing connections to the identified malicious IP.",
+            "on_completion": "action--7cb9c0b1-d622-43c8-91be-78b2ae32ad46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5"
+        }
+    },
+    "agent_definitions": {
+        "organization--95c67711-a565-4b35-96ba-fc6e07e0d7d5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

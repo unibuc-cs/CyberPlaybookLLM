@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3289fca9-c4c0-410d-af4b-f5dcb514f5e1",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses a malicious script execution incident involving an employee's workstation. It executes necessary mitigations to remove threats and block further access.",
+    "created_by": "identity--daf2e613-08a7-4e50-bec0-b803a245cf2f",
+    "created": "2023-10-02T09:00:00Z",
+    "modified": "2023-10-02T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2b82794-df31-447f-b703-c49ef1f4571d",
+    "workflow": {
+        "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the cryptominer process if it exists.",
+            "on_completion": "if-condition--91886b29-4bef-4942-858f-9e164061c697",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f cryptominer"
+                }
+            ],
+            "agent": "organization--3eda045a-baca-4848-a084-d445104bfc59"
+        },
+        "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854": {
+            "name": "Scan system for malware",
+            "description": "Perform a thorough scan of the system for potential malware.",
+            "on_completion": "parallel--a8dd99ae-c096-4ec7-b911-7dbd7392ec79",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--3eda045a-baca-4848-a084-d445104bfc59",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--53c581a1-4322-4f5d-baf7-7fdbdc493769": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Prevent any further connections to the identified malicious IP.",
+            "on_completion": "end--59c73db3-e064-4df8-80e6-fee6d98d53ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--3eda045a-baca-4848-a084-d445104bfc59"
+        },
+        "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2": {
+            "name": "Update security policies",
+            "description": "Modify security policies to block scripts by default.",
+            "on_completion": "end--59c73db3-e064-4df8-80e6-fee6d98d53ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Block scripts by default' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--3eda045a-baca-4848-a084-d445104bfc59"
+        },
+        "start--b2b82794-df31-447f-b703-c49ef1f4571d": {
+            "on_completion": "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b",
+            "type": "start"
+        },
+        "if-condition--91886b29-4bef-4942-858f-9e164061c697": {
+            "name": "Check for residual files",
+            "type": "if-condition",
+            "condition": "ls /path/to/cryptominer | grep cryptominer",
+            "on_true": "loop--5b33df99-46c1-4580-81d6-1b6764a0c8be",
+            "on_false": "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854"
+        },
+        "loop--5b33df99-46c1-4580-81d6-1b6764a0c8be": {
+            "name": "Remove dropped files loop",
+            "description": "Repeat removal of residual cryptominer files until none are found.",
+            "on_completion": "if-condition--91886b29-4bef-4942-858f-9e164061c697",
+            "type": "loop",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/cryptominer"
+                }
+            ]
+        },
+        "parallel--a8dd99ae-c096-4ec7-b911-7dbd7392ec79": {
+            "name": "Execute post-recovery measures",
+            "description": "Block malicious IP and update security policies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--53c581a1-4322-4f5d-baf7-7fdbdc493769",
+                "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2"
+            ]
+        },
+        "end--59c73db3-e064-4df8-80e6-fee6d98d53ec": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3eda045a-baca-4848-a084-d445104bfc59": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

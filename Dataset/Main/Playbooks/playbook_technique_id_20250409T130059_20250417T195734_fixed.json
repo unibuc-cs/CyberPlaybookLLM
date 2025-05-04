@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fe1521d0-ef22-4fc6-a67d-d0e1f8122b3d",
+    "name": "Mitigation Playbook for Web Application Exploitation Incident",
+    "description": "This playbook responds to an incident where an attacker exploited a vulnerable web application to execute arbitrary scripts, gaining elevated access and exfiltrating sensitive data.",
+    "created_by": "identity--cc33da18-cad9-49e5-9a0a-11a34742b3ff",
+    "created": "2023-10-12T14:35:00Z",
+    "modified": "2023-10-12T14:36:00Z",
+    "revoked": false,
+    "workflow_start": "start--896ed042-2afc-4a7b-91bc-75c49576dca6",
+    "workflow": {
+        "action--df88afa3-1d9b-44c2-93fc-350baaf3f9b5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious web shell process.",
+            "on_completion": "action--fa2a3d23-e801-4ef9-a943-06be2cd77c9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f webshell.php"
+                }
+            ],
+            "agent": "organization--d68df142-bbb3-4367-821e-062ca520e2a7"
+        },
+        "action--fa2a3d23-e801-4ef9-a943-06be2cd77c9c": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete any unauthorized web shell scripts from the server.",
+            "on_completion": "loop--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/html -name 'webshell.php' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--d68df142-bbb3-4367-821e-062ca520e2a7"
+        },
+        "loop--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a": {
+            "name": "Scan for additional malicious files",
+            "description": "Perform a scan for additional malicious files until no threats are found.",
+            "on_completion": "if-condition--e5e6f7c8-1234-5678-9101-213456abcdef",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "on_false": "end--5fe9838f-7a49-44a3-a7e3-1ce329139a1e"
+        },
+        "action--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a": {
+            "name": "Run the antivirus scan",
+            "description": "Scan the web directory for malicious files.",
+            "on_completion": "action--29d8b7f0-5b47-4ba5-9c62-de12ad154b2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/www/html"
+                }
+            ],
+            "agent": "organization--d68df142-bbb3-4367-821e-062ca520e2a7",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the last antivirus scan (e.g., clean, infected).",
+                    "value": "in-progress",
+                    "constant": false
+                }
+            }
+        },
+        "start--896ed042-2afc-4a7b-91bc-75c49576dca6": {
+            "on_completion": "action--df88afa3-1d9b-44c2-93fc-350baaf3f9b5",
+            "type": "start"
+        },
+        "end--5fe9838f-7a49-44a3-a7e3-1ce329139a1e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d68df142-bbb3-4367-821e-062ca520e2a7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

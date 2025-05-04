@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fb4a1e53-5c75-4f3d-8a8b-5b64b440766f",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses the incident where an unauthorized user executed scripts on an internal server, leading to privilege escalation and data exfiltration.",
+    "created_by": "identity--a1234567-bcde-1234-5678-9abcdef12345",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-5e6f-7a8b-9abc-def123456789",
+    "workflow": {
+        "start--1a2b3c4d-5e6f-7a8b-9abc-def123456789": {
+            "on_completion": "if-condition--d4e5f6g7-8h9i-0jkl-1234-mnop45678901",
+            "type": "start"
+        },
+        "if-condition--d4e5f6g7-8h9i-0jkl-1234-mnop45678901": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b",
+            "on_false": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5"
+        },
+        "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that are potentially malicious.",
+            "on_completion": "parallel--1bcdef01-2345-6789-abc0-def123456790",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5": {
+            "name": "Restore previous configurations",
+            "description": "Restore the configuration from backup.",
+            "on_completion": "while-condition--ab12cd34-5678-90ef-ghij-klm123456789",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config /etc/myapp/config"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--ab12cd34-5678-90ef-ghij-klm123456789": {
+            "name": "Check Configuration Stability Loop",
+            "description": "Repeat restoring configurations until stable.",
+            "on_completion": "parallel--1bcdef01-2345-6789-abc0-def123456790",
+            "type": "while-condition",
+            "condition": "configuration_is_stable()",
+            "on_true": "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc",
+            "on_false": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5"
+        },
+        "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc": {
+            "name": "Perform a full security scan",
+            "description": "Conduct a comprehensive security scan after restoring configurations.",
+            "on_completion": "end--9999abcd-ef01-2345-gh67-ijklmnop8901",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --full"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the security scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "parallel--1bcdef01-2345-6789-abc0-def123456790": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Run mitigations concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc"
+            ]
+        },
+        "end--9999abcd-ef01-2345-gh67-ijklmnop8901": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

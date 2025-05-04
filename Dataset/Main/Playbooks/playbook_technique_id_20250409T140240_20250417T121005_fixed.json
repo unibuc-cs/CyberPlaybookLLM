@@ -1,0 +1,77 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dcf8b35c-76c6-47a1-abab-ef41c6d4dfa7",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell commands to exfiltrate sensitive data from the company's network.",
+    "created_by": "identity--abc12356-5cb2-4fe5-a1ab-2345abdcfaba",
+    "created": "2025-10-10T14:32:00Z",
+    "modified": "2025-10-10T14:59:00Z",
+    "revoked": false,
+    "workflow_start": "start--cabc9e8f-e96e-4bbc-ae82-4ff931441f99",
+    "workflow": {
+        "start--cabc9e8f-e96e-4bbc-ae82-4ff931441f99": {
+            "on_completion": "action--c10d7f7d-b12c-43f1-95c1-b1c1b707f9ab",
+            "type": "start"
+        },
+        "action--c10d7f7d-b12c-43f1-95c1-b1c1b707f9ab": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell process that could be executing malicious commands.",
+            "on_completion": "action--3eb0dadb-1c1e-4f03-a7b2-589832bb0d66",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--95f2166e-ba69-4ded-872a-138466f3df4d"
+        },
+        "action--3eb0dadb-1c1e-4f03-a7b2-589832bb0d66": {
+            "name": "Delete dropped malicious script",
+            "description": "Remove the malicious PowerShell script that was dropped on the host.",
+            "on_completion": "loop--14a02bc7-fa65-4407-9a2d-8147fe0e02a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--95f2166e-ba69-4ded-872a-138466f3df4d"
+        },
+        "loop--14a02bc7-fa65-4407-9a2d-8147fe0e02a2": {
+            "name": "Scan for Additional Threats",
+            "description": "Scan the host for additional threats and repeat until the system is confirmed clean.",
+            "on_true": "action--14a02bc7-fa65-4407-9a2d-8147fe0e02a2",
+            "on_false": "end--53930460-f6d4-4c8b-8f0a-bfdc5b3409fa",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--14a02bc7-fa65-4407-9a2d-8147fe0e02a2"
+            ]
+        },
+        "action--14a02bc7-fa65-4407-9a2d-8147fe0e02a2": {
+            "name": "Run threat scan",
+            "description": "Perform a scan of the host for additional threats using ClamAV.",
+            "on_completion": "loop--14a02bc7-fa65-4407-9a2d-8147fe0e02a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav --scan / --remove"
+                }
+            ],
+            "agent": "organization--95f2166e-ba69-4ded-872a-138466f3df4d"
+        },
+        "end--53930460-f6d4-4c8b-8f0a-bfdc5b3409fa": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--95f2166e-ba69-4ded-872a-138466f3df4d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

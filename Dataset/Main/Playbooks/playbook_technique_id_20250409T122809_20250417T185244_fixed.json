@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4d0a1b5-8af6-41e3-9e12-8735eb080105",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via a command and scripting interpreter resulting in a data breach.",
+    "created_by": "identity--02e9619a-b2d7-43cf-a8bc-ad9fcdf880fa",
+    "created": "2025-04-09T08:55:00Z",
+    "modified": "2025-04-09T08:56:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--fa2e3e76-0452-4c06-92ec-ce913b97c9c1",
+            "type": "start"
+        },
+        "if-condition--c2c1666a-8489-42d6-9e56-f63d12eac88c": {
+            "name": "Check if the malicious script is running",
+            "type": "if-condition",
+            "condition": "malicious_script_running == true",
+            "on_true": "action--fa2e3e76-0452-4c06-92ec-ce913b97c9c1",
+            "on_false": "action--c2c10b15-bf91-4da3-a55d-9081acc3b0e5"
+        },
+        "action--fa2e3e76-0452-4c06-92ec-ce913b97c9c1": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--c2c10b15-bf91-4da3-a55d-9081acc3b0e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--c08565e4-2ed5-44c2-a66e-8d8b9e6da454"
+        },
+        "action--c2c10b15-bf91-4da3-a55d-9081acc3b0e5": {
+            "name": "Delete dropped file",
+            "description": "Remove the malicious file dropped by the attacker.",
+            "on_completion": "action--1a401af9-a1c9-4e34-9b98-b7b4ff9f85e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_file.sh"
+                }
+            ],
+            "agent": "organization--c08565e4-2ed5-44c2-a66e-8d8b9e6da454"
+        },
+        "action--1a401af9-a1c9-4e34-9b98-b7b4ff9f85e4": {
+            "name": "Monitor network connections to C2 server",
+            "description": "Check for any active connections to the attacker's command and control server.",
+            "on_completion": "while-condition--d10eed22-b5c7-45c7-87c5-c6ec9f7a3a23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -tulnp | grep 'C2_server_address'"
+                }
+            ],
+            "agent": "organization--c08565e4-2ed5-44c2-a66e-8d8b9e6da454"
+        },
+        "end--e0c3b072-112f-4eb8-bb41-024e49a61dc6": {
+            "type": "end"
+        },
+        "while-condition--d10eed22-b5c7-45c7-87c5-c6ec9f7a3a23": {
+            "name": "Monitor until all connections are examined",
+            "description": "Continuously check network connections until all potential threats are monitored.",
+            "on_true": "action--1a401af9-a1c9-4e34-9b98-b7b4ff9f85e4",
+            "condition": "still_connected == true",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--c08565e4-2ed5-44c2-a66e-8d8b9e6da454": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_script_running": {
+            "type": "boolean",
+            "description": "Check if malicious script is currently running",
+            "default": true,
+            "constant": false,
+            "external": true
+        },
+        "still_connected": {
+            "type": "boolean",
+            "description": "Check if there are still connections to the C2 server",
+            "default": true,
+            "constant": false
+        }
+    }
+}

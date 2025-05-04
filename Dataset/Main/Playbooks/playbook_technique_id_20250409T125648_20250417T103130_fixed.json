@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f4c70e7f-f4dc-41e5-8f7e-9ebfb2d55c0f",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker leveraged a malicious script, enabling unauthorized access and exfiltrating sensitive data.",
+    "created_by": "identity--14a68759-e421-4bd7-abc5-f874dfda7137",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--02d841be-e4dc-4ce0-b10b-ec23ee0a0e73",
+            "type": "start"
+        },
+        "action--02d841be-e4dc-4ce0-b10b-ec23ee0a0e73": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the running malicious script process.",
+            "on_completion": "if-condition--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--2052d812-6c3d-4e1d-b765-a945e462079e"
+        },
+        "if-condition--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f": {
+            "name": "Check if script persistence exists",
+            "type": "if-condition",
+            "condition": "script_persistence_exists == true",
+            "on_true": "action--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f",
+            "on_false": "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f"
+        },
+        "action--6c2cf98c-3de0-4461-ba2b-d8b9b1b91e4f": {
+            "name": "Remove persistence mechanism for the script",
+            "description": "Delete the malicious script's persistence mechanism.",
+            "on_completion": "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious_script"
+                }
+            ],
+            "agent": "organization--2052d812-6c3d-4e1d-b765-a945e462079e"
+        },
+        "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f": {
+            "name": "Perform a full system scan",
+            "description": "Scan the system for vulnerabilities and malicious files.",
+            "on_completion": "while-condition--b4cd604c-732f-4b61-bda7-accdfcf83108",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--2052d812-6c3d-4e1d-b765-a945e462079e",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Indicates if the scan found vulnerabilities",
+                    "value": "vulnerabilities_found",
+                    "constant": false
+                }
+            }
+        },
+        "end--c3f1e38e-1f0b-4d89-8bec-a5b964d5c19e": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        },
+        "while-condition--b4cd604c-732f-4b61-bda7-accdfcf83108": {
+            "name": "Scan until no vulnerabilities found",
+            "description": "Repeat the scan until no vulnerabilities are detected.",
+            "on_completion": "end--c3f1e38e-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_result == vulnerabilities_found",
+            "on_true": "action--c9ec64b9-19ef-4c09-bd32-e15d0b2d332f"
+        }
+    },
+    "agent_definitions": {
+        "organization--2052d812-6c3d-4e1d-b765-a945e462079e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f390c29a-4a8b-41f9-bdca-e1c88c39f1b0",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script for unauthorized communication and data exfiltration.",
+    "created_by": "identity--0f29cfb7-f6e6-4f02-abc8-7c18a5e442e7",
+    "created": "2025-04-10T08:54:10.000Z",
+    "modified": "2025-04-10T08:54:10.000Z",
+    "revoked": false,
+    "workflow_start": "start--ff1e0c88-829b-4d43-abdb-4742fbd9f895",
+    "workflow": {
+        "start--ff1e0c88-829b-4d43-abdb-4742fbd9f895": {
+            "on_completion": "parallel--428742aa-32a2-4b71-ad7e-c745c693962f",
+            "type": "start"
+        },
+        "parallel--428742aa-32a2-4b71-ad7e-c745c693962f": {
+            "type": "parallel",
+            "name": "Parallel Mitigation Steps",
+            "next_steps": [
+                "action--d0e8b37a-1f82-4b89-9b65-415b3f89c99b",
+                "action--9af283a0-2c68-4563-9c0e-ff7ae29c19f4",
+                "action--ee4816b5-b0b4-4efa-828a-4f0ebf2c9c7b",
+                "action--c86576a2-f9e7-4b0e-b51a-6b6aa4d6db3a",
+                "action--b3d9b650-3a14-442f-b456-c7d55c7e345c"
+            ]
+        },
+        "action--d0e8b37a-1f82-4b89-9b65-415b3f89c99b": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate the running PowerShell process to stop malicious actions.",
+            "on_completion": "action--9af283a0-2c68-4563-9c0e-ff7ae29c19f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM powershell.exe"
+                }
+            ],
+            "agent": "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37"
+        },
+        "action--9af283a0-2c68-4563-9c0e-ff7ae29c19f4": {
+            "name": "Block outgoing connections to suspicious IPs",
+            "description": "Prevent further communication with the threat actor's IP.",
+            "on_completion": "action--ee4816b5-b0b4-4efa-828a-4f0ebf2c9c7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"203.0.113.45\" reject'"
+                }
+            ],
+            "agent": "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37"
+        },
+        "action--ee4816b5-b0b4-4efa-828a-4f0ebf2c9c7b": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a thorough scan to detect any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37",
+            "on_completion": "while-condition--586c2c58-04bd-462f-899e-bba6c1ef87d3"
+        },
+        "while-condition--586c2c58-04bd-462f-899e-bba6c1ef87d3": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is confirmed clean.",
+            "on_completion": "end--42b44f8c-63bc-4c87-b004-93fe8c16447c",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--ee4816b5-b0b4-4efa-828a-4f0ebf2c9c7b"
+        },
+        "action--c86576a2-f9e7-4b0e-b51a-6b6aa4d6db3a": {
+            "name": "Change user passwords",
+            "description": "Update credentials for compromised user accounts.",
+            "on_completion": "action--b3d9b650-3a14-442f-b456-c7d55c7e345c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37",
+            "targets": [
+                "CompromisedAccounts"
+            ],
+            "loop": "for each user in CompromisedAccounts"
+        },
+        "action--b3d9b650-3a14-442f-b456-c7d55c7e345c": {
+            "name": "Perform a forensic backup of the affected system",
+            "description": "Create a backup for legal and forensic analysis if necessary.",
+            "on_completion": "end--42b44f8c-63bc-4c87-b004-93fe8c16447c",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "dd if=/dev/sda of=/backup/system-image.img"
+                }
+            ],
+            "agent": "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37",
+            "condition": "if necessary for legal review"
+        },
+        "end--42b44f8c-63bc-4c87-b004-93fe8c16447c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--69d680a9-75d6-4172-9e42-4cabf9d8fd37": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

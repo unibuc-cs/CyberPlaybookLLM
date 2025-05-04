@@ -1,0 +1,135 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f45c3f23-6b88-4e6e-bd2a-b38a5eb1f6de",
+    "name": "Incident Response to Malicious Script Execution",
+    "description": "This playbook automates the response to an incident where an attacker executed malicious scripts, downloaded payloads, and elevated privileges on the server.",
+    "created_by": "identity--abcd1234-abcd-1234-abcd-1234567890ab",
+    "created": "2025-04-10T07:45:33.123Z",
+    "modified": "2025-04-10T07:45:33.123Z",
+    "revoked": false,
+    "workflow_start": "start--cfc8a8d6-a1c4-485a-8f1b-9290a8f2edb5",
+    "workflow": {
+        "start--cfc8a8d6-a1c4-485a-8f1b-9290a8f2edb5": {
+            "on_completion": "action--0a2d3f67-52f6-4dce-a8b1-87f1d9b92344",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initiate the workflow to mitigate malicious script execution."
+        },
+        "action--0a2d3f67-52f6-4dce-a8b1-87f1d9b92344": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--ce9e5b9c-5a83-4c89-bc8c-d7f84680b8c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious-script.sh"
+                }
+            ],
+            "agent": "organization--47464d8b-5a10-4a85-bced-09afd9ab00e5"
+        },
+        "action--ce9e5b9c-5a83-4c89-bc8c-d7f84680b8c1": {
+            "name": "Reset compromised account credentials",
+            "description": "Reset credentials for the compromised user account.",
+            "on_completion": "parallel--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh admin@host-22 'echo \"new_password\" | passwd --stdin compromised_user'"
+                }
+            ],
+            "agent": "organization--017ef8a8-ca83-4808-ab7e-e8167550102d"
+        },
+        "parallel--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930": {
+            "name": "Parallel Mitigations",
+            "description": "Execute scanning for malware and applying patches concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930",
+                "action--caa3acbe-2df0-4c51-994d-08422955a5a2"
+            ]
+        },
+        "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930": {
+            "name": "Scan for additional malware",
+            "description": "Perform a comprehensive scan of the systems for additional malware.",
+            "on_completion": "if-condition--de7b513d-361c-4761-ae01-5fa65e1735c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--3e33718d-435d-4ee5-820c-432e130c2181"
+        },
+        "action--caa3acbe-2df0-4c51-994d-08422955a5a2": {
+            "name": "Apply security patches",
+            "description": "Update the system with the latest security patches.",
+            "on_completion": "action--ee5b22af-cdae-4ab2-bde3-1a9e9119a1c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo yum update -y"
+                }
+            ],
+            "agent": "organization--6f1d0fa9-26aa-4dfb-886c-e0d57ee2c645"
+        },
+        "action--ee5b22af-cdae-4ab2-bde3-1a9e9119a1c8": {
+            "name": "Set up monitoring for script execution",
+            "description": "Establish monitoring to detect future script executions.",
+            "on_completion": "action--74b13bc0-204b-4884-8e48-208d8fa2c235",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/bash -p x -k script_execution"
+                }
+            ],
+            "agent": "organization--3e33718d-435d-4ee5-820c-432e130c2181"
+        },
+        "action--74b13bc0-204b-4884-8e48-208d8fa2c235": {
+            "name": "Restore from clean backup if needed",
+            "description": "Restore the system from a backup if it cannot be verified as clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -avz backup@backup-server:/backups/ / --exclude /tmp"
+                }
+            ],
+            "agent": "organization--017ef8a8-ca83-4808-ab7e-e8167550102d",
+            "on_completion": "end--34d705df-fc1d-4d41-9b3b-7214a69eceb9"
+        },
+        "if-condition--de7b513d-361c-4761-ae01-5fa65e1735c7": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--caa3acbe-2df0-4c51-994d-08422955a5a2",
+            "on_false": "action--b4d9ec35-f24c-4b3c-b3a0-749fb8a8e930"
+        },
+        "end--34d705df-fc1d-4d41-9b3b-7214a69eceb9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--47464d8b-5a10-4a85-bced-09afd9ab00e5": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        },
+        "organization--017ef8a8-ca83-4808-ab7e-e8167550102d": {
+            "type": "organization",
+            "name": "User Management Team"
+        },
+        "organization--3e33718d-435d-4ee5-820c-432e130c2181": {
+            "type": "organization",
+            "name": "Malware Analysis Team"
+        },
+        "organization--6f1d0fa9-26aa-4dfb-886c-e0d57ee2c645": {
+            "type": "organization",
+            "name": "Patch Management Team"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1f3b74e-44cb-4a3a-b1d7-0b0d4e5b12e2",
+    "name": "Mitigation Playbook for Process Injection Incident",
+    "description": "This playbook addresses an incident where an attacker utilized process injection techniques to run a malicious payload in the context of a legitimate process, evading detection while exfiltrating sensitive data.",
+    "created_by": "identity--9053b95d-36f0-4904-bed2-9e2c0db10956",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a123e9b9-abc1-4f3e-a1e8-bd4fdd494d7b",
+    "workflow": {
+        "start--a123e9b9-abc1-4f3e-a1e8-bd4fdd494d7b": {
+            "on_completion": "action--b1c3e531-17d8-4a79-9c1e-93b91f44bc3d",
+            "type": "start"
+        },
+        "action--b1c3e531-17d8-4a79-9c1e-93b91f44bc3d": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that have been injected with malicious code.",
+            "on_completion": "if-condition--a2c5d1bc-1f85-44c8-a8b4-9e8cd6afc028",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--cad90081-9972-4e5a-97ba-d72961addcc4"
+        },
+        "if-condition--a2c5d1bc-1f85-44c8-a8b4-9e8cd6afc028": {
+            "name": "Check for Active Suspicious Connections",
+            "type": "if-condition",
+            "condition": "suspicious_connections_active == true",
+            "on_true": "action--f64bcb07-71c6-41b4-8e7f-614181f6d2f5",
+            "on_false": "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5"
+        },
+        "action--f64bcb07-71c6-41b4-8e7f-614181f6d2f5": {
+            "name": "Isolate Affected Host",
+            "description": "Shut down the network interface to isolate the affected host from the network.",
+            "on_completion": "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--cad90081-9972-4e5a-97ba-d72961addcc4"
+        },
+        "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5": {
+            "name": "Run Full System Scan",
+            "description": "Perform a full scan of the system to identify any remaining threats.",
+            "on_completion": "while-condition--a3d9e9bc-42fe-4c2e-a3dd-b91816cd0af7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--cad90081-9972-4e5a-97ba-d72961addcc4"
+        },
+        "while-condition--a3d9e9bc-42fe-4c2e-a3dd-b91816cd0af7": {
+            "name": "Check Scan Result",
+            "description": "Repeat the scan until the system is clear of threats.",
+            "on_completion": "end--e8f4f3e2-87c0-4b8d-b20c-6d3b897e2a4f",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c2bde3b4-5ffb-49b8-93bd-783bfa6e44a5"
+        },
+        "end--e8f4f3e2-87c0-4b8d-b20c-6d3b897e2a4f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cad90081-9972-4e5a-97ba-d72961addcc4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

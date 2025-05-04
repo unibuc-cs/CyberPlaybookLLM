@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5c1f5ce-70b1-4cdd-a366-b8eaf4905384",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook executes a series of mitigations to respond to the execution of a PowerShell script that acted as a backdoor on compromised servers.",
+    "created_by": "identity--e78f6f80-2c2d-4ee8-b849-11c83132645a",
+    "created": "2025-04-10T08:55:30.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "if-condition--31a0f8a5-9324-4488-a56c-1a8bde7ac9ea",
+            "type": "start"
+        },
+        "if-condition--31a0f8a5-9324-4488-a56c-1a8bde7ac9ea": {
+            "name": "Check if suspicious process exists",
+            "type": "if-condition",
+            "condition": "process_found",
+            "on_true": "action--4c1fd9f4-c667-4be6-bedb-8aaaf7a78305",
+            "on_false": "parallel--e3614156-555b-4a55-8bf6-1a1d74000cde"
+        },
+        "action--4c1fd9f4-c667-4be6-bedb-8aaaf7a78305": {
+            "name": "Kill Malicious Process",
+            "on_completion": "action--db21ba58-be06-4ff8-b77d-7073c3a9629d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--8d31da34-065d-40de-83ef-6d5a9eddea57"
+        },
+        "parallel--e3614156-555b-4a55-8bf6-1a1d74000cde": {
+            "name": "Execute Other Mitigations",
+            "description": "Update firewall rules and enhance script execution policies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--553cffdf-d52b-45e6-ad05-9b869089c417",
+                "action--5b146a75-b9ba-4a01-be6a-99c14b3fdc25"
+            ]
+        },
+        "action--553cffdf-d52b-45e6-ad05-9b869089c417": {
+            "name": "Update Firewall Rules",
+            "on_completion": "action--aeb9e2a3-956d-4d59-b2fa-c43498e217b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.168.100.100"
+                }
+            ],
+            "agent": "organization--8d31da34-065d-40de-83ef-6d5a9eddea57"
+        },
+        "action--5b146a75-b9ba-4a01-be6a-99c14b3fdc25": {
+            "name": "Audit and Enhance Script Execution Policies",
+            "on_completion": "action--aeb9e2a3-956d-4d59-b2fa-c43498e217b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--8d31da34-065d-40de-83ef-6d5a9eddea57"
+        },
+        "action--aeb9e2a3-956d-4d59-b2fa-c43498e217b4": {
+            "name": "Re-scan System Until Clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "on_completion": "while-condition--919fb1c0-1d0a-4fa3-9e9e-054496d405e0",
+            "agent": "organization--8d31da34-065d-40de-83ef-6d5a9eddea57"
+        },
+        "while-condition--919fb1c0-1d0a-4fa3-9e9e-054496d405e0": {
+            "name": "Check For Infection",
+            "description": "Loop until the system is clean.",
+            "type": "while-condition",
+            "condition": "infected",
+            "on_true": "action--aeb9e2a3-956d-4d59-b2fa-c43498e217b4",
+            "on_false": "end--d1a8dc56-2ffb-4236-86b7-7020923edbc0"
+        },
+        "action--db21ba58-be06-4ff8-b77d-7073c3a9629d": {
+            "name": "Clear Temporary Script Files",
+            "on_completion": "end--d1a8dc56-2ffb-4236-86b7-7020923edbc0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious*"
+                }
+            ],
+            "agent": "organization--8d31da34-065d-40de-83ef-6d5a9eddea57",
+            "step_variables": {
+                "file_location": {
+                    "type": "string",
+                    "description": "Location of temporary malicious files",
+                    "value": "/tmp/"
+                }
+            }
+        },
+        "end--d1a8dc56-2ffb-4236-86b7-7020923edbc0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8d31da34-065d-40de-83ef-6d5a9eddea57": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

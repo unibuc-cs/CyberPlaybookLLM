@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f9c8e5a5-7f54-4f0e-abf0-1a78f8f35fbb",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via the command line resulting in data exfiltration.",
+    "created_by": "identity--0ce466b3-beea-4086-b6b3-240afa599dc1",
+    "created": "2023-10-01T14:32:10.000Z",
+    "modified": "2023-10-01T14:35:20.000Z",
+    "revoked": false,
+    "workflow_start": "start--cad6af0a-d522-446c-bace-f703e2e19d30",
+    "workflow": {
+        "action--3c2bafc4-0095-4b79-b6b1-e8903c746903": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the suspicious script.",
+            "on_completion": "action--6fbc5bc9-3d7c-4958-891e-da724985e72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--286124a4-0e31-4186-974e-07799a5e1d7b"
+        },
+        "action--6fbc5bc9-3d7c-4958-891e-da724985e72b": {
+            "name": "Perform incident response scan",
+            "description": "Run a scan on host-22 to check for any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan -target host-22"
+                }
+            ],
+            "agent": "organization--286124a4-0e31-4186-974e-07799a5e1d7b",
+            "on_completion": "decision--bec99571-2c08-4649-89f4-12e7c2cb09cb"
+        },
+        "action--aecf94b4-fbb4-478e-9ada-ff4bf8c5c1b4": {
+            "name": "Collect and analyze logs",
+            "description": "Gather suspicious actions from system logs for investigation.",
+            "on_completion": "end--e8d65b76-e5f2-4c0d-8a4a-71a37d3f74cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/syslog > analysis.log"
+                }
+            ],
+            "agent": "organization--286124a4-0e31-4186-974e-07799a5e1d7b",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "value": "/var/log/syslog",
+                    "constant": false
+                },
+                "output_file": {
+                    "type": "string",
+                    "value": "analysis.log",
+                    "constant": false
+                }
+            }
+        },
+        "end--e8d65b76-e5f2-4c0d-8a4a-71a37d3f74cb": {
+            "type": "end"
+        },
+        "start--cad6af0a-d522-446c-bace-f703e2e19d30": {
+            "on_completion": "action--3c2bafc4-0095-4b79-b6b1-e8903c746903",
+            "type": "start"
+        },
+        "decision--bec99571-2c08-4649-89f4-12e7c2cb09cb": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results == 'not clean'",
+            "on_true": "loop--8f52c6b4-56b7-47c4-a13d-abc741176add",
+            "on_false": "action--aecf94b4-fbb4-478e-9ada-ff4bf8c5c1b4"
+        },
+        "loop--8f52c6b4-56b7-47c4-a13d-abc741176add": {
+            "name": "Repeat scan if not clean",
+            "description": "Repeat the scan until it comes back clean.",
+            "on_completion": "action--6fbc5bc9-3d7c-4958-891e-da724985e72b",
+            "type": "while-condition",
+            "condition": "scan_results == 'not clean'"
+        }
+    },
+    "agent_definitions": {
+        "organization--286124a4-0e31-4186-974e-07799a5e1d7b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

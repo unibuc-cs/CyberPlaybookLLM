@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fb58d1de-7923-4b92-b4c3-05148c08c8ef",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident of malicious scripts executed for data exfiltration.",
+    "created_by": "identity--6cc463fb-54b5-4e2c-b99c-402c188e28fe",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--6ab4ffbc-dc53-4505-a46a-28877ba55d24",
+    "workflow": {
+        "action--39ba33cb-4938-479c-af43-075b8549f4de": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process executing the malicious script.",
+            "on_completion": "if-condition--b7f7abbb-8c5f-4626-b289-d8edff2c5699",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--8a56c8b1-bdd9-4f8f-87b4-ea44bbc93046"
+        },
+        "if-condition--b7f7abbb-8c5f-4626-b289-d8edff2c5699": {
+            "name": "Check if external IP is flagged",
+            "type": "if-condition",
+            "condition": "EXT_IP != None",
+            "on_true": "action--b7f7abbb-8c5f-4626-b289-d8edff2c5699",
+            "on_false": "action--367a7f8d-7c3b-43a2-a908-afb7b207cfcd"
+        },
+        "action--b7f7abbb-8c5f-4626-b289-d8edff2c5699": {
+            "name": "Block outbound connection for identified threat",
+            "description": "Block outbound connections to the flagged external IP.",
+            "on_completion": "action--367a7f8d-7c3b-43a2-a908-afb7b207cfcd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--8a56c8b1-bdd9-4f8f-87b4-ea44bbc93046"
+        },
+        "action--367a7f8d-7c3b-43a2-a908-afb7b207cfcd": {
+            "name": "Run a malware scan",
+            "description": "Perform a malware scan to identify any remaining threats.",
+            "on_completion": "while-condition--29825bfc-63d5-4080-ae48-4bc4d95effaa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan --bell"
+                }
+            ],
+            "agent": "organization--8a56c8b1-bdd9-4f8f-87b4-ea44bbc93046"
+        },
+        "start--6ab4ffbc-dc53-4505-a46a-28877ba55d24": {
+            "on_completion": "action--39ba33cb-4938-479c-af43-075b8549f4de",
+            "type": "start"
+        },
+        "while-condition--29825bfc-63d5-4080-ae48-4bc4d95effaa": {
+            "name": "Repeat scan until clean",
+            "description": "Repeat the scan until there are no malware detections.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--367a7f8d-7c3b-43a2-a908-afb7b207cfcd",
+            "on_false": "end--cd5ac59a-1c99-43da-80b6-e56de8ce70d8"
+        },
+        "end--cd5ac59a-1c99-43da-80b6-e56de8ce70d8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8a56c8b1-bdd9-4f8f-87b4-ea44bbc93046": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "EXT_IP": {
+            "type": "string",
+            "description": "The external IP flagged for blocking",
+            "value": "192.0.2.1",
+            "constant": false,
+            "external": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "The result of the malware scan",
+            "value": "not_clean",
+            "constant": false,
+            "external": false
+        }
+    }
+}

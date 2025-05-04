@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7c23d91-ef21-4b33-b30f-1bfb006e29f1",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute a malicious script that led to unauthorized file transfer.",
+    "created_by": "identity--9d157173-86d4-489c-a426-352fa58a320d",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--c4c7baf9-7f71-4de8-ad62-6390fada4e91",
+    "workflow": {
+        "start--c4c7baf9-7f71-4de8-ad62-6390fada4e91": {
+            "on_completion": "if-condition--21d621bb-4920-4973-9770-42caa8ffff1b",
+            "type": "start"
+        },
+        "if-condition--21d621bb-4920-4973-9770-42caa8ffff1b": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--f1c2f956-4c71-4df3-8c67-9b2c8708e97e",
+            "on_false": "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3"
+        },
+        "action--f1c2f956-4c71-4df3-8c67-9b2c8708e97e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell process that is executing malicious scripts.",
+            "on_completion": "loop--c7f5a151-e28b-4f73-9744-8501f83ca716",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--f751610a-6089-49a2-9d54-6e7b482ff56d"
+        },
+        "loop--c7f5a151-e28b-4f73-9744-8501f83ca716": {
+            "name": "Restore Affected Files Loop",
+            "description": "Restore sensitive files from backup until all files are restored.",
+            "on_completion": "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3",
+            "type": "while-condition",
+            "condition": "files_remaining > 0",
+            "on_true": "action--c9a3de5f-8471-4e13-b1ea-50478e825db3"
+        },
+        "action--c9a3de5f-8471-4e13-b1ea-50478e825db3": {
+            "name": "Restore affected files from backup",
+            "description": "Using rsync to restore sensitive files from the backup location.",
+            "on_completion": "update-file-count--e777d57e-886d-40cc-a334-63c3fc4c580e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/securefiles/ /data/sensitive/"
+                }
+            ],
+            "agent": "organization--f751610a-6089-49a2-9d54-6e7b482ff56d"
+        },
+        "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3": {
+            "name": "Conduct network traffic analysis",
+            "description": "Analyze network traffic to identify any suspicious activities in the last 24 hours.",
+            "on_completion": "end--f6b38e8f-ee78-4c40-a66c-35e5adf4b0e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./network_analysis.sh --endpoint host-22 --timeframe last_24_hours"
+                }
+            ],
+            "agent": "organization--f751610a-6089-49a2-9d54-6e7b482ff56d"
+        },
+        "end--f6b38e8f-ee78-4c40-a66c-35e5adf4b0e5": {
+            "type": "end"
+        },
+        "update-file-count--e777d57e-886d-40cc-a334-63c3fc4c580e": {
+            "name": "Update remaining files count",
+            "type": "action",
+            "on_completion": "loop--c7f5a151-e28b-4f73-9744-8501f83ca716",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "files_remaining=$(expr $files_remaining - 1)"
+                }
+            ],
+            "agent": "organization--f751610a-6089-49a2-9d54-6e7b482ff56d"
+        }
+    },
+    "agent_definitions": {
+        "organization--f751610a-6089-49a2-9d54-6e7b482ff56d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_found": {
+            "type": "boolean",
+            "description": "Indicates whether a malicious PowerShell process was found.",
+            "value": true,
+            "constant": false
+        },
+        "files_remaining": {
+            "type": "integer",
+            "description": "Track the number of files remaining to be restored.",
+            "value": 5,
+            "constant": false
+        }
+    }
+}

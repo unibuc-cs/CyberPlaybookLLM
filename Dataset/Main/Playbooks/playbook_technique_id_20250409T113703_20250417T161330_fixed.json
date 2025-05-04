@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d43b59c7-afb6-4da5-bec4-ec00a44c16e8",
+    "name": "Playbook for PowerShell-based Incident Mitigation",
+    "description": "This playbook mitigates unauthorized access incidents involving malicious PowerShell commands.",
+    "created_by": "identity--b01d10f5-d86f-4c57-af3e-35b736dfb244",
+    "created": "2023-10-16T12:00:00Z",
+    "modified": "2023-10-16T12:00:00Z",
+    "workflow_start": "start--1fa8591c-d85c-48c4-b8e8-2c77d8977f34",
+    "workflow": {
+        "start--1fa8591c-d85c-48c4-b8e8-2c77d8977f34": {
+            "on_completion": "if-condition--3fd15358-5b21-4f58-9618-1be1c239b3cb",
+            "type": "start"
+        },
+        "if-condition--3fd15358-5b21-4f58-9618-1be1c239b3cb": {
+            "name": "Check for running PowerShell process",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--e877f536-1f4e-4344-bf4a-7f6f04f5c937",
+            "on_false": "action--3aabf487-383b-41bb-8e16-abc77f622c58"
+        },
+        "action--e877f536-1f4e-4344-bf4a-7f6f04f5c937": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell process that was used maliciously.",
+            "on_completion": "action--3aabf487-383b-41bb-8e16-abc77f622c58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--25bf3b48-4068-40ec-88ed-eec9dff485f8"
+        },
+        "action--3aabf487-383b-41bb-8e16-abc77f622c58": {
+            "name": "Delete dropped malicious files",
+            "description": "Remove any malicious PowerShell scripts dropped by the attacker.",
+            "on_completion": "while-condition--a3f05d53-1db7-4ac4-af38-57c63f604615",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malicious/script.ps1"
+                }
+            ],
+            "agent": "organization--25bf3b48-4068-40ec-88ed-eec9dff485f8"
+        },
+        "while-condition--a3f05d53-1db7-4ac4-af38-57c63f604615": {
+            "name": "Perform system scan loop",
+            "description": "Run antivirus scan and check if the system is clean.",
+            "on_completion": "end--8f2ba3e4-1b1f-4c77-bcb3-36a02217eed0",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b9f64cfa-3dcb-4b98-9178-984c8d6c9497"
+        },
+        "action--b9f64cfa-3dcb-4b98-9178-984c8d6c9497": {
+            "name": "Perform full system scan using AV",
+            "description": "Run a full system scan using the antivirus tool.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the AV scan",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "update_scan_status--8ba825b0-a27d-499e-8563-e3385a896b72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "runav --scan all"
+                }
+            ],
+            "agent": "organization--25bf3b48-4068-40ec-88ed-eec9dff485f8"
+        },
+        "end--8f2ba3e4-1b1f-4c77-bcb3-36a02217eed0": {
+            "type": "end"
+        },
+        "update_scan_status--8ba825b0-a27d-499e-8563-e3385a896b72": {
+            "name": "Update scan status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_status"
+                }
+            ],
+            "agent": "organization--25bf3b48-4068-40ec-88ed-eec9dff485f8",
+            "on_completion": "while-condition--a3f05d53-1db7-4ac4-af38-57c63f604615"
+        }
+    },
+    "agent_definitions": {
+        "organization--25bf3b48-4068-40ec-88ed-eec9dff485f8": {
+            "type": "organization",
+            "name": "Cybersecurity Response Team"
+        }
+    }
+}

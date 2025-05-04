@@ -1,0 +1,134 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1fda4ea-af03-4036-adaf-9bf4e61f67a3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script and established a reverse shell for data exfiltration.",
+    "created_by": "identity--83fc1a36-df0d-4e66-90f7-5af535f155d9",
+    "created": "2025-10-10T08:30:00Z",
+    "modified": "2025-10-10T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--cdb1ea45-7d08-4e93-8e57-98463b2a1c47",
+    "workflow": {
+        "start--cdb1ea45-7d08-4e93-8e57-98463b2a1c47": {
+            "on_completion": "action--c1a60598-8593-4b52-a8b7-345d53b11235",
+            "type": "start"
+        },
+        "action--c1a60598-8593-4b52-a8b7-345d53b11235": {
+            "name": "Terminate reverse shell process",
+            "description": "Terminate any running reverse shell process.",
+            "on_completion": "parallel--287a509c-0c6a-4b65-8e91-712169d79982",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'reverse shell' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--17058f89-f127-4757-b239-73ab79b4ac38"
+        },
+        "parallel--287a509c-0c6a-4b65-8e91-712169d79982": {
+            "name": "Perform mitigations concurrently",
+            "description": "Conduct malware scan, remove malicious script, and update firewall rules.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3",
+                "action--939c3f4e-0ff7-4c68-b0c3-8b86b02e5d7d",
+                "if-condition--1ed5e765-e2d9-4e1b-a3f4-54466f506e43"
+            ]
+        },
+        "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3": {
+            "name": "Conduct malware scan on infected host",
+            "description": "Scan for malware on the compromised machine and remove threats.",
+            "on_completion": "loop--2afbf558-8e15-49f0-8ee1-c8eccb761a4f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove infected_files/*"
+                }
+            ],
+            "agent": "organization--7896c152-bc5c-4b57-9a68-a119a6c2bd03"
+        },
+        "action--939c3f4e-0ff7-4c68-b0c3-8b86b02e5d7d": {
+            "name": "Remove malicious script",
+            "description": "Remove the malicious script that executed the attack.",
+            "on_completion": "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious/script.sh"
+                }
+            ],
+            "agent": "organization--17058f89-f127-4757-b239-73ab79b4ac38"
+        },
+        "if-condition--1ed5e765-e2d9-4e1b-a3f4-54466f506e43": {
+            "name": "Check if network is compromised",
+            "type": "if-condition",
+            "condition": "is_network_compromised == false",
+            "on_true": "action--1ed5e765-e2d9-4e1b-a3f4-54466f506e43",
+            "on_false": "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea"
+        },
+        "action--1ed5e765-e2d9-4e1b-a3f4-54466f506e43": {
+            "name": "Update firewall rules to block C2 server IP",
+            "description": "Configure firewall to block outbound connections to the C2 server.",
+            "on_completion": "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.0.2.1"
+                }
+            ],
+            "agent": "organization--e99a5bb2-baf9-4166-867e-125d0f77b358"
+        },
+        "action--a6b095dc-64f8-45b6-b5f3-e3c1be64f8ea": {
+            "name": "Reset credentials for all users",
+            "description": "Reset credentials for affected users to mitigate further risks.",
+            "on_completion": "end--d10de3aa-4331-49f8-af20-b65b5241bc22",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forceshutdown auth --reset-credentials"
+                }
+            ],
+            "agent": "organization--7896c152-bc5c-4b57-9a68-a119a6c2bd03",
+            "step_variables": {
+                "user_list": {
+                    "type": "string",
+                    "description": "List of affected users",
+                    "value": "affected_users.txt",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--d10de3aa-4331-49f8-af20-b65b5241bc22": {
+            "type": "end"
+        },
+        "loop--2afbf558-8e15-49f0-8ee1-c8eccb761a4f": {
+            "name": "Verify malware scan result",
+            "description": "Repeat malware scan until the system is clean.",
+            "on_completion": "action--939c3f4e-0ff7-4c68-b0c3-8b86b02e5d7d",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f299a652-c4a3-4287-90d7-fddc4d1d16a3"
+        }
+    },
+    "agent_definitions": {
+        "organization--17058f89-f127-4757-b239-73ab79b4ac38": {
+            "type": "organization",
+            "name": "SecurityTeamABC"
+        },
+        "organization--7896c152-bc5c-4b57-9a68-a119a6c2bd03": {
+            "type": "organization",
+            "name": "MalwareResponseDef"
+        },
+        "organization--e99a5bb2-baf9-4166-867e-125d0f77b358": {
+            "type": "organization",
+            "name": "NetworkAdminXYZ"
+        }
+    }
+}

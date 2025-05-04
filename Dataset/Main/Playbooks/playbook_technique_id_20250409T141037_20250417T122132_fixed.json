@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0fa6ab6-8d66-4eeb-ba3c-1c4b0f642c7e",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user executed commands leading to data exfiltration.",
+    "created_by": "identity--79ea0fc3-fa7b-4dda-a89a-2e848914213d",
+    "created": "2023-10-10T15:00:00.000Z",
+    "modified": "2023-10-10T15:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b2e1f8be-8f9b-4f5d-b99f-bc30f75bc9fc",
+    "workflow": {
+        "start--b2e1f8be-8f9b-4f5d-b99f-bc30f75bc9fc": {
+            "on_completion": "if-condition--c43f6b25-36e0-4509-a7dc-81f7353eeb55",
+            "type": "start"
+        },
+        "if-condition--c43f6b25-36e0-4509-a7dc-81f7353eeb55": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists('suspicious_process')",
+            "on_true": "action--b1f2e9c6-4564-4e9c-9c65-b9f196af7862",
+            "on_false": "action--c3c7ab2e-d77d-4d09-ba73-b9c1c34faba2"
+        },
+        "action--b1f2e9c6-4564-4e9c-9c65-b9f196af7862": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process executing on the host.",
+            "on_completion": "action--c3c7ab2e-d77d-4d09-ba73-b9c1c34faba2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--dff5ef37-a398-4004-bdcd-7ed290214c7b"
+        },
+        "action--c3c7ab2e-d77d-4d09-ba73-b9c1c34faba2": {
+            "name": "Isolate affected host from network",
+            "description": "Block network access to secure the affected host.",
+            "on_completion": "while-condition--d431c6e4-c7e9-465e-8423-2a3e8b663937",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--dff5ef37-a398-4004-bdcd-7ed290214c7b"
+        },
+        "while-condition--d431c6e4-c7e9-465e-8423-2a3e8b663937": {
+            "name": "Check host security status",
+            "description": "Repeat isolating actions until the host is secure.",
+            "on_true": "action--f4d2e5f7-2f36-4460-aa4b-fc07a1583c5b",
+            "condition": "host_is_secure()",
+            "on_false": "action--c3c7ab2e-d77d-4d09-ba73-b9c1c34faba2",
+            "type": "while-condition"
+        },
+        "action--f4d2e5f7-2f36-4460-aa4b-fc07a1583c5b": {
+            "name": "Run malware scan on the host",
+            "description": "Perform a comprehensive malware scan on the affected host.",
+            "on_completion": "end--e1a7cf84-4bed-49b6-afb5-a1b63b999f49",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--dff5ef37-a398-4004-bdcd-7ed290214c7b",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Output of the malware scan.",
+                    "value": "scan_output",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e1a7cf84-4bed-49b6-afb5-a1b63b999f49": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--dff5ef37-a398-4004-bdcd-7ed290214c7b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

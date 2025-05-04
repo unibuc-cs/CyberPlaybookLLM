@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b0234567-3a45-4b2b-bcd1-a12b394d4567",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute a malicious script and deploy a backdoor.",
+    "created_by": "identity--bd8458f8-3440-4ed8-b6fa-9c9ab865d6e4",
+    "created": "2025-04-12T08:00:00.000Z",
+    "modified": "2025-04-12T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a984bc82-e4f5-4fdf-af0b-648182eeeb7d",
+    "workflow": {
+        "start--a984bc82-e4f5-4fdf-af0b-648182eeeb7d": {
+            "on_completion": "parallel--13276114-069f-4037-8145-779204307115",
+            "type": "start"
+        },
+        "parallel--13276114-069f-4037-8145-779204307115": {
+            "name": "Immediate Mitigations",
+            "description": "Simultaneously execute multiple actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ae63a57c-5752-4a72-a0a4-42e1d4d8a997",
+                "action--ea931c95-1658-40a9-a13f-6a991a688a06",
+                "while-condition--bbc84213-59fb-4780-b9f1-9a54b80e712d"
+            ]
+        },
+        "action--ae63a57c-5752-4a72-a0a4-42e1d4d8a997": {
+            "name": "Kill malicious process",
+            "description": "Terminate the backdoor script to prevent further damage.",
+            "on_completion": "action--ea931c95-1658-40a9-a13f-6a991a688a06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor-script.sh"
+                }
+            ],
+            "agent": "organization--8fbd80b9-ce76-4bc6-bb92-dc75771ad42d"
+        },
+        "action--ea931c95-1658-40a9-a13f-6a991a688a06": {
+            "name": "Block outbound connection",
+            "description": "Prevent further malicious outbound connections to the suspicious IP.",
+            "on_completion": "end--ea69bbad-1421-4e2b-b18f-0db7baa9a59e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--8fbd80b9-ce76-4bc6-bb92-dc75771ad42d"
+        },
+        "while-condition--bbc84213-59fb-4780-b9f1-9a54b80e712d": {
+            "name": "Scan for indicators of compromise",
+            "description": "Iterate through files to find indicators of compromise.",
+            "type": "while-condition",
+            "condition": "malicious_patterns_found == true",
+            "on_true": "action--ebd7835f-8884-4e3e-9d1d-e44e244a0d5a",
+            "on_false": "end--ea69bbad-1421-4e2b-b18f-0db7baa9a59e"
+        },
+        "action--ebd7835f-8884-4e3e-9d1d-e44e244a0d5a": {
+            "name": "Scan files for indicators of compromise",
+            "on_completion": "while-condition--bbc84213-59fb-4780-b9f1-9a54b80e712d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /path/to/scan -type f -exec grep -H 'malicious_pattern' {} \\;"
+                }
+            ],
+            "agent": "organization--8fbd80b9-ce76-4bc6-bb92-dc75771ad42d",
+            "step_variables": {
+                "malicious_patterns_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any malicious patterns were found in the files.",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--ea69bbad-1421-4e2b-b18f-0db7baa9a59e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8fbd80b9-ce76-4bc6-bb92-dc75771ad42d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

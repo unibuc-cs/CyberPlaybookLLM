@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c2a115d9-4d77-4936-bf04-702d14a9c8c5",
+    "name": "Response to PowerShell Script Execution Incident",
+    "description": "This playbook executes a series of actions to mitigate an incident involving malicious PowerShell script execution, including process termination, scanning for threats, and file removal.",
+    "created_by": "identity--f4dfa5f2-765d-4a91-9709-dda46b5ef101",
+    "created": "2023-10-12T09:00:00Z",
+    "modified": "2023-10-12T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f0a5d60e-2b3c-4ffd-bb7e-fcc0d5f64b55",
+    "workflow": {
+        "start--f0a5d60e-2b3c-4ffd-bb7e-fcc0d5f64b55": {
+            "on_completion": "parallel--c1403653-7b5e-4a94-ab7d-1e227991c787",
+            "type": "start"
+        },
+        "parallel--c1403653-7b5e-4a94-ab7d-1e227991c787": {
+            "name": "Terminate PowerShell Process and Scan",
+            "description": "Terminate the PowerShell process and scan the system for threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2b08dc30-8a5d-4425-b5b8-378c5ba69afe",
+                "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9"
+            ]
+        },
+        "action--2b08dc30-8a5d-4425-b5b8-378c5ba69afe": {
+            "name": "Terminate Malicious PowerShell Process",
+            "description": "Identify and kill the malicious PowerShell process.",
+            "on_completion": "if-condition--c21a4fe2-fcd8-4a90-b457-4c9e871a6b90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process -Name 'powershell' | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--aa39649d-91b2-464e-b826-0bfb2d89ebfc"
+        },
+        "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9": {
+            "name": "Scan for Threats",
+            "description": "Scan the system for other potential threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Sleep -s 5; Invoke-Scan -Path C:\\ -ThreatLevel High"
+                }
+            ],
+            "agent": "organization--aa39649d-91b2-464e-b826-0bfb2d89ebfc",
+            "on_completion": "loop--4b60c46a-dfbe-4a71-8c08-5021220b0c01"
+        },
+        "loop--4b60c46a-dfbe-4a71-8c08-5021220b0c01": {
+            "name": "Repeat Scan until Clean",
+            "description": "Repeat the scanning process until no threats are found.",
+            "type": "while-condition",
+            "condition": "ScanStatus != 'clean'",
+            "on_true": "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9",
+            "on_false": "action--f0454492-af2f-43da-bc7c-a5e74e5031d7"
+        },
+        "if-condition--c21a4fe2-fcd8-4a90-b457-4c9e871a6b90": {
+            "name": "Check for Malicious Payload Files",
+            "type": "if-condition",
+            "condition": "Test-Path 'C:\\temp\\malicious_payload.exe'",
+            "on_true": "action--f0454492-af2f-43da-bc7c-a5e74e5031d7",
+            "on_false": "end--b1c8f56f-6950-4c49-a1b3-66ce403c6350"
+        },
+        "action--f0454492-af2f-43da-bc7c-a5e74e5031d7": {
+            "name": "Remove Malicious Files",
+            "description": "Remove any files associated with the malicious activity.",
+            "on_completion": "end--b1c8f56f-6950-4c49-a1b3-66ce403c6350",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Remove-Item -Path 'C:\\temp\\malicious_payload.exe' -Force"
+                }
+            ],
+            "agent": "organization--aa39649d-91b2-464e-b826-0bfb2d89ebfc"
+        },
+        "end--b1c8f56f-6950-4c49-a1b3-66ce403c6350": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--aa39649d-91b2-464e-b826-0bfb2d89ebfc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

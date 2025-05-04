@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e79d4c7a-9b6a-406e-9dce-4fcaf15cda8e",
+    "name": "Response Playbook for Command and Scripting Interpreter Abuse",
+    "description": "This playbook addresses an incident involving the execution of commands through a scripting interpreter, leading to the installation of a backdoor on the server.",
+    "created_by": "identity--f1c6c7b4-ff67-48f0-b74e-b38c1335efbe",
+    "created": "2023-10-10T12:00:00Z",
+    "modified": "2023-10-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--413cc898-3d31-42d3-89a4-fd56065911bd",
+    "workflow": {
+        "action--5c0bffa6-ee7d-4bd4-a8f1-79c72c20dd59": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that may be running.",
+            "on_completion": "if-condition--4f6c0aea-caa9-4b2c-b00d-542c4b9f4e8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--99174285-ffce-4a57-a7ff-8ecb5b72cff4"
+        },
+        "if-condition--4f6c0aea-caa9-4b2c-b00d-542c4b9f4e8d": {
+            "name": "Check if backdoor exists",
+            "type": "if-condition",
+            "condition": "status == 'backdoor_detected'",
+            "on_true": "loop--a4b0de9f-f672-4878-b67e-2437b170d3b6",
+            "on_false": "action--b0892b29-6797-4f8e-b3fe-0a2b427f3385"
+        },
+        "loop--a4b0de9f-f672-4878-b67e-2437b170d3b6": {
+            "name": "Remove backdoor loop",
+            "description": "Repeat removal of backdoor until it is no longer detected.",
+            "on_completion": "if-condition--4f6c0aea-caa9-4b2c-b00d-542c4b9f4e8d",
+            "type": "while-condition",
+            "condition": "status == 'backdoor_detected'",
+            "action": "action--fe0cb8ec-f9e2-4285-b7a3-1c0f02cccdb5"
+        },
+        "action--fe0cb8ec-f9e2-4285-b7a3-1c0f02cccdb5": {
+            "name": "Remove the backdoor",
+            "description": "Delete the detected backdoor from the system.",
+            "on_completion": "loop--a4b0de9f-f672-4878-b67e-2437b170d3b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/backdoor"
+                }
+            ],
+            "agent": "organization--99174285-ffce-4a57-a7ff-8ecb5b72cff4",
+            "step_variables": {
+                "status": {
+                    "type": "string",
+                    "description": "Tracks if backdoor is detected",
+                    "value": "backdoor_detected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--b0892b29-6797-4f8e-b3fe-0a2b427f3385": {
+            "name": "Initiate full system scan",
+            "description": "Perform a thorough scan of the system to identify any other threats.",
+            "on_completion": "end--e27a6105-6a3f-4a75-bf51-e7f67e365033",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--99174285-ffce-4a57-a7ff-8ecb5b72cff4",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "description": "Indicates if a threat was found during the scan",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e27a6105-6a3f-4a75-bf51-e7f67e365033": {
+            "type": "end"
+        },
+        "start--413cc898-3d31-42d3-89a4-fd56065911bd": {
+            "on_completion": "action--5c0bffa6-ee7d-4bd4-a8f1-79c72c20dd59",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--99174285-ffce-4a57-a7ff-8ecb5b72cff4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

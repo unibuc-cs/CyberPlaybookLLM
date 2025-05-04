@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7637c9a-ee67-4650-9eb3-6cf96f33e16f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts, leading to unauthorized data exfiltration and compromised system integrity.",
+    "created_by": "identity--8b0099b1-5bca-4c66-832c-0b6cb2d15cad",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b86b70c6-4b87-4a9c-9abb-75c164e4c50b",
+    "workflow": {
+        "start--b86b70c6-4b87-4a9c-9abb-75c164e4c50b": {
+            "on_completion": "parallel--43c592c1-e8b0-4ac7-a21e-428dbd57f3f7",
+            "type": "start"
+        },
+        "parallel--43c592c1-e8b0-4ac7-a21e-428dbd57f3f7": {
+            "name": "Execute Mitigation Steps",
+            "description": "Simultaneously execute mitigation actions to respond to the malicious script execution.",
+            "type": "parallel",
+            "next_steps": [
+                "action--93a92977-85c5-4f1a-870c-ef7cf0f5f44e",
+                "action--dc419f77-a3f6-4e65-8aa1-cd597152d91f",
+                "action--ca3a0da8-2ef3-4261-aad0-300eda734a1d"
+            ]
+        },
+        "action--93a92977-85c5-4f1a-870c-ef7cf0f5f44e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script being executed.",
+            "on_completion": "action--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--c9cedf6a-39b6-4b20-b7f1-b5f9402f623f"
+        },
+        "action--dc419f77-a3f6-4e65-8aa1-cd597152d91f": {
+            "name": "Isolate the affected host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "action--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--c9cedf6a-39b6-4b20-b7f1-b5f9402f623f"
+        },
+        "action--600ab0f3-4b7d-41b7-be93-7928ce434231": {
+            "name": "Re-mediate using updated antivirus",
+            "description": "Perform antivirus scan and quarantine any detected threats.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan --quarantine"
+                }
+            ],
+            "agent": "organization--c9cedf6a-39b6-4b20-b7f1-b5f9402f623f",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates whether the antivirus scan found threats.",
+                    "value": "false",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--3e7b1f0f-ef96-4b8b-9b03-bae2cb9c9132": {
+            "name": "Repeat Antivirus Scan Until Clean",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--600ab0f3-4b7d-41b7-be93-7928ce434231"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "step_extensions": {
+                "": "extension-definition--abc-xyz-123-456"
+            },
+            "type": "end"
+        },
+        "action--ca3a0da8-2ef3-4261-aad0-300eda734a1d": {
+            "name": "Conduct forensic analysis",
+            "description": "Backup compromised files for later investigation.",
+            "on_completion": "action--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mkdir forensic_backup && cp -r /compromised/path forensic_backup/"
+                }
+            ],
+            "agent": "organization--c9cedf6a-39b6-4b20-b7f1-b5f9402f623f"
+        }
+    },
+    "agent_definitions": {
+        "organization--c9cedf6a-39b6-4b20-b7f1-b5f9402f623f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5c12ede5-cfff-41a2-974b-60a7e47b0dc6",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed malicious scripts using a command-line interface across multiple hosts, leading to unauthorized changes and data exfiltration.",
+    "created_by": "identity--b0ec68c8-fac0-433b-8326-c73564d8eb6a",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--7eb6261b-190d-41ed-81ea-66498a90a685",
+    "workflow": {
+        "action--c1f91d4b-2b65-4e2b-b8b6-f0bfca1b1c57": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--e340d752-8f7f-4a05-bc5b-002996e4473e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c83c5038-fd35-4786-807c-388bfe497ebb"
+        },
+        "if-condition--e340d752-8f7f-4a05-bc5b-002996e4473e": {
+            "name": "Check if we need to isolate host",
+            "type": "if-condition",
+            "condition": "attack_detected == true",
+            "on_true": "action--f4c25c7f-0b42-4eaa-b57c-e24f4d3457b3",
+            "on_false": "loop--85b283ed-9f2f-4b81-9799-f28681ae011f"
+        },
+        "action--f4c25c7f-0b42-4eaa-b57c-e24f4d3457b3": {
+            "name": "Isolate affected host",
+            "description": "Taking the host offline to prevent further unauthorized actions.",
+            "on_completion": "loop--85b283ed-9f2f-4b81-9799-f28681ae011f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c83c5038-fd35-4786-807c-388bfe497ebb"
+        },
+        "action--e340d752-8f7f-4a05-bc5b-002996e4473e": {
+            "name": "Scan network",
+            "description": "Utilize nmap to scan the network for unauthorized devices.",
+            "on_completion": "loop--85b283ed-9f2f-4b81-9799-f28681ae011f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--c83c5038-fd35-4786-807c-388bfe497ebb"
+        },
+        "start--7eb6261b-190d-41ed-81ea-66498a90a685": {
+            "on_completion": "action--c1f91d4b-2b65-4e2b-b8b6-f0bfca1b1c57",
+            "type": "start"
+        },
+        "loop--85b283ed-9f2f-4b81-9799-f28681ae011f": {
+            "name": "Scan network for potential threats",
+            "description": "Perform a network scan to identify affected devices and any ongoing threats.",
+            "type": "while-condition",
+            "on_completion": "decision--19343c61-90a5-42f8-9f8f-fe83fbe29f0b",
+            "condition": "scan_clean == false",
+            "action": "action--e340d752-8f7f-4a05-bc5b-002996e4473e",
+            "next_steps": [
+                "action--e340d752-8f7f-4a05-bc5b-002996e4473e"
+            ]
+        },
+        "decision--19343c61-90a5-42f8-9f8f-fe83fbe29f0b": {
+            "name": "Scan clean decision",
+            "type": "if-condition",
+            "condition": "scan_clean == true",
+            "on_true": "end--89a1b36a-883e-486d-852b-70c91b2bb00d",
+            "on_false": "loop--85b283ed-9f2f-4b81-9799-f28681ae011f"
+        },
+        "end--89a1b36a-883e-486d-852b-70c91b2bb00d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c83c5038-fd35-4786-807c-388bfe497ebb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

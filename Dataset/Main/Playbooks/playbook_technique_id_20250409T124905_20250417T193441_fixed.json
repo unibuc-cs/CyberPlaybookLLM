@@ -1,0 +1,77 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b86ef506-5101-4ff3-9d80-722e1a358f9f",
+    "name": "Mitigation Playbook for Unauthorized HTTP Exfiltration",
+    "description": "This playbook addresses an incident where unauthorized communication was used for data exfiltration over HTTP, detailing response steps to block the attack and conduct security checks.",
+    "created_by": "identity--4ef8a9b6-d56c-41fc-bb3e-3ca8649722d4",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--3c8b7cba-9653-4a79-9c2e-e1541a7351ec",
+    "workflow": {
+        "start--3c8b7cba-9653-4a79-9c2e-e1541a7351ec": {
+            "on_completion": "parallel--4b12378e-aff5-404d-9e0e-cbbb59e45678",
+            "type": "start"
+        },
+        "action--5c063f7b-c80a-4b8f-aa20-415d6e7e426b": {
+            "name": "Block outgoing HTTP requests",
+            "description": "Block any outgoing HTTP requests from compromised host to prevent further data exfiltration.",
+            "on_completion": "action--7f893d43-bb34-495b-8c75-45c40c92e21f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -s host-42 -j DROP"
+                }
+            ],
+            "agent": "organization--3f0fa5ab-24ec-4a65-9198-b1ee463a9310"
+        },
+        "action--7f893d43-bb34-495b-8c75-45c40c92e21f": {
+            "name": "Kill unauthorized process",
+            "description": "Terminate the unauthorized application that facilitated exfiltration.",
+            "on_completion": "action--ea33e5da-62d5-4160-a831-083fb7e4ea0d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_application"
+                }
+            ],
+            "agent": "organization--3f0fa5ab-24ec-4a65-9198-b1ee463a9310"
+        },
+        "parallel--4b12378e-aff5-404d-9e0e-cbbb59e45678": {
+            "name": "Parallel Actions",
+            "description": "Execute blocking outgoing requests and terminating unauthorized processes simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5c063f7b-c80a-4b8f-aa20-415d6e7e426b",
+                "action--7f893d43-bb34-495b-8c75-45c40c92e21f"
+            ]
+        },
+        "end--e3841e49-999d-4c66-8f0c-55f87c8a9eef": {
+            "type": "end"
+        },
+        "action--ea33e5da-62d5-4160-a831-083fb7e4ea0d": {
+            "name": "Run security scan on compromised host",
+            "description": "Perform a security scan on the compromised host to detect threats. Loop until there are no threats.",
+            "on_completion": "end--e3841e49-999d-4c66-8f0c-55f87c8a9eef",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan host-42"
+                }
+            ],
+            "agent": "organization--3f0fa5ab-24ec-4a65-9198-b1ee463a9310",
+            "loop": "repeat until clean",
+            "condition": "if scan returns threats"
+        }
+    },
+    "agent_definitions": {
+        "organization--3f0fa5ab-24ec-4a65-9198-b1ee463a9310": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

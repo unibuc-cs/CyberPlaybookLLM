@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8b0d8c7-36fc-42fe-9ae2-10c5e2869354",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script through a command-line interface, downloaded additional payloads, and established persistence on the host.",
+    "created_by": "identity--7e90a027-0974-412b-b1fc-8f04fb64eef9",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a4b4695f-6d2b-446e-b88e-9cc1c967bccb",
+    "workflow": {
+        "start--a4b4695f-6d2b-446e-b88e-9cc1c967bccb": {
+            "on_completion": "action--e0635f88-6811-4b3b-9c66-1a6c2210a134",
+            "type": "start"
+        },
+        "action--e0635f88-6811-4b3b-9c66-1a6c2210a134": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--5f0dabb9-219d-4a23-938d-6f1b5f90e1a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--4bdae925-0414-42a8-99be-ef298c109720"
+        },
+        "if-condition--5f0dabb9-219d-4a23-938d-6f1b5f90e1a1": {
+            "name": "Check if dropped files exist",
+            "type": "if-condition",
+            "condition": "test -f /path/to/dropped_payload",
+            "on_true": "action--5f0dabb9-219d-4a23-938d-6f1b5f90e1a1",
+            "on_false": "action--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d"
+        },
+        "action--5f0dabb9-219d-4a23-938d-6f1b5f90e1a1": {
+            "name": "Remove dropped files",
+            "description": "Remove any files that were dropped by the malicious script.",
+            "on_completion": "action--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/dropped_payload"
+                }
+            ],
+            "agent": "organization--4bdae925-0414-42a8-99be-ef298c109720"
+        },
+        "action--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d": {
+            "name": "Stop scheduled task",
+            "description": "Stop the scheduled task created by the malicious script.",
+            "on_completion": "while-condition--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /TN malicious_task /F"
+                }
+            ],
+            "agent": "organization--4bdae925-0414-42a8-99be-ef298c109720"
+        },
+        "while-condition--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d": {
+            "name": "Repeat until no scheduled task found",
+            "description": "Continue removing scheduled tasks until none exist.",
+            "on_completion": "action--1d7e76a1-e919-4824-b33e-fc4e0ef46f67",
+            "type": "while-condition",
+            "condition": "!schtasks /query | grep 'malicious_task'",
+            "on_true": "action--1cf13a3c-1d41-4ece-bf22-e99926e6ee8d"
+        },
+        "action--1d7e76a1-e919-4824-b33e-fc4e0ef46f67": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan to identify any other payloads or malicious files.",
+            "on_completion": "action--dcf2482e-ab75-4da9-ba69-d4f47f75dc68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan > results.log"
+                }
+            ],
+            "agent": "organization--4bdae925-0414-42a8-99be-ef298c109720",
+            "step_variables": {
+                "SCAN_RESULT": {
+                    "type": "string",
+                    "description": "Results of the scan",
+                    "value": "results.log"
+                }
+            }
+        },
+        "action--dcf2482e-ab75-4da9-ba69-d4f47f75dc68": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Capture network traffic to analyze for any malicious activity.",
+            "on_completion": "end--a5739d76-e61e-4bae-bc95-25cff1546ce1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w network_traffic.pcap"
+                }
+            ],
+            "agent": "organization--4bdae925-0414-42a8-99be-ef298c109720",
+            "on_true": "if-active-connection-condition--185e7124-93b5-4b1e-8d80-38b2f8da38d0"
+        },
+        "end--a5739d76-e61e-4bae-bc95-25cff1546ce1": {
+            "type": "end"
+        },
+        "if-active-connection-condition--185e7124-93b5-4b1e-8d80-38b2f8da38d0": {
+            "name": "Check if active connections",
+            "type": "if-condition",
+            "condition": "active_connection == TRUE",
+            "on_true": "action--dcf2482e-ab75-4da9-ba69-d4f47f75dc68",
+            "on_false": "end--a5739d76-e61e-4bae-bc95-25cff1546ce1"
+        }
+    },
+    "agent_definitions": {
+        "organization--4bdae925-0414-42a8-99be-ef298c109720": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

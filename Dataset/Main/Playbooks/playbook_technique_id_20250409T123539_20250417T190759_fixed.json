@@ -1,0 +1,76 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--87a5d20b-8c47-4a3f-bff0-ab1241ebdc29",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized script was executed, allowing an attacker to gain control over the system and exfiltrate sensitive data.",
+    "created_by": "identity--a1b82bf5-07f7-49bd-8208-95f5c788cfb7",
+    "created": "2023-10-04T08:55:35.498Z",
+    "modified": "2023-10-04T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a29d7db1-c3c7-4e5b-b497-79fe00c64b56",
+    "workflow": {
+        "start--a29d7db1-c3c7-4e5b-b497-79fe00c64b56": {
+            "on_completion": "action--7f598c6d-2e69-44c3-b331-dbf9f79ef934",
+            "type": "start"
+        },
+        "action--7f598c6d-2e69-44c3-b331-dbf9f79ef934": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script process to stop any further actions by the attacker.",
+            "on_completion": "action--a97c9f15-2618-4eb6-b1b4-475c2f6408be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--4c233f41-476a-4cec-842b-21f7a8262327"
+        },
+        "action--a97c9f15-2618-4eb6-b1b4-475c2f6408be": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Reject any outbound connections to the known malicious IP address.",
+            "on_completion": "loop--ff0b85d1-de9b-4e6a-9c07-02de1f598b53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d offending_ip -j REJECT"
+                }
+            ],
+            "agent": "organization--4c233f41-476a-4cec-842b-21f7a8262327"
+        },
+        "loop--ff0b85d1-de9b-4e6a-9c07-02de1f598b53": {
+            "name": "Scan for remaining malware",
+            "description": "Scan the system for any additional malware, repeating the scan if infections are found.",
+            "type": "while-condition",
+            "condition": "infections_found",
+            "on_true": "action--7a688bbd-f0b5-4c19-ba6d-f409a01ac9b1",
+            "on_false": "end--1a877551-03f0-4b29-9833-3a45a424bfd4"
+        },
+        "action--7a688bbd-f0b5-4c19-ba6d-f409a01ac9b1": {
+            "name": "Scan system for other malware",
+            "description": "Perform a comprehensive scan for malware across the system.",
+            "on_completion": "loop--ff0b85d1-de9b-4e6a-9c07-02de1f598b53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--4c233f41-476a-4cec-842b-21f7a8262327"
+        },
+        "end--1a877551-03f0-4b29-9833-3a45a424bfd4": {
+            "name": "End of Playbook",
+            "description": "The mitigation actions have been completed.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4c233f41-476a-4cec-842b-21f7a8262327": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

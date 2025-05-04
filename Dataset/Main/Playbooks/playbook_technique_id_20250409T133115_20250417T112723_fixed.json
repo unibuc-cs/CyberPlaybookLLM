@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d23bc3f5-4f56-4e9e-9b04-a6bb3b3799e1",
+    "name": "Playbook for PowerShell Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident involving a malicious PowerShell script that executed commands for data exfiltration.",
+    "created_by": "identity--c72904a1-665d-417d-9865-e3bf5cc98b43",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a00a000-11b1-4bad-8e0f-555c00e0ccf0",
+    "workflow": {
+        "start--1a00a000-11b1-4bad-8e0f-555c00e0ccf0": {
+            "on_completion": "if-condition--22e317cc-cf40-4199-86d8-bc1ecb2149c0",
+            "type": "start"
+        },
+        "if-condition--22e317cc-cf40-4199-86d8-bc1ecb2149c0": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--3f5bfe80-a9e0-4d58-b8f7-b7c946358f9f",
+            "on_false": "action--ab4966dd-2e1a-4f1c-8c81-6d7f4f9d158f"
+        },
+        "action--3f5bfe80-a9e0-4d58-b8f7-b7c946358f9f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process that is running.",
+            "on_completion": "parallel--ee231029-d123-4b56-9917-b71d5ce3f456",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--e7ee746b-818b-45c0-8148-3ee7f50c6abb"
+        },
+        "parallel--ee231029-d123-4b56-9917-b71d5ce3f456": {
+            "name": "Execute Mitigation Steps",
+            "description": "Execute full system scan and review external communication logs in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab4966dd-2e1a-4f1c-8c81-6d7f4f9d158f",
+                "action--04b080f1-cc58-42b5-ad04-6b7e1a9d0f4e"
+            ]
+        },
+        "action--ab4966dd-2e1a-4f1c-8c81-6d7f4f9d158f": {
+            "name": "Initiate full system scan",
+            "description": "Run a full system scan to check for any additional threats.",
+            "on_completion": "if-condition--fc4abcdc-cc3e-40b9-b597-58c7ee267482",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --full"
+                }
+            ],
+            "agent": "organization--e7ee746b-818b-45c0-8148-3ee7f50c6abb"
+        },
+        "if-condition--fc4abcdc-cc3e-40b9-b597-58c7ee267482": {
+            "name": "Check if scan is complete",
+            "type": "if-condition",
+            "condition": "scan_complete == false",
+            "on_true": "action--ab4966dd-2e1a-4f1c-8c81-6d7f4f9d158f",
+            "on_false": "end--0f860f9a-a308-4cfb-8e43-65a7bc31b890"
+        },
+        "action--04b080f1-cc58-42b5-ad04-6b7e1a9d0f4e": {
+            "name": "Review external communication logs",
+            "description": "Check the external communication logs for suspicious activities.",
+            "on_completion": "end--0f860f9a-a308-4cfb-8e43-65a7bc31b890",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/external_traffic.log"
+                }
+            ],
+            "agent": "organization--e7ee746b-818b-45c0-8148-3ee7f50c6abb",
+            "step_variables": {
+                "time_period": {
+                    "type": "string",
+                    "description": "Time period for reviewing log entries",
+                    "value": "last_24_hours",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--0f860f9a-a308-4cfb-8e43-65a7bc31b890": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e7ee746b-818b-45c0-8148-3ee7f50c6abb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

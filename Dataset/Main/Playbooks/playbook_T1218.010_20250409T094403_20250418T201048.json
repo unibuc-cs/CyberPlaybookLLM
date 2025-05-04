@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e37b1b77-3d77-4f7e-bd36-a4e9a5a5c581",
+    "name": "Mitigation Playbook for Regsvr32 Signed Binary Proxy Execution Incident",
+    "description": "This playbook addresses an incident where an attacker utilized Regsvr32 to execute a malicious script, disguising it as a legitimate operation.",
+    "created_by": "identity--xyz-12345",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d3b1c21c-52c8-4d4c-a2c3-7c1e1dc598b4",
+    "workflow": {
+        "start--d3b1c21c-52c8-4d4c-a2c3-7c1e1dc598b4": {
+            "on_completion": "action--4d7670e0-fb7b-487f-86a0-f2d6c532f4cc",
+            "type": "start"
+        },
+        "action--4d7670e0-fb7b-487f-86a0-f2d6c532f4cc": {
+            "name": "Kill the Regsvr32 process",
+            "description": "Terminate the Regsvr32 process to stop the execution of the malicious script.",
+            "on_completion": "decision--c4b32fa1-d705-4538-8052-234f1b49abe4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill regsvr32"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--c4b32fa1-d705-4538-8052-234f1b49abe4": {
+            "name": "Check if malicious IP is known",
+            "type": "if-condition",
+            "condition": "malicious_ip != None",
+            "on_true": "action--c587d4a5-6700-4dd2-a6b0-6dff28a1dfc8",
+            "on_false": "action--10d588e3-da78-4f65-b338-cb5169c9f8f7"
+        },
+        "action--c587d4a5-6700-4dd2-a6b0-6dff28a1dfc8": {
+            "name": "Block external IP addresses",
+            "description": "Block the external IP addresses used for malicious downloads.",
+            "on_completion": "loop--a2b8338b-5b68-4143-b4e7-bc707976518b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--10d588e3-da78-4f65-b338-cb5169c9f8f7": {
+            "name": "Run a full system scan",
+            "description": "Perform a full system scan to identify any additional threats.",
+            "on_completion": "loop--a2b8338b-5b68-4143-b4e7-bc707976518b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--a2b8338b-5b68-4143-b4e7-bc707976518b": {
+            "name": "Repeat scan until no threats found",
+            "on_completion": "end--f8e648c9-ccab-43ae-a0bc-8d9291c67b41",
+            "type": "while-condition",
+            "condition": "scanning_in_progress",
+            "on_true": [
+                "action--10d588e3-da78-4f65-b338-cb5169c9f8f7"
+            ],
+            "on_false": "end--f8e648c9-ccab-43ae-a0bc-8d9291c67b41"
+        },
+        "end--f8e648c9-ccab-43ae-a0bc-8d9291c67b41": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_ip": {
+            "type": "string",
+            "description": "The variable contains the malicious IP detected from logs.",
+            "value": "<external_server_ip>",
+            "constant": false,
+            "external": true
+        },
+        "scanning_in_progress": {
+            "type": "boolean",
+            "description": "Indicates if scanning is still in progress.",
+            "value": "true",
+            "constant": false
+        }
+    }
+}

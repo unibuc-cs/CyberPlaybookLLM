@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b9d547-d670-403c-9d97-2c96b21e5688",
+    "name": "Playbook for Mitigating T1490 - Inhibit System Recovery Incident",
+    "description": "This playbook responds to an incident where an attacker executed scripts to disable system recovery options on critical servers.",
+    "created_by": "identity--a45b3a4e-115d-4cf7-98a8-04f83b5cbbca",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1f9d22e-9a27-4bbf-b7b7-ecf69952c6b0",
+    "workflow": {
+        "start--b1f9d22e-9a27-4bbf-b7b7-ecf69952c6b0": {
+            "on_completion": "parallel--f02a0c3d-2da1-44f5-bcdc-817be61d2ee0",
+            "type": "start"
+        },
+        "parallel--f02a0c3d-2da1-44f5-bcdc-817be61d2ee0": {
+            "name": "Implement Mitigation Steps",
+            "description": "Restore settings and monitor system for unauthorized changes.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--d1e1244c-bea1-451b-bb3e-832d490f11d2",
+                "action--fbb88175-4aea-4024-841a-beedf39b1fd2"
+            ]
+        },
+        "if-condition--d1e1244c-bea1-451b-bb3e-832d490f11d2": {
+            "name": "Check for Backup Availability",
+            "type": "if-condition",
+            "condition": "backup_available == true",
+            "on_true": "action--d1966c8b-df29-4d4d-b9ce-1b40e8c2b1ae",
+            "on_false": "action--62cb9661-b5d5-4b1c-b80a-2888d1d4b4a1"
+        },
+        "action--d1966c8b-df29-4d4d-b9ce-1b40e8c2b1ae": {
+            "name": "Restore System Settings from Backup",
+            "description": "Restoring system settings from the backup.",
+            "on_completion": "action--a1f8e568-e545-4473-90b0-5d8db834cb88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_settings --from backup"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--62cb9661-b5d5-4b1c-b80a-2888d1d4b4a1": {
+            "name": "Enable System Restore Options",
+            "description": "Enable system restore options if they are disabled.",
+            "on_completion": "action--a1f8e568-e545-4473-90b0-5d8db834cb88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "enable_restore --on host-17"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "restore_options_disabled == true"
+        },
+        "action--a1f8e568-e545-4473-90b0-5d8db834cb88": {
+            "name": "Monitor System for Changes",
+            "description": "Monitor the system for additional unauthorized changes every 10 minutes.",
+            "on_completion": "action--1b2c0f83-d3f6-49ed-8291-cb20eebc9c6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "monitor --track changes --on host-17"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "interval": "10m",
+                "condition": "continue_monitoring == true"
+            }
+        },
+        "action--1b2c0f83-d3f6-49ed-8291-cb20eebc9c6e": {
+            "name": "Alert System Administrators",
+            "description": "Send an alert to system administrators for any changes detected.",
+            "on_completion": "end--2c761987-8854-4b9f-9373-8f7c82e2c857",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --to admins --on change"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--2c761987-8854-4b9f-9373-8f7c82e2c857": {
+            "type": "end"
+        },
+        "action--fbb88175-4aea-4024-841a-beedf39b1fd2": {
+            "name": "Document Incident and Responses",
+            "description": "Document the incident and response actions taken.",
+            "on_completion": "end--2c761987-8854-4b9f-9373-8f7c82e2c857",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "document --incident T1490 --report"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "incident_id": {
+                    "type": "string",
+                    "description": "The variable contains the incident ID.",
+                    "value": "5e9f9b85-8e84-4138-8b47-4ff6f5b720d6",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a10b1b32-5ff7-4b6f-89ea-5ef088bf1a22",
+    "name": "Response Playbook for Malicious Script Execution",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts to gain unauthorized access.",
+    "created_by": "identity--0bcdedc3-9b76-4fe3-9bf1-8654dc0a93e0",
+    "created": "2025-04-10T15:00:00.000Z",
+    "modified": "2025-04-10T15:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1b1f8a7-7b9d-4f1d-93a1-f7f37c5e3f10",
+    "workflow": {
+        "start--f1b1f8a7-7b9d-4f1d-93a1-f7f37c5e3f10": {
+            "on_completion": "action--d2105b84-57ee-4f54-aa5b-f31e8166d529",
+            "type": "start"
+        },
+        "action--d2105b84-57ee-4f54-aa5b-f31e8166d529": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "parallel--0ab3d712-66d0-4e4c-81db-7e61cf0c5d43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--7d22b2a3-1efa-4f48-888b-4186951eea9f"
+        },
+        "parallel--0ab3d712-66d0-4e4c-81db-7e61cf0c5d43": {
+            "name": "Execute Mitigations",
+            "description": "Run mitigation actions for the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--793c0a59-618f-4575-a4c5-da52ec7f700b",
+                "if-condition--0bcee973-17c4-4199-b3d8-c15ef71e14a3"
+            ]
+        },
+        "action--793c0a59-618f-4575-a4c5-da52ec7f700b": {
+            "name": "Initiate network-wide malware scan",
+            "description": "Perform a comprehensive malware scan across the network.",
+            "on_completion": "while-condition--c0eb94f5-5d62-4ee3-9020-3c19c8c9e2f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --all --quarantine"
+                }
+            ],
+            "agent": "organization--7d22b2a3-1efa-4f48-888b-4186951eea9f"
+        },
+        "while-condition--c0eb94f5-5d62-4ee3-9020-3c19c8c9e2f3": {
+            "name": "Repeat until malware scan is clean",
+            "description": "Continue scanning until no malware is detected.",
+            "on_completion": "end--3c50fdce-d6bc-4c67-969e-f522a9d8a4fe",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--793c0a59-618f-4575-a4c5-da52ec7f700b",
+            "type": "if-condition"
+        },
+        "if-condition--0bcee973-17c4-4199-b3d8-c15ef71e14a3": {
+            "name": "Inspect logs for irregularities",
+            "type": "if-condition",
+            "condition": "user == 'admin'",
+            "on_true": "action--0bcee973-17c4-4199-b3d8-c15ef71e14a3",
+            "on_false": "end--3c50fdce-d6bc-4c67-969e-f522a9d8a4fe"
+        },
+        "action--0bcee973-17c4-4199-b3d8-c15ef71e14a3": {
+            "name": "Log Inspection for Suspicious Activity",
+            "description": "Check the logs for any suspicious activities by admin.",
+            "on_completion": "end--3c50fdce-d6bc-4c67-969e-f522a9d8a4fe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep suspiciousActivity"
+                }
+            ],
+            "agent": "organization--7d22b2a3-1efa-4f48-888b-4186951eea9f"
+        },
+        "end--3c50fdce-d6bc-4c67-969e-f522a9d8a4fe": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7d22b2a3-1efa-4f48-888b-4186951eea9f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

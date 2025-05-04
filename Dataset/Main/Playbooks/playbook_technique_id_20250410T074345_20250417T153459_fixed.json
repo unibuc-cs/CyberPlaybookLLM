@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--db818e61-8a65-415c-8f67-5baaf07b69f7",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web service to execute arbitrary shell commands and drop malware.",
+    "created_by": "identity--af73928e-d15e-459b-bdd1-b0db2a5a4089",
+    "created": "2023-11-01T15:00:00Z",
+    "modified": "2023-11-01T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--c5bc60e5-d2cc-44b7-baa9-ab4b34572a43",
+    "workflow": {
+        "start--c5bc60e5-d2cc-44b7-baa9-ab4b34572a43": {
+            "on_completion": "parallel--474b865e-fd6e-4d4a-95bb-eae84c4d146c",
+            "type": "start"
+        },
+        "parallel--474b865e-fd6e-4d4a-95bb-eae84c4d146c": {
+            "name": "Mitigation Actions",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4",
+                "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9",
+                "if-condition--2c1c75b4-d7e4-4df0-9a39-03e05e7deb93"
+            ]
+        },
+        "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious payload script processes.",
+            "on_completion": "if-condition--f9e0c41e-69b6-43a1-bdaf-d59c1f20d74b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'payload.sh' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--d57428bb-9eca-41e1-b323-379cdf70460b"
+        },
+        "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9": {
+            "name": "Delete Malicious Script",
+            "description": "Remove the dropped malware script.",
+            "on_completion": "if-condition--f9e0c41e-69b6-43a1-bdaf-d59c1f20d74b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/payload.sh"
+                }
+            ],
+            "agent": "organization--e78ebf6d-5a3d-459e-92dd-34b5dfc5eed5"
+        },
+        "if-condition--2c1c75b4-d7e4-4df0-9a39-03e05e7deb93": {
+            "name": "Check for Outbound Connection Block",
+            "type": "if-condition",
+            "condition": "iptables -L OUTPUT | grep -c 'hacker-ip' == 0",
+            "on_true": "action--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f",
+            "on_false": "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820"
+        },
+        "action--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f": {
+            "name": "Block Outbound Connection to Attacker",
+            "description": "Block any outbound connections to the attacker\u2019s IP.",
+            "on_completion": "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d hacker-ip -j DROP"
+                }
+            ],
+            "agent": "organization--d57428bb-9eca-41e1-b323-379cdf70460b"
+        },
+        "if-condition--f9e0c41e-69b6-43a1-bdaf-d59c1f20d74b": {
+            "name": "Scan for Additional Threats",
+            "type": "if-condition",
+            "condition": "true",
+            "on_true": "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820",
+            "on_false": "end--f4055763-83d1-4ad0-b0c5-7d1378c4b400"
+        },
+        "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820": {
+            "name": "Scan the Host for Additional Threats",
+            "description": "Run a virus scan on the entire system.",
+            "on_completion": "end--f4055763-83d1-4ad0-b0c5-7d1378c4b400",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--27b089c7-8b50-44d1-befa-a02c8ad15c7b",
+            "do_while": "until [ $(clamscan | grep -i 'Infected files: 0') ]"
+        },
+        "action--d7acd6dc-bd44-4b8f-a9be-98596e7b6b49": {
+            "name": "Audit Logs for Unauthorized Activities",
+            "description": "Search the logs for any unauthorized activity.",
+            "on_completion": "end--f4055763-83d1-4ad0-b0c5-7d1378c4b400",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'unauthorized' ${log_file}"
+                }
+            ],
+            "agent": "organization--27b089c7-8b50-44d1-befa-a02c8ad15c7b",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "value": "/var/log/syslog",
+                    "description": "The log file to audit for unauthorized activities."
+                }
+            }
+        },
+        "end--f4055763-83d1-4ad0-b0c5-7d1378c4b400": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d57428bb-9eca-41e1-b323-379cdf70460b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--e78ebf6d-5a3d-459e-92dd-34b5dfc5eed5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--27b089c7-8b50-44d1-befa-a02c8ad15c7b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

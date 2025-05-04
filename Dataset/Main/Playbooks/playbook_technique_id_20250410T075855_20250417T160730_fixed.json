@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bb319c44-7002-474d-8754-7862ebc7b729",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed a malicious script using a command and scripting interpreter.",
+    "created_by": "identity--f81a76e5-481f-4075-abe8-0506b558e41b",
+    "created": "2023-10-15T12:30:00Z",
+    "modified": "2023-10-15T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--451740b8-6ace-4c23-b0aa-7e9f4fce7f01",
+    "workflow": {
+        "start--451740b8-6ace-4c23-b0aa-7e9f4fce7f01": {
+            "on_completion": "parallel--63a6d334-aa9f-426c-9132-2f823237dc16",
+            "type": "start"
+        },
+        "parallel--63a6d334-aa9f-426c-9132-2f823237dc16": {
+            "name": "Parallel Mitigations",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f12e2c5d-6e68-4c92-9d3b-c47f7bc5f24d",
+                "action--2f3793c9-3b92-4cb3-b02f-d2aae4b2f8ac",
+                "action--71799390-dde1-4e1f-bd32-eb4f4ea0f68a"
+            ]
+        },
+        "action--f12e2c5d-6e68-4c92-9d3b-c47f7bc5f24d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "action--2f3793c9-3b92-4cb3-b02f-d2aae4b2f8ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--d085254f-ea70-42b2-8741-8bf6e0743e68"
+        },
+        "action--2f3793c9-3b92-4cb3-b02f-d2aae4b2f8ac": {
+            "name": "Block external connections",
+            "description": "Restrict outgoing connections to the known malicious IP.",
+            "on_completion": "action--71799390-dde1-4e1f-bd32-eb4f4ea0f68a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to any ip 192.168.1.1"
+                }
+            ],
+            "agent": "organization--8c56d6bd-9341-4216-84e1-b05655f1ee83"
+        },
+        "action--71799390-dde1-4e1f-bd32-eb4f4ea0f68a": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan to detect additional malware.",
+            "on_completion": "loop--902b3d35-2b87-42c8-82a3-e07593ae180a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan /"
+                }
+            ],
+            "agent": "organization--d085254f-ea70-42b2-8741-8bf6e0743e68"
+        },
+        "loop--902b3d35-2b87-42c8-82a3-e07593ae180a": {
+            "name": "Loop until scan is clean",
+            "description": "Repeat scanning until no threats are found.",
+            "on_true": "action--e24a1e4c-32c3-4b4e-b27f-382c2a6b79d3",
+            "on_false": "loop--902b3d35-2b87-42c8-82a3-e07593ae180a",
+            "condition": "scan_results == 'clean'",
+            "type": "while-condition"
+        },
+        "action--e24a1e4c-32c3-4b4e-b27f-382c2a6b79d3": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete unauthorized user accounts if found.",
+            "on_completion": "action--88f003b6-f64b-4f88-90b0-5bc3c8dc27fe",
+            "type": "action",
+            "conditions": {
+                "check_user": "if user_found"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deluser --remove-home hacker"
+                }
+            ],
+            "agent": "organization--d085254f-ea70-42b2-8741-8bf6e0743e68"
+        },
+        "action--88f003b6-f64b-4f88-90b0-5bc3c8dc27fe": {
+            "name": "Verify integrity of critical files",
+            "description": "Check for alterations on critical files.",
+            "on_completion": "end--5e7e3d25-8fea-4a2f-b6ea-3c65b96e9e44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sha256sum --check /etc/critical_files.sha256"
+                }
+            ],
+            "agent": "organization--8c56d6bd-9341-4216-84e1-b05655f1ee83"
+        },
+        "end--5e7e3d25-8fea-4a2f-b6ea-3c65b96e9e44": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d085254f-ea70-42b2-8741-8bf6e0743e68": {
+            "type": "organization",
+            "name": "Malware Response Team"
+        },
+        "organization--8c56d6bd-9341-4216-84e1-b05655f1ee83": {
+            "type": "organization",
+            "name": "Network Security Team"
+        }
+    }
+}

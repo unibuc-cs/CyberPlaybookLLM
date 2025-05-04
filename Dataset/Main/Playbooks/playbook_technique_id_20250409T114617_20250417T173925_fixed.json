@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5d71a79f-658d-49be-8aee-8b57b5e45d74",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script designed to extract sensitive data and establish persistence on several compromised machines.",
+    "created_by": "identity--533dd310-0858-41e4-a42b-002028e512bb",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0a1d9b62-9b61-4932-8b23-0fc5621b700e",
+    "workflow": {
+        "start--0a1d9b62-9b61-4932-8b23-0fc5621b700e": {
+            "on_completion": "action--5b49e8c6-299b-4d78-bdc3-1675e6a4e7fc",
+            "type": "start"
+        },
+        "action--5b49e8c6-299b-4d78-bdc3-1675e6a4e7fc": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that may be executing the malicious script.",
+            "on_completion": "if-condition--f1b4ae84-c6a0-4df5-bd91-a0c2d029c7fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'PowerShell'"
+                }
+            ],
+            "agent": "organization--22c36759-bb57-45d0-a7e9-81d61ceedc4b"
+        },
+        "if-condition--f1b4ae84-c6a0-4df5-bd91-a0c2d029c7fc": {
+            "name": "Check if any PowerShell process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f 'PowerShell')",
+            "on_true": "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece",
+            "on_false": "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf"
+        },
+        "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece": {
+            "name": "Isolate affected hosts",
+            "description": "Disable firewall profiles to isolate the affected hosts.",
+            "on_completion": "while-condition--b3c7b7c3-bef6-47cb-8e94-eb8d6f028489",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--22c36759-bb57-45d0-a7e9-81d61ceedc4b"
+        },
+        "while-condition--b3c7b7c3-bef6-47cb-8e94-eb8d6f028489": {
+            "name": "Isolate hosts loop",
+            "description": "Repeat until all hosts are detected as isolated.",
+            "on_completion": "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf",
+            "type": "while-condition",
+            "condition": "all_hosts_isolated()",
+            "on_true": "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece"
+        },
+        "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf": {
+            "name": "Run virus scan",
+            "description": "Perform a virus scan in the suspected directory to identify any remnants of the attack.",
+            "on_completion": "end--d3f58256-4a68-4585-9468-361cf4234b7e",
+            "type": "action",
+            "step_variables": {
+                "scan_result": "scan_output",
+                "alert": "scan_alert"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/suspected/files > scan_output; if [ $? -ne 0 ]; then echo 'Scan Alert: Possible Malicious Files Detected' > scan_alert; fi"
+                }
+            ],
+            "agent": "organization--22c36759-bb57-45d0-a7e9-81d61ceedc4b"
+        },
+        "end--d3f58256-4a68-4585-9468-361cf4234b7e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--22c36759-bb57-45d0-a7e9-81d61ceedc4b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

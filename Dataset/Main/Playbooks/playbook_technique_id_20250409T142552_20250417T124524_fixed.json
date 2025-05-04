@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f9b92e7a-d7d9-4fc2-acf9-04e409e95963",
+    "name": "Playbook for Command and Scripting Interpreter Exploit Incident",
+    "description": "This playbook handles incidents where an attacker leveraged a command interpreter on a vulnerable web server to execute malicious scripts.",
+    "created_by": "identity--37866cef-e344-4ba3-b181-6931e2be68ff",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--e7e4a6eb-66c1-4cde-b951-28226dfe0c9c",
+    "workflow": {
+        "start--e7e4a6eb-66c1-4cde-b951-28226dfe0c9c": {
+            "on_completion": "parallel--57e6c7ad-af7e-4bc0-bb79-693d8c83850b",
+            "type": "start"
+        },
+        "parallel--57e6c7ad-af7e-4bc0-bb79-693d8c83850b": {
+            "name": "Execute Initial Mitigations",
+            "description": "Simultaneously execute initial mitigation steps.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1c1a36c-f19f-4f32-8cee-928713f40d99",
+                "action--c98156e8-3f74-4149-8da1-f7c243eba0e9"
+            ]
+        },
+        "action--b1c1a36c-f19f-4f32-8cee-928713f40d99": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script executing on the web server.",
+            "on_completion": "action--f735ed22-a540-4c04-8169-8e64967b8b38",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--dd966193-5389-4e54-9c14-99e7dfc7a681"
+        },
+        "action--c98156e8-3f74-4149-8da1-f7c243eba0e9": {
+            "name": "Isolate Affected Host",
+            "description": "Block all incoming connections from the malicious IP address.",
+            "on_completion": "action--f735ed22-a540-4c04-8169-8e64967b8b38",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--dd966193-5389-4e54-9c14-99e7dfc7a681"
+        },
+        "action--f735ed22-a540-4c04-8169-8e64967b8b38": {
+            "name": "Perform Network Scan",
+            "description": "Scan the network for other compromised devices until no vulnerabilities are found.",
+            "on_completion": "while-condition--e8e6e9b0-cfda-476e-82b7-99d0fe62cde9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--dd966193-5389-4e54-9c14-99e7dfc7a681"
+        },
+        "while-condition--e8e6e9b0-cfda-476e-82b7-99d0fe62cde9": {
+            "name": "Network Scan Loop",
+            "description": "Continue scanning the network until no malicious activities are detected.",
+            "on_completion": "end--ffaa1222-34a3-4f4a-a767-e4216da345f9",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f735ed22-a540-4c04-8169-8e64967b8b38"
+        },
+        "end--ffaa1222-34a3-4f4a-a767-e4216da345f9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--dd966193-5389-4e54-9c14-99e7dfc7a681": {
+            "type": "organization",
+            "name": "Client Organization"
+        }
+    }
+}

@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8a2c734-5822-48d1-b555-cd07723bc405",
+    "name": "Mitigation Playbook for Web Server Vulnerability Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the web server, executing a malicious script that resulted in a data breach.",
+    "created_by": "identity--505d642f-ded1-4a99-b889-23c010c319e3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e3b57d92-e53b-4ddd-8c4f-8e12c8a5cf30",
+    "workflow": {
+        "start--e3b57d92-e53b-4ddd-8c4f-8e12c8a5cf30": {
+            "on_completion": "action--f7fe775f-1a25-4e68-9b72-9b1c577f8a51",
+            "type": "start"
+        },
+        "action--f7fe775f-1a25-4e68-9b72-9b1c577f8a51": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process spawned from the web server.",
+            "on_completion": "parallel--30134c7c-0e25-4562-aadf-5221598a43ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--0718989b-22d7-41cf-b9ab-5b47cead173c"
+        },
+        "action--b51c2b38-5753-41b6-933b-2bc41a1ac21d": {
+            "name": "Run integrity check on affected files",
+            "description": "Check affected files for any unauthorized changes.",
+            "on_completion": "if-condition--596877b8-c1a2-438e-a7f1-fe8fc5de3a48",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity_check.sh /path/to/affected/files"
+                }
+            ],
+            "agent": "organization--639d7752-a46a-476d-b4eb-2e7a1eeedea7"
+        },
+        "action--30134c7c-0e25-4562-aadf-5221598a43ad": {
+            "name": "Block outgoing traffic to suspicious IP",
+            "description": "Prevent exfiltration of data by blocking traffic to the identified suspicious IP.",
+            "on_completion": "action--e3b57d92-e53b-4ddd-8c4f-8e12c8a5cf30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--0718989b-22d7-41cf-b9ab-5b47cead173c"
+        },
+        "action--e3b57d92-e53b-4ddd-8c4f-8e12c8a5cf30": {
+            "name": "Patch vulnerability in web server",
+            "description": "Apply updates to mitigate the vulnerability exploited by the attacker.",
+            "on_completion": "end--d4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install --only-upgrade web_server_package"
+                }
+            ],
+            "agent": "organization--dfd0a237-bee9-4bd7-b6c2-ecc37b56fa3e"
+        },
+        "parallel--30134c7c-0e25-4562-aadf-5221598a43ad": {
+            "name": "Simultaneous Responses",
+            "description": "Execute actions to resolve the incident in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b51c2b38-5753-41b6-933b-2bc41a1ac21d",
+                "action--30134c7c-0e25-4562-aadf-5221598a43ad"
+            ]
+        },
+        "end--d4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "if-condition--596877b8-c1a2-438e-a7f1-fe8fc5de3a48": {
+            "name": "Check if changes detected",
+            "condition": "changes_detected == true",
+            "on_true": "action--b51c2b38-5753-41b6-933b-2bc41a1ac21d",
+            "on_false": "action--30134c7c-0e25-4562-aadf-5221598a43ad",
+            "type": "if-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--0718989b-22d7-41cf-b9ab-5b47cead173c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--639d7752-a46a-476d-b4eb-2e7a1eeedea7": {
+            "type": "organization",
+            "name": "IntegrityService"
+        },
+        "organization--dfd0a237-bee9-4bd7-b6c2-ecc37b56fa3e": {
+            "type": "organization",
+            "name": "UpdateService"
+        }
+    }
+}

@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9c3de72c-e1f1-4bcc-bb1e-9c778b55aeb2",
+    "name": "Mitigation Playbook for Unauthorized Access and Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability, deployed a malicious script, and compromised sensitive data.",
+    "created_by": "identity--b62d7569-1a1d-4711-9926-adf3d8edf18c",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e47e80dd-82c5-4b5f-88c6-840c9ef066d5",
+    "workflow": {
+        "start--e47e80dd-82c5-4b5f-88c6-840c9ef066d5": {
+            "on_completion": "action--fb7e6804-6c7c-4bb4-b159-1d68e3223473",
+            "type": "start",
+            "name": "Initiate Playbook",
+            "description": "Start the mitigation workflow."
+        },
+        "action--fb7e6804-6c7c-4bb4-b159-1d68e3223473": {
+            "name": "Kill malicious process",
+            "description": "Terminate any process executing the malicious script.",
+            "on_completion": "action--d058f8b3-0a67-4f17-82ae-16e72c77d7ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--17d923e7-5971-416f-a36e-0c1e580b96b0"
+        },
+        "action--d058f8b3-0a67-4f17-82ae-16e72c77d7ed": {
+            "name": "Block external IP address",
+            "description": "Block the known malicious IP address to prevent further access.",
+            "on_completion": "parallel--7e1c524b-dc42-4f41-9c27-1e9a5f8780aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--17d923e7-5971-416f-a36e-0c1e580b96b0"
+        },
+        "parallel--7e1c524b-dc42-4f41-9c27-1e9a5f8780aa": {
+            "name": "Mitigate and Monitor",
+            "description": "Run multiple actions in parallel to mitigate the incident and monitor the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1ea5ea9-3cdd-4e69-93cc-7235c5c5a4e1",
+                "action--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f",
+                "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56"
+            ]
+        },
+        "action--b1ea5ea9-3cdd-4e69-93cc-7235c5c5a4e1": {
+            "name": "Run full system scan",
+            "description": "Initiate a comprehensive scan of the system to identify any remaining threats.",
+            "on_completion": "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--17d923e7-5971-416f-a36e-0c1e580b96b0",
+            "step_variables": {
+                "threat_detected": {
+                    "type": "boolean",
+                    "description": "Indicates if threats were detected during the scan.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--27f2905f-c2e6-4c7c-853f-3e01b79ecc2f": {
+            "name": "Change all user passwords",
+            "description": "Reset passwords for all users if unauthorized access is confirmed.",
+            "on_completion": "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "password_reset_tool --all-users"
+                }
+            ],
+            "agent": "organization--17d923e7-5971-416f-a36e-0c1e580b96b0",
+            "conditional": {
+                "condition": "unauthorized_access_confirmed == true",
+                "next_steps": "monitor_logs--4f9a6362-4e99-45ce-bbe3-5391de3f8b56"
+            }
+        },
+        "action--4f9a6362-4e99-45ce-bbe3-5391de3f8b56": {
+            "name": "Monitor logs for suspicious activity",
+            "description": "Continuously monitor logs for any signs of further unauthorized access.",
+            "on_completion": "end--9b45e002-377c-421f-be7f-ee499009667c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog"
+                }
+            ],
+            "agent": "organization--17d923e7-5971-416f-a36e-0c1e580b96b0",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "Path to the system log file being monitored.",
+                    "value": "/var/log/syslog",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--9b45e002-377c-421f-be7f-ee499009667c": {
+            "type": "end",
+            "name": "End of Playbook",
+            "description": "All actions have been completed."
+        }
+    },
+    "agent_definitions": {
+        "organization--17d923e7-5971-416f-a36e-0c1e580b96b0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

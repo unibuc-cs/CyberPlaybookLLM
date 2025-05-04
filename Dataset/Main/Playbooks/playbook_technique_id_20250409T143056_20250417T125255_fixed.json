@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--360ef129-932f-4d66-bda9-b76411a11696",
+    "name": "Playbook for Mitigating Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed a malicious script on the server to exfiltrate sensitive data.",
+    "created_by": "identity--51d6bb07-6df9-417e-ae2f-b9c2721bc158",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--0d363ecb-701f-4b90-b867-498078b37f2f",
+    "workflow": {
+        "action--4f62f8f1-2e9c-4f06-b2d4-d3c5b8760a8f": {
+            "name": "Kill Malicious Process",
+            "description": "Kill the suspicious script that is currently running.",
+            "on_completion": "action--c029fdd2-6d63-4f06-af7f-14039e5d1a07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899"
+        },
+        "action--c029fdd2-6d63-4f06-af7f-14039e5d1a07": {
+            "name": "Remove Created Files",
+            "description": "Remove any malicious files created during the attack.",
+            "on_completion": "parallel--a2b7d234-b70c-4534-a6ac-8451fd23d51d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899"
+        },
+        "action--8bb9c009-ec47-4091-8b09-029c35eec37d": {
+            "name": "Perform System Scan",
+            "description": "Perform a full system scan to find other potential threats.",
+            "on_completion": "while-condition--f0ee1c2a-ecd7-43e1-abad-f31503ef2c72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899"
+        },
+        "action--41737f02-893b-4be1-9867-2cec4fda1a05": {
+            "name": "Update Firewall Rules",
+            "description": "Block the suspicious IP to prevent future attacks.",
+            "on_completion": "action--3e8e5a9e-a133-4a81-9091-0c1bd4331396",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899",
+            "condition": "if suspicious_ip is identified"
+        },
+        "action--e4af3172-2c0d-4a10-b0bc-bcf4be22e730": {
+            "name": "Inspect Logs for Anomalies",
+            "description": "Check the web server logs for any suspicious activity.",
+            "on_completion": "action--16ffdb9d-8e5a-438c-b63a-942e6a5a1699",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_keyword' /var/log/apache2/access.log"
+                }
+            ],
+            "agent": "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899"
+        },
+        "start--0d363ecb-701f-4b90-b867-498078b37f2f": {
+            "on_completion": "action--4f62f8f1-2e9c-4f06-b2d4-d3c5b8760a8f",
+            "type": "start"
+        },
+        "parallel--a2b7d234-b70c-4534-a6ac-8451fd23d51d": {
+            "name": "Mitigation Actions",
+            "description": "Perform a series of actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8bb9c009-ec47-4091-8b09-029c35eec37d",
+                "action--41737f02-893b-4be1-9867-2cec4fda1a05",
+                "action--e4af3172-2c0d-4a10-b0bc-bcf4be22e730"
+            ]
+        },
+        "while-condition--f0ee1c2a-ecd7-43e1-abad-f31503ef2c72": {
+            "name": "Repeat Until Scan is Clean",
+            "description": "Loop to perform system scan until a clean status is achieved.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--8bb9c009-ec47-4091-8b09-029c35eec37d",
+            "on_false": "action--16ffdb9d-8e5a-438c-b63a-942e6a5a1699",
+            "type": "if-condition"
+        },
+        "action--16ffdb9d-8e5a-438c-b63a-942e6a5a1699": {
+            "name": "Mitigation Completed",
+            "description": "All mitigation steps have been completed.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--59146d4f-c24d-40f6-9fbc-c41fa6db7899": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1f79428-7bc4-4e01-a4b5-e4a3dbc929ff",
+    "name": "Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized scripts executed via a vulnerability in the command and scripting interpreter, which led to privilege escalation and lateral movement.",
+    "created_by": "identity--054c9641-77da-410e-9b33-d6bfc8a0cf38",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b0d1f64e-d946-4cba-a1ef-af3b9caac5f9",
+    "workflow": {
+        "start--b0d1f64e-d946-4cba-a1ef-af3b9caac5f9": {
+            "on_completion": "action--1600c3d4-8b2f-4756-b2fc-df7daa8ba467",
+            "type": "start"
+        },
+        "action--1600c3d4-8b2f-4756-b2fc-df7daa8ba467": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes that are executing the malicious script.",
+            "on_completion": "parallel--45dfc748-90f0-4e0d-8f4a-5e014e483b77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--2f39111b-0de1-4546-b6b2-ab2f6b53b198"
+        },
+        "action--a8e2e140-2a0f-4c8b-8534-d47c2d52b00e": {
+            "name": "Block script interpreter access",
+            "description": "Restrict access to the script interpreter to prevent further exploitation.",
+            "on_completion": "end--10474767-8c98-44f3-83e9-31443f117a31",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod 750 /usr/bin/interpreter"
+                }
+            ],
+            "agent": "organization--17b6dd09-7e2e-42ac-8d4a-5fce94c8c013"
+        },
+        "action--d9b9f6d2-ec46-4706-9823-d1ff32f9c334": {
+            "name": "Scan for additional threats",
+            "description": "Perform a scan of the system to identify any other threats.",
+            "on_completion": "while-condition--caa25ea6-85af-4f38-9ece-bcb2f4f075bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --target-dir=/"
+                }
+            ],
+            "agent": "organization--2f39111b-0de1-4546-b6b2-ab2f6b53b198"
+        },
+        "action--907f5d72-de8d-4b51-b762-3e3dc92f5a9a": {
+            "name": "Change passwords for compromised accounts",
+            "description": "Update passwords for any identified compromised users to enhance security.",
+            "on_completion": "end--10474767-8c98-44f3-83e9-31443f117a31",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'NewP@ssw0rd' | passwd $compromised_user"
+                }
+            ],
+            "agent": "organization--17b6dd09-7e2e-42ac-8d4a-5fce94c8c013",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "The variable contains the username of the compromised account",
+                    "value": "identified_from_logs",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--4c7f5443-8f9e-4c2b-b8c1-ee2dd2e7ad37": {
+            "name": "Implement network segmentation",
+            "description": "Block suspicious hosts to prevent lateral movement.",
+            "on_completion": "end--10474767-8c98-44f3-83e9-31443f117a31",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s suspicious_host -j DROP"
+                }
+            ],
+            "agent": "organization--2f39111b-0de1-4546-b6b2-ab2f6b53b198"
+        },
+        "parallel--45dfc748-90f0-4e0d-8f4a-5e014e483b77": {
+            "name": "Mitigation actions",
+            "description": "Perform necessary mitigations in parallel based on conditions.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--12192d2a-f640-4d65-8c79-b2e53571aa87",
+                "action--d9b9f6d2-ec46-4706-9823-d1ff32f9c334",
+                "action--907f5d72-de8d-4b51-b762-3e3dc92f5a9a"
+            ]
+        },
+        "if-condition--12192d2a-f640-4d65-8c79-b2e53571aa87": {
+            "name": "Check if escalation attempt occurred",
+            "type": "if-condition",
+            "condition": "escalation_attempt_detected == False",
+            "on_true": "action--a8e2e140-2a0f-4c8b-8534-d47c2d52b00e",
+            "on_false": "action--4c7f5443-8f9e-4c2b-b8c1-ee2dd2e7ad37"
+        },
+        "while-condition--caa25ea6-85af-4f38-9ece-bcb2f4f075bc": {
+            "name": "Threat detection loop",
+            "description": "Continue scanning until no threats are found.",
+            "on_true": "action--d9b9f6d2-ec46-4706-9823-d1ff32f9c334",
+            "condition": "no_threats_found == False",
+            "type": "if-condition"
+        },
+        "end--10474767-8c98-44f3-83e9-31443f117a31": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2f39111b-0de1-4546-b6b2-ab2f6b53b198": {
+            "type": "organization",
+            "name": "Security Team XYZ"
+        },
+        "organization--17b6dd09-7e2e-42ac-8d4a-5fce94c8c013": {
+            "type": "organization",
+            "name": "Security Team ABC"
+        }
+    }
+}

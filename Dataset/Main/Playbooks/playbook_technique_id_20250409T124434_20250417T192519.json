@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--abcde123-1234-5678-9101-abcde1234567",
+    "name": "Mitigation Playbook for Web Server Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a known vulnerability in a web server to execute a malicious script, exfiltrate sensitive data, and create a backdoor.",
+    "created_by": "identity--01234567-abcd-ef01-2345-6789abcdef01",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-abcd-ef01-2345-6789abcdef01",
+    "workflow": {
+        "start--12345678-abcd-ef01-2345-6789abcdef01": {
+            "on_completion": "action--a9e76d54-042a-4c13-8f08-fb5472ba1d63",
+            "type": "start"
+        },
+        "action--a9e76d54-042a-4c13-8f08-fb5472ba1d63": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--b03b5679-fbb0-4f68-bc77-ec056f3414f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b03b5679-fbb0-4f68-bc77-ec056f3414f5": {
+            "name": "Remove web shell",
+            "description": "Delete the web shell used for maintaining access.",
+            "on_completion": "if-condition--detect-malicious-activity",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/webshell.php"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--detect-malicious-activity": {
+            "name": "If malicious activity detected",
+            "type": "if-condition",
+            "condition": "malicious_activity_detected == true",
+            "on_true": "action--b80d0a07-36dc-4e20-bc04-1072e39610f8",
+            "on_false": "action--cbe5492c-3cef-4930-a076-c43aff6855cb"
+        },
+        "action--b80d0a07-36dc-4e20-bc04-1072e39610f8": {
+            "name": "Block external IPs",
+            "description": "Block the external IP address involved in the malicious activity.",
+            "on_completion": "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--cbe5492c-3cef-4930-a076-c43aff6855cb": {
+            "name": "Notify Security Team",
+            "description": "Send notification to security team regarding the incident.",
+            "on_completion": "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on webserver-01' | sendmail security@organization.com"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e": {
+            "name": "Execute full system scan",
+            "description": "Perform a full system scan to identify any further compromises.",
+            "on_completion": "while-condition--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-until-clean": {
+            "name": "Scan System Loop",
+            "description": "Repeat scan until the system is clean.",
+            "on_completion": "end--end-playbook",
+            "type": "while-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--end-playbook"
+        },
+        "end--end-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

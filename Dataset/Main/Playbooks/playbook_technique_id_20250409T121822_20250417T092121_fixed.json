@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f0d911e4-0123-4f14-a1de-72eede7cdeca",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook mitigates incidents where attackers use command and scripting interpreters (like PowerShell) to execute malicious scripts and perform data exfiltration.",
+    "created_by": "identity--a6d9acb3-2d24-4f29-afcb-3bae2a67adff",
+    "created": "2023-10-12T14:34:00Z",
+    "modified": "2023-10-12T14:34:00Z",
+    "revoked": false,
+    "workflow_start": "start--f9dbbef3-bd5c-4f55-b488-81b68a6429e4",
+    "workflow": {
+        "start--f9dbbef3-bd5c-4f55-b488-81b68a6429e4": {
+            "on_completion": "action--e6444a41-a063-41ed-b140-f373ae493224",
+            "type": "start"
+        },
+        "action--e6444a41-a063-41ed-b140-f373ae493224": {
+            "name": "Check for malicious PowerShell process",
+            "description": "Identify if any malicious PowerShell processes are running.",
+            "on_completion": "if-condition--b0b1b49e-64a0-4fb9-aa45-83e620fae899",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pgrep -f powershell"
+                }
+            ],
+            "agent": "organization--b96b3dc4-647b-4772-bc6f-6fe71f7d7cf8"
+        },
+        "if-condition--b0b1b49e-64a0-4fb9-aa45-83e620fae899": {
+            "name": "Determine if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "pgrep -f powershell != ''",
+            "on_true": "action--f3df3a3b-b593-477c-8706-12e3b1211952",
+            "on_false": "action--574d40cf-99e3-4b06-8d8e-84543780a766"
+        },
+        "action--f3df3a3b-b593-477c-8706-12e3b1211952": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the identified malicious PowerShell process.",
+            "on_completion": "action--da8e6644-79d5-4139-8967-e4f3e8b3272f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--b96b3dc4-647b-4772-bc6f-6fe71f7d7cf8"
+        },
+        "action--574d40cf-99e3-4b06-8d8e-84543780a766": {
+            "name": "Delete the created malicious file",
+            "description": "Remove any identified malicious scripts.",
+            "on_completion": "parallel--e515abb2-396e-4b61-89d4-c62fab5017e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--b96b3dc4-647b-4772-bc6f-6fe71f7d7cf8"
+        },
+        "parallel--e515abb2-396e-4b61-89d4-c62fab5017e6": {
+            "name": "Conduct follow-up scans and cleanup",
+            "description": "Conduct a network scan and repeat until the results are acceptable.",
+            "type": "parallel",
+            "next_steps": [
+                "action--41b9f386-ee81-45bc-8a44-e263baf98a15",
+                "end--ee90a533-91b2-4a77-b3ab-e6d5acac7336"
+            ]
+        },
+        "if-condition--a4b10c27-3a52-49ca-ab5d-20d981b93995": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--41b9f386-ee81-45bc-8a44-e263baf98a15",
+            "on_false": "end--ee90a533-91b2-4a77-b3ab-e6d5acac7336"
+        },
+        "end--ee90a533-91b2-4a77-b3ab-e6d5acac7336": {
+            "type": "end"
+        },
+        "action--41b9f386-ee81-45bc-8a44-e263baf98a15": {
+            "name": "Conduct a network scan for anomalies",
+            "description": "Run a network scan to check for any anomalies.",
+            "on_completion": "if-condition--a4b10c27-3a52-49ca-ab5d-20d981b93995",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--b96b3dc4-647b-4772-bc6f-6fe71f7d7cf8"
+        }
+    },
+    "agent_definitions": {
+        "organization--b96b3dc4-647b-4772-bc6f-6fe71f7d7cf8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

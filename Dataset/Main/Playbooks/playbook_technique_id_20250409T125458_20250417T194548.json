@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1c6fdcd-23f1-4671-9ac5-6b48e3f8b676",
+    "name": "Mitigation Playbook for PowerShell Exfiltration Incident",
+    "description": "Mitigating an incident where an attacker executed a PowerShell script for data exfiltration.",
+    "created_by": "identity--e09c2617-a927-4c38-b4c0-0c5a1b7c1e6e",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--233f009f-be3f-482e-b6e5-440d0410c6a9",
+    "workflow": {
+        "start--233f009f-be3f-482e-b6e5-440d0410c6a9": {
+            "on_completion": "action--f0c1a9e3-6b74-4c9b-a5a9-1f3c63b4e0a0",
+            "type": "start"
+        },
+        "action--f0c1a9e3-6b74-4c9b-a5a9-1f3c63b4e0a0": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes if detected.",
+            "on_completion": "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if ps aux | grep '[p]owershell'; then pkill -f powershell; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d3f08261-faca-4c0f-90c0-302d1d4c924c": {
+            "name": "Block outbound traffic to suspicious IPs",
+            "description": "Block all outbound traffic to known suspicious IPs.",
+            "on_completion": "action--b5db73bf-e4f7-4d29-9643-404917723637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b5db73bf-e4f7-4d29-9643-404917723637": {
+            "name": "Initiate a full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "while-condition--c9a0453f-d5c1-4e41-af79-fc66d048f3b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--c9a0453f-d5c1-4e41-af79-fc66d048f3b2": {
+            "name": "Scan until clean",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--b5db73bf-e4f7-4d29-9643-404917723637"
+        },
+        "action--d6bdd1a4-3c4e-4692-b1c4-b9c90c4aa054": {
+            "name": "Review logs for unauthorized access",
+            "description": "Check system logs for any unauthorized access attempts.",
+            "on_completion": "action--13b4b0c3-cfcd-4678-a44b-384c6c47b56d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'unauthorized' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--13b4b0c3-cfcd-4678-a44b-384c6c47b56d": {
+            "name": "Update threat intelligence feeds",
+            "description": "Update the threat intelligence feeds for improved defenses.",
+            "on_completion": "end--bc3f0d7e-de23-4d0d-b9aa-ab53e43af009",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_threat_feeds"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "feed_sources": {
+                    "type": "list",
+                    "description": "Sources for threat intelligence feeds",
+                    "value": "['source1', 'source2']",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--bc3f0d7e-de23-4d0d-b9aa-ab53e43af009": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

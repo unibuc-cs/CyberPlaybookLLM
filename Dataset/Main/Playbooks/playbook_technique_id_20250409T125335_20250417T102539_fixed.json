@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f23e5f1e-7bc7-4cfd-b8d3-123456789abc",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook is designed to respond to incidents involving unauthorized execution of malicious scripts on a networked server.",
+    "created_by": "identity--66f45dba-7671-4d58-b42f-c08295bc7d44",
+    "created": "2025-04-10T10:00:00.000Z",
+    "modified": "2025-04-10T10:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a077a25a-6c72-4acb-be7b-c0bdcaac1743",
+    "workflow": {
+        "start--a077a25a-6c72-4acb-be7b-c0bdcaac1743": {
+            "on_completion": "action--169c7e59-b2ff-4632-b0f1-6c6cecf99ccd",
+            "type": "start"
+        },
+        "action--169c7e59-b2ff-4632-b0f1-6c6cecf99ccd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process if it is still running.",
+            "on_completion": "if-condition--e0df032b-6893-47ec-92b4-2a90c0dd4ef0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--ccdaf854-40be-4b81-8032-caefd3684590"
+        },
+        "if-condition--e0df032b-6893-47ec-92b4-2a90c0dd4ef0": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_running('malicious_script')",
+            "on_true": "action--40c5b1e3-7c41-4bb9-abe4-589eb4cecdf6",
+            "on_false": "loop--8501f543-4575-44f5-97e1-d06c713e7709"
+        },
+        "loop--8501f543-4575-44f5-97e1-d06c713e7709": {
+            "name": "Remove dropped files loop",
+            "description": "Repeat the process of checking for and deleting malicious files until all have been removed.",
+            "on_completion": "if-condition--a3740bbe-7920-4762-9794-9ca86a95045b",
+            "type": "while-condition",
+            "condition": "malicious_files_exist()",
+            "on_true": "action--4c162652-16e5-4b9b-8cb5-384dbec6b929"
+        },
+        "action--4c162652-16e5-4b9b-8cb5-384dbec6b929": {
+            "name": "Remove dropped files",
+            "description": "Delete all known dropped malicious files from the system.",
+            "on_completion": "loop--8501f543-4575-44f5-97e1-d06c713e7709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_file"
+                }
+            ],
+            "agent": "organization--ccdaf854-40be-4b81-8032-caefd3684590"
+        },
+        "if-condition--a3740bbe-7920-4762-9794-9ca86a95045b": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_results_positive()",
+            "on_true": "action--f489a91e-8756-4986-9e9b-1cdd43482633",
+            "on_false": "end--ee484785-54d8-4823-8a8e-d51f32397fb5"
+        },
+        "action--f489a91e-8756-4986-9e9b-1cdd43482633": {
+            "name": "Scan for further indicators of compromise",
+            "description": "Run a thorough scan for further indicators of compromise on host-22.",
+            "on_completion": "end--ee484785-54d8-4823-8a8e-d51f32397fb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool --target host-22"
+                }
+            ],
+            "agent": "organization--ccdaf854-40be-4b81-8032-caefd3684590"
+        },
+        "end--ee484785-54d8-4823-8a8e-d51f32397fb5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ccdaf854-40be-4b81-8032-caefd3684590": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

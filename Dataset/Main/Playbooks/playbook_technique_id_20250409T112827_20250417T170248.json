@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3731643-0e84-4c1b-90d3-0b482bc40b3f",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook mitigates an incident where an attacker executed malicious scripts, leading to data exfiltration and persistent access. It includes steps to kill processes, isolate hosts, scan for further threats, audit scripts, and reset user passwords.",
+    "created_by": "identity--6584ffe9-2087-4fdc-9f71-57d793eb5464",
+    "created": "2023-10-10T14:00:00Z",
+    "modified": "2023-10-10T14:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--c3b568c7-163a-4a4e-b748-fac75fc3c51a",
+    "workflow": {
+        "start--c3b568c7-163a-4a4e-b748-fac75fc3c51a": {
+            "on_completion": "action--b4a203f8-5d61-43af-bb67-85d98270f43a",
+            "type": "start"
+        },
+        "action--b4a203f8-5d61-43af-bb67-85d98270f43a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--319bfc2b-bce1-4260-a67c-6e8d1ae1f3e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--319bfc2b-bce1-4260-a67c-6e8d1ae1f3e6": {
+            "name": "Perform network isolation of compromised host",
+            "description": "Block incoming traffic from the attacker's IP address.",
+            "on_completion": "loop--764f5469-07f7-4d4c-bb37-7cb60f3020b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--764f5469-07f7-4d4c-bb37-7cb60f3020b5": {
+            "name": "Run antivirus scan on the host",
+            "description": "Continually scan the system with antivirus until it is clean.",
+            "on_completion": "if-condition--748f9d8f-fb4d-448c-ae60-72a3209e3c8a",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--764f5469-07f7-4d4c-bb37-7cb60f3020b5",
+            "on_false": "action--82c6acd2-fb8b-40cd-af95-8053eb9babd8"
+        },
+        "action--764f5469-07f7-4d4c-bb37-7cb60f3020b5": {
+            "name": "Perform antivirus scan",
+            "description": "Execute an antivirus scan on the host.",
+            "on_completion": "loop--764f5469-07f7-4d4c-bb37-7cb60f3020b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove=yes /path/to/scan; scan_status=$(clamscan --recursive /path/to/scan | grep 'Infected files' | awk '{print $NF}')"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--82c6acd2-fb8b-40cd-af95-8053eb9babd8": {
+            "name": "Audit scripts in the user's home directory",
+            "description": "Check for any additional malicious scripts in the user's home directory.",
+            "on_completion": "end--0f737c81-b91d-4781-modern-8a5c-22c60fd63831",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home/user -name '*.sh' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--748f9d8f-fb4d-448c-ae60-72a3209e3c8a": {
+            "name": "Reset user's password if compromised_user_detected",
+            "type": "if-condition",
+            "condition": "compromised_user_detected == true",
+            "on_true": "action--748f9d8f-fb4d-448c-ae60-72a3209e3c8a",
+            "on_false": "end--0f737c81-b91d-4781-modern-8a5c-22c60fd63831"
+        },
+        "action--748f9d8f-fb4d-448c-ae60-72a3209e3c8a": {
+            "name": "Reset user's password",
+            "description": "Reset the password for the compromised user account.",
+            "on_completion": "end--0f737c81-b91d-4781-modern-8a5c-22c60fd63831",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user123"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--0f737c81-b91d-4781-modern-8a5c-22c60fd63831": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

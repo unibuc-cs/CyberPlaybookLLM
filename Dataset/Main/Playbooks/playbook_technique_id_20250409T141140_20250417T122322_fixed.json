@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dae7fcb6-6eaa-4b67-8ffc-67f8e62613f0",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained access via a phishing email containing a malicious script, leading to unauthorized actions on the host.",
+    "created_by": "identity--61b707cc-f603-4a80-8111-84b78f612ef0",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--8d9355e1-45de-4536-bf92-7556391a098e",
+    "workflow": {
+        "start--8d9355e1-45de-4536-bf92-7556391a098e": {
+            "on_completion": "action--1f654ab6-da9a-4c4e-be5c-b91dc0e02fd6",
+            "type": "start"
+        },
+        "action--1f654ab6-da9a-4c4e-be5c-b91dc0e02fd6": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "if-condition--c2a986de-4d6e-45c8-be1d-783c5f2cc5ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--10bf726e-1ab5-46dc-81b3-30da4730a74e"
+        },
+        "if-condition--c2a986de-4d6e-45c8-be1d-783c5f2cc5ef": {
+            "name": "Check for malicious binary files",
+            "type": "if-condition",
+            "condition": "malicious_binary_detected == true",
+            "on_true": "action--a75b9eb5-4739-4722-b385-4f3b38971b69",
+            "on_false": "action--23b2c1d2-5986-4c67-b626-2f29425f98e1"
+        },
+        "action--a75b9eb5-4739-4722-b385-4f3b38971b69": {
+            "name": "Remove dropped malicious binary files",
+            "description": "Delete malicious binary files from the system.",
+            "on_completion": "action--23b2c1d2-5986-4c67-b626-2f29425f98e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_binary"
+                }
+            ],
+            "agent": "organization--10bf726e-1ab5-46dc-81b3-30da4730a74e"
+        },
+        "action--23b2c1d2-5986-4c67-b626-2f29425f98e1": {
+            "name": "Scan the host for malware",
+            "description": "Perform a comprehensive scan of the host for any remaining malware.",
+            "on_completion": "loop--e2e03765-bca5-414e-8292-ad4f491f0e52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /path/to/scan"
+                }
+            ],
+            "agent": "organization--10bf726e-1ab5-46dc-81b3-30da4730a74e"
+        },
+        "loop--e2e03765-bca5-414e-8292-ad4f491f0e52": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the host until no malicious files are found.",
+            "on_completion": "end--f861bc52-2837-4c7b-bbd9-8f0b9209e102",
+            "type": "while-condition",
+            "condition": "malicious_files_found == false",
+            "on_true": "action--23b2c1d2-5986-4c67-b626-2f29425f98e1"
+        },
+        "end--f861bc52-2837-4c7b-bbd9-8f0b9209e102": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--10bf726e-1ab5-46dc-81b3-30da4730a74e": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}

@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1fb2eaf5-e427-4766-8cb2-2c46c1c2c78b",
+    "name": "Incident Response Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute arbitrary script commands on a server, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--68aa9f40-a7f5-477c-a713-fee799f080c8",
+    "created": "2025-10-02T10:00:00Z",
+    "modified": "2025-10-02T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--dcd3427c-7d8e-4f02-9a10-b5935cef94b9",
+    "workflow": {
+        "start--dcd3427c-7d8e-4f02-9a10-b5935cef94b9": {
+            "on_completion": "action--ad8bc9a1-dc0b-4e29-8b1a-768f5a1b2324",
+            "type": "start"
+        },
+        "action--ad8bc9a1-dc0b-4e29-8b1a-768f5a1b2324": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing malicious scripts.",
+            "on_completion": "action--cdfebef8-7b38-4fc3-98b4-b4a0f7cbbf08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--db3e94fc-1655-4237-87f1-de82084fbc39"
+        },
+        "action--cdfebef8-7b38-4fc3-98b4-b4a0f7cbbf08": {
+            "name": "Revert access logs to last known good state",
+            "description": "Restore access logs from backup to cover unauthorized accesses.",
+            "on_completion": "action--b1e40356-f294-4f5d-a112-6c90a003ff79",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/access_log /var/log/access_log"
+                }
+            ],
+            "agent": "organization--db3e94fc-1655-4237-87f1-de82084fbc39"
+        },
+        "action--b1e40356-f294-4f5d-a112-6c90a003ff79": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the system to identify and eliminate malware.",
+            "on_completion": "if-condition--ff4a8cad-82e9-489b-bc5e-6708a6131f2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan / --report"
+                }
+            ],
+            "agent": "organization--db3e94fc-1655-4237-87f1-de82084fbc39",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "value": "false",
+                    "description": "Flag indicating if the scan has returned clean results."
+                }
+            }
+        },
+        "if-condition--ff4a8cad-82e9-489b-bc5e-6708a6131f2f": {
+            "name": "Check if infection is confirmed",
+            "type": "if-condition",
+            "condition": "!scan_clean",
+            "on_true": "action--ff4a8cad-82e9-489b-bc5e-6708a6131f2f",
+            "on_false": "action--ab9d4320-56a4-4b8f-a8a9-5e3bf379ee94"
+        },
+        "action--ff4a8cad-82e9-489b-bc5e-6708a6131f2f": {
+            "name": "Isolate infected host",
+            "description": "Take the affected host offline by bringing down the interface.",
+            "on_completion": "action--ab9d4320-56a4-4b8f-a8a9-5e3bf379ee94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--db3e94fc-1655-4237-87f1-de82084fbc39"
+        },
+        "action--ab9d4320-56a4-4b8f-a8a9-5e3bf379ee94": {
+            "name": "Alert security team",
+            "description": "Notify the security team of the detected incident.",
+            "on_completion": "end--c732afe0-4d90-4314-a314-47f85426f1fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Alert: Incident detected on host-22' | mail -s 'Security Alert' security-team@example.com"
+                }
+            ],
+            "agent": "organization--db3e94fc-1655-4237-87f1-de82084fbc39"
+        },
+        "end--c732afe0-4d90-4314-a314-47f85426f1fb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--db3e94fc-1655-4237-87f1-de82084fbc39": {
+            "type": "organization",
+            "name": "Client Organization"
+        }
+    }
+}

@@ -1,0 +1,208 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b69a41-e594-45c8-82be-3c21e4d1d09f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving a malicious script detected on a Linux server, which included unauthorized command execution, file modification, and unexpected network connections.",
+    "created_by": "identity--c890d123-4e45-4828-9140-f1fb6a885854",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "derived_from": [
+        "playbook--a5903e76-fe56-4ec6-acd7-3e1a2acf7fca"
+    ],
+    "workflow_start": "start--d47cfd64-a197-4b43-909e-3c381a5b8be7",
+    "workflow": {
+        "start--d47cfd64-a197-4b43-909e-3c381a5b8be7": {
+            "on_completion": "parallel--a02f5d1b-ebc9-4f4d-bd5f-4fc3fe2cab05",
+            "type": "start"
+        },
+        "parallel--a02f5d1b-ebc9-4f4d-bd5f-4fc3fe2cab05": {
+            "name": "Initial Mitigation Steps",
+            "description": "Terminate suspicious processes and reset compromised accounts in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--d2f2c81a-45f3-4a73-a780-1f3cf3601001",
+                "conditional--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f"
+            ]
+        },
+        "loop--d2f2c81a-45f3-4a73-a780-1f3cf3601001": {
+            "name": "Terminate Suspicious Processes Loop",
+            "description": "Terminate suspicious processes until all have been terminated.",
+            "type": "while-condition",
+            "condition": "remaining_malicious_processes",
+            "on_true": "action--d2f2c81a-45f3-4a73-a780-1f3cf3601001",
+            "on_false": "parallel--e9b75f1e-6109-4343-b65d-1bdfb3b2aa9f"
+        },
+        "action--d2f2c81a-45f3-4a73-a780-1f3cf3601001": {
+            "name": "Terminate Suspicious Processes",
+            "description": "Terminate suspicious processes detected by anomaly-based monitoring tools.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-process'"
+                }
+            ],
+            "agent": "organization--b45d0a07-191c-42fc-922a-5fb86a38a189",
+            "on_completion": "loop--d2f2c81a-45f3-4a73-a780-1f3cf3601001",
+            "step_variables": {
+                "remaining_malicious_processes": {
+                    "type": "boolean",
+                    "description": "Flag indicating if there are still malicious processes to terminate",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "conditional--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f": {
+            "name": "Check Compromised Accounts",
+            "description": "Check if there are any compromised accounts to reset passwords.",
+            "type": "if-condition",
+            "condition": "compromised_accounts",
+            "on_true": "action--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f",
+            "on_false": "parallel--e9b75f1e-6109-4343-b65d-1bdfb3b2aa9f"
+        },
+        "action--314a2cba-a04c-4fcb-bf7f-71f9d69eba9f": {
+            "name": "Reset Compromised Accounts",
+            "description": "Reset the passwords of compromised user accounts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo passwd --expire username"
+                }
+            ],
+            "agent": "organization--b45d0a07-191c-42fc-922a-5fb86a38a189",
+            "on_completion": "parallel--e9b75f1e-6109-4343-b65d-1bdfb3b2aa9f",
+            "step_variables": {
+                "compromised_accounts": {
+                    "type": "boolean",
+                    "description": "Flag indicating if there are compromised accounts",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "parallel--e9b75f1e-6109-4343-b65d-1bdfb3b2aa9f": {
+            "name": "Deploy WAF Rules and Perform Antivirus Scan",
+            "description": "Deploy updated WAF rules and conduct an antivirus scan in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b20ae7f5-1047-4015-9482-45d3f6628d60",
+                "loop--eae1a1c7-2ee4-4f48-a255-a12b915bee01"
+            ]
+        },
+        "action--b20ae7f5-1047-4015-9482-45d3f6628d60": {
+            "name": "Deploy WAF Rules",
+            "description": "Deploy updated web application firewall rules.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw reload"
+                }
+            ],
+            "agent": "organization--b45d0a07-191c-42fc-922a-5fb86a38a189",
+            "on_completion": "conditional--c834df34-42c0-41d4-bfa9-80e65eb5822d"
+        },
+        "loop--eae1a1c7-2ee4-4f48-a255-a12b915bee01": {
+            "name": "Conduct Full Antivirus Scan",
+            "description": "Perform an antivirus scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--eae1a1c7-2ee4-4f48-a255-a12b915bee01",
+            "on_false": "conditional--c834df34-42c0-41d4-bfa9-80e65eb5822d"
+        },
+        "action--eae1a1c7-2ee4-4f48-a255-a12b915bee01": {
+            "name": "Run Full System Antivirus Scan",
+            "description": "Conduct a full system antivirus scan.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--02a92be4-0aee-4f64-b102-5ac42d251b05",
+            "on_completion": "loop--eae1a1c7-2ee4-4f48-a255-a12b915bee01",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the antivirus scan",
+                    "value": "infected",
+                    "constant": false
+                }
+            }
+        },
+        "conditional--c834df34-42c0-41d4-bfa9-80e65eb5822d": {
+            "name": "Check Unauthorized Configuration Modifications",
+            "description": "Check if configuration modifications were unauthorized and need reverting.",
+            "type": "if-condition",
+            "condition": "unauthorized_modifications",
+            "on_true": "action--c834df34-42c0-41d4-bfa9-80e65eb5822d",
+            "on_false": "action--47aeda9f-df79-495b-b428-4a3cc54aae90"
+        },
+        "action--c834df34-42c0-41d4-bfa9-80e65eb5822d": {
+            "name": "Backup and Revert Configuration Files",
+            "description": "Backup current and revert to default configuration files.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /etc/config /backup/ && cat /etc/config.default > /etc/config"
+                }
+            ],
+            "agent": "organization--02a92be4-0aee-4f64-b102-5ac42d251b05",
+            "on_completion": "action--47aeda9f-df79-495b-b428-4a3cc54aae90",
+            "step_variables": {
+                "unauthorized_modifications": {
+                    "type": "boolean",
+                    "description": "Flag indicating if there are unauthorized modifications",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "action--47aeda9f-df79-495b-b428-4a3cc54aae90": {
+            "name": "Monitor External Connections",
+            "description": "Monitor external connections for anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --track"
+                }
+            ],
+            "agent": "organization--02a92be4-0aee-4f64-b102-5ac42d251b05",
+            "on_completion": "end--af3beb0f-1f2d-405b-a81d-7cf9ea83c4f4",
+            "step_variables": {
+                "threshold": {
+                    "type": "int",
+                    "description": "Threshold for anomaly monitoring",
+                    "value": 10,
+                    "constant": true
+                },
+                "alert": {
+                    "type": "string",
+                    "description": "Alert method",
+                    "value": "Email-Alert",
+                    "constant": true
+                }
+            }
+        },
+        "end--af3beb0f-1f2d-405b-a81d-7cf9ea83c4f4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b45d0a07-191c-42fc-922a-5fb86a38a189": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        },
+        "organization--02a92be4-0aee-4f64-b102-5ac42d251b05": {
+            "type": "organization",
+            "name": "Organization ABC"
+        }
+    }
+}

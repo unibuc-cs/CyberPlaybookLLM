@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8e8e988-19c4-4e4a-8ff8-f23e1d92008e",
+    "name": "Mitigation Playbook for Script-Based Unauthorized Command Execution",
+    "description": "This playbook addresses an incident where an attacker executed an unauthorized script for command execution, resulting in system compromise.",
+    "created_by": "identity--6871e271-90e9-41b6-9ead-f05d688d0bd2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c4e2f3af-23de-4190-bd52-dee6cf98dbb2",
+    "workflow": {
+        "start--c4e2f3af-23de-4190-bd52-dee6cf98dbb2": {
+            "on_completion": "parallel--feb6b3b3-f566-4b34-b4f6-484481cdca3f",
+            "type": "start"
+        },
+        "parallel--feb6b3b3-f566-4b34-b4f6-484481cdca3f": {
+            "name": "Execute Mitigation Steps",
+            "description": "Executing all necessary response actions in parallel to address the unauthorized script execution incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f583d4a4-856b-4f79-b77c-b7e6dc846c14",
+                "action--70d962d8-d8b7-4e77-9fc1-f7e0c169b899",
+                "action--a4469edd-d524-4995-b8da-d7bd339a40fb",
+                "action--ded62114-8ac0-49e1-b7b9-52f8c5736c1b",
+                "if-condition--e70ebc66-d104-4eee-979b-7deb5ce5fdee"
+            ]
+        },
+        "action--f583d4a4-856b-4f79-b77c-b7e6dc846c14": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the process related to the unauthorized script execution.",
+            "on_completion": "action--70d962d8-d8b7-4e77-9fc1-f7e0c169b899",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4"
+        },
+        "action--70d962d8-d8b7-4e77-9fc1-f7e0c169b899": {
+            "name": "Rollback System Changes",
+            "description": "Restore the system configuration to a known good state before the unauthorized changes.",
+            "on_completion": "action--a4469edd-d524-4995-b8da-d7bd339a40fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /etc/backup/configuration.conf /etc/system/configuration.conf"
+                }
+            ],
+            "agent": "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4"
+        },
+        "action--a4469edd-d524-4995-b8da-d7bd339a40fb": {
+            "name": "Scan System for Remaining Threats",
+            "description": "Run a comprehensive security scan to ensure no threats have been left behind.",
+            "on_completion": "action--ded62114-8ac0-49e1-b7b9-52f8c5736c1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --bell"
+                }
+            ],
+            "agent": "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4"
+        },
+        "action--ded62114-8ac0-49e1-b7b9-52f8c5736c1b": {
+            "name": "Monitor Outbound Traffic",
+            "description": "Continuously monitor the network for suspicious outbound connections.",
+            "on_completion": "if-condition--e70ebc66-d104-4eee-979b-7deb5ce5fdee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for i in $(seq 1 3); do tcpdump -i eth0 -n -s 0 -A -c 100; sleep 10; done"
+                }
+            ],
+            "agent": "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4"
+        },
+        "if-condition--e70ebc66-d104-4eee-979b-7deb5ce5fdee": {
+            "name": "Check for Suspicious Activity",
+            "type": "if-condition",
+            "condition": "is_suspicious_activity_found()",
+            "on_true": "action--daebf3ed-4f69-4203-8c0f-636c30b3cff7",
+            "on_false": "end--1d2bf06a-72b0-4d5d-b8ab-4f8e7565ac8e"
+        },
+        "action--daebf3ed-4f69-4203-8c0f-636c30b3cff7": {
+            "name": "Alert Security Team",
+            "description": "Notify the security team about the unauthorized script execution incident.",
+            "on_completion": "end--1d2bf06a-72b0-4d5d-b8ab-4f8e7565ac8e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security alert: unauthorized script execution on host-22' | mail -s 'Alert' security-team@organization.com"
+                }
+            ],
+            "agent": "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4"
+        },
+        "end--1d2bf06a-72b0-4d5d-b8ab-4f8e7565ac8e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9e5b9601-e0cf-4066-bd89-e0625cbc18b4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

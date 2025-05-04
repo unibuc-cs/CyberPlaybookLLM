@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ab73b65f-af9f-47b7-895a-d679814ef581",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the system through a misconfigured remote access service, executed shell commands, and deployed a script to exfiltrate sensitive data.",
+    "created_by": "identity--cf2c4712-078e-4076-ac48-8efd2c212567",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "workflow_start": "start--abcdefab-1234-5678-abcd-efabcdefabcd",
+    "workflow": {
+        "start--abcdefab-1234-5678-abcd-efabcdefabcd": {
+            "type": "start",
+            "on_completion": "action--61c4b5f3-3bb8-4340-808a-eab0240f22d6"
+        },
+        "action--61c4b5f3-3bb8-4340-808a-eab0240f22d6": {
+            "name": "Isolate affected host from network",
+            "description": "Prevent the compromised host from further network activity.",
+            "type": "action",
+            "agent": "organization--a460bf0b-debe-41fc-a4f6-ee9ec311ae89",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A INPUT -s host-38 -j DROP"
+                }
+            ],
+            "on_completion": "action--577f1d4e-63c2-4a9b-8a7e-9decaedf1919"
+        },
+        "action--577f1d4e-63c2-4a9b-8a7e-9decaedf1919": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "type": "action",
+            "agent": "organization--000f2bce-f03a-46a2-9d51-2b00ccc59430",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f xfiltrate.sh"
+                }
+            ],
+            "on_completion": "action--d17cd40f-78a2-498f-bb1c-2c857c6821cc"
+        },
+        "action--d17cd40f-78a2-498f-bb1c-2c857c6821cc": {
+            "name": "Scan the system for other malicious scripts",
+            "description": "Check for any other malicious scripts on the system.",
+            "type": "action",
+            "agent": "organization--80b6ba21-edf2-4b39-a339-529760557e77",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -lE 'rm -rf|wget|nc' {} \\;"
+                }
+            ],
+            "loop": {
+                "until": "scan results are clean",
+                "on_completion": "action--d3880df9-6b8d-4b31-a83e-7376511092f4"
+            }
+        },
+        "action--d3880df9-6b8d-4b31-a83e-7376511092f4": {
+            "name": "Restore backup from last known good state",
+            "description": "Restore the system to a previously clean state.",
+            "type": "action",
+            "agent": "organization--a460bf0b-debe-41fc-a4f6-ee9ec311ae89",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo restore --file /backup/clean-backup.tar"
+                }
+            ],
+            "on_completion": "action--fd4a8173-966a-4f94-8747-71c4ccc5e75f"
+        },
+        "action--fd4a8173-966a-4f94-8747-71c4ccc5e75f": {
+            "name": "Update firewall rules to prevent further access",
+            "description": "Ensure firewall rules are updated to block any unauthorized access.",
+            "type": "if-condition",
+            "agent": "organization--a460bf0b-debe-41fc-a4f6-ee9ec311ae89",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw deny from any to any port 22"
+                }
+            ],
+            "on_completion": "action--2f7c46d9-2ad1-4b39-934f-81dc9f0415f1",
+            "condition": {
+                "if": "vulnerability persists"
+            }
+        },
+        "action--2f7c46d9-2ad1-4b39-934f-81dc9f0415f1": {
+            "name": "Parallel execution of vulnerability patch deployment",
+            "description": "Simultaneously execute patch deployments to fix vulnerabilities.",
+            "type": "action",
+            "agent": "organization--000f2bce-f03a-46a2-9d51-2b00ccc59430",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "on_completion": "end--ade53bc4-18fb-4538-b4c5-82fb8eb7be42"
+        },
+        "end--ade53bc4-18fb-4538-b4c5-82fb8eb7be42": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a460bf0b-debe-41fc-a4f6-ee9ec311ae89": {
+            "type": "organization",
+            "name": "Network Security Team"
+        },
+        "organization--000f2bce-f03a-46a2-9d51-2b00ccc59430": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        },
+        "organization--80b6ba21-edf2-4b39-a339-529760557e77": {
+            "type": "organization",
+            "name": "Malware Analysis Team"
+        }
+    }
+}

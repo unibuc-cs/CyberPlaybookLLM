@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1eeb784-3fcd-4b8b-a3f3-6baffd0848f0",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on internal servers to exfiltrate sensitive data.",
+    "created_by": "identity--219a5d04-d70b-4b81-b98f-9541e843f718",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d2f18b5e-18ff-437c-818c-d005cb57484a",
+    "workflow": {
+        "start--d2f18b5e-18ff-437c-818c-d005cb57484a": {
+            "on_completion": "if-condition--d6fd2206-194e-488e-8650-5b579951f817",
+            "type": "start"
+        },
+        "if-condition--d6fd2206-194e-488e-8650-5b579951f817": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--b2a99b20-0f6c-4c4a-abd8-594b0b5dc3ac",
+            "on_false": "action--ec5b3453-f468-49f2-ae6e-e4f92d819b83"
+        },
+        "action--b2a99b20-0f6c-4c4a-abd8-594b0b5dc3ac": {
+            "name": "Kill malicious process",
+            "description": "Terminate the executing malicious scripts immediately.",
+            "on_completion": "action--ec5b3453-f468-49f2-ae6e-e4f92d819b83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--b0105596-1fd5-432e-9600-7126a87f2d77"
+        },
+        "action--ec5b3453-f468-49f2-ae6e-e4f92d819b83": {
+            "name": "Isolate affected host from the network",
+            "description": "Disconnect the compromised host from the network to prevent further data exfiltration.",
+            "on_completion": "action--cb64207f-65d8-4d72-92da-17b45c62a3d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--b0105596-1fd5-432e-9600-7126a87f2d77"
+        },
+        "action--cb64207f-65d8-4d72-92da-17b45c62a3d4": {
+            "name": "Update firewall rules to block suspicious IP",
+            "description": "Configure the firewall to block outbound connections to the suspicious IP.",
+            "on_completion": "while-condition--f91e04f3-aff8-43dc-8f01-1bdc78727322",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--b0105596-1fd5-432e-9600-7126a87f2d77"
+        },
+        "while-condition--f91e04f3-aff8-43dc-8f01-1bdc78727322": {
+            "name": "Scan for remaining threats",
+            "description": "Continuously scan the isolated host for remaining threats until clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--3d5b7f57-6605-4e78-a0d5-c3dfb5e4df80",
+            "on_false": "action--a1c7aba2-0090-442d-b648-bb02a13de858"
+        },
+        "action--3d5b7f57-6605-4e78-a0d5-c3dfb5e4df80": {
+            "name": "Scan the host for remaining threats",
+            "description": "Run a threat scan on the isolated host.",
+            "on_completion": "while-condition--f91e04f3-aff8-43dc-8f01-1bdc78727322",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav host-22"
+                }
+            ],
+            "agent": "organization--b0105596-1fd5-432e-9600-7126a87f2d77"
+        },
+        "action--a1c7aba2-0090-442d-b648-bb02a13de858": {
+            "name": "Review and analyze logs for further indicators",
+            "description": "Analyze the logs to identify further indicators of compromise.",
+            "on_completion": "end--d8af893b-8b99-4bbc-8737-74c9f2b8a37d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--b0105596-1fd5-432e-9600-7126a87f2d77"
+        },
+        "end--d8af893b-8b99-4bbc-8737-74c9f2b8a37d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b0105596-1fd5-432e-9600-7126a87f2d77": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_exists": {
+            "type": "boolean",
+            "description": "Indicates if malicious process exists",
+            "value": "false",
+            "constant": false,
+            "external": false
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Indicates the scan status of the host",
+            "value": "pending",
+            "constant": false,
+            "external": false
+        }
+    }
+}

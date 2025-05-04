@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d27cf298-b61d-47bd-bc1e-496ebbbccc08",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained access via phishing and executed malicious scripts on multiple hosts.",
+    "created_by": "identity--5e170bff-4466-43ce-b63e-c29fa306ffcd",
+    "created": "2023-10-12T15:00:00.000Z",
+    "modified": "2023-10-12T15:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1cba709f-592d-4f88-b6da-c3498259d744",
+    "workflow": {
+        "start--1cba709f-592d-4f88-b6da-c3498259d744": {
+            "on_completion": "action--92b7c2e4-0e6e-4e56-85fd-b003f865c78c",
+            "type": "start"
+        },
+        "action--92b7c2e4-0e6e-4e56-85fd-b003f865c78c": {
+            "name": "Kill Malicious Script Process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "parallel--f4b53da1-fc61-43d2-af6a-1bc6da5f7b72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--37da2a98-37ed-4545-a45d-2bb7a175dd41"
+        },
+        "action--bcb02a7b-cc62-49e2-878e-486ec6d2081f": {
+            "name": "Quarantine Suspicious Files",
+            "description": "Move suspicious files to a quarantine directory if they exist.",
+            "on_completion": "action--ecca274b-c1e7-4fad-953c-6d4518a953d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/malicious_file /path/to/quarantine/"
+                }
+            ],
+            "agent": "organization--37da2a98-37ed-4545-a45d-2bb7a175dd41",
+            "conditions": {
+                "suspicious_file": {
+                    "type": "string",
+                    "value": "/path/to/malicious_file"
+                }
+            }
+        },
+        "action--ecca274b-c1e7-4fad-953c-6d4518a953d0": {
+            "name": "Run Anti-Malware Scan",
+            "description": "Perform a scan of the system and report on any threats found.",
+            "on_completion": "decision--97845870-91e5-4452-b781-61369b16f8c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan / --report"
+                }
+            ],
+            "agent": "organization--37da2a98-37ed-4545-a45d-2bb7a175dd41"
+        },
+        "parallel--f4b53da1-fc61-43d2-af6a-1bc6da5f7b72": {
+            "name": "Parallel Mitigations",
+            "description": "Execute mitigation steps for additional threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bcb02a7b-cc62-49e2-878e-486ec6d2081f",
+                "action--ecca274b-c1e7-4fad-953c-6d4518a953d0"
+            ]
+        },
+        "end--f3e0689e-cd85-436a-b69f-ac0eabc5d233": {
+            "type": "end"
+        },
+        "decision--97845870-91e5-4452-b781-61369b16f8c8": {
+            "name": "Check for Threats Found",
+            "type": "if-condition",
+            "condition": "threats_detected",
+            "on_true": "action--ecca274b-c1e7-4fad-953c-6d4518a953d0",
+            "on_false": "end--f3e0689e-cd85-436a-b69f-ac0eabc5d233"
+        }
+    },
+    "agent_definitions": {
+        "organization--37da2a98-37ed-4545-a45d-2bb7a175dd41": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

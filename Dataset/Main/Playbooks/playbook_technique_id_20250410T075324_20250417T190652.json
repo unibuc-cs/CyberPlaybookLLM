@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2f56cc7a-984d-4ace-b8fc-09c7d0f0e9c2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to a script execution incident with parallel execution, conditional checks, and iterative loops.",
+    "created_by": "identity--a4b3d307-bd67-48a9-abc1-1e73363741a1",
+    "created": "2023-11-20T19:00:00Z",
+    "modified": "2023-11-20T19:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--d5e1a6b7-f3c2-4d9f-bb3b-4d1b70f5e6f1",
+    "workflow": {
+        "start--d5e1a6b7-f3c2-4d9f-bb3b-4d1b70f5e6f1": {
+            "on_completion": "parallel--b5b2a3e4-9e75-41f4-ae3c-1c9f1d0e1e2e",
+            "type": "start"
+        },
+        "parallel--b5b2a3e4-9e75-41f4-ae3c-1c9f1d0e1e2e": {
+            "name": "Execute Mitigation Steps in Parallel",
+            "description": "Execute steps to terminate malicious processes and update firewall rules at the same time.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--ec3a0a12-b4b5-43d0-bf16-882aef7c383f",
+                "action--0158d189-b849-45a9-87e1-c69b1ea7713b"
+            ]
+        },
+        "loop--ec3a0a12-b4b5-43d0-bf16-882aef7c383f": {
+            "name": "Terminate Malicious Processes Loop",
+            "description": "Iteratively terminate all instances of the malicious script.",
+            "type": "loop",
+            "condition": "process_exists(malicious_script)",
+            "on_true": "action--ec3a0a12-b4b5-43d0-bf16-882aef7c383f",
+            "on_completion": "decision--f9e2b975-1257-4f45-a8ef-2340b15c8f65"
+        },
+        "action--ec3a0a12-b4b5-43d0-bf16-882aef7c383f": {
+            "name": "Kill Malicious Process",
+            "description": "Execute command to terminate malicious process on affected hosts.",
+            "on_completion": "loop--ec3a0a12-b4b5-43d0-bf16-882aef7c383f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--f9e2b975-1257-4f45-a8ef-2340b15c8f65": {
+            "name": "Check Elevated Privileges",
+            "type": "decision",
+            "condition": "user_elevated_privileges_detected",
+            "on_true": "action--f9e2b975-1257-4f45-a8ef-2340b15c8f65",
+            "on_false": "loop--d2f5b6c1-7e78-466b-a613-c9c1bde8a02e"
+        },
+        "action--f9e2b975-1257-4f45-a8ef-2340b15c8f65": {
+            "name": "Revoke Elevated Privileges",
+            "description": "Revoke elevated privileges granted during the attack.",
+            "on_completion": "loop--d2f5b6c1-7e78-466b-a613-c9c1bde8a02e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--d2f5b6c1-7e78-466b-a613-c9c1bde8a02e": {
+            "name": "Scan and Clean Infected Files Loop",
+            "description": "Iteratively scan and clean infected files until clean.",
+            "type": "loop",
+            "condition": "scan_required",
+            "on_true": "action--d2f5b6c1-7e78-466b-a613-c9c1bde8a02e"
+        },
+        "action--d2f5b6c1-7e78-466b-a613-c9c1bde8a02e": {
+            "name": "Scan and Clean Infected Files",
+            "description": "Scan the system to clean infected files.",
+            "on_completion": "decision--73dfc563-6039-448f-8a8e-3b43aacb0f75",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / -i --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--0158d189-b849-45a9-87e1-c69b1ea7713b": {
+            "name": "Update Firewall Rules",
+            "description": "Block connections from known malicious IP addresses.",
+            "on_completion": "decision--73dfc563-6039-448f-8a8e-3b43aacb0f75",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.100"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--73dfc563-6039-448f-8a8e-3b43aacb0f75": {
+            "name": "Check Backup Integrity",
+            "type": "decision",
+            "condition": "backup_integrity_verified",
+            "on_true": "action--73dfc563-6039-448f-8a8e-3b43aacb0f75",
+            "on_false": "end--8d8a7abc-31c3-4d22-bd6e-f12e1f0b6b9d"
+        },
+        "action--73dfc563-6039-448f-8a8e-3b43aacb0f75": {
+            "name": "Restore From Backup",
+            "description": "Restore affected systems from the verified backup.",
+            "on_completion": "end--8d8a7abc-31c3-4d22-bd6e-f12e1f0b6b9d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backups/latest /"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--8d8a7abc-31c3-4d22-bd6e-f12e1f0b6b9d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Example Security Team"
+        }
+    }
+}

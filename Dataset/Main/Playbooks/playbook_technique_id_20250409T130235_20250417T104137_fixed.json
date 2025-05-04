@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a41273c2-5f8e-46f4-9916-61196139f578",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a compromised user account to execute malicious scripts on a server, exfiltrating sensitive data and establishing a backdoor for persistent access.",
+    "created_by": "identity--e47d462b-ddf9-4f28-9b68-65cbb0331a97",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1b23a51c-2ab6-4b6c-b98f-22ccc8b39205",
+    "workflow": {
+        "start--1b23a51c-2ab6-4b6c-b98f-22ccc8b39205": {
+            "on_completion": "action--2b446809-6b49-4a5b-8976-7d486c3b4deb",
+            "type": "start"
+        },
+        "action--f234ca3e-5a91-4c94-b4cb-2b8781d96d88": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "action--28c63d1f-7165-4d3e-b02a-ef59f61c6457",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-script.ps1"
+                }
+            ],
+            "agent": "organization--a02a2c96-1928-40c6-9a1c-f0cc4838b6f8"
+        },
+        "action--28c63d1f-7165-4d3e-b02a-ef59f61c6457": {
+            "name": "Remove dropped files",
+            "description": "Remove suspicious files dropped during the attack until none are left.",
+            "on_completion": "decision--31f0b836-0a2e-403f-9247-531ecfeaa04f",
+            "type": "action",
+            "step_variables": {
+                "suspicious_files": {
+                    "type": "array",
+                    "description": "List of suspicious files to be removed",
+                    "value": [
+                        "/tmp/suspicious-file1.tmp",
+                        "/tmp/suspicious-file2.tmp"
+                    ],
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm ${suspicious_files}"
+                }
+            ],
+            "agent": "organization--a02a2c96-1928-40c6-9a1c-f0cc4838b6f8"
+        },
+        "action--2b446809-6b49-4a5b-8976-7d486c3b4deb": {
+            "name": "Block outgoing traffic to known bad IP",
+            "description": "Block any outgoing traffic to the identified bad IP address.",
+            "on_completion": "end--e1c26a8f-b737-4410-bb2e-c30a56fee26f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--a02a2c96-1928-40c6-9a1c-f0cc4838b6f8"
+        },
+        "end--e1c26a8f-b737-4410-bb2e-c30a56fee26f": {
+            "type": "end"
+        },
+        "decision--31f0b836-0a2e-403f-9247-531ecfeaa04f": {
+            "name": "Check if suspicious files exist",
+            "type": "if-condition",
+            "condition": "suspicious_files.length > 0",
+            "on_true": "action--28c63d1f-7165-4d3e-b02a-ef59f61c6457",
+            "on_false": "action--2b446809-6b49-4a5b-8976-7d486c3b4deb"
+        }
+    },
+    "agent_definitions": {
+        "organization--a02a2c96-1928-40c6-9a1c-f0cc4838b6f8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2d36b4e-5f3e-4d1b-8f11-2c876c8f387b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses detecting and mitigating malicious script execution from a compromised admin account.",
+    "created_by": "identity--4b1be04f-211f-4a62-986e-f2b9e53a970b",
+    "created": "2023-11-10T15:00:21.839Z",
+    "modified": "2023-11-10T15:01:50.112Z",
+    "revoked": false,
+    "workflow_start": "start--b6192d1d-77e2-4c6c-8b22-23c09d24a2bf",
+    "workflow": {
+        "start--b6192d1d-77e2-4c6c-8b22-23c09d24a2bf": {
+            "on_completion": "parallel--a8a47893-2316-4e4b-8f17-26d7361f7b82",
+            "type": "start"
+        },
+        "parallel--a8a47893-2316-4e4b-8f17-26d7361f7b82": {
+            "name": "Parallel Mitigation Procedures",
+            "description": "Initiating parallel actions for immediate threat mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6fc8809c-b45c-4fdd-940f-222f155a570c",
+                "action--a9d23f9c-53c4-4de1-b737-1585afa5ec7d"
+            ]
+        },
+        "action--6fc8809c-b45c-4fdd-940f-222f155a570c": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate processes related to the malicious script.",
+            "on_completion": "if-condition--2e3d7f12-9176-4a8a-a78c-b7b5ec7e009c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--fea4397a-bec0-4edd-b9f0-085e75ff648b"
+        },
+        "action--a9d23f9c-53c4-4de1-b737-1585afa5ec7d": {
+            "name": "Block Malicious IP",
+            "description": "Block incoming connections from known malicious IP.",
+            "on_completion": "loop--31c8c5ea-4ab6-46e3-9fcf-34cb30da4014",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.101 -j DROP"
+                }
+            ],
+            "agent": "organization--fea4397a-bec0-4edd-b9f0-085e75ff648b"
+        },
+        "if-condition--2e3d7f12-9176-4a8a-a78c-b7b5ec7e009c": {
+            "name": "Check for Compromised Credentials",
+            "type": "if-condition",
+            "condition": "compromised_creds_detected",
+            "on_true": "action--4d8eb78f-d6e9-45a2-9953-a050893754d8",
+            "on_false": "loop--31c8c5ea-4ab6-46e3-9fcf-34cb30da4014"
+        },
+        "action--4d8eb78f-d6e9-45a2-9953-a050893754d8": {
+            "name": "Reset Admin Credentials",
+            "description": "Reset the credentials for the admin account if compromised.",
+            "on_completion": "loop--31c8c5ea-4ab6-46e3-9fcf-34cb30da4014",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd admin"
+                }
+            ],
+            "agent": "organization--fea4397a-bec0-4edd-b9f0-085e75ff648b"
+        },
+        "loop--31c8c5ea-4ab6-46e3-9fcf-34cb30da4014": {
+            "name": "Run Full System Scan Until Clean",
+            "description": "Perform a full system scan iteratively until all threats are mitigated.",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--51d4b4a2-e27b-46e5-8c5c-360d68331867"
+        },
+        "action--51d4b4a2-e27b-46e5-8c5c-360d68331867": {
+            "name": "Run Full System Scan",
+            "description": "Execute a full system scan to detect and clean all threats.",
+            "on_completion": "loop--31c8c5ea-4ab6-46e3-9fcf-34cb30da4014",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--fea4397a-bec0-4edd-b9f0-085e75ff648b",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the system scan",
+                    "value": "pending",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--4dbb6e1e-54cf-4d83-8a82-b3ba6e3656d9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fea4397a-bec0-4edd-b9f0-085e75ff648b": {
+            "type": "organization",
+            "name": "Internal Security Team"
+        }
+    }
+}

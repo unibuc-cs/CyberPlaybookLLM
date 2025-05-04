@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bce0573b-6ede-4c40-b8d7-816ab7e22cd1",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the organization's web application, executing unauthorized commands via the command line.",
+    "created_by": "identity--87a9a141-eddf-4801-91a7-850b4445c385",
+    "created": "2023-10-03T14:26:00Z",
+    "modified": "2023-10-03T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c0f78d05-7b58-4d67-9511-515e3be4bb63",
+    "workflow": {
+        "start--c0f78d05-7b58-4d67-9511-515e3be4bb63": {
+            "on_completion": "action--6f3ab49d-d6d6-4897-b9e6-77f720d82062",
+            "type": "start"
+        },
+        "action--6f3ab49d-d6d6-4897-b9e6-77f720d82062": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--bb87d036-5adb-47b4-abc1-44f5b15be60c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_script.sh)"
+                }
+            ],
+            "agent": "organization--677a4216-bee4-486e-94c8-6c90bfb52834"
+        },
+        "action--bb87d036-5adb-47b4-abc1-44f5b15be60c": {
+            "name": "Block network connections to suspicious IPs",
+            "description": "Restrict any outbound connections to known malicious IP addresses.",
+            "on_completion": "parallel--1e8b3e41-4f44-4c84-8cce-ddb97799b845",
+            "type": "if-condition",
+            "condition": "suspicious_ip != None",
+            "on_true": "action--bb87d036-5adb-47b4-abc1-44f5b15be60c",
+            "on_false": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "parallel--1e8b3e41-4f44-4c84-8cce-ddb97799b845": {
+            "name": "Perform artifact scan and update logs",
+            "description": "Initiate an artifact scan while logging the actions taken.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845",
+                "action--6edd8f1c-4511-40f7-ae79-105466b99fe6"
+            ]
+        },
+        "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845": {
+            "name": "Scan for other potential artifacts",
+            "description": "Perform a recursive scan to find any remaining malicious artifacts on the host.",
+            "on_completion": "while-condition--a1b9729d-947c-40a2-8c38-abebfde204a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--677a4216-bee4-486e-94c8-6c90bfb52834"
+        },
+        "while-condition--a1b9729d-947c-40a2-8c38-abebfde204a7": {
+            "name": "Check if scan is clean",
+            "description": "Repeat scanning until it is confirmed that the system is clean.",
+            "on_completion": "end--83a3390c-6deb-46b8-8323-abbbe860badb",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "action--6edd8f1c-4511-40f7-ae79-105466b99fe6": {
+            "name": "Log mitigation actions",
+            "description": "Log the actions taken during the mitigation process.",
+            "on_completion": "end--83a3390c-6deb-46b8-8323-abbbe860badb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious actions were terminated and network access was restricted.' >> /var/log/incident_response.log"
+                }
+            ],
+            "agent": "organization--677a4216-bee4-486e-94c8-6c90bfb52834"
+        },
+        "end--83a3390c-6deb-46b8-8323-abbbe860badb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--677a4216-bee4-486e-94c8-6c90bfb52834": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

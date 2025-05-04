@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7b48f44-b02a-4f33-a305-4e873cf58212",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a compromised server, leading to data exfiltration.",
+    "created_by": "identity--2b3d3a70-3f33-499a-85d8-1a03c321b300",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c1d9a8f4-78ab-4e73-bd20-43119bf0e8f1",
+    "workflow": {
+        "start--c1d9a8f4-78ab-4e73-bd20-43119bf0e8f1": {
+            "on_completion": "action--4d748216-c706-47fa-b234-09f95743561c",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initiate the response to the incident."
+        },
+        "action--4d748216-c706-47fa-b234-09f95743561c": {
+            "name": "Kill all active malicious scripts",
+            "description": "Terminate all processes related to the malicious scripts detected.",
+            "on_completion": "action--b3dab2d0-5c54-4b68-b82f-f55c1a6ef1b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8"
+        },
+        "action--b3dab2d0-5c54-4b68-b82f-f55c1a6ef1b9": {
+            "name": "Block external IP associated with data exfiltration",
+            "description": "Deny all incoming traffic from the malicious IP linked to data exfiltration.",
+            "on_completion": "if-condition--e4f29af3-0e95-44aa-b3c7-c7f2e81352fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8"
+        },
+        "if-condition--e4f29af3-0e95-44aa-b3c7-c7f2e81352fa": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "host_compromise == 'true'",
+            "on_true": "action--2640f464-0d66-4c58-b7c4-cb7a68c12362",
+            "on_false": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7"
+        },
+        "action--2640f464-0d66-4c58-b7c4-cb7a68c12362": {
+            "name": "Quarantine affected host",
+            "description": "Take the necessary steps to quarantine the affected host.",
+            "on_completion": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8"
+        },
+        "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7": {
+            "name": "Scan for additional malicious processes",
+            "description": "Perform a thorough scan to check for any additional threats.",
+            "on_completion": "while-condition--1c344faf-43fb-402f-a63d-bf1b94f2be02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --all"
+                }
+            ],
+            "agent": "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8"
+        },
+        "while-condition--1c344faf-43fb-402f-a63d-bf1b94f2be02": {
+            "name": "Check scan results",
+            "description": "Continue scanning until results are clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--bbc58a61-c77e-44d2-93cf-ef8628248bd7",
+            "on_false": "action--2696a4cb-4e93-433f-976f-f0f6745289ee"
+        },
+        "action--2696a4cb-4e93-433f-976f-f0f6745289ee": {
+            "name": "Analyze incoming and outgoing network traffic",
+            "description": "Examine network traffic for any irregularities.",
+            "on_completion": "end--f9b87308-3c97-4cb5-b4fd-5d4772ff5736",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8",
+            "step_variables": {
+                "traffic_filter": {
+                    "type": "string",
+                    "description": "Filter for specific traffic",
+                    "value": "src or dst <internal_ip_range>",
+                    "constant": false
+                }
+            }
+        },
+        "end--f9b87308-3c97-4cb5-b4fd-5d4772ff5736": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8200c3d4-b870-4a58-b6c0-fa54caa91aa8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

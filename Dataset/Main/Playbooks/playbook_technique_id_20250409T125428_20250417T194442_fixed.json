@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ac4e2cbe-a549-4dc2-b2c9-198b6b4c83e0",
+    "name": "Mitigation Playbook for Scripting Language Incident",
+    "description": "This playbook addresses an incident where an attacker used a scripting language to execute commands that resulted in malware installation.",
+    "created_by": "identity--b9c1062e-f676-4895-b5c8-9f948e8e02ab",
+    "created": "2023-10-01T12:30:25Z",
+    "modified": "2023-10-01T12:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--e2f1a752-1740-4d92-bb36-bcf1f540e9b5",
+    "workflow": {
+        "start--e2f1a752-1740-4d92-bb36-bcf1f540e9b5": {
+            "on_completion": "action--a7d5a5c6-3e94-4c4a-90f9-7ff6363845a3",
+            "type": "start"
+        },
+        "action--a7d5a5c6-3e94-4c4a-90f9-7ff6363845a3": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes related to the suspicious script.",
+            "on_completion": "if-condition--cdd89c08-6f88-4092-b967-e73115a40be6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_process_name>"
+                }
+            ],
+            "agent": "organization--575780bb-c771-40ba-9c0b-42a859729f98"
+        },
+        "if-condition--cdd89c08-6f88-4092-b967-e73115a40be6": {
+            "name": "Review network logs for suspicious activity",
+            "type": "if-condition",
+            "condition": "grep 'suspicious_pattern' /var/log/network.log | wc -l > 0",
+            "on_true": "action--212ae853-0a75-49d8-8219-9b352b652170",
+            "on_false": "action--b2757e6b-2bc1-4e7f-b4d6-d347d2c9b9df"
+        },
+        "action--b2757e6b-2bc1-4e7f-b4d6-d347d2c9b9df": {
+            "name": "Conduct a full system scan",
+            "description": "Run a full scan to uncover any hidden threats.",
+            "on_completion": "loop--62902f4b-637f-47a4-85a8-c7edb5e5eaa5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--575780bb-c771-40ba-9c0b-42a859729f98"
+        },
+        "action--212ae853-0a75-49d8-8219-9b352b652170": {
+            "name": "Alert security team",
+            "description": "Alert the security team about suspicious log activity.",
+            "on_completion": "action--b2757e6b-2bc1-4e7f-b4d6-d347d2c9b9df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Alert: Suspicious activity detected in network logs' | mail -s 'Security Alert' security-team@example.com"
+                }
+            ],
+            "agent": "organization--575780bb-c771-40ba-9c0b-42a859729f98"
+        },
+        "loop--62902f4b-637f-47a4-85a8-c7edb5e5eaa5": {
+            "name": "Repeat scan until system is clean",
+            "description": "Re-run the system scan until the output indicates the system is clean.",
+            "condition": "scan_output != clean",
+            "on_true": "action--b2757e6b-2bc1-4e7f-b4d6-d347d2c9b9df",
+            "on_false": "end--a1147937-fd5e-4882-9376-8fd9fb1b5896",
+            "type": "if-condition"
+        },
+        "end--a1147937-fd5e-4882-9376-8fd9fb1b5896": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--575780bb-c771-40ba-9c0b-42a859729f98": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6295eab5-39c3-40c1-8e92-d3d40fa261a2",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts to exfiltrate sensitive data.",
+    "created_by": "identity--a94d7b06-b18c-4d62-b8d8-ec9a286eaf83",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--fbc3fc94-649d-43bc-b5aa-59a5f3a41e89",
+    "workflow": {
+        "start--fbc3fc94-649d-43bc-b5aa-59a5f3a41e89": {
+            "on_completion": "action--a331b1eb-4499-4164-bda1-4c63e39e8aeb",
+            "type": "start"
+        },
+        "action--a331b1eb-4499-4164-bda1-4c63e39e8aeb": {
+            "name": "Kill malicious script",
+            "description": "Terminate the running malicious PowerShell script.",
+            "on_completion": "loop--d6aec864-4e3a-487d-af51-f959b451a453",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--9735bcae-58e6-4f3b-b815-d5f50290e5e5"
+        },
+        "loop--d6aec864-4e3a-487d-af51-f959b451a453": {
+            "name": "Remove dropped files if they exist",
+            "description": "Check for and remove malicious files from the Downloads directory.",
+            "on_completion": "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c",
+            "type": "while-condition",
+            "condition": "file_exists('~/Downloads/malicious_script.ps1') || file_exists('~/Downloads/exfil_data.zip')",
+            "on_true": "action--e16c55e2-bdf3-42eb-9796-ce9c3c898e12",
+            "on_false": "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c"
+        },
+        "action--e16c55e2-bdf3-42eb-9796-ce9c3c898e12": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious script and exfiltrated data.",
+            "on_completion": "loop--d6aec864-4e3a-487d-af51-f959b451a453",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ~/Downloads/malicious_script.ps1 && rm -f ~/Downloads/exfil_data.zip"
+                }
+            ],
+            "agent": "organization--9735bcae-58e6-4f3b-b815-d5f50290e5e5"
+        },
+        "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c": {
+            "name": "Run security scan",
+            "description": "Perform a security scan across the system until it is clean.",
+            "on_completion": "end--ec35194f-af2d-4da6-a035-ce128655a5e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--9735bcae-58e6-4f3b-b815-d5f50290e5e5"
+        },
+        "end--ec35194f-af2d-4da6-a035-ce128655a5e8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9735bcae-58e6-4f3b-b815-d5f50290e5e5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

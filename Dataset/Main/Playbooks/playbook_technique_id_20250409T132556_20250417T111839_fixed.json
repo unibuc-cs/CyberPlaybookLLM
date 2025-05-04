@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--407ff0f9-57c0-4b03-a772-4d5e326d91fa",
+    "name": "Malicious Script Execution Incident Response",
+    "description": "This playbook addresses an incident where the web server was compromised by an attacker executing malicious scripts to exfiltrate data.",
+    "created_by": "identity--14c8b137-dae2-4b8d-b1a3-bc6b0c6d9e0d",
+    "created": "2023-10-01T15:00:00.000Z",
+    "modified": "2023-10-01T15:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1c2f1c2-1212-4c12-989e-9de131e625ff",
+    "workflow": {
+        "start--a1c2f1c2-1212-4c12-989e-9de131e625ff": {
+            "on_completion": "parallel--d9b68c72-d7ef-49eb-9fbe-036b300dd3fe",
+            "type": "start"
+        },
+        "end--e90f9035-12e4-4f20-99b3-653e81a0f303": {
+            "type": "end"
+        },
+        "action--9c85f249-c05c-4cf8-a3cb-7f9ee0c9fb87": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious data exfiltration script that was executed.",
+            "on_completion": "action--5f8cda15-4087-4b2c-bff0-c24eb947e1b7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f data_exfiltration.sh"
+                }
+            ],
+            "agent": "organization--5c69a3a6-b7a6-4593-a831-0349ffd637c7"
+        },
+        "action--5f8cda15-4087-4b2c-bff0-c24eb947e1b7": {
+            "name": "Isolate affected host",
+            "description": "Block incoming connections from identified command and control server.",
+            "on_completion": "while-condition--c19b3e11-3e6a-429e-8eb3-e9ddc5e3bbd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <C2_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--5c69a3a6-b7a6-4593-a831-0349ffd637c7"
+        },
+        "while-condition--c19b3e11-3e6a-429e-8eb3-e9ddc5e3bbd1": {
+            "name": "Run malware scan until clean",
+            "description": "Repeatedly perform a malware scan until the system is clean.",
+            "on_true": "action--b39b8fe5-f6cb-479e-b84f-b5c6bece1f6b",
+            "type": "while-condition",
+            "condition": "scan_completed == false",
+            "on_false": "end--e90f9035-12e4-4f20-99b3-653e81a0f303"
+        },
+        "action--b39b8fe5-f6cb-479e-b84f-b5c6bece1f6b": {
+            "name": "Run comprehensive malware scan",
+            "description": "Scan the affected paths for malware.",
+            "on_completion": "while-condition--c19b3e11-3e6a-429e-8eb3-e9ddc5e3bbd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/infected/files"
+                }
+            ],
+            "agent": "organization--5c69a3a6-b7a6-4593-a831-0349ffd637c7",
+            "step_variables": {
+                "scan_completed": {
+                    "type": "boolean",
+                    "description": "Indicates if the malware scan is complete and no threats were found.",
+                    "value": "false",
+                    "constant": true,
+                    "external": false
+                }
+            }
+        },
+        "parallel--d9b68c72-d7ef-49eb-9fbe-036b300dd3fe": {
+            "name": "Initiate Incident Response",
+            "description": "Perform multiple actions to mitigate the incident simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9c85f249-c05c-4cf8-a3cb-7f9ee0c9fb87",
+                "action--5f8cda15-4087-4b2c-bff0-c24eb947e1b7"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--5c69a3a6-b7a6-4593-a831-0349ffd637c7": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

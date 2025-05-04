@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fbc36b87-e568-49fc-b502-1ff05601bcac",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts on the internal network, potentially leading to data exfiltration.",
+    "created_by": "identity--b8c86d34-e8d8-4fbc-ab5a-a6e0e1642db5",
+    "created": "2024-10-10T08:30:00.000Z",
+    "modified": "2024-10-10T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d5a56796-c0c0-48da-b648-683c4de9c12f",
+    "workflow": {
+        "start--d5a56796-c0c0-48da-b648-683c4de9c12f": {
+            "on_completion": "action--2a80e3c2-864f-4cb3-9bac-29309e6241ef",
+            "type": "start"
+        },
+        "action--2a80e3c2-864f-4cb3-9bac-29309e6241ef": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes currently running.",
+            "on_completion": "action--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc"
+        },
+        "action--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd": {
+            "name": "Scan hosts for unauthorized scripts",
+            "description": "Find and evaluate scripts on the system for unauthorized PowerShell usage.",
+            "on_completion": "action--e3ca962f-2f3c-4fe7-af7a-0af1a2587a3b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1'"
+                }
+            ],
+            "agent": "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc"
+        },
+        "action--e3ca962f-2f3c-4fe7-af7a-0af1a2587a3b": {
+            "name": "Review and rotate credentials for affected accounts",
+            "description": "Change passwords for accounts that may have been compromised during the incident.",
+            "on_completion": "end--b0b3c02a-aed0-4b79-afd2-7d7e8810e095",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd --change username"
+                }
+            ],
+            "agent": "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc"
+        },
+        "end--b0b3c02a-aed0-4b79-afd2-7d7e8810e095": {
+            "type": "end"
+        },
+        "loop--5c5c0c9e-8d22-4c7e-855e-45a0bf6bd832": {
+            "name": "Iterate through found scripts",
+            "type": "loop",
+            "on_completion": "if-condition--d587b402-a01e-4f66-bcdf-60efa15ab931",
+            "step_variables": {
+                "found_scripts": {
+                    "type": "list",
+                    "description": "List of found PowerShell scripts",
+                    "value": "undefined"
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for script in ${found_scripts}; do if [[ ! -f \"/path/to/authorized_scripts/$(basename $script)\" ]]; then echo \"Unauthorized script found: $script\"; fi; done"
+                }
+            ],
+            "agent": "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc"
+        },
+        "if-condition--d587b402-a01e-4f66-bcdf-60efa15ab931": {
+            "name": "Check for unauthorized scripts",
+            "description": "If unauthorized scripts have been found, take appropriate action.",
+            "type": "if-condition",
+            "condition": "${found_scripts} not empty",
+            "on_true": "action--eb3a812d-af0f-4020-8e34-61a8d62f38fd",
+            "on_false": "end--b0b3c02a-aed0-4b79-afd2-7d7e8810e095"
+        },
+        "action--eb3a812d-af0f-4020-8e34-61a8d62f38fd": {
+            "name": "Review unauthorized scripts",
+            "description": "Further analysis of unauthorized scripts should be conducted.",
+            "on_completion": "end--b0b3c02a-aed0-4b79-afd2-7d7e8810e095",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /path/to/unauthorized_scripts_excluded"
+                }
+            ],
+            "agent": "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc"
+        }
+    },
+    "agent_definitions": {
+        "organization--626cf74c-b2d2-4ef0-90b3-ae47a1cdeecc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

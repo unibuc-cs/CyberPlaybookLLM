@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c0dce9a4-8c43-45c0-b866-eeb7903e9cb0",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script from a Word document, thereby gaining unauthorized access to sensitive data.",
+    "created_by": "identity--2dbfebbd-2df0-4d59-baa0-c5b826879c3f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b6e24a83-ba70-479c-a476-577dc47b1078",
+    "workflow": {
+        "start--b6e24a83-ba70-479c-a476-577dc47b1078": {
+            "on_completion": "if-condition--5d2e2a1a-bbe5-4dff-98ed-4582f64fd828",
+            "type": "start"
+        },
+        "if-condition--5d2e2a1a-bbe5-4dff-98ed-4582f64fd828": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "$(pgrep powershell) != ''",
+            "on_true": "action--3268ef53-803a-4c98-9f2d-61e2e1a06c58",
+            "on_false": "action--29cabe01-2cb0-40b1-8a09-280523db24c8"
+        },
+        "action--3268ef53-803a-4c98-9f2d-61e2e1a06c58": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes to halt malicious actions.",
+            "on_completion": "parallel--fce3543a-6156-43bc-9362-e67f791a6e80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--35350e67-f35a-44e4-b127-9ec0a22cd65e"
+        },
+        "parallel--fce3543a-6156-43bc-9362-e67f791a6e80": {
+            "name": "Execute isolation and full system scan",
+            "description": "Simultaneously isolate the affected host from the network and conduct a system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--29cabe01-2cb0-40b1-8a09-280523db24c8",
+                "action--aa267ef5-4cb8-42e9-aaee-9448384e91c7"
+            ]
+        },
+        "action--29cabe01-2cb0-40b1-8a09-280523db24c8": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect the affected host from the network to prevent further data exfiltration.",
+            "on_completion": "while-condition--c6762029-7ebd-404f-aae5-d67b0c45ac90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifdown eth0"
+                }
+            ],
+            "agent": "organization--35350e67-f35a-44e4-b127-9ec0a22cd65e"
+        },
+        "while-condition--c6762029-7ebd-404f-aae5-d67b0c45ac90": {
+            "name": "Wait for isolation confirmation",
+            "description": "Loop until the host is confirmed to be isolated from the network.",
+            "on_completion": "action--aa267ef5-4cb8-42e9-aaee-9448384e91c7",
+            "type": "while-condition",
+            "condition": "isolation_confirmed == false",
+            "on_true": "action--29cabe01-2cb0-40b1-8a09-280523db24c8"
+        },
+        "action--aa267ef5-4cb8-42e9-aaee-9448384e91c7": {
+            "name": "Conduct a full system scan for malicious files",
+            "description": "Perform a comprehensive scan to identify any remaining threats on the system.",
+            "on_completion": "end--d49f15c9-3fcd-45af-8ae8-d24e09ad61c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--35350e67-f35a-44e4-b127-9ec0a22cd65e",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the clamscan",
+                    "value": "scan completed",
+                    "constant": false
+                }
+            }
+        },
+        "end--d49f15c9-3fcd-45af-8ae8-d24e09ad61c7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--35350e67-f35a-44e4-b127-9ec0a22cd65e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

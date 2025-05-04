@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b8e8c4b-4f37-4c5e-8162-0fed7fbe13b4",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving exploitation of a vulnerable web application which led to command execution and data exfiltration.",
+    "created_by": "identity--bc6fb9ec-1c4e-4499-9235-decde681f801",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a34c2735-f93a-4852-b109-3207309632d0",
+    "workflow": {
+        "action--a5a8c3af-bdc8-4f3a-b222-9c93cee26e06": {
+            "name": "Terminate malicious process",
+            "description": "Kill the malicious reverse shell script if it exists.",
+            "on_completion": "if-condition--7d70f1e4-0396-40f0-8511-a0fb29150e2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'reverse_shell_script'"
+                }
+            ],
+            "agent": "organization--ba0744d6-340b-4421-9350-faa92836290e"
+        },
+        "action--c7329cbd-ebd1-4d93-bcd0-5a4893d59d7a": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Block any outgoing traffic to the identified malicious IP.",
+            "on_completion": "action--f5c73e8b-04fd-46c8-af4f-6b3a079b1f20",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--ba0744d6-340b-4421-9350-faa92836290e"
+        },
+        "action--b9225de4-9f90-4e8d-9f9d-d223c7093b72": {
+            "name": "Audit server logs",
+            "description": "Audit all server logs to gather more information.",
+            "on_completion": "loop--6f9586c2-28a8-4b7f-81c7-c8ee12d1a8fe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog"
+                }
+            ],
+            "agent": "organization--ba0744d6-340b-4421-9350-faa92836290e"
+        },
+        "action--f5c73e8b-04fd-46c8-af4f-6b3a079b1f20": {
+            "name": "Deploy intrusion detection system",
+            "description": "Install and deploy an intrusion detection system.",
+            "on_completion": "action--a5723fc8-3d1e-4c03-b4da-8b4b4f2bdfea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "install IDS software"
+                }
+            ],
+            "agent": "organization--ba0744d6-340b-4421-9350-faa92836290e"
+        },
+        "action--a5723fc8-3d1e-4c03-b4da-8b4b4f2bdfea": {
+            "name": "Initiate full system scan",
+            "description": "Run a full system scan to detect remaining threats.",
+            "on_completion": "end--1dd9f0af-d145-4d77-8864-297cacab14d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --all"
+                }
+            ],
+            "agent": "organization--ba0744d6-340b-4421-9350-faa92836290e"
+        },
+        "start--a34c2735-f93a-4852-b109-3207309632d0": {
+            "on_completion": "action--a5a8c3af-bdc8-4f3a-b222-9c93cee26e06",
+            "type": "start"
+        },
+        "if-condition--7d70f1e4-0396-40f0-8511-a0fb29150e2c": {
+            "name": "Check if reverse shell script is running",
+            "type": "if-condition",
+            "condition": "process_exists('reverse_shell_script')",
+            "on_true": "action--c7329cbd-ebd1-4d93-bcd0-5a4893d59d7a",
+            "on_false": "action--b9225de4-9f90-4e8d-9f9d-d223c7093b72"
+        },
+        "loop--6f9586c2-28a8-4b7f-81c7-c8ee12d1a8fe": {
+            "name": "Review logs in a loop",
+            "description": "Continue reviewing logs until all logs have been reviewed.",
+            "on_completion": "action--f5c73e8b-04fd-46c8-af4f-6b3a079b1f20",
+            "type": "while-condition",
+            "condition": "more_logs_to_review()",
+            "on_true": "action--b9225de4-9f90-4e8d-9f9d-d223c7093b72"
+        },
+        "end--1dd9f0af-d145-4d77-8864-297cacab14d3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ba0744d6-340b-4421-9350-faa92836290e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

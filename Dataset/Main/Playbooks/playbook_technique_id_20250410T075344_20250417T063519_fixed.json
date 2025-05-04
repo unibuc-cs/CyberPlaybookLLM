@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d604f490-ec26-4244-aae3-3a073cee134e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited command and scripting interpreters to execute unauthorized scripts, escalate privileges, and establish persistence.",
+    "created_by": "identity--31ee19f1-d76e-4279-ae3a-b77191befd60",
+    "created": "2025-04-10T12:00:00.000Z",
+    "modified": "2025-04-10T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--77b02f97-1b85-4a69-840a-77709cb2abf0",
+    "workflow": {
+        "start--77b02f97-1b85-4a69-840a-77709cb2abf0": {
+            "on_completion": "parallel--e122f032-4ab4-41d4-b8e3-1808e0e5b454",
+            "type": "start"
+        },
+        "parallel--e122f032-4ab4-41d4-b8e3-1808e0e5b454": {
+            "name": "Address Unauthorized Script Execution",
+            "description": "Execute actions to eliminate threats posed by unauthorized scripts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--abbf5478-f8c6-4f9e-b3d4-f1140fe1c7a9",
+                "if-condition--d6e014b0-79f8-43cf-9f79-1abfefaeabb4"
+            ]
+        },
+        "if-condition--d6e014b0-79f8-43cf-9f79-1abfefaeabb4": {
+            "name": "Check for detected connections to suspicious IP",
+            "type": "if-condition",
+            "condition": "detected_connections_to_suspicious_ip",
+            "on_true": "action--c5b8b764-99b9-45e3-a817-d4a8a5a44b31",
+            "on_false": "action--ab3d50f2-6c5f-4284-8fcb-ed28e1dfb730"
+        },
+        "action--abbf5478-f8c6-4f9e-b3d4-f1140fe1c7a9": {
+            "name": "Remove Unauthorized Scripts",
+            "description": "Remove the unauthorized script that was executed.",
+            "on_completion": "action--ab3d50f2-6c5f-4284-8fcb-ed28e1dfb730",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/malicious/script.sh"
+                }
+            ],
+            "agent": "organization--8d1583e4-a793-4494-97b3-18ce1a3d48a0"
+        },
+        "action--c5b8b764-99b9-45e3-a817-d4a8a5a44b31": {
+            "name": "Block Outbound Connections to Suspicious IP",
+            "description": "Block any outbound connections to the identified suspicious IP address.",
+            "on_completion": "action--ab3d50f2-6c5f-4284-8fcb-ed28e1dfb730",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--8d1583e4-a793-4494-97b3-18ce1a3d48a0"
+        },
+        "action--ab3d50f2-6c5f-4284-8fcb-ed28e1dfb730": {
+            "name": "Remove Persistence Mechanism",
+            "description": "Remove the malicious startup script added to the system.",
+            "on_completion": "loop--b639bfd0-31c2-4c3e-970f-0f088234c8be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious_startup.sh"
+                }
+            ],
+            "agent": "organization--dce46253-db77-4d2f-bc78-c71a7f449865"
+        },
+        "loop--b639bfd0-31c2-4c3e-970f-0f088234c8be": {
+            "name": "Scan for Remaining Threats",
+            "description": "Repeatedly scan the system for any remaining threats until the scan results are clean.",
+            "on_completion": "action--f792e721-03f1-4254-93cd-c12d8f1f2f6f",
+            "type": "while-condition",
+            "condition": "scan_results_clean != true",
+            "on_true": "action--6313e2c7-a73e-4365-8eb7-45a8859fb1f6"
+        },
+        "action--6313e2c7-a73e-4365-8eb7-45a8859fb1f6": {
+            "name": "Scan System for Remaining Threats",
+            "description": "Perform a full system scan for remaining threats.",
+            "on_completion": "loop--b639bfd0-31c2-4c3e-970f-0f088234c8be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full-system"
+                }
+            ],
+            "agent": "organization--8d1583e4-a793-4494-97b3-18ce1a3d48a0"
+        },
+        "action--f792e721-03f1-4254-93cd-c12d8f1f2f6f": {
+            "name": "Review and Update Firewall Rules",
+            "description": "Review and update firewall rules to ensure system security.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "review-and-update-firewall.sh"
+                }
+            ],
+            "agent": "organization--dce46253-db77-4d2f-bc78-c71a7f449865"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8d1583e4-a793-4494-97b3-18ce1a3d48a0": {
+            "type": "organization",
+            "name": "ThreatResponseUnit"
+        },
+        "organization--dce46253-db77-4d2f-bc78-c71a7f449865": {
+            "type": "organization",
+            "name": "SystemAdminTeam"
+        }
+    }
+}

@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d54074c-e99e-4ade-8134-3abd970d12e2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents where an attacker executed malicious scripts on the internal network to escalate privileges and compromise sensitive data.",
+    "created_by": "identity--d21e4c5c-5f88-42a6-a4b7-54fe322514a1",
+    "created": "2023-10-10T14:50:00.000Z",
+    "modified": "2023-10-10T14:50:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e82b8f43-a1d7-4b00-bef1-878b0b0a1ab7",
+    "workflow": {
+        "start--e82b8f43-a1d7-4b00-bef1-878b0b0a1ab7": {
+            "on_completion": "parallel--7a42dbe8-e05c-49a7-851f-dd6a91fb93b1",
+            "type": "start"
+        },
+        "parallel--7a42dbe8-e05c-49a7-851f-dd6a91fb93b1": {
+            "name": "Execute Mitigation Steps",
+            "description": "Perform immediate actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3d403f1c-4e09-4a3b-a490-c52962508e1d",
+                "action--c60c21d4-2aed-446f-8a09-d65fd06deba7",
+                "action--276f14e3-a303-4a8b-86cf-f91571097e65"
+            ]
+        },
+        "action--3d403f1c-4e09-4a3b-a490-c52962508e1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script process.",
+            "on_completion": "action--c60c21d4-2aed-446f-8a09-d65fd06deba7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.bat"
+                }
+            ],
+            "agent": "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460"
+        },
+        "action--c60c21d4-2aed-446f-8a09-d65fd06deba7": {
+            "name": "Delete suspicious files",
+            "description": "Remove suspicious files from the temporary directory.",
+            "on_completion": "loop--8e46c184-c491-4c35-a904-416793639d93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.bat"
+                }
+            ],
+            "agent": "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460"
+        },
+        "loop--8e46c184-c491-4c35-a904-416793639d93": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to identify potential threats. Repeat until no threats are found.",
+            "on_completion": "if-condition--32a3bde2-89cf-4c3c-ae10-f976331cd076",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--8e46c184-c491-4c35-a904-416793639d93",
+            "on_false": "if-condition--32a3bde2-89cf-4c3c-ae10-f976331cd076",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460"
+        },
+        "if-condition--32a3bde2-89cf-4c3c-ae10-f976331cd076": {
+            "name": "Monitor command log for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--21a488f6-f30d-4b71-aeb6-1aa553eb37f5",
+            "on_false": "end--d60b8d79-f945-4a57-84d8-e6552dafdddc"
+        },
+        "action--276f14e3-a303-4a8b-86cf-f91571097e65": {
+            "name": "Update endpoint protection software",
+            "description": "Ensure endpoint protection is up to date.",
+            "on_completion": "end--d60b8d79-f945-4a57-84d8-e6552dafdddc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460"
+        },
+        "end--d60b8d79-f945-4a57-84d8-e6552dafdddc": {
+            "type": "end"
+        },
+        "action--23acae81-4cce-4e0d-bf27-703d365d0dcd": {
+            "name": "Alert Admin",
+            "description": "Notify the administrator of suspicious activity.",
+            "on_completion": "end--d60b8d79-f945-4a57-84d8-e6552dafdddc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Suspicious activity detected. Check logs at /var/log/command.log' | mail -s 'Alert: Suspicious Activity Detected' admin@example.com"
+                }
+            ],
+            "agent": "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460"
+        }
+    },
+    "agent_definitions": {
+        "organization--e8fb1a49-60a7-4622-9d51-d3fd448ef460": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5f6b62a-677a-4603-a677-5e8b1e7b2358",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access and executed malicious scripts resulting in data exfiltration.",
+    "created_by": "identity--c6cb9d62-1e46-4cba-8bfd-72c1b2f4b4fa",
+    "created": "2025-10-11T09:15:00Z",
+    "modified": "2025-10-11T09:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--928f0c66-f1e3-4dbc-9877-8fad146f2f83",
+    "workflow": {
+        "action--93af5b0e-f0c5-41c2-b17e-101e8bd947e3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "loop--0fa9e865-d668-438d-b753-1bfb03bd0868",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--131276a1-0e6e-4588-8fd8-c05633b9c38b"
+        },
+        "action--0181c61a-34ab-47a5-9352-9c78bf673cf0": {
+            "name": "Block outbound connection to known malicious IP",
+            "description": "Prevent further communications with the known malicious IP address.",
+            "on_completion": "loop--0fa9e865-d668-438d-b753-1bfb03bd0868",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--131276a1-0e6e-4588-8fd8-c05633b9c38b"
+        },
+        "loop--0fa9e865-d668-438d-b753-1bfb03bd0868": {
+            "name": "Scan for other malicious scripts",
+            "description": "Check for any remaining malicious scripts in the system.",
+            "type": "while-condition",
+            "on_completion": "action--f127811f-c578-4494-9745-85c182ea56d9",
+            "condition": "true",
+            "next_steps": [
+                "action--0fa9e865-d668-438d-b753-1bfb03bd0868"
+            ]
+        },
+        "action--0fa9e865-d668-438d-b753-1bfb03bd0868": {
+            "name": "Find and report malicious scripts",
+            "description": "Look for any suspicious scripts containing specific keywords.",
+            "on_completion": "loop--0fa9e865-d668-438d-b753-1bfb03bd0868",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -H 'malicious_keyword' {} \\;"
+                }
+            ],
+            "agent": "organization--131276a1-0e6e-4588-8fd8-c05633b9c38b"
+        },
+        "start--928f0c66-f1e3-4dbc-9877-8fad146f2f83": {
+            "on_completion": "parallel--b8fec999-5f76-4757-b8c8-dbd587498972",
+            "type": "start"
+        },
+        "parallel--b8fec999-5f76-4757-b8c8-dbd587498972": {
+            "name": "Execute Mitigations",
+            "description": "Initiate multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--93af5b0e-f0c5-41c2-b17e-101e8bd947e3",
+                "action--0181c61a-34ab-47a5-9352-9c78bf673cf0"
+            ]
+        },
+        "end--5b334e5e-b238-45d0-b98a-804b31b9fa56": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--131276a1-0e6e-4588-8fd8-c05633b9c38b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

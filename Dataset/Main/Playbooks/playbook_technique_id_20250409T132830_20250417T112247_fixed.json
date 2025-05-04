@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c9f3aabc-e4b9-4567-bf76-9fb24d91a489",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts for sensitive data exfiltration and triggers mitigation actions.",
+    "created_by": "identity--b38c6cab-86af-4ca4-b0e1-6d8e029ad1bc",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:10:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--23d8f4c0-94e3-4d92-a7e3-fbcd71e9f352",
+    "workflow": {
+        "start--23d8f4c0-94e3-4d92-a7e3-fbcd71e9f352": {
+            "on_completion": "action--d4c2c63f-6fbc-4698-aa32-f312de38d1c9",
+            "type": "start"
+        },
+        "action--d4c2c63f-6fbc-4698-aa32-f312de38d1c9": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Terminate any malicious PowerShell processes that might be running.",
+            "on_completion": "action--1fe3f22c-aa2e-48eb-853b-c2ab41987c88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--3c50c41f-9955-4aea-bfca-bb1d1f84fd32"
+        },
+        "action--1fe3f22c-aa2e-48eb-853b-c2ab41987c88": {
+            "name": "Check and block outbound connections to suspicious IPs",
+            "description": "Block outbound connections to a known suspicious IP address.",
+            "on_completion": "action--0dcd501e-fd24-48fb-9147-caf1aa237cbc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.5 -j DROP"
+                }
+            ],
+            "agent": "organization--3c50c41f-9955-4aea-bfca-bb1d1f84fd32"
+        },
+        "action--0dcd501e-fd24-48fb-9147-caf1aa237cbc": {
+            "name": "Alert security team",
+            "description": "Send an alert to the security team about the malicious activity detected.",
+            "on_completion": "action--8f2e1c54-e3b2-4c69-81db-e3a2f0ebc3cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security alert: malicious activity detected on host-22' | mail -s 'Incident Report' security@organization.com"
+                }
+            ],
+            "agent": "organization--3c50c41f-9955-4aea-bfca-bb1d1f84fd32"
+        },
+        "action--8f2e1c54-e3b2-4c69-81db-e3a2f0ebc3cc": {
+            "name": "Run a full antivirus scan",
+            "description": "Perform a full antivirus scan to detect threats.",
+            "on_completion": "while-condition--ff7984f4-1ab1-4d1c-b24e-1e1a0db2801e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--3c50c41f-9955-4aea-bfca-bb1d1f84fd32"
+        },
+        "while-condition--ff7984f4-1ab1-4d1c-b24e-1e1a0db2801e": {
+            "name": "Repeat antivirus scan",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "end--87e8ec28-124b-43ff-a257-cc89563b290d",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--8f2e1c54-e3b2-4c69-81db-e3a2f0ebc3cc",
+            "on_false": "end--87e8ec28-124b-43ff-a257-cc89563b290d"
+        },
+        "end--87e8ec28-124b-43ff-a257-cc89563b290d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3c50c41f-9955-4aea-bfca-bb1d1f84fd32": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

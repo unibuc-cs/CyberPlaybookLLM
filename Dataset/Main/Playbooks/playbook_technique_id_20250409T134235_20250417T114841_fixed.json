@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b227d6f5-08a7-4a67-ba25-26118c9ef6d4",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident with remote script execution to exfiltrate sensitive data.",
+    "created_by": "identity--abc12345-abcd-1234-abcd-abc123456789",
+    "created": "2023-10-15T10:45:00Z",
+    "modified": "2023-10-15T10:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--4f2d21f2-cbba-4e24-bd7e-1a1fc3af1815",
+    "workflow": {
+        "start--4f2d21f2-cbba-4e24-bd7e-1a1fc3af1815": {
+            "on_completion": "action--836f8c6a-bc98-4425-b006-d4ef94adaf06",
+            "type": "start"
+        },
+        "action--836f8c6a-bc98-4425-b006-d4ef94adaf06": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process running on the affected host.",
+            "on_completion": "while-condition--c3f7a057-66bd-4b58-b5ab-07be1462cee2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--586a8204-63c2-48ab-bd39-66f697ac1049"
+        },
+        "while-condition--c3f7a057-66bd-4b58-b5ab-07be1462cee2": {
+            "name": "Perform integrity check loop",
+            "description": "Continue integrity checks on the affected host until validations pass.",
+            "on_true": "action--f6ec5bc5-8c1f-4a2f-9166-a2d9e5609c2a",
+            "condition": "checks_passed == false",
+            "type": "while-condition"
+        },
+        "action--f6ec5bc5-8c1f-4a2f-9166-a2d9e5609c2a": {
+            "name": "Analyze network traffic for abnormal patterns",
+            "description": "Capture suspicious network traffic related to the incident.",
+            "on_completion": "decision--83fd24e6-cf61-40fc-a0d7-1da35d8b2e3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tshark -i eth0 -Y 'ip.src==malicious_ip || ip.dst==malicious_ip'"
+                }
+            ],
+            "agent": "organization--586a8204-63c2-48ab-bd39-66f697ac1049"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "decision--83fd24e6-cf61-40fc-a0d7-1da35d8b2e3d": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected",
+            "on_true": "action--c3f7a057-66bd-4b58-b5ab-07be1462cee2",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        }
+    },
+    "agent_definitions": {
+        "organization--586a8204-63c2-48ab-bd39-66f697ac1049": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "checks_passed": {
+            "type": "boolean",
+            "description": "Indicator for passing integrity checks.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "suspicious_activity_detected": {
+            "type": "boolean",
+            "description": "Indicator for detecting suspicious network activity.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

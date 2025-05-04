@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b5b48a53-2d1b-4c1c-8444-ec88c4ced323",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a script through phishing, leading to unauthorized data exfiltration.",
+    "created_by": "identity--f753025f-3cef-47ab-8c4e-87e9221c0a55",
+    "created": "2023-10-01T10:00:00Z",
+    "modified": "2023-10-01T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f7a1b33e-c73f-45e8-a0ec-5da70a0ce18c",
+    "workflow": {
+        "start--f7a1b33e-c73f-45e8-a0ec-5da70a0ce18c": {
+            "on_completion": "action--d4a1e2c1-042e-4c88-bc3c-e7a09da3b93b",
+            "type": "start",
+            "name": "Initiate Incident Response",
+            "description": "Start the mitigation process for the incident."
+        },
+        "action--d4a1e2c1-042e-4c88-bc3c-e7a09da3b93b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script process.",
+            "on_completion": "while-condition--8da19b71-74f6-42de-b073-5b8b14f4adee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--08244936-a3e2-4663-ad3e-d9178b40323e"
+        },
+        "while-condition--8da19b71-74f6-42de-b073-5b8b14f4adee": {
+            "name": "Scan System for Malware",
+            "description": "Repeatedly scan the system for malware until none is detected.",
+            "type": "while-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--8da19b71-74f6-42de-b073-5b8b14f4adee",
+            "on_false": "action--b119f990-1780-4761-a7fb-b3fcda0f6f19"
+        },
+        "action--8da19b71-74f6-42de-b073-5b8b14f4adee": {
+            "name": "Scan system for malware",
+            "description": "Perform a comprehensive scan of the system to identify any malware.",
+            "on_completion": "while-condition--8da19b71-74f6-42de-b073-5b8b14f4adee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--08244936-a3e2-4663-ad3e-d9178b40323e",
+            "step_variables": {
+                "malware_found": {
+                    "type": "boolean",
+                    "description": "Indicates if malware was found during the scan.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--b119f990-1780-4761-a7fb-b3fcda0f6f19": {
+            "name": "Change all compromised user credentials",
+            "description": "Reset passwords for all users that may have been compromised.",
+            "on_completion": "end--ea6ca999-0054-4dc9-8472-37e9115ffee8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(get_users); do passwd $user; done"
+                }
+            ],
+            "agent": "organization--08244936-a3e2-4663-ad3e-d9178b40323e"
+        },
+        "end--ea6ca999-0054-4dc9-8472-37e9115ffee8": {
+            "type": "end",
+            "name": "End of Mitigation Process"
+        }
+    },
+    "agent_definitions": {
+        "organization--08244936-a3e2-4663-ad3e-d9178b40323e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

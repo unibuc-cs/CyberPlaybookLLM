@@ -1,0 +1,137 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8d5ae709-58a2-4ede-a3f4-462f12fd3c0b",
+    "name": "Mitigation Playbook for PowerShell Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute base64-encoded commands, leading to unauthorized data access.",
+    "created_by": "identity--e6bbd46b-3347-4b08-8328-311df05fbe45",
+    "created": "2025-04-10T10:00:00.000Z",
+    "modified": "2025-04-10T10:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c4aef3f7-07ab-4c56-bc75-3eae48c556c1",
+    "workflow": {
+        "start--c4aef3f7-07ab-4c56-bc75-3eae48c556c1": {
+            "on_completion": "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842",
+            "type": "start"
+        },
+        "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842": {
+            "name": "Terminate suspicious PowerShell process",
+            "description": "Terminate all running PowerShell scripts detected as suspicious.",
+            "on_completion": "action--c97d5976-b3f4-4a89-bd13-d47fa2bfea94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--258d8b2f-5c94-438d-aec8-a8bee5a86017"
+        },
+        "action--c97d5976-b3f4-4a89-bd13-d47fa2bfea94": {
+            "name": "Quarantine impacted files",
+            "description": "Move suspicious files to a quarantine location if they exist.",
+            "on_completion": "decision--689dbe74-e0c3-4829-9f69-4e8a6352810e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /path/to/suspicious/file ]; then mv /path/to/suspicious/file /quarantine/; fi"
+                }
+            ],
+            "agent": "organization--258d8b2f-5c94-438d-aec8-a8bee5a86017"
+        },
+        "action--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a": {
+            "name": "Perform antivirus scan",
+            "description": "Execute antivirus scan and attempt auto-clean.",
+            "on_completion": "action--f429d671-c80d-439f-938e-09d7d2ffd108",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --auto-clean"
+                }
+            ],
+            "agent": "organization--43ccb3c4-ce6d-49c4-82d2-3a9216f8f891"
+        },
+        "action--f429d671-c80d-439f-938e-09d7d2ffd108": {
+            "name": "Update PowerShell execution policies",
+            "description": "Ensure that PowerShell execution policies are properly set.",
+            "on_completion": "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--258d8b2f-5c94-438d-aec8-a8bee5a86017"
+        },
+        "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587": {
+            "name": "Review and enhance firewall rules",
+            "description": "Add rules to the firewall to block malicious IPs.",
+            "on_completion": "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=ipv4 source address=malicious-ip reject'"
+                }
+            ],
+            "agent": "organization--8b7429ef-3b87-4b6b-aa78-c0780c6f677e"
+        },
+        "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806": {
+            "name": "Monitor network traffic for anomalous activity",
+            "description": "Set up network monitoring for anomalous activities.",
+            "on_completion": "end--e0b1dcb8-1aac-45a7-9ea2-20b19c28293d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --interface ${interface} --alert"
+                }
+            ],
+            "agent": "organization--8b7429ef-3b87-4b6b-aa78-c0780c6f677e",
+            "step_variables": {
+                "interface": {
+                    "type": "string",
+                    "description": "The network interface to monitor for anomalous activities.",
+                    "value": "eth0",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "decision--689dbe74-e0c3-4829-9f69-4e8a6352810e": {
+            "name": "Check antivirus status",
+            "type": "if-condition",
+            "condition": "antivirus_clean == false",
+            "on_true": "while-loop--04ae63ca-94c9-4582-874d-2b77a908d2ad",
+            "on_false": "action--f429d671-c80d-439f-938e-09d7d2ffd108"
+        },
+        "while-loop--04ae63ca-94c9-4582-874d-2b77a908d2ad": {
+            "name": "Run antivirus scan until clean",
+            "description": "Run the antivirus scan repeatedly until the system is clean.",
+            "on_completion": "decision--689dbe74-e0c3-4829-9f69-4e8a6352810e",
+            "type": "while-condition",
+            "condition": "antivirus_clean == false",
+            "on_true": "action--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a"
+        },
+        "end--e0b1dcb8-1aac-45a7-9ea2-20b19c28293d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--43ccb3c4-ce6d-49c4-82d2-3a9216f8f891": {
+            "type": "organization",
+            "name": "Antivirus Support"
+        },
+        "organization--258d8b2f-5c94-438d-aec8-a8bee5a86017": {
+            "type": "organization",
+            "name": "PowerShell Mitigation Team"
+        },
+        "organization--8b7429ef-3b87-4b6b-aa78-c0780c6f677e": {
+            "type": "organization",
+            "name": "Network Security Team"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1d2f74a5-eb7b-4475-bc73-4e3f4b6f21e9",
+    "name": "Mitigation Playbook for Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability to execute scripts, leading to unauthorized file access and data exfiltration.",
+    "created_by": "identity--a3f3f644-e69e-4d0c-a49f-c500f9a9a2bd",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1a28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1a28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "action--d3e461f8-25ff-4e68-9277-5f07f23c4f23",
+            "type": "start"
+        },
+        "end--b1f4d6e5-52e5-4c6b-ac85-60feda3cafe7": {
+            "type": "end"
+        },
+        "action--d3e461f8-25ff-4e68-9277-5f07f23c4f23": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious web shell.",
+            "on_completion": "if-condition--f31c0f69-b6e6-4c7c-91c5-bb5b30c4e170",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f web_shell"
+                }
+            ],
+            "agent": "organization--637bee2a-998a-4276-8305-4bceb14a68bd"
+        },
+        "if-condition--f31c0f69-b6e6-4c7c-91c5-bb5b30c4e170": {
+            "name": "Check if web shell is still running",
+            "type": "if-condition",
+            "condition": "web_shell_is_running",
+            "on_true": "action--7cfaaf51-d053-4b8d-835c-1ac4a2d0d17e",
+            "on_false": "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e"
+        },
+        "action--7cfaaf51-d053-4b8d-835c-1ac4a2d0d17e": {
+            "name": "Remove dropped files",
+            "description": "Delete any files that may have been dropped by the attacker.",
+            "on_completion": "while-condition--d61049c1-e87f-43e0-85c1-e8b7b6b005cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /var/www/html/web_shell"
+                }
+            ],
+            "agent": "organization--637bee2a-998a-4276-8305-4bceb14a68bd"
+        },
+        "while-condition--d61049c1-e87f-43e0-85c1-e8b7b6b005cc": {
+            "name": "Remove files loop",
+            "description": "Repeat the file removal process until no remaining web shells are found.",
+            "on_completion": "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e",
+            "type": "while-condition",
+            "condition": "files_matched",
+            "on_true": "action--7cfaaf51-d053-4b8d-835c-1ac4a2d0d17e"
+        },
+        "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e": {
+            "name": "Run security scan",
+            "description": "Initiate a security scan of the web application directory.",
+            "on_completion": "if-condition--12e4a0c2-b8e1-4cc4-b8a3-64e66b0a3988",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/www"
+                }
+            ],
+            "agent": "organization--637bee2a-998a-4276-8305-4bceb14a68bd",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the security scan.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--12e4a0c2-b8e1-4cc4-b8a3-64e66b0a3988": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e",
+            "on_false": "end--b1f4d6e5-52e5-4c6b-ac85-60feda3cafe7"
+        }
+    },
+    "agent_definitions": {
+        "organization--637bee2a-998a-4276-8305-4bceb14a68bd": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

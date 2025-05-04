@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e269f635-76bd-4f93-bc0e-123456789abc",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution",
+    "description": "This playbook addresses an incident where a PowerShell script was leveraged by an attacker to download and execute malicious payloads. It includes steps to kill malicious processes, disable PowerShell remoting, and perform scans.",
+    "created_by": "identity--abcde678-1234-4ef0-bcde-567890abcdef",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--d8bfa383-8ea4-4c61-b0c4-123456789abc",
+    "workflow": {
+        "start--d8bfa383-8ea4-4c61-b0c4-123456789abc": {
+            "on_completion": "action--23591422-b996-4a88-a349-13ace0ca4517",
+            "type": "start"
+        },
+        "if-condition--bde54ef6-8aa9-443b-9da4-567812348abc": {
+            "name": "Check if PowerShell remoting is already disabled",
+            "type": "if-condition",
+            "condition": "powershell_remoting_enabled == false",
+            "on_true": "action--caa27cba-7ec1-429e-bc8f-113456789def",
+            "on_false": "action--def39c47-7a61-491f-9ea7-ab344567812c"
+        },
+        "action--caa27cba-7ec1-429e-bc8f-113456789def": {
+            "name": "Disable PowerShell remoting",
+            "description": "Disable PowerShell remoting to prevent further remote commands.",
+            "on_completion": "action--def39c47-7a61-491f-9ea7-ab344567812c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Disable-PSRemoting -Force"
+                }
+            ],
+            "agent": "organization--706bed41-1554-4845-b39a-941b31d2321d"
+        },
+        "action--def39c47-7a61-491f-9ea7-ab344567812c": {
+            "name": "Remove downloaded executables",
+            "description": "Cleanup any downloaded executables to remove malware.",
+            "on_completion": "while-condition--9d5636d8-e0d5-4e42-8b0b-123456789abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Remove-Item C:\\DownloadedMalware\\*.exe -Force"
+                }
+            ],
+            "agent": "organization--706bed41-1554-4845-b39a-941b31d2321d"
+        },
+        "while-condition--9d5636d8-e0d5-4e42-8b0b-123456789abc": {
+            "name": "Repeat until all malware is removed",
+            "description": "Check if there are still executable files in the Downloads directory.",
+            "on_completion": "action--def39c47-7a61-491f-9ea7-ab344567812c",
+            "type": "while-condition",
+            "condition": "Get-ChildItem C:\\DownloadedMalware\\*.exe | Measure-Object -Ne -eq 0",
+            "on_true": "action--def39c47-7a61-491f-9ea7-ab344567812c"
+        },
+        "action--f012dc51-c3b5-4b78-af38-123456789abc": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a full system scan to detect any additional threats.",
+            "on_completion": "if-condition--cdf4ffc7-7aa1-450b-8a3c-b13456789def",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--706bed41-1554-4845-b39a-941b31d2321d"
+        },
+        "if-condition--cdf4ffc7-7aa1-450b-8a3c-b13456789def": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--end--f8e0285d-f10c-4a9d-a3e4-123456789abc",
+            "on_false": "action--f012dc51-c3b5-4b78-af38-123456789abc"
+        },
+        "action--end--f8e0285d-f10c-4a9d-a3e4-123456789abc": {
+            "name": "Restore security settings",
+            "description": "Enable real-time monitoring to enhance security.",
+            "on_completion": "end--2c5a8a66-a1b5-4175-816c-b9d5d1998604",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command 'Set-MpPreference -DisableRealtimeMonitoring $false'"
+                }
+            ],
+            "agent": "organization--706bed41-1554-4845-b39a-941b31d2321d"
+        },
+        "action--23591422-b996-4a88-a349-13ace0ca4517": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious executable that may be running.",
+            "on_completion": "if-condition--bde54ef6-8aa9-443b-9da4-567812348abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM malicious.exe"
+                }
+            ],
+            "agent": "organization--706bed41-1554-4845-b39a-941b31d2321d"
+        },
+        "end--2c5a8a66-a1b5-4175-816c-b9d5d1998604": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--706bed41-1554-4845-b39a-941b31d2321d": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

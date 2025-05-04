@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5d43f263-ecb6-4f84-b5c0-d9a6a3f92654",
+    "name": "Playbook for Unauthorized Script Execution Incident",
+    "description": "Mitigation steps for an incident involving unauthorized script execution and potential data exfiltration.",
+    "created_by": "identity--d9f8a5be-068b-4ab7-a6f1-381d0474e188",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:00:00Z",
+    "workflow_start": "start--c9995b3e-902a-4e01-8fb4-42624a10ae46",
+    "workflow": {
+        "action--43df1aec-d8c9-4d2a-ba2b-1823f529742b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that was executed.",
+            "on_completion": "action--55d51c10-1209-41b7-b0d3-112ea8dde6a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[s]uspicious_script' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082"
+        },
+        "action--55d51c10-1209-41b7-b0d3-112ea8dde6a6": {
+            "name": "Isolate the infected host",
+            "description": "Block inbound connections from the infected host if connections are still observed.",
+            "on_completion": "decision--10861ede-1102-4d8d-b132-ef7d41987561",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082"
+        },
+        "start--c9995b3e-902a-4e01-8fb4-42624a10ae46": {
+            "on_completion": "action--43df1aec-d8c9-4d2a-ba2b-1823f529742b",
+            "type": "start"
+        },
+        "decision--10861ede-1102-4d8d-b132-ef7d41987561": {
+            "name": "Check if network connections still observed",
+            "type": "if-condition",
+            "condition": "network_connections_observed == true",
+            "on_true": "action--2137f66d-c752-48cc-abbe-dae66c90d199",
+            "on_false": "action--2b92db4d-715d-4c04-bdb1-74f3582df0f0"
+        },
+        "action--2137f66d-c752-48cc-abbe-dae66c90d199": {
+            "name": "Remove unauthorized script",
+            "description": "Delete the suspicious script from the system.",
+            "on_completion": "loop--035762ac-cd7e-4f2d-8dc0-7ddbb8e787a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/suspicious_script"
+                }
+            ],
+            "agent": "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082"
+        },
+        "loop--035762ac-cd7e-4f2d-8dc0-7ddbb8e787a2": {
+            "name": "Check if script still exists",
+            "type": "while-condition",
+            "condition": "script_exists('/path/to/suspicious_script')",
+            "on_true": "action--2137f66d-c752-48cc-abbe-dae66c90d199",
+            "on_false": "action--2b92db4d-715d-4c04-bdb1-74f3582df0f0"
+        },
+        "action--2b92db4d-715d-4c04-bdb1-74f3582df0f0": {
+            "name": "Reset compromised credentials",
+            "description": "Reset user credentials if compromise is confirmed.",
+            "on_completion": "action--d579b87a-e41b-499d-b5aa-4d3dc28fcfd6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'user:password123' | chpasswd"
+                }
+            ],
+            "agent": "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082"
+        },
+        "action--d579b87a-e41b-499d-b5aa-4d3dc28fcfd6": {
+            "name": "Patch vulnerable applications",
+            "description": "Update and upgrade installed packages to patch vulnerabilities.",
+            "on_completion": "end--a007b2b5-5bff-4f6d-bf2f-9c82bd10b1d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082"
+        },
+        "end--a007b2b5-5bff-4f6d-bf2f-9c82bd10b1d5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8a744c59-d1ca-4883-8747-dcbdfbfd7082": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5b1e259-1ec8-48ef-a6b4-5a12650a1c3b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts after gaining access through stolen credentials.",
+    "created_by": "identity--838e2415-6e82-4b8c-805e-7658f1eb3034",
+    "created": "2025-04-09T12:34:56.000Z",
+    "modified": "2025-04-09T12:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--c1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "type": "start",
+            "on_completion": "parallel--9be85fad-51f3-4bfb-8d52-2a45d0b85d06"
+        },
+        "parallel--9be85fad-51f3-4bfb-8d52-2a45d0b85d06": {
+            "name": "Mitigate Malicious Activity",
+            "description": "Run mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9b1f29df-0b57-4f00-ac0e-d65f88d609c0",
+                "action--e10e61d4-1921-4a82-8f88-d43700d7c646",
+                "action--bdc16f14-2f9f-404f-8d04-5d243c4576bc"
+            ]
+        },
+        "action--9b1f29df-0b57-4f00-ac0e-d65f88d609c0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--6cf56583-3ef0-49e5-a9df-dec28881e719",
+            "on_completion": "action--e10e61d4-1921-4a82-8f88-d43700d7c646"
+        },
+        "action--e10e61d4-1921-4a82-8f88-d43700d7c646": {
+            "name": "Block outbound connections to known malicious IP",
+            "description": "Block known malicious outbound connections.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.1 -j DROP"
+                }
+            ],
+            "agent": "organization--6cf56583-3ef0-49e5-a9df-dec28881e719",
+            "on_completion": "action--bdc16f14-2f9f-404f-8d04-5d243c4576bc"
+        },
+        "action--bdc16f14-2f9f-404f-8d04-5d243c4576bc": {
+            "name": "Run incident response script",
+            "description": "Execute the incident response script until the system is clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash incident_response.sh"
+                }
+            ],
+            "agent": "organization--6cf56583-3ef0-49e5-a9df-dec28881e719",
+            "step_variables": {
+                "scan_state": {
+                    "type": "string",
+                    "description": "State of the scan; will indicate if the system is clean.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--eb93dcdc-c887-4a82-b7e0-8b751d9bf011"
+        },
+        "while-condition--eb93dcdc-c887-4a82-b7e0-8b751d9bf011": {
+            "name": "Repeat until clean",
+            "description": "Repeat scanning the system until it's clean.",
+            "type": "while-condition",
+            "condition": "scan_state == 'dirty'",
+            "on_true": "action--bdc16f14-2f9f-404f-8d04-5d243c4576bc",
+            "on_false": "end--d7f8bff7-ae4f-4730-bbfc-e1e8bb7968cd"
+        },
+        "end--d7f8bff7-ae4f-4730-bbfc-e1e8bb7968cd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6cf56583-3ef0-49e5-a9df-dec28881e719": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

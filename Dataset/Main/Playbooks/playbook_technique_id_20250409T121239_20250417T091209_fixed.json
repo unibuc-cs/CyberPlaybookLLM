@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dfe861e4-d7be-4c4b-8c02-bb0320595956",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts and exfiltrated sensitive data via command line.",
+    "created_by": "identity--05528c8f-9b8d-4917-8e3a-575819d00d0f",
+    "created": "2023-10-02T10:00:00Z",
+    "modified": "2023-10-02T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e6f37811-0738-4516-a10d-ef2dcc9ad2a6",
+    "workflow": {
+        "start--e6f37811-0738-4516-a10d-ef2dcc9ad2a6": {
+            "on_completion": "action--5a3c17d6-a545-44c3-8db4-34f6470eab8d",
+            "type": "start"
+        },
+        "action--5a3c17d6-a545-44c3-8db4-34f6470eab8d": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--ab0b9e22-f99c-4dbb-bb98-44dcabe68854",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--2421705c-4c86-4c85-bc36-7dbe7aaef786"
+        },
+        "action--ab0b9e22-f99c-4dbb-bb98-44dcabe68854": {
+            "name": "Quarantine affected host",
+            "description": "Isolate the affected host to prevent further data exfiltration.",
+            "on_completion": "while-condition--c0fe11e6-4b7a-414c-91a2-a0386a05ed61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ipset add blocked_hosts host-22"
+                }
+            ],
+            "agent": "organization--2421705c-4c86-4c85-bc36-7dbe7aaef786"
+        },
+        "while-condition--c0fe11e6-4b7a-414c-91a2-a0386a05ed61": {
+            "name": "Scan for malware repeatedly until clean",
+            "description": "Continue scanning the host until no malware is found.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e0e7a2a3-8034-4c31-9e63-c1e9334039bb",
+            "on_false": "end--5c8b217e-e7bf-4a21-bc8d-6dacb5ce592a"
+        },
+        "action--e0e7a2a3-8034-4c31-9e63-c1e9334039bb": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive malware scan on the affected host.",
+            "on_completion": "update-scan-status--ddf1d482-9cb1-464d-95b9-eadcd54937ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--2421705c-4c86-4c85-bc36-7dbe7aaef786"
+        },
+        "end--5c8b217e-e7bf-4a21-bc8d-6dacb5ce592a": {
+            "type": "end"
+        },
+        "update-scan-status--ddf1d482-9cb1-464d-95b9-eadcd54937ff": {
+            "name": "Update Scan Status",
+            "description": "Check the latest scan results and set the scan_status variable.",
+            "on_completion": "while-condition--c0fe11e6-4b7a-414c-91a2-a0386a05ed61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "set scan_status=$(check_scan_status)"
+                }
+            ],
+            "agent": "organization--2421705c-4c86-4c85-bc36-7dbe7aaef786"
+        }
+    },
+    "agent_definitions": {
+        "organization--2421705c-4c86-4c85-bc36-7dbe7aaef786": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

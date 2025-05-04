@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c57f1c34-a9ed-4dfb-99f3-53c347bc3ba6",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where malicious scripts were executed on the corporate network, designed to gather sensitive information and upload it externally.",
+    "created_by": "identity--dabc50f3-45c3-469d-9d5f-bab9ab38da48",
+    "created": "2025-04-09T14:10:00.000Z",
+    "modified": "2025-04-09T14:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--6b556b1e-5809-4c88-a228-dbe4755c3b6b",
+    "workflow": {
+        "start--6b556b1e-5809-4c88-a228-dbe4755c3b6b": {
+            "on_completion": "action--21e68f3c-6484-4f5e-bb2c-9a412f91dc9f",
+            "type": "start"
+        },
+        "action--21e68f3c-6484-4f5e-bb2c-9a412f91dc9f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell script processes.",
+            "on_completion": "parallel--fb85c218-65bb-423a-9fc2-5c44f5d292d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--56c82325-3733-4685-918f-cb4d0be03b68"
+        },
+        "parallel--fb85c218-65bb-423a-9fc2-5c44f5d292d5": {
+            "name": "Concurrent Mitigations",
+            "description": "Monitor and scan to ensure system integrity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3f2b8223-75e5-4c4b-9e4a-2b1a4f544f2f",
+                "loop--629a1399-75f3-4c3a-9ec9-7e61dc67ac80"
+            ]
+        },
+        "action--3f2b8223-75e5-4c4b-9e4a-2b1a4f544f2f": {
+            "name": "Monitor outgoing connections",
+            "description": "Start monitoring network traffic for anomalies.",
+            "on_completion": "end--14d6eda4-c0a8-4e60-af7d-9450f5b98eab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -n 'port 80 or port 443'"
+                }
+            ],
+            "agent": "organization--56c82325-3733-4685-918f-cb4d0be03b68",
+            "on_condition": {
+                "condition": "network_anomaly_detected",
+                "on_true": "action--14a244bc-5ccd-4208-b47d-f8b6aabdce73",
+                "on_false": "end--14d6eda4-c0a8-4e60-af7d-9450f5b98eab"
+            }
+        },
+        "action--14a244bc-5ccd-4208-b47d-f8b6aabdce73": {
+            "name": "Investigate anomalies",
+            "description": "Take necessary actions based on detected network anomalies.",
+            "on_completion": "end--14d6eda4-c0a8-4e60-af7d-9450f5b98eab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "analyze_logs_for_anomalies"
+                }
+            ],
+            "agent": "organization--56c82325-3733-4685-918f-cb4d0be03b68"
+        },
+        "loop--629a1399-75f3-4c3a-9ec9-7e61dc67ac80": {
+            "name": "Run malware scan on host",
+            "description": "Perform a thorough malware scan on the host.",
+            "on_completion": "loop--629a1399-75f3-4c3a-9ec9-7e61dc67ac80",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--629a1399-75f3-4c3a-9ec9-7e61dc67ac80",
+            "on_false": "end--14d6eda4-c0a8-4e60-af7d-9450f5b98eab"
+        },
+        "action--629a1399-75f3-4c3a-9ec9-7e61dc67ac80": {
+            "name": "Malware scan execution",
+            "description": "Execute the malware scan command.",
+            "on_completion": "loop--629a1399-75f3-4c3a-9ec9-7e61dc67ac80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--56c82325-3733-4685-918f-cb4d0be03b68"
+        },
+        "end--14d6eda4-c0a8-4e60-af7d-9450f5b98eab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--56c82325-3733-4685-918f-cb4d0be03b68": {
+            "type": "organization",
+            "name": "CorporateSecurityTeam"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d53c68b6-9966-4aaf-9fbd-18a69e872eb2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker exploited command execution vulnerabilities to introduce malicious scripts on a critical server.",
+    "created_by": "identity--0241bf91-6fb2-4383-992d-cad503d34f61",
+    "created": "2023-10-23T14:30:00Z",
+    "modified": "2023-10-23T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--3e9cd699-955c-4fcd-a38f-0efbadbf8b7c",
+    "workflow": {
+        "action--f4416977-5f91-4d6b-8a8d-68d1a1fba19a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious command.",
+            "on_completion": "action--15daf2f2-1480-4d3e-b0bf-e95bca92c42e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--5b05027f-0005-42e5-803b-5d7e206dd15b"
+        },
+        "action--15daf2f2-1480-4d3e-b0bf-e95bca92c42e": {
+            "name": "Isolate affected host",
+            "description": "Disable the network interface to isolate the affected host from the network.",
+            "on_completion": "while-condition--b280f4dc-bc14-41f3-b618-57cbff836305",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--5b05027f-0005-42e5-803b-5d7e206dd15b"
+        },
+        "while-condition--b280f4dc-bc14-41f3-b618-57cbff836305": {
+            "name": "Scan for additional threats",
+            "description": "Perform a scan for additional threats; repeat until a clean status is confirmed.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--464b2653-7526-458d-9e12-27fe1285f316",
+            "on_false": "end--e1234567-fabc-4cde-8901-23456789abcd"
+        },
+        "end--e1234567-fabc-4cde-8901-23456789abcd": {
+            "name": "End Playbook",
+            "description": "All actions are complete; the incident is resolved.",
+            "type": "end"
+        },
+        "start--3e9cd699-955c-4fcd-a38f-0efbadbf8b7c": {
+            "on_completion": "action--f4416977-5f91-4d6b-8a8d-68d1a1fba19a",
+            "type": "start"
+        },
+        "action--464b2653-7526-458d-9e12-27fe1285f316": {
+            "name": "Run threat scan",
+            "description": "Scan the entire system for additional threats.",
+            "on_completion": "while-condition--b280f4dc-bc14-41f3-b618-57cbff836305",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--5b05027f-0005-42e5-803b-5d7e206dd15b",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan result.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--5b05027f-0005-42e5-803b-5d7e206dd15b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

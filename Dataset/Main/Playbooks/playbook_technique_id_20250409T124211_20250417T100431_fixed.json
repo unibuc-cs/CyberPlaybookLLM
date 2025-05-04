@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9452233-7a70-4041-99cf-94bf206f82aa",
+    "name": "MITRE T1059 Mitigation Playbook",
+    "description": "This playbook addresses the incident where an attacker executed a series of scripts to escalate privileges and exfiltrate sensitive data.",
+    "created_by": "identity--d8f45fc0-7475-4f8b-874f-ec436e9c7e56",
+    "created": "2025-10-09T08:55:35.498Z",
+    "modified": "2025-10-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--5674a83b-cf63-4f6a-919b-a5d686275189",
+    "workflow": {
+        "start--5674a83b-cf63-4f6a-919b-a5d686275189": {
+            "on_completion": "action--1e7d2306-eafe-4b58-b0bc-daeecbc05a33",
+            "type": "start"
+        },
+        "action--1e7d2306-eafe-4b58-b0bc-daeecbc05a33": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that was executed.",
+            "on_completion": "if-condition--2f9e7e5f-731c-4c41-b06b-7114433b78a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--54e6015f-4267-4fec-8abb-13badd68d4af"
+        },
+        "if-condition--2f9e7e5f-731c-4c41-b06b-7114433b78a6": {
+            "name": "Check if file integrity is compromised",
+            "type": "if-condition",
+            "condition": "file_integrity_compromised == true",
+            "on_true": "action--2f9e7e5f-731c-4c41-b06b-7114433b78a6",
+            "on_false": "loop--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4"
+        },
+        "action--2f9e7e5f-731c-4c41-b06b-7114433b78a6": {
+            "name": "Run integrity check on affected files",
+            "on_completion": "loop--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "md5sum -c hashfile.md5"
+                }
+            ],
+            "agent": "organization--54e6015f-4267-4fec-8abb-13badd68d4af"
+        },
+        "loop--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4": {
+            "name": "Monitor network activity",
+            "description": "Monitor the network for any suspicious activity from external IPs.",
+            "on_completion": "end--ea4b3f4d-8ae6-41e5-981b-748ef7455d3a",
+            "type": "while-condition",
+            "condition": "suspicious_connections_found == true",
+            "on_true": "action--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4",
+            "on_false": "end--ea4b3f4d-8ae6-41e5-981b-748ef7455d3a"
+        },
+        "action--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4": {
+            "name": "Capture network traffic from suspicious IP",
+            "description": "Capture and analyze packets sent to the suspicious IP address.",
+            "on_completion": "loop--6101a1c2-ba62-4c9a-bb9c-66a7dbd1c0a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host suspicious.ip"
+                }
+            ],
+            "agent": "organization--54e6015f-4267-4fec-8abb-13badd68d4af",
+            "step_variables": {
+                "suspicious_connections_found": {
+                    "type": "boolean",
+                    "description": "Flag indicating if suspicious connections are still being detected.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--ea4b3f4d-8ae6-41e5-981b-748ef7455d3a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--54e6015f-4267-4fec-8abb-13badd68d4af": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

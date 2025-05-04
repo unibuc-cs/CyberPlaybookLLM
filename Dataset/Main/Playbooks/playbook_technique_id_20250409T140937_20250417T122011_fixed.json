@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2a2092e4-3b46-415b-92f0-ac30b2f39adc",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses incidents where an attacker executed malicious scripts using the command interpreter, created a persistent backdoor, and established connections to a command and control server.",
+    "created_by": "identity--f3c17821-337b-4899-aa95-69c8f614a4e5",
+    "created": "2025-04-09T14:00:00Z",
+    "modified": "2025-04-09T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--c19293d7-faa5-4f8c-8e13-4cda52fe896b",
+    "workflow": {
+        "start--c19293d7-faa5-4f8c-8e13-4cda52fe896b": {
+            "on_completion": "action--f317fa98-08c7-4b23-bb51-962064c3c754",
+            "type": "start"
+        },
+        "action--f317fa98-08c7-4b23-bb51-962064c3c754": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes that are executing malicious scripts.",
+            "on_completion": "if-condition--c09b679f-7aa7-4e98-b4c2-7b7820c68177",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--4c83b73f-fc2c-4713-949b-f28ba4245ca4"
+        },
+        "if-condition--c09b679f-7aa7-4e98-b4c2-7b7820c68177": {
+            "name": "Check if backdoor file exists",
+            "description": "Determine whether the backdoor file needs to be deleted.",
+            "type": "if-condition",
+            "condition": "test -f /path/to/backdoor.sh",
+            "on_true": "action--b4cb639b-0c75-4a59-8a46-94abf2faf40e",
+            "on_false": "loop--c1668396-4940-4677-be54-c03ca71a004e"
+        },
+        "action--b4cb639b-0c75-4a59-8a46-94abf2faf40e": {
+            "name": "Delete dropped backdoor file",
+            "description": "Remove the backdoor shell script from the system.",
+            "on_completion": "loop--c1668396-4940-4677-be54-c03ca71a004e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/backdoor.sh"
+                }
+            ],
+            "agent": "organization--4c83b73f-fc2c-4713-949b-f28ba4245ca4"
+        },
+        "loop--c1668396-4940-4677-be54-c03ca71a004e": {
+            "name": "Run antivirus scan until clean",
+            "description": "Perform a scan and check if the system is clean of threats.",
+            "on_true": "end--4d7eb94c-b091-4711-bec4-e86a71747654",
+            "type": "while-condition",
+            "condition": "clamscan -r /path/to/directory | grep -q 'Found'",
+            "on_false": "action--21c547f2-53e4-4856-b55b-6e7ba93a9b37"
+        },
+        "action--21c547f2-53e4-4856-b55b-6e7ba93a9b37": {
+            "name": "Run antivirus scan on the affected host",
+            "description": "Perform a scan of the system to ensure there are no remaining threats.",
+            "on_completion": "loop--c1668396-4940-4677-be54-c03ca71a004e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory"
+                }
+            ],
+            "agent": "organization--4c83b73f-fc2c-4713-949b-f28ba4245ca4"
+        },
+        "end--4d7eb94c-b091-4711-bec4-e86a71747654": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4c83b73f-fc2c-4713-949b-f28ba4245ca4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

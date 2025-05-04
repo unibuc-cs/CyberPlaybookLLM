@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6d48f9d-9352-4dcb-bfdb-cc9361b2f3a2",
+    "name": "Mitigation Playbook for Remote Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute a remote script, leading to data exfiltration and a privilege escalation attempt.",
+    "created_by": "identity--4d07d6d9-ded5-4f0e-8a8c-e752c74b86af",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--4ce1c5ee-6c76-4058-b1b0-ecfb0fb60128",
+    "workflow": {
+        "start--4ce1c5ee-6c76-4058-b1b0-ecfb0fb60128": {
+            "on_completion": "action--55f0e8c2-27f3-4ae3-b579-63e0b20a7a83",
+            "type": "start"
+        },
+        "action--55f0e8c2-27f3-4ae3-b579-63e0b20a7a83": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--9d5124c9-a463-4e97-96c3-f9a257263fbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--362ae051-fd8c-45ed-a0f4-0a7b101b3bc1"
+        },
+        "if-condition--9d5124c9-a463-4e97-96c3-f9a257263fbb": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "is_compromised(host-22)",
+            "on_true": "action--9d5124c9-a463-4e97-96c3-f9a257263fbb",
+            "on_false": "action--7f4d8f6a-4b5e-4855-9bc1-98256a01f4c0"
+        },
+        "action--9d5124c9-a463-4e97-96c3-f9a257263fbb": {
+            "name": "Quarantine affected host",
+            "description": "Block the network interface of the compromised host.",
+            "on_completion": "parallel--0abbd5a6-4bbd-41f4-abe1-52bad4ca7b1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set eth0 down"
+                }
+            ],
+            "agent": "organization--362ae051-fd8c-45ed-a0f4-0a7b101b3bc1"
+        },
+        "parallel--0abbd5a6-4bbd-41f4-abe1-52bad4ca7b1e": {
+            "name": "Execute additional mitigations",
+            "description": "Run additional mitigations such as scanning for scripts and resetting accounts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7f4d8f6a-4b5e-4855-9bc1-98256a01f4c0",
+                "action--39a263de-b453-4f83-b7ee-7b309f4b8578",
+                "action--c2a3995f-9a4f-4b6e-b6fd-066d7076c3e8"
+            ]
+        },
+        "action--7f4d8f6a-4b5e-4855-9bc1-98256a01f4c0": {
+            "name": "Scan for additional malicious scripts",
+            "description": "Search for any additional malicious scripts that may be present on the system.",
+            "on_completion": "while-condition--f0076ba7-5471-4c8c-8e65-0058b223c744",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'suspicious_string' {} \\;"
+                }
+            ],
+            "agent": "organization--038ab0a7-c84c-4e5a-b258-b8fb5efd9625"
+        },
+        "while-condition--f0076ba7-5471-4c8c-8e65-0058b223c744": {
+            "name": "Check for suspicious scripts",
+            "description": "Repeat the scan until no suspicious scripts are found.",
+            "on_completion": "action--39a263de-b453-4f83-b7ee-7b309f4b8578",
+            "type": "while-condition",
+            "condition": "suspicious_scripts_found",
+            "on_true": "action--7f4d8f6a-4b5e-4855-9bc1-98256a01f4c0"
+        },
+        "action--c2a3995f-9a4f-4b6e-b6fd-066d7076c3e8": {
+            "name": "Reset compromised accounts",
+            "description": "Expire passwords for compromised user accounts.",
+            "on_completion": "end--1a39c8f3-e0e4-4b2d-8e75-f25031970140",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd --expire compromised_user"
+                }
+            ],
+            "agent": "organization--038ab0a7-c84c-4e5a-b258-b8fb5efd9625",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "The user account that has been compromised",
+                    "value": "admin",
+                    "constant": false
+                }
+            }
+        },
+        "action--39a263de-b453-4f83-b7ee-7b309f4b8578": {
+            "name": "Block outbound connections to malicious domains",
+            "description": "Prevent outbound connections to any known malicious domains.",
+            "on_completion": "end--1a39c8f3-e0e4-4b2d-8e75-f25031970140",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d anomaly.domain -j DROP"
+                }
+            ],
+            "agent": "organization--65cf11a6-184c-4509-af03-d993418f608b"
+        },
+        "end--1a39c8f3-e0e4-4b2d-8e75-f25031970140": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--362ae051-fd8c-45ed-a0f4-0a7b101b3bc1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--038ab0a7-c84c-4e5a-b258-b8fb5efd9625": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--65cf11a6-184c-4509-af03-d993418f608b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

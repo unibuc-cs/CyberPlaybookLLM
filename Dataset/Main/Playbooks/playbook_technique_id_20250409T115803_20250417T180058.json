@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d254b194-46dc-4dd6-85e8-74d62f81bc11",
+    "name": "Malicious Script Execution Response Playbook",
+    "description": "This playbook addresses an incident where an attacker gained access to a corporate server and executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--9e58b354-92be-4ba0-af0b-b8f17d99838e",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--6d4d6e91-a1f0-47ef-8a42-ed556163e1d0",
+    "workflow": {
+        "start--6d4d6e91-a1f0-47ef-8a42-ed556163e1d0": {
+            "on_completion": "action--b61c4c8e-6055-4ca6-a707-f475c3deb511",
+            "type": "start"
+        },
+        "action--b61c4c8e-6055-4ca6-a707-f475c3deb511": {
+            "name": "Terminate Malicious Script",
+            "description": "Identify and terminate the malicious script that was executed.",
+            "on_completion": "if-condition--3aee210b-ac72-4209-b9f2-3c2eb76c627e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--3aee210b-ac72-4209-b9f2-3c2eb76c627e": {
+            "name": "Check for Attacker IP",
+            "type": "if-condition",
+            "condition": "attacker_ip_detected == true",
+            "on_true": "action--f79ec932-0f30-46cd-a874-c70da6c5e399",
+            "on_false": "action--b23afd36-62b4-4a2e-b752-666d55436a18"
+        },
+        "action--f79ec932-0f30-46cd-a874-c70da6c5e399": {
+            "name": "Isolate Impacted Host",
+            "description": "Isolate the impacted host from the network to prevent further exfiltration.",
+            "on_completion": "loop--34bb4a7f-9f3a-4ec7-9626-7c6db5e34c36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--34bb4a7f-9f3a-4ec7-9626-7c6db5e34c36": {
+            "name": "Perform Full System Scan Loop",
+            "description": "Run a full system scan and repeat until no threats are detected.",
+            "on_completion": "end--dcbfa7f8-dbbf-482f-8541-35658d0af07e",
+            "type": "loop",
+            "condition": "threats_detected == true",
+            "on_true": "action--b23afd36-62b4-4a2e-b752-666d55436a18",
+            "on_false": "end--dcbfa7f8-dbbf-482f-8541-35658d0af07e"
+        },
+        "action--b23afd36-62b4-4a2e-b752-666d55436a18": {
+            "name": "Perform Full System Scan",
+            "description": "Execute a full system scan to detect any remaining threats.",
+            "on_completion": "if-condition--3f7e60ec-db91-4690-95e7-6ec78a557d0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive / --move=/quarantine"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--3f7e60ec-db91-4690-95e7-6ec78a557d0e": {
+            "name": "Check for Remaining Threats",
+            "type": "if-condition",
+            "condition": "system_scan_results == threats_detected",
+            "on_true": "loop--34bb4a7f-9f3a-4ec7-9626-7c6db5e34c36",
+            "on_false": "end--dcbfa7f8-dbbf-482f-8541-35658d0af07e"
+        },
+        "end--dcbfa7f8-dbbf-482f-8541-35658d0af07e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "attacker_ip_detected": {
+            "type": "boolean",
+            "description": "Indicates if the attacker's IP is detected.",
+            "value": true,
+            "constant": false
+        },
+        "threats_detected": {
+            "type": "boolean",
+            "description": "Indicates if any threats are detected after a scan.",
+            "value": true,
+            "constant": false
+        },
+        "system_scan_results": {
+            "type": "boolean",
+            "description": "Results of the system scan.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

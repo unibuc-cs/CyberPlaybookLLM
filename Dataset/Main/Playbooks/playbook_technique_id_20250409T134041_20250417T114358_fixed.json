@@ -1,0 +1,78 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c87ab1a1-5fe6-4f04-b540-d51eb3217c40",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook aims to mitigate the risks posed by a malicious PowerShell script that has executed in the network and established a backdoor.",
+    "created_by": "identity--4567bd7d-df4a-4e30-b84c-4166cfb4d675",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a1b23c45-d12e-45bd-a6ff-e5f31f62d29a",
+    "workflow": {
+        "start--a1b23c45-d12e-45bd-a6ff-e5f31f62d29a": {
+            "on_completion": "action--d86e9408-22c8-4b22-8c71-2e09a6d22bb2",
+            "type": "start"
+        },
+        "action--d86e9408-22c8-4b22-8c71-2e09a6d22bb2": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes potentially executing malicious scripts.",
+            "on_completion": "if-condition--3ca1e94b-ec4d-4fa3-89e1-d82c3aa10fbd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a85a848c-27df-47ce-b09f-ca73bfcf4e15"
+        },
+        "if-condition--3ca1e94b-ec4d-4fa3-89e1-d82c3aa10fbd": {
+            "name": "Check if malicious files exist",
+            "type": "if-condition",
+            "condition": "malicious_files_found == true",
+            "on_true": "loop--3d1d529c-da30-46c2-97d6-6c0ee1e44f23",
+            "on_false": "action--65d4b9b7-e6a1-44df-a12c-d8c17a36cb6e"
+        },
+        "loop--3d1d529c-da30-46c2-97d6-6c0ee1e44f23": {
+            "name": "Remove downloaded payloads",
+            "description": "Continuously remove any downloaded malicious payloads until none are left.",
+            "on_completion": "if-condition--3ca1e94b-ec4d-4fa3-89e1-d82c3aa10fbd",
+            "type": "while-condition",
+            "condition": "malicious_files_found == true",
+            "action": {
+                "name": "Delete suspicious payload",
+                "description": "Removing suspicious files from the file system.",
+                "commands": [
+                    {
+                        "type": "bash",
+                        "command": "rm /path/to/suspicious_payload"
+                    }
+                ],
+                "agent": "organization--a85a848c-27df-47ce-b09f-ca73bfcf4e15"
+            }
+        },
+        "action--65d4b9b7-e6a1-44df-a12c-d8c17a36cb6e": {
+            "name": "Update firewall rules to block outbound connections",
+            "description": "Adjust firewall settings to block outbound connections to command and control servers.",
+            "on_completion": "end--f8c9b54b-3c3d-42e7-bf5c-e7cbeea8537a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=\"ipv4\" source address=\"C2_IP\" reject'"
+                }
+            ],
+            "agent": "organization--a85a848c-27df-47ce-b09f-ca73bfcf4e15"
+        },
+        "end--f8c9b54b-3c3d-42e7-bf5c-e7cbeea8537a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a85a848c-27df-47ce-b09f-ca73bfcf4e15": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

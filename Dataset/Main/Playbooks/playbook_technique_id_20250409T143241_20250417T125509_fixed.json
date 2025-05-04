@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6a7a9c7-b9a3-4dcc-9ea7-b1d1e0e6e2b5",
+    "name": "Mitigation Playbook for Phishing Incident via Malicious Macro",
+    "description": "This playbook addresses an incident where an attacker gained access through a phishing email containing a malicious macro, executing commands that downloaded further payloads.",
+    "created_by": "identity--6927c9de-33e1-415e-80c0-fd9b3f5bbcf4",
+    "created": "2023-10-10T12:45:00Z",
+    "modified": "2023-10-10T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--e7b743ec-4cef-4c2e-a0d2-78e98b8c1bc2",
+    "workflow": {
+        "start--e7b743ec-4cef-4c2e-a0d2-78e98b8c1bc2": {
+            "on_completion": "action--fca9ee1a-046a-4eea-bb5f-3a1a182b1414",
+            "type": "start"
+        },
+        "action--fca9ee1a-046a-4eea-bb5f-3a1a182b1414": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes executing the malicious payload.",
+            "on_completion": "action--e37d9244-4b47-4d53-8459-c1f824c10db2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--8ed5548f-443a-4bf0-af68-c7de5183000c"
+        },
+        "action--e37d9244-4b47-4d53-8459-c1f824c10db2": {
+            "name": "Block remote connection to C2 server",
+            "description": "Prevent outbound connections to the known command and control server.",
+            "on_completion": "action--91daba26-dfe0-4c75-b96c-6ab5675a3608",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--8ed5548f-443a-4bf0-af68-c7de5183000c",
+            "conditional": {
+                "type": "if-condition",
+                "condition": "script_executed_connection_established == true",
+                "on_true": "action--91daba26-dfe0-4c75-b96c-6ab5675a3608",
+                "on_false": "action--f1d84ebc-1fd4-4a09-bfb6-ccfdd6d8e966"
+            }
+        },
+        "action--91daba26-dfe0-4c75-b96c-6ab5675a3608": {
+            "name": "Scan system for malicious files",
+            "description": "Perform a comprehensive scan of the system for any malicious files.",
+            "on_completion": "action--f1d84ebc-1fd4-4a09-bfb6-ccfdd6d8e966",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--8ed5548f-443a-4bf0-af68-c7de5183000c",
+            "loop": {
+                "condition": "scan_results == 'not_clean'",
+                "on_true": "action--91daba26-dfe0-4c75-b96c-6ab5675a3608"
+            }
+        },
+        "action--f1d84ebc-1fd4-4a09-bfb6-ccfdd6d8e966": {
+            "name": "Update antivirus signatures",
+            "description": "Ensure antivirus software is up to date with the latest signatures.",
+            "on_completion": "action--c5e37441-9580-4875-9f96-efdd2f139c56",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install --only-upgrade antivirus-package"
+                }
+            ],
+            "agent": "organization--8ed5548f-443a-4bf0-af68-c7de5183000c"
+        },
+        "action--c5e37441-9580-4875-9f96-efdd2f139c56": {
+            "name": "Alert users of potential phishing attempts",
+            "description": "Notify users to stay vigilant against phishing attempts.",
+            "on_completion": "end--b6f94b0e-5259-4e51-88d0-3996417f0c4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-notification 'Please avoid clicking on unknown links.'"
+                }
+            ],
+            "agent": "organization--8ed5548f-443a-4bf0-af68-c7de5183000c"
+        },
+        "end--b6f94b0e-5259-4e51-88d0-3996417f0c4e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8ed5548f-443a-4bf0-af68-c7de5183000c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

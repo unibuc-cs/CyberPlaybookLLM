@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b079db62-bd01-477a-ad3b-30d37663c1c0",
+    "name": "Mitigation Playbook for Remote Script Execution Incident",
+    "description": "This playbook addresses incidents where an attacker executed malicious scripts, creating backdoors for persistent access.",
+    "created_by": "identity--c28ee977-257f-4121-8883-64c29c2f36a6",
+    "created": "2025-04-10T07:56:01.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8c39924d-bf64-41d4-bb08-b074b9ceb098",
+    "workflow": {
+        "action--dbf76281-aeb8-4f79-9422-f2d70c77b1b3": {
+            "name": "Terminate malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--2c986ad5-3e51-4769-a92a-cb04f2fa9eda",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881"
+        },
+        "if-condition--2c986ad5-3e51-4769-a92a-cb04f2fa9eda": {
+            "name": "Check for suspicious network connections",
+            "type": "if-condition",
+            "condition": "suspicious_network_activity_detected == true",
+            "on_true": "action--2c986ad5-3e51-4769-a92a-cb04f2fa9eda",
+            "on_false": "action--23ebab58-1251-4e5f-b08d-e91f1b78a8c9"
+        },
+        "action--2c986ad5-3e51-4769-a92a-cb04f2fa9eda": {
+            "name": "Block outbound network traffic for host-45",
+            "description": "Block unauthorized outbound network traffic.",
+            "on_completion": "action--23ebab58-1251-4e5f-b08d-e91f1b78a8c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <unknown destination IP> -j DROP"
+                }
+            ],
+            "agent": "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881"
+        },
+        "action--23ebab58-1251-4e5f-b08d-e91f1b78a8c9": {
+            "name": "Run malware scan and repeat until clean",
+            "description": "Perform a malware scan and continually repeat until no malware is detected.",
+            "type": "while-condition",
+            "on_completion": "action--a81b1d09-f302-4b74-a54d-efa5e5619dc4",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--c202d3a7-5b4e-4970-9925-50dfb1a16b23",
+            "on_false": "self--500e2958-004b-4c60-bc2e-d65bb3f5da4a",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --host host-45"
+                }
+            ],
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the last scan",
+                    "value": "not_clean",
+                    "constant": false
+                }
+            },
+            "agent": "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881"
+        },
+        "action--a81b1d09-f302-4b74-a54d-efa5e5619dc4": {
+            "name": "Remove file permissions for unauthorized scripts",
+            "description": "Change permissions of suspicious files to deny access.",
+            "on_completion": "action--c202d3a7-5b4e-4970-9925-50dfb1a16b23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 000 /path/to/suspicious/files"
+                }
+            ],
+            "agent": "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881"
+        },
+        "action--c202d3a7-5b4e-4970-9925-50dfb1a16b23": {
+            "name": "Revoke compromised user credentials",
+            "description": "Lock out compromised user accounts.",
+            "on_completion": "end--ce86b3be-cf85-4d3b-908a-84e575e11858",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L root"
+                }
+            ],
+            "agent": "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881"
+        },
+        "start--8c39924d-bf64-41d4-bb08-b074b9ceb098": {
+            "on_completion": "action--dbf76281-aeb8-4f79-9422-f2d70c77b1b3",
+            "type": "start"
+        },
+        "end--ce86b3be-cf85-4d3b-908a-84e575e11858": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2ffda8ca-f138-49de-a7a6-7ea68d4a3881": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

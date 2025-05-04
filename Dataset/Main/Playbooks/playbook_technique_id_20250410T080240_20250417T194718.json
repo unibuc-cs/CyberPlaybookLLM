@@ -1,0 +1,160 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b472a2f3-e5de-4ea2-a9f9-3e9a6ed6bb6f",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter",
+    "description": "This playbook addresses an incident involving malicious script execution for privilege escalation and establishing outbound connections.",
+    "created_by": "identity--45fdf0f4-875c-40d2-b96a-60f9ecdf17d6",
+    "created": "2023-10-13T10:00:00Z",
+    "modified": "2023-10-13T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d78be3f2-9ffc-4f5a-bf8d-73db3b1c3456",
+    "workflow": {
+        "start--d78be3f2-9ffc-4f5a-bf8d-73db3b1c3456": {
+            "on_completion": "parallel--ba9e374c-79b1-4d6e-a2e3-1f6b2d20a58e",
+            "type": "start"
+        },
+        "parallel--ba9e374c-79b1-4d6e-a2e3-1f6b2d20a58e": {
+            "name": "Address Multiple Threats",
+            "description": "Perform parallel actions to mitigate threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--027c8f4a-b86a-47f1-a6f0-7a8a6f2cc196",
+                "action--edec41be-23bf-4c28-ace7-ac54dc0f8826",
+                "if-condition--739aeef3-eda2-4e57-9c5f-b540af12fIMG",
+                "while-condition--ff9a679f-2980-4b0a-a5d6-10e56c6c2f9d"
+            ]
+        },
+        "action--027c8f4a-b86a-47f1-a6f0-7a8a6f2cc196": {
+            "name": "Terminate Malicious PowerShell Process",
+            "description": "Terminate any processes that are executing malicious PowerShell scripts.",
+            "on_completion": "action--7a91e4b6-739a-4aa5-8342-64e244464cb7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--edec41be-23bf-4c28-ace7-ac54dc0f8826": {
+            "name": "Block Malicious Outgoing IP Connections",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "action--7a91e4b6-739a-4aa5-8342-64e244464cb7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--739aeef3-eda2-4e57-9c5f-b540af12fIMG": {
+            "name": "Check and Reset User Privileges",
+            "description": "Check if unauthorized privilege escalation occurred and reset user privileges.",
+            "type": "if-condition",
+            "condition": "usermod -l | grep 'admin'",
+            "on_true": "action--47b8a3c9-8a7c-4dfe-ba70-d4b537fc9a51",
+            "on_false": "action--7a91e4b6-739a-4aa5-8342-64e244464cb7"
+        },
+        "action--47b8a3c9-8a7c-4dfe-ba70-d4b537fc9a51": {
+            "name": "Reset Escalated User Privileges",
+            "description": "Reset unauthorized escalated user privileges back to normal.",
+            "on_completion": "action--7a91e4b6-739a-4aa5-8342-64e244464cb7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -G users regular_user"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "while-condition--ff9a679f-2980-4b0a-a5d6-10e56c6c2f9d": {
+            "name": "Run AV Full System Scan",
+            "description": "Perform a full system antivirus scan and loop until the system is clean.",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--a8f7e738-2619-44f6-bd2d-5fc5ed9f6c2e",
+            "on_completion": "action--7a91e4b6-739a-4aa5-8342-64e244464cb7",
+            "type": "while-condition"
+        },
+        "action--a8f7e738-2619-44f6-bd2d-5fc5ed9f6c2e": {
+            "name": "Run Full System AV Scan",
+            "description": "Execute a full system antivirus scan.",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the AV scan",
+                    "value": "scan_output()",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/bin/avscan --full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--9c8f6fab-6ada-4f2a-a319-169cf29fa65f": {
+            "name": "Patch Vulnerable Web Application",
+            "description": "Check and apply patch to the vulnerable web application if available.",
+            "type": "if-condition",
+            "condition": "is_patch_available()",
+            "on_true": "action--fc8d3e4d-bc25-4eaa-9e8a-0b367c496a3d",
+            "on_false": "end--ad243de2-56b2-4c8f-8ce5-b7c0d48de3fb"
+        },
+        "action--fc8d3e4d-bc25-4eaa-9e8a-0b367c496a3d": {
+            "name": "Apply Web Application Patch",
+            "description": "Apply security patch to the web application.",
+            "on_completion": "end--ad243de2-56b2-4c8f-8ce5-b7c0d48de3fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-web-app --apply-patch"
+                }
+            ],
+            "agent": "organization--ghi"
+        },
+        "action--7a91e4b6-739a-4aa5-8342-64e244464cb7": {
+            "name": "Verify Remediation Actions",
+            "description": "Ensure all actions completed successfully and no further threats remain.",
+            "on_completion": "if-condition--9c8f6fab-6ada-4f2a-a319-169cf29fa65f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "verify_remediation()"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--ad243de2-56b2-4c8f-8ce5-b7c0d48de3fb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityTeamA"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "SecurityTeamB"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "NetworkDefenseTeam"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "WebAppMaintenanceTeam"
+        }
+    }
+}

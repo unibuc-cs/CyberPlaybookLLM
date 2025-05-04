@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c656c3f5-a85b-40f8-b526-1e74da3285fa",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable application protocol to exfiltrate sensitive data from the network.",
+    "created_by": "identity--feb4f687-557d-453f-9932-9ae89c678f73",
+    "created": "2023-10-06T08:00:00.000Z",
+    "modified": "2023-10-06T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--18dcf18e-e3b8-4f4b-8ffe-f13043a17210",
+    "workflow": {
+        "action--cb85045b-43c2-4bff-bc08-88915c1340e2": {
+            "name": "Block malicious IP address",
+            "description": "Block the IP address associated with the malicious activity.",
+            "on_completion": "action--09c3086b-f74d-4d05-b39e-f3db9f973717",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--f95e5b35-8761-4ebb-9484-93d34041c0bd"
+        },
+        "action--be123c41-29be-4e0a-9342-2b097b16a09e": {
+            "name": "Monitor outgoing traffic",
+            "description": "Run a script to monitor outgoing traffic for anomalies.",
+            "on_completion": "if-condition--a36aaace-20fb-49b1-affb-5136dd41cdb3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_monitoring_script.sh"
+                }
+            ],
+            "agent": "organization--f95e5b35-8761-4ebb-9484-93d34041c0bd"
+        },
+        "action--09c3086b-f74d-4d05-b39e-f3db9f973717": {
+            "name": "Perform forensic analysis",
+            "description": "Perform forensic analysis of affected systems to understand the scope of the breach.",
+            "on_completion": "while-condition--fca20267-2e4a-4056-b6ea-e428620bff70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "analyze_logs /var/log/secure"
+                }
+            ],
+            "agent": "organization--f95e5b35-8761-4ebb-9484-93d34041c0bd"
+        },
+        "start--18dcf18e-e3b8-4f4b-8ffe-f13043a17210": {
+            "on_completion": "parallel--9e0d4f38-39c7-4b9d-8f62-6e4472cc3675",
+            "type": "start"
+        },
+        "parallel--9e0d4f38-39c7-4b9d-8f62-6e4472cc3675": {
+            "name": "Mitigation Steps",
+            "description": "Execute mitigation steps in parallel to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cb85045b-43c2-4bff-bc08-88915c1340e2",
+                "action--be123c41-29be-4e0a-9342-2b097b16a09e"
+            ]
+        },
+        "if-condition--a36aaace-20fb-49b1-affb-5136dd41cdb3": {
+            "name": "Check for anomalies in traffic",
+            "type": "if-condition",
+            "condition": "detected_anomalous_traffic > threshold",
+            "on_true": "end--c2eaeb7e-2e6a-4ddc-8559-7ea6be85d635",
+            "on_false": "action--09c3086b-f74d-4d05-b39e-f3db9f973717"
+        },
+        "while-condition--fca20267-2e4a-4056-b6ea-e428620bff70": {
+            "name": "Investigate Incident Loop",
+            "description": "Continue forensic analysis until investigation is complete.",
+            "type": "while-condition",
+            "condition": "investigation_status == 'in_progress'",
+            "on_true": "action--09c3086b-f74d-4d05-b39e-f3db9f973717",
+            "on_false": "end--c2eaeb7e-2e6a-4ddc-8559-7ea6be85d635"
+        },
+        "end--c2eaeb7e-2e6a-4ddc-8559-7ea6be85d635": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f95e5b35-8761-4ebb-9484-93d34041c0bd": {
+            "type": "organization",
+            "name": "NetworkSecurity"
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cfebc62b-d512-4704-a561-fce5111d5c66",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a compromised employee account to execute malicious PowerShell commands and exfiltrate sensitive information.",
+    "created_by": "identity--3f935c06-fbfe-4f20-acd3-4425ff518513",
+    "created": "2025-10-11T14:05:23.000Z",
+    "modified": "2025-10-11T14:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--5d1fe553-f67f-435f-bd73-8cc38141904d",
+    "workflow": {
+        "action--d5b67559-5a84-4f19-a1c8-22394e040800": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the suspicious PowerShell script.",
+            "on_completion": "action--3421ee31-42aa-4764-8e02-4e283368be09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--bae8e338-523d-4c0c-9d06-f2ac3cb29cb0"
+        },
+        "action--d853ae8f-8724-4f69-b164-0813f2cc8c8b": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Prevent further data exfiltration by blocking connection to the malicious IP.",
+            "on_completion": "action--3421ee31-42aa-4764-8e02-4e283368be09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--bae8e338-523d-4c0c-9d06-f2ac3cb29cb0"
+        },
+        "action--3421ee31-42aa-4764-8e02-4e283368be09": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Continuously scan the host for additional threats until a clean scan is achieved.",
+            "on_completion": "end--f64d50e6-6202-4d45-b04e-5f3394caf0e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! clamav --scan host-12; do sleep 10; done"
+                }
+            ],
+            "agent": "organization--bae8e338-523d-4c0c-9d06-f2ac3cb29cb0"
+        },
+        "start--5d1fe553-f67f-435f-bd73-8cc38141904d": {
+            "on_completion": "parallel--31e0d6ba-3dd0-46c0-afc6-d46a67eb4453",
+            "type": "start"
+        },
+        "parallel--31e0d6ba-3dd0-46c0-afc6-d46a67eb4453": {
+            "name": "Execute Immediate Mitigations",
+            "description": "Execute measures to terminate malicious activity and block further damage.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d5b67559-5a84-4f19-a1c8-22394e040800",
+                "action--d853ae8f-8724-4f69-b164-0813f2cc8c8b"
+            ]
+        },
+        "end--f64d50e6-6202-4d45-b04e-5f3394caf0e1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bae8e338-523d-4c0c-9d06-f2ac3cb29cb0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

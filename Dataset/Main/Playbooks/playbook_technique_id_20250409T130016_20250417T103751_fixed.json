@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2fba8de-8f53-4e2e-951b-497953a5d1a4",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to establish persistence and exfiltrate sensitive data following a successful phishing attack.",
+    "created_by": "identity--96d0daee-5798-49b5-a821-63eed6e198b7",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--82f302f3-f222-4c51-8303-4ec8d3d260eb",
+    "workflow": {
+        "action--92b7c2e4-0e6e-4e56-85fd-b003f865c78c": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious PowerShell scripts that are currently executing.",
+            "on_completion": "parallel--94dea52b-4558-42b6-9c86-c1905a6161aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--42bba4db-2e87-4eef-8a6e-89a1106843f4"
+        },
+        "action--bcb02a7b-cc62-49e2-878e-486ec6d2081f": {
+            "name": "Quarantine suspicious files",
+            "description": "Move suspicious files to a quarantine directory.",
+            "on_completion": "action--ecca274b-c1e7-4fad-953c-6d4518a953d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/malicious_file /path/to/quarantine/"
+                }
+            ],
+            "agent": "organization--42bba4db-2e87-4eef-8a6e-89a1106843f4"
+        },
+        "action--ecca274b-c1e7-4fad-953c-6d4518a953d0": {
+            "name": "Run anti-malware scan",
+            "description": "Perform a system-wide anti-malware scan to identify and mitigate threats.",
+            "on_completion": "while-condition--fcb802d1-d3d7-418b-893f-21d77ccabe27",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan / --report"
+                }
+            ],
+            "agent": "organization--42bba4db-2e87-4eef-8a6e-89a1106843f4"
+        },
+        "start--82f302f3-f222-4c51-8303-4ec8d3d260eb": {
+            "on_completion": "action--92b7c2e4-0e6e-4e56-85fd-b003f865c78c",
+            "type": "start"
+        },
+        "parallel--94dea52b-4558-42b6-9c86-c1905a6161aa": {
+            "name": "Address suspicious files and perform scans",
+            "description": "Quarantine suspicious files and run anti-malware scan in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--b31839e1-5af9-4ec6-a0e0-91660814ffc2",
+                "action--ecca274b-c1e7-4fad-953c-6d4518a953d0"
+            ]
+        },
+        "if-condition--b31839e1-5af9-4ec6-a0e0-91660814ffc2": {
+            "name": "Check for suspicious files",
+            "type": "if-condition",
+            "condition": "suspicious_file_exists",
+            "on_true": "action--bcb02a7b-cc62-49e2-878e-486ec6d2081f",
+            "on_false": "action--ecca274b-c1e7-4fad-953c-6d4518a953d0"
+        },
+        "while-condition--fcb802d1-d3d7-418b-893f-21d77ccabe27": {
+            "name": "Threats check loop",
+            "description": "Repeat the malware scan until no threats are found.",
+            "on_completion": "end--70192cd0-4970-4c7f-85d1-c9930c4e93ce",
+            "type": "while-condition",
+            "condition": "threats_found == false",
+            "on_true": "action--ecca274b-c1e7-4fad-953c-6d4518a953d0"
+        },
+        "end--70192cd0-4970-4c7f-85d1-c9930c4e93ce": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--42bba4db-2e87-4eef-8a6e-89a1106843f4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "suspicious_file_exists": {
+            "type": "boolean",
+            "description": "True if suspicious file exists, else false.",
+            "value": true,
+            "constant": false
+        },
+        "threats_found": {
+            "type": "boolean",
+            "description": "True if threats are found during scanning, else false.",
+            "value": true,
+            "constant": false
+        }
+    }
+}

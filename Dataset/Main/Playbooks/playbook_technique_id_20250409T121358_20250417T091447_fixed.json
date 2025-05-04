@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8f1e45f9-49c2-48ea-8f09-96f644672f45",
+    "name": "Playbook for Mitigating Command Interpreter Abuse",
+    "description": "This playbook addresses an incident where an attacker executed suspicious scripts using command interpreters to spread malware across multiple hosts.",
+    "created_by": "identity--abc12345-587d-494e-8ee6-ea742fd70b78",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b2a29eae-c5ab-4788-b4b0-530cfe0acb2a",
+    "workflow": {
+        "start--b2a29eae-c5ab-4788-b4b0-530cfe0acb2a": {
+            "on_completion": "action--b6e043e5-14f2-403d-92bf-75a6f984a1b3",
+            "type": "start"
+        },
+        "action--b6e043e5-14f2-403d-92bf-75a6f984a1b3": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process found on the systems.",
+            "on_completion": "action--3c54f4c9-9ddb-4b14-9fe3-5dbac4f97e6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--734b4017-1f18-4031-a46b-3069fc295fba"
+        },
+        "action--3c54f4c9-9ddb-4b14-9fe3-5dbac4f97e6b": {
+            "name": "Remove dropped files",
+            "description": "Delete all malicious files from the system.",
+            "on_completion": "parallel--4951746d-1c25-4ad9-abc9-dcb08af9830e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_file.*' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--734b4017-1f18-4031-a46b-3069fc295fba"
+        },
+        "action--d2b7d9ee-f71a-44e0-bb31-c5dc39e3e431": {
+            "name": "Scan for vulnerabilities",
+            "description": "Conduct a vulnerability scan on the affected host.",
+            "on_completion": "decision--943c65e8-68b1-4197-b7ef-c608d7d13d36",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "vuln_scan_tool --target host-01"
+                }
+            ],
+            "agent": "organization--734b4017-1f18-4031-a46b-3069fc295fba"
+        },
+        "decision--943c65e8-68b1-4197-b7ef-c608d7d13d36": {
+            "name": "Check vulnerabilities found",
+            "type": "if-condition",
+            "condition": "vulnerabilities_found == true",
+            "on_true": "action--d2b7d9ee-f71a-44e0-bb31-c5dc39e3e431",
+            "on_false": "parallel--4951746d-1c25-4ad9-abc9-dcb08af9830e"
+        },
+        "parallel--4951746d-1c25-4ad9-abc9-dcb08af9830e": {
+            "name": "Mitigate outbound threats",
+            "description": "Concurrent actions to block malicious IP and isolate affected hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c0f9fb49-d7f3-4943-932c-3d514c337b78",
+                "loop--5efb263c-177c-4f26-a8c9-1a3acee64118"
+            ]
+        },
+        "action--c0f9fb49-d7f3-4943-932c-3d514c337b78": {
+            "name": "Block malicious IP address",
+            "description": "Block the outbound connection to the known malicious IP.",
+            "on_completion": "loop--5efb263c-177c-4f26-a8c9-1a3acee64118",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--734b4017-1f18-4031-a46b-3069fc295fba"
+        },
+        "loop--5efb263c-177c-4f26-a8c9-1a3acee64118": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate each affected host in the environment.",
+            "on_completion": "end--a63b2cbe-afe0-456f-9c4a-003201753bc0",
+            "type": "for-each",
+            "items": {
+                "hosts": [
+                    "host-01",
+                    "host-02",
+                    "host-03"
+                ]
+            },
+            "next_steps": []
+        },
+        "end--a63b2cbe-afe0-456f-9c4a-003201753bc0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--734b4017-1f18-4031-a46b-3069fc295fba": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

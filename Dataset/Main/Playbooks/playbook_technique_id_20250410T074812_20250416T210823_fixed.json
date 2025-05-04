@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b364e2d3-4b4f-43a9-9b8d-e8a08d92f5bc",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "Playbook to address an incident involving unauthorized access and malicious script execution leading to privilege escalation and data exfiltration.",
+    "created_by": "identity--f6c5de67-caa5-4a1c-bc9a-ab4c5e8a7a9a",
+    "created": "2023-10-11T08:00:00.000Z",
+    "modified": "2023-10-11T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7e98e4f9-a6ec-4223-bd0d-ab0269f5b9c1",
+    "workflow": {
+        "start--7e98e4f9-a6ec-4223-bd0d-ab0269f5b9c1": {
+            "on_completion": "parallel--dd6e5627-4ab9-4046-a65c-9a3b1800f5a4",
+            "type": "start"
+        },
+        "parallel--dd6e5627-4ab9-4046-a65c-9a3b1800f5a4": {
+            "name": "Simultaneous Mitigation Actions",
+            "description": "Terminate user session and remove malicious scripts simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f004f6eb-0f8d-4a1b-a2f3-e1ab576738c7",
+                "if-condition--a1b3c7d8-b1c3-47f9-8b12-9b0e8189f0c1"
+            ]
+        },
+        "action--f004f6eb-0f8d-4a1b-a2f3-e1ab576738c7": {
+            "name": "Terminate Unauthorized User Session",
+            "description": "Terminate the session of the unauthorized user.",
+            "on_completion": "action--8a7c5f1e-423c-4a8f-bd2d-731234b67c89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -u <username>"
+                }
+            ],
+            "agent": "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13"
+        },
+        "if-condition--a1b3c7d8-b1c3-47f9-8b12-9b0e8189f0c1": {
+            "name": "Check if Malicious Script Exists",
+            "type": "if-condition",
+            "condition": "script_exists",
+            "on_true": "action--9306e0a2-567c-4cf0-ac4b-1f4f1a6f8cba",
+            "on_false": "action--8a7c5f1e-423c-4a8f-bd2d-731234b67c89"
+        },
+        "action--8a7c5f1e-423c-4a8f-bd2d-731234b67c89": {
+            "name": "Change Compromised Password",
+            "description": "Change the password of the compromised account.",
+            "on_completion": "loop--0123f456-1b8d-4212-b591-b5c1dd90e6e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo '<username>:<new_password>' | chpasswd"
+                }
+            ],
+            "agent": "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13"
+        },
+        "loop--0123f456-1b8d-4212-b591-b5c1dd90e6e0": {
+            "name": "Conduct Network Traffic Analysis",
+            "description": "Perform continuous network traffic monitoring.",
+            "type": "while-condition",
+            "on_true": "action--af58565e-5f11-48a2-b647-2e2ec5e442e8",
+            "repeat": "1 minute",
+            "condition": "detect_suspicious_activity"
+        },
+        "end--c2ad88b1-3bd9-4f8d-a9cf-5f6e7b7993c1": {
+            "type": "end"
+        },
+        "action--9306e0a2-567c-4cf0-ac4b-1f4f1a6f8cba": {
+            "name": "Remove Malicious Scripts",
+            "description": "Remove detected malicious scripts from the user's home directory.",
+            "on_completion": "action--8a7c5f1e-423c-4a8f-bd2d-731234b67c89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /home/<username>/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13"
+        },
+        "action--af58565e-5f11-48a2-b647-2e2ec5e442e8": {
+            "name": "TCP Dump for Suspicious Activity",
+            "description": "Capture and analyze network traffic for suspicious activity.",
+            "on_completion": "action--cee6f053-3112-4e56-8603-f94339f183cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13"
+        },
+        "action--cee6f053-3112-4e56-8603-f94339f183cf": {
+            "name": "Patch System Vulnerabilities",
+            "description": "Patch the system with updates to fix vulnerabilities.",
+            "on_completion": "end--c2ad88b1-3bd9-4f8d-a9cf-5f6e7b7993c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13"
+        }
+    },
+    "agent_definitions": {
+        "organization--0d21287f-aa82-42f0-9a2b-5484d8e11b13": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        }
+    },
+    "variable_definitions": {
+        "script_exists": {
+            "type": "boolean",
+            "description": "Indicates whether the malicious script file is present.",
+            "value": "false",
+            "constant": false,
+            "external": true
+        },
+        "detect_suspicious_activity": {
+            "type": "boolean",
+            "description": "Triggered when suspicious network activity is detected.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        }
+    }
+}

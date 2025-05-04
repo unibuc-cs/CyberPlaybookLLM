@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d83d2384-5e6f-4f36-bb5e-48ddd1448f62",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where attackers exploited a vulnerability to execute arbitrary commands, dropping a malicious script and modifying system configurations.",
+    "created_by": "identity--5c2a314c-2e47-4b3b-adb9-b3877e20dbe2",
+    "created": "2025-04-09T10:30:00.000Z",
+    "modified": "2025-04-09T10:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029",
+    "workflow": {
+        "start--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029": {
+            "on_completion": "action--955b82cb-30f9-4e3e-8853-ac77bdbdf66e",
+            "type": "start"
+        },
+        "action--955b82cb-30f9-4e3e-8853-ac77bdbdf66e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process associated with the dropped script.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--6cab867a-c65b-408a-811a-68b0931dfc2d",
+            "on_completion": "if-condition--check-malware-file"
+        },
+        "if-condition--83d33631-704e-4bea-81fe-fa7aa933e4da": {
+            "name": "Check if malware file exists",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/malware.sh')",
+            "on_true": "action--99e99975-4ae8-445e-9a30-09f45a5f2ca2",
+            "on_false": "action--d1041939-6068-4aaa-a763-521f62e60070"
+        },
+        "action--99e99975-4ae8-445e-9a30-09f45a5f2ca2": {
+            "name": "Remove dropped malicious file",
+            "description": "Remove the malicious script from the temporary directory.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--6cab867a-c65b-408a-811a-68b0931dfc2d",
+            "on_completion": "action--restart-affected-service"
+        },
+        "action--d1041939-6068-4aaa-a763-521f62e60070": {
+            "name": "Restart affected service",
+            "description": "Restart the web service to restore normal operation.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart web-service"
+                }
+            ],
+            "agent": "organization--6cab867a-c65b-408a-811a-68b0931dfc2d",
+            "on_completion": "while-condition--check-service-health"
+        },
+        "while-condition--a7b40b2e-b460-419a-b729-17f293756dbb": {
+            "name": "Check service health",
+            "description": "Repeat until the web service is healthy.",
+            "on_true": "action--25f77dcf-0ea5-4e07-b2ea-1f0dc1a476b1",
+            "condition": "service_is_healthy('web-service')",
+            "on_false": "action--d1041939-6068-4aaa-a763-521f62e60070",
+            "type": "if-condition"
+        },
+        "action--25f77dcf-0ea5-4e07-b2ea-1f0dc1a476b1": {
+            "name": "Conduct file integrity check",
+            "description": "Perform an integrity check on the system to ensure no malicious modifications remain.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "aide --check"
+                }
+            ],
+            "agent": "organization--6cab867a-c65b-408a-811a-68b0931dfc2d",
+            "on_completion": "end--mitigation-complete"
+        },
+        "end--91968ae8-3d97-47de-af85-f1c76b4c92af": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6cab867a-c65b-408a-811a-68b0931dfc2d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

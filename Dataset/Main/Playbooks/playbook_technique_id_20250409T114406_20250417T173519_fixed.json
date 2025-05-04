@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e48c0af5-4ebd-413d-9177-fb9d73907436",
+    "name": "Mitigation Playbook for Application Layer Protocol Attack",
+    "description": "This playbook mitigates the risk posed by an attacker leveraging compromised credentials to send command and control traffic over HTTPS.",
+    "created_by": "identity--a12bcf5f-5563-4ed2-bc6e-1e0b556af555",
+    "created": "2023-10-01T14:30:00Z",
+    "modified": "2023-10-01T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b66a8f5c-fd31-4f92-bf2b-f345d6465e79",
+    "workflow": {
+        "start--b66a8f5c-fd31-4f92-bf2b-f345d6465e79": {
+            "on_completion": "action--3e4d6eaf-8ec3-463e-9c1b-e991d7ed5c05",
+            "type": "start"
+        },
+        "action--3e4d6eaf-8ec3-463e-9c1b-e991d7ed5c05": {
+            "name": "Kill the suspicious application process",
+            "description": "Terminate the process of the suspicious application identified in the attack logs.",
+            "on_completion": "if-condition--4ae54f81-adfe-47d3-bc85-8d56e4cc920f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill suspicious_app"
+                }
+            ],
+            "agent": "organization--dd50cb18-d311-45eb-a914-cf4f2aa62dca"
+        },
+        "if-condition--4ae54f81-adfe-47d3-bc85-8d56e4cc920f": {
+            "name": "Check if process is running",
+            "type": "if-condition",
+            "condition": "process_running(suspicious_app)",
+            "on_true": "action--7f234bdd-0ad2-45a4-b66b-ef368a69157e",
+            "on_false": "action--b8c79c11-755c-4936-88b1-fe4ce654c7f2"
+        },
+        "action--7f234bdd-0ad2-45a4-b66b-ef368a69157e": {
+            "name": "Block outgoing traffic to suspicious IP addresses",
+            "description": "Implement firewall rules to block traffic to known suspicious IP addresses.",
+            "on_completion": "while-condition--c41e64dc-9473-4982-be68-9e6b8d7582b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--dd50cb18-d311-45eb-a914-cf4f2aa62dca"
+        },
+        "while-condition--c41e64dc-9473-4982-be68-9e6b8d7582b3": {
+            "name": "Check traffic clearance",
+            "description": "Repeat blocking until all outgoing traffic to suspicious IPs is cleared.",
+            "on_true": "action--7f234bdd-0ad2-45a4-b66b-ef368a69157e",
+            "condition": "outgoing_traffic_to(suspicious_ip) == 0",
+            "type": "if-condition"
+        },
+        "action--b8c79c11-755c-4936-88b1-fe4ce654c7f2": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a thorough scan of the system to identify any additional compromises.",
+            "on_completion": "end--f1c3d5c7-bbc6-4ccc-8306-b3458e276513",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r /"
+                }
+            ],
+            "agent": "organization--dd50cb18-d311-45eb-a914-cf4f2aa62dca",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the system scan",
+                    "value": "scan report",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--f1c3d5c7-bbc6-4ccc-8306-b3458e276513": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--dd50cb18-d311-45eb-a914-cf4f2aa62dca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

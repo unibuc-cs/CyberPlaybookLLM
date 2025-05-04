@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--266a6cc7-896b-4a7a-8d93-2185fdd0ea3c",
+    "name": "Response Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook outlines the steps to mitigate incidents where an attacker exploits scripting capabilities to execute unauthorized commands, leading to data breaches and privilege escalations.",
+    "created_by": "identity--992d93f7-e47a-44ab-bd20-7b0507be6fc3",
+    "created": "2023-10-22T18:00:00Z",
+    "modified": "2023-10-22T18:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--558fe6d9-0c4e-4981-9b24-1ebf40fd0855",
+    "workflow": {
+        "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running processes related to the unauthorized activity.",
+            "on_completion": "parallel--4d613752-1693-4048-af25-04aa1f4feb3e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e"
+        },
+        "action--6b92c330-b2a1-4034-b710-45902e6211b8": {
+            "name": "Scan for residual scripts",
+            "description": "Remove any remaining PowerShell scripts that may have been planted.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e",
+            "loop": "repeat until no_more_infected",
+            "condition": "if infected_files_exist"
+        },
+        "action--c8b033e8-049e-4d7c-b641-0669349eff32": {
+            "name": "Block IPs related to command and control server",
+            "description": "Prevent further communication with potential command and control servers.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e",
+            "variables": {
+                "malicious_ips": [
+                    "192.168.1.100",
+                    "10.0.0.200"
+                ]
+            }
+        },
+        "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b": {
+            "name": "Reset user's admin privileges",
+            "description": "Revoke admin privileges of any affected user accounts.",
+            "on_completion": "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L -G '' attacker_user"
+                }
+            ],
+            "agent": "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e",
+            "loop": "for each affected_user",
+            "condition": "if is_admin"
+        },
+        "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de": {
+            "name": "Verify integrity of core security services",
+            "description": "Check the status of essential security services to ensure they are active.",
+            "on_completion": "end--42d67ff8-07f5-4c2a-af28-8c66b0303b93",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl status firewalld && systemctl status auditd"
+                }
+            ],
+            "agent": "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e"
+        },
+        "start--558fe6d9-0c4e-4981-9b24-1ebf40fd0855": {
+            "on_completion": "action--a7f9c2d7-df4d-4a30-8b9c-db8e72f9ba9e",
+            "type": "start"
+        },
+        "parallel--4d613752-1693-4048-af25-04aa1f4feb3e": {
+            "name": "Perform Follow-Up Actions",
+            "description": "Actions to take after killing the malicious process.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6b92c330-b2a1-4034-b710-45902e6211b8",
+                "action--c8b033e8-049e-4d7c-b641-0669349eff32",
+                "action--f5c3b9e9-967c-4bcf-8ae7-ec5dba3e606b",
+                "action--ef2e5423-ca89-4465-9d5e-d4b1e07e56de"
+            ]
+        },
+        "end--42d67ff8-07f5-4c2a-af28-8c66b0303b93": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fba50080-23dd-4906-a5d7-89f0bccfe78e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

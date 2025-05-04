@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8d8c5d2-69b8-41a8-ab51-fb2d6e35db1a",
+    "name": "Mitigation Playbook for Malware Script Execution Incident",
+    "description": "This playbook mitigates the impact of an incident where an attacker executed a malicious script that downloaded malware and created a backdoor.",
+    "created_by": "identity--0a2f6140-cb87-44e5-a1d4-958f1f78c758",
+    "created": "2023-10-18T14:41:25Z",
+    "modified": "2023-10-18T14:50:30Z",
+    "revoked": false,
+    "workflow_start": "start--7e9c51a0-9a45-4f56-bc4a-834f1bc67b5a",
+    "workflow": {
+        "start--7e9c51a0-9a45-4f56-bc4a-834f1bc67b5a": {
+            "on_completion": "action--ae1f2e50-536e-4c0e-bc8f-f0981c4e5d03",
+            "type": "start"
+        },
+        "action--ae1f2e50-536e-4c0e-bc8f-f0981c4e5d03": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious activity.",
+            "on_completion": "if-condition--f711d58b-899b-4071-aa09-71b450828f6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--6cba4042-799c-4ba8-8d19-4be34a59ccae"
+        },
+        "if-condition--f711d58b-899b-4071-aa09-71b450828f6e": {
+            "name": "Check if malware files exist",
+            "type": "if-condition",
+            "condition": "if [ -f /tmp/malware_payload ]; then",
+            "on_true": "action--f711d58b-899b-4071-aa09-71b450828f6e",
+            "on_false": "loop--c3d09a04-1243-4071-8ae8-20ee5e45e4d3"
+        },
+        "action--f711d58b-899b-4071-aa09-71b450828f6e": {
+            "name": "Remove dropped malware files",
+            "description": "Delete the malware payload dropped by the attack.",
+            "on_completion": "loop--c3d09a04-1243-4071-8ae8-20ee5e45e4d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malware_payload*"
+                }
+            ],
+            "agent": "organization--6cba4042-799c-4ba8-8d19-4be34a59ccae"
+        },
+        "loop--c3d09a04-1243-4071-8ae8-20ee5e45e4d3": {
+            "name": "Conduct full system scan",
+            "description": "Perform a full system scan to ensure no remnants of the malware are left.",
+            "on_completion": "loop--c3d09a04-1243-4071-8ae8-20ee5e45e4d3",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--c3d09a04-1243-4071-8ae8-20ee5e45e4d3",
+            "on_false": "end--f8f8fd75-a5c8-4c3c-8e6d-bb5f2c97bc59"
+        },
+        "action--c3d09a04-1243-4071-8ae8-20ee5e45e4d3": {
+            "name": "Run full system scan",
+            "description": "Execute the full scan to identify any residual malware.",
+            "on_completion": "loop--c3d09a04-1243-4071-8ae8-20ee5e45e4d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--6cba4042-799c-4ba8-8d19-4be34a59ccae"
+        },
+        "end--f8f8fd75-a5c8-4c3c-8e6d-bb5f2c97bc59": {
+            "description": "End of the playbook.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6cba4042-799c-4ba8-8d19-4be34a59ccae": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

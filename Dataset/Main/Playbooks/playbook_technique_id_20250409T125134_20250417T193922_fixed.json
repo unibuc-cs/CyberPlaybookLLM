@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bfa2c3c3-5e62-4b5b-9e09-866a9ecb873e",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a compromised account to execute malicious PowerShell scripts on the internal server.",
+    "created_by": "identity--2122e26a-4235-49c6-9426-ebe7f02f3fb2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--fac1a219-ee45-4d20-a097-3aff300cc08b",
+    "workflow": {
+        "action--51e0bc71-2fdb-4c3e-b542-dc1c373b1719": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell scripts.",
+            "on_completion": "if-condition--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--e7154dd5-bad9-4d6f-a5b0-af182349c4ba"
+        },
+        "if-condition--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d": {
+            "name": "Check if malicious activity is detected",
+            "type": "if-condition",
+            "condition": "malicious_activity_detected",
+            "on_true": "loop--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d",
+            "on_false": "action--f15ad8b3-bb67-450a-aa24-f6ccd8ac6d9a"
+        },
+        "loop--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d": {
+            "name": "Run antivirus scan until clean",
+            "description": "Repeat the scan until no malicious activity is detected.",
+            "type": "while-condition",
+            "condition": "malicious_activity_detected",
+            "on_true": "action--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d",
+            "next_steps": [
+                "action--f15ad8b3-bb67-450a-aa24-f6ccd8ac6d9a"
+            ]
+        },
+        "action--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d": {
+            "name": "Run antivirus scan on the affected server",
+            "description": "Run a scan on the server for any residual malicious files.",
+            "on_completion": "if-condition--3b8c3e66-2ec3-4ba8-8d2b-14b3796dd71d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "timeout 30s; clamscan -r /path/to/suspicious/files"
+                }
+            ],
+            "agent": "organization--e7154dd5-bad9-4d6f-a5b0-af182349c4ba"
+        },
+        "action--f15ad8b3-bb67-450a-aa24-f6ccd8ac6d9a": {
+            "name": "Review access logs for additional suspicious activity",
+            "description": "Check access logs for any unauthorized access attempts.",
+            "on_completion": "end--6b89a077-61ce-4eae-830d-11f728d19475",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/access.log | grep -i unauthorized_user"
+                }
+            ],
+            "agent": "organization--e7154dd5-bad9-4d6f-a5b0-af182349c4ba"
+        },
+        "start--fac1a219-ee45-4d20-a097-3aff300cc08b": {
+            "on_completion": "action--51e0bc71-2fdb-4c3e-b542-dc1c373b1719",
+            "type": "start"
+        },
+        "end--6b89a077-61ce-4eae-830d-11f728d19475": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e7154dd5-bad9-4d6f-a5b0-af182349c4ba": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

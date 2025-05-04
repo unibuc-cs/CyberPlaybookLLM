@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7e6c23a2-978e-4b0b-b12d-b6a9318bd185",
+    "name": "Mitigation Playbook for Script Injection Incident",
+    "description": "This playbook addresses an incident involving script injection leading to unauthorized access and potential data exfiltration.",
+    "created_by": "identity--7528e680-7f83-4b28-a1ff-23c8d51c4b79",
+    "created": "2025-10-15T11:00:00Z",
+    "modified": "2025-10-15T11:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--8e7add22-111d-4c38-b072-ef5cd77436cd",
+    "workflow": {
+        "start--8e7add22-111d-4c38-b072-ef5cd77436cd": {
+            "on_completion": "action--e4c7c630-ab4a-4bcb-9180-8246b09b7dec",
+            "type": "start"
+        },
+        "action--e4c7c630-ab4a-4bcb-9180-8246b09b7dec": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--35bf2d6b-f98c-4cc1-871a-e01fbd40b2d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--152842be-0286-4729-98cb-c4ca6025f261"
+        },
+        "action--35bf2d6b-f98c-4cc1-871a-e01fbd40b2d3": {
+            "name": "Remove dropped files",
+            "description": "Delete any malicious files that were dropped on the system.",
+            "on_completion": "if-condition--65b80932-de88-498d-b8d4-0db2d49cf246",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--152842be-0286-4729-98cb-c4ca6025f261"
+        },
+        "if-condition--65b80932-de88-498d-b8d4-0db2d49cf246": {
+            "name": "Check if malware exists",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "while-condition--3c1e1c5e-ff0f-49a9-8610-5ab5fc1c3795",
+            "on_false": "action--9342d978-1e85-40ae-8986-78d1e8c9470c"
+        },
+        "while-condition--3c1e1c5e-ff0f-49a9-8610-5ab5fc1c3795": {
+            "name": "Run malware scan in loop",
+            "description": "Perform malware scanning until no malware is detected.",
+            "on_completion": "if-condition--65b80932-de88-498d-b8d4-0db2d49cf246",
+            "type": "while-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--c8eaa2b9-4e94-4c29-af2b-4bfba0b58776"
+        },
+        "action--c8eaa2b9-4e94-4c29-af2b-4bfba0b58776": {
+            "name": "Run malware scan",
+            "description": "Scan the system for remaining malware.",
+            "on_completion": "if-condition--65b80932-de88-498d-b8d4-0db2d49cf246",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--152842be-0286-4729-98cb-c4ca6025f261"
+        },
+        "action--9342d978-1e85-40ae-8986-78d1e8c9470c": {
+            "name": "Audit logs",
+            "description": "Review logs for signs of malicious activity.",
+            "on_completion": "action--f8d64e32-5915-4796-b896-eb19c42d1a8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'malicious'"
+                }
+            ],
+            "agent": "organization--152842be-0286-4729-98cb-c4ca6025f261"
+        },
+        "action--f8d64e32-5915-4796-b896-eb19c42d1a8a": {
+            "name": "Implement firewall rules",
+            "description": "Add firewall rules to block known malicious IP addresses.",
+            "on_completion": "end--f3672b9c-d19a-4c7b-a4a0-1e28e2e11e8b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--152842be-0286-4729-98cb-c4ca6025f261",
+            "targets": []
+        },
+        "end--f3672b9c-d19a-4c7b-a4a0-1e28e2e11e8b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--152842be-0286-4729-98cb-c4ca6025f261": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

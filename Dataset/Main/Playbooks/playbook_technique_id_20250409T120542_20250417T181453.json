@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bce0573b-6ede-4c40-b8d7-816ab7e22cd1",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the organization's web application, executing unauthorized commands via the command line.",
+    "created_by": "identity--1234abcd-5678-efgh-ijkl-9012mnop3456",
+    "created": "2023-10-03T14:26:00Z",
+    "modified": "2023-10-03T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c0f78d05-7b58-4d67-9511-515e3be4bb63",
+    "workflow": {
+        "start--c0f78d05-7b58-4d67-9511-515e3be4bb63": {
+            "on_completion": "action--6f3ab49d-d6d6-4897-b9e6-77f720d82062",
+            "type": "start"
+        },
+        "action--6f3ab49d-d6d6-4897-b9e6-77f720d82062": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "action--bb87d036-5adb-47b4-abc1-44f5b15be60c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_script.sh)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bb87d036-5adb-47b4-abc1-44f5b15be60c": {
+            "name": "Block network connections to suspicious IPs",
+            "description": "Restrict any outbound connections to known malicious IP addresses.",
+            "on_completion": "parallel--1e8b3e41-4f44-4c84-8cce-ddb97799b845",
+            "type": "if-condition",
+            "condition": "suspicious_ip != None",
+            "on_true": "action--bb87d036-5adb-47b4-abc1-44f5b15be60c",
+            "on_false": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "parallel--1e8b3e41-4f44-4c84-8cce-ddb97799b845": {
+            "name": "Perform artifact scan and update logs",
+            "description": "Initiate an artifact scan while logging the actions taken.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845",
+                "action--log_action"
+            ]
+        },
+        "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845": {
+            "name": "Scan for other potential artifacts",
+            "description": "Perform a recursive scan to find any remaining malicious artifacts on the host.",
+            "on_completion": "while-condition--scan_loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan_loop": {
+            "name": "Check if scan is clean",
+            "description": "Repeat scanning until it is confirmed that the system is clean.",
+            "on_completion": "end--finalize_scan",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--1e8b3e41-4f44-4c84-8cce-ddb97799b845"
+        },
+        "action--log_action": {
+            "name": "Log mitigation actions",
+            "description": "Log the actions taken during the mitigation process.",
+            "on_completion": "end--finalize_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious actions were terminated and network access was restricted.' >> /var/log/incident_response.log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--finalize_scan": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

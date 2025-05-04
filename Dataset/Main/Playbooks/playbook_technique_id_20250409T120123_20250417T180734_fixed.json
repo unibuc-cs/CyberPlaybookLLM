@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8b7f95c-7c82-473e-abc3-b34f045b8fa1",
+    "name": "Mitigation Playbook for Command-Line Tools Exploitation",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a compromised server using command-line tools.",
+    "created_by": "identity--af2348aa-be77-43c7-a1c0-52e8f357e51e",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e263c4c1-1fa4-4f2f-b89e-6f52aab20482",
+    "workflow": {
+        "start--e263c4c1-1fa4-4f2f-b89e-6f52aab20482": {
+            "on_completion": "parallel--a6eb3e91-83ef-418d-b45f-73431d9fe1e2",
+            "type": "start"
+        },
+        "parallel--a6eb3e91-83ef-418d-b45f-73431d9fe1e2": {
+            "name": "Execute Mitigations",
+            "description": "Perform mitigation steps concurrently: kill malicious processes and block outbound traffic.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3e99f8b0-a7ac-45d7-8cbd-076b9d5e88c2",
+                "action--4bc4f2f8-e29e-4ccc-af8b-a735efdd5623"
+            ]
+        },
+        "action--3e99f8b0-a7ac-45d7-8cbd-076b9d5e88c2": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script execution.",
+            "on_completion": "loop--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--e4ba392a-1097-489f-bd77-9c0c57afde4b"
+        },
+        "action--4bc4f2f8-e29e-4ccc-af8b-a735efdd5623": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Prevent any outbound traffic to the identified malicious IP address.",
+            "on_completion": "loop--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--e4ba392a-1097-489f-bd77-9c0c57afde4b"
+        },
+        "loop--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc": {
+            "name": "Run malware scan until clean",
+            "description": "Run malware scan and repeat until no threats are detected.",
+            "on_completion": "if-condition--8b6f0f19-d6f5-4c0b-8ff0-f4b8d8bc1e38",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc",
+            "on_false": "end--e63e4134-2456-4c9d-af4b-1afe344c3aaf"
+        },
+        "action--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive malware scan on the compromised server.",
+            "on_completion": "if-condition--8b6f0f19-d6f5-4c0b-8ff0-f4b8d8bc1e38",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan"
+                }
+            ],
+            "agent": "organization--e4ba392a-1097-489f-bd77-9c0c57afde4b",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan result.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--8b6f0f19-d6f5-4c0b-8ff0-f4b8d8bc1e38": {
+            "name": "Evaluate scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--e63e4134-2456-4c9d-af4b-1afe344c3aaf",
+            "on_false": "action--e7b20c88-1954-4cb0-bd5e-9ae77ac3e0cc"
+        },
+        "end--e63e4134-2456-4c9d-af4b-1afe344c3aaf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e4ba392a-1097-489f-bd77-9c0c57afde4b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

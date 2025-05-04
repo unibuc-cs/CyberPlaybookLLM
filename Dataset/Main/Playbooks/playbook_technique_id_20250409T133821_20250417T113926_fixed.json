@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8b0f89c-75f3-4f5d-bcf9-29ec4638d9c6",
+    "name": "Mitigation Playbook for PowerShell Exfiltration",
+    "description": "This playbook addresses an incident where an attacker executed a series of PowerShell commands to exfiltrate sensitive data.",
+    "created_by": "identity--a93e673a-ff8a-4be6-92b6-f5f6f820d468",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--11c72216-54ae-4471-bb22-e08e033501a3",
+    "workflow": {
+        "start--11c72216-54ae-4471-bb22-e08e033501a3": {
+            "on_completion": "action--ba2f6a45-fb12-49fd-a3b2-613b1a94a9c4",
+            "type": "start"
+        },
+        "action--ba2f6a45-fb12-49fd-a3b2-613b1a94a9c4": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be exploiting the system.",
+            "on_completion": "if-condition--b95568fc-ec25-41dc-8b4d-3f83dbfa4ee6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--2b63d135-e00f-4af6-906f-91ea4dc03f3a"
+        },
+        "if-condition--b95568fc-ec25-41dc-8b4d-3f83dbfa4ee6": {
+            "name": "Check if PowerShell process was killed",
+            "type": "if-condition",
+            "condition": "process_is_running('powershell') == false",
+            "on_true": "action--b7c3e58c-1cb7-4b8f-958f-e8b830589a24",
+            "on_false": "end--e80aa508-abaa-4c21-81a2-d083b3f65e4d"
+        },
+        "action--b7c3e58c-1cb7-4b8f-958f-e8b830589a24": {
+            "name": "Quarantine the affected host",
+            "description": "Quarantine the host to prevent further data exfiltration.",
+            "on_completion": "while-condition--f68c2eb1-ecff-4b95-9339-1c9a3814caa2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo quarantine host-22"
+                }
+            ],
+            "agent": "organization--2b63d135-e00f-4af6-906f-91ea4dc03f3a"
+        },
+        "while-condition--f68c2eb1-ecff-4b95-9339-1c9a3814caa2": {
+            "name": "Ensure host is secure",
+            "description": "Repeat quarantining until the host is confirmed secure.",
+            "on_completion": "action--bc76b61a-1feb-40eb-bd67-fb7d1a3094e1",
+            "type": "while-condition",
+            "condition": "host_is_secure(host-22) == false",
+            "on_true": "action--b7c3e58c-1cb7-4b8f-958f-e8b830589a24"
+        },
+        "action--bc76b61a-1feb-40eb-bd67-fb7d1a3094e1": {
+            "name": "Review script logs for unauthorized activity",
+            "description": "Inspect the script logs to identify any unauthorized actions.",
+            "on_completion": "end--e80aa508-abaa-4c21-81a2-d083b3f65e4d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/script_logs | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--2b63d135-e00f-4af6-906f-91ea4dc03f3a",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "Log file to inspect for suspicious activity.",
+                    "value": "/var/log/script_logs",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e80aa508-abaa-4c21-81a2-d083b3f65e4d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2b63d135-e00f-4af6-906f-91ea4dc03f3a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

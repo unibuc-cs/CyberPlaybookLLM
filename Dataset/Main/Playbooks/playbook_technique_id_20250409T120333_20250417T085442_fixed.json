@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e98b7daf-42b9-4e8f-9b5d-ffba4e7e604d",
+    "name": "Mitigation Playbook for Phishing Incident and Data Exfiltration",
+    "description": "This playbook addresses an incident involving unauthorized access through phishing, subsequent execution of malicious scripts, and data exfiltration from critical databases.",
+    "created_by": "identity--d0b53b88-ec6e-4a91-b39f-75bb0b3d69a5",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T09:00:00Z",
+    "workflow_start": "start--0e0e84a8-6ae7-4e41-9853-06e520496210",
+    "workflow": {
+        "start--0e0e84a8-6ae7-4e41-9853-06e520496210": {
+            "on_completion": "parallel--b8e6fd15-bd16-4b44-9034-983367183048",
+            "type": "start"
+        },
+        "parallel--b8e6fd15-bd16-4b44-9034-983367183048": {
+            "name": "Execute Mitigation Steps",
+            "description": "Simultaneously execute the mitigation steps to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1e40877-bc3a-4d6b-9d2a-2490b23f9eac",
+                "action--ef7243b8-949d-4529-bb26-4cb4b5ba45cc",
+                "while-condition--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8"
+            ]
+        },
+        "action--b1e40877-bc3a-4d6b-9d2a-2490b23f9eac": {
+            "name": "Kill suspicious PowerShell process",
+            "description": "Terminate the PowerShell processes that the attacker exploited.",
+            "on_completion": "action--ef7243b8-949d-4529-bb26-4cb4b5ba45cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--7c7bfdcd-2ccf-4e10-86b2-8af7f924a6b6"
+        },
+        "action--ef7243b8-949d-4529-bb26-4cb4b5ba45cc": {
+            "name": "Isolate affected host from the network",
+            "description": "Drop incoming traffic from the affected host's IP address.",
+            "on_completion": "while-condition--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s [affected_host_ip] -j DROP"
+                }
+            ],
+            "agent": "organization--7c7bfdcd-2ccf-4e10-86b2-8af7f924a6b6"
+        },
+        "while-condition--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8": {
+            "name": "Run Malware Scan",
+            "description": "Perform a scan on the host until it is clean.",
+            "on_true": "action--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8",
+            "condition": "scan_result == 'malware detected'",
+            "next_steps": [
+                "action--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8"
+            ],
+            "type": "while-condition"
+        },
+        "action--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8": {
+            "name": "Execute Malware Scan",
+            "description": "Run a thorough malware scan on the affected host.",
+            "on_completion": "if-condition--8f62e7fd-20ee-488b-9342-5b5cae2ec825",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --target host-34"
+                }
+            ],
+            "agent": "organization--7c7bfdcd-2ccf-4e10-86b2-8af7f924a6b6",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "value": "malware detected",
+                    "constant": false
+                }
+            }
+        },
+        "end--f061569f-7ab4-48c6-855b-fd8e4b4bb5ac": {
+            "type": "end"
+        },
+        "if-condition--8f62e7fd-20ee-488b-9342-5b5cae2ec825": {
+            "name": "Check scan result for malware",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--f061569f-7ab4-48c6-855b-fd8e4b4bb5ac",
+            "on_false": "action--65bc79f0-79fa-4f8f-82cf-3df8db7a0ed8"
+        }
+    },
+    "agent_definitions": {
+        "organization--7c7bfdcd-2ccf-4e10-86b2-8af7f924a6b6": {
+            "type": "organization",
+            "name": "XYZ Cybersecurity Team"
+        }
+    }
+}

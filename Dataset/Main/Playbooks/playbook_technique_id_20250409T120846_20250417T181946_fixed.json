@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a34e3b71-6b6e-4d9e-9f64-a2c0346e759a",
+    "name": "Mitigation Playbook for Suspicious Script Execution and Data Exfiltration",
+    "description": "This playbook addresses an incident where an attacker executed scripts via a compromised command shell, leading to unauthorized data exfiltration.",
+    "created_by": "identity--f1f63097-5b82-4c1e-b5f7-c012f5b46234",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f2f4687c-04bb-4de6-9fe1-abe3654696e2",
+    "workflow": {
+        "start--f2f4687c-04bb-4de6-9fe1-abe3654696e2": {
+            "on_completion": "action--f1b67154-13a9-4c1e-9a9c-2189b0de7c99",
+            "type": "start"
+        },
+        "action--f1b67154-13a9-4c1e-9a9c-2189b0de7c99": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--de02d6e1-a5c4-4afc-85b0-09c8fae5a12b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--9ffa4fa4-d882-40cf-88d8-513fb34ddaa6"
+        },
+        "action--de02d6e1-a5c4-4afc-85b0-09c8fae5a12b": {
+            "name": "Monitor file transfer logs",
+            "description": "Continuously monitor file transfer logs for suspicious activity.",
+            "on_completion": "loop--aa8a8eb0-118e-4c88-b9e0-b1bef5807f72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/secure"
+                }
+            ],
+            "agent": "organization--9ffa4fa4-d882-40cf-88d8-513fb34ddaa6"
+        },
+        "loop--aa8a8eb0-118e-4c88-b9e0-b1bef5807f72": {
+            "name": "Isolate affected host",
+            "description": "Isolate the affected host from the network while checks are performed.",
+            "type": "while-condition",
+            "condition": "suspicious_script_running == true",
+            "on_true": "action--aa8a8eb0-118e-4c88-b9e0-b1bef5807f72",
+            "steps": [
+                {
+                    "on_completion": "decision--02846592-dcea-4496-b2c5-0f77fd60debc",
+                    "type": "action",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "iptables -A INPUT -s host-22 -j DROP"
+                        }
+                    ],
+                    "agent": "organization--9ffa4fa4-d882-40cf-88d8-513fb34ddaa6"
+                }
+            ]
+        },
+        "end--c3adff8e-32c1-4da4-9c4e-a51f8ae4b1f1": {
+            "type": "end"
+        },
+        "decision--02846592-dcea-4496-b2c5-0f77fd60debc": {
+            "name": "Check if suspicious script is still running",
+            "type": "if-condition",
+            "condition": "$(pgrep -f suspicious_script.sh | wc -l) -gt 0",
+            "on_true": "loop--aa8a8eb0-118e-4c88-b9e0-b1bef5807f72",
+            "on_false": "end--c3adff8e-32c1-4da4-9c4e-a51f8ae4b1f1"
+        }
+    },
+    "agent_definitions": {
+        "organization--9ffa4fa4-d882-40cf-88d8-513fb34ddaa6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

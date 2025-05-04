@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c4e8ac78-6597-45a3-9e01-cc589df4e3c6",
+    "name": "Mitigation Playbook for Web Application Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to gain command line access and created backdoor user accounts.",
+    "created_by": "identity--323893bd-ce6b-4eb7-8477-7edf3eec04b6",
+    "created": "2023-10-05T14:30:00Z",
+    "modified": "2023-10-05T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b55b8d27-2ea6-4de5-b6f3-b9338d578604",
+    "workflow": {
+        "start--b55b8d27-2ea6-4de5-b6f3-b9338d578604": {
+            "on_completion": "parallel--e2910cf7-e1a5-49c8-8e8e-c170ebefef09",
+            "type": "start"
+        },
+        "parallel--e2910cf7-e1a5-49c8-8e8e-c170ebefef09": {
+            "name": "Execute Mitigations",
+            "description": "Perform necessary mitigations in parallel to expedite response.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3d0f26b3-1242-4db9-88b6-e846558f1151",
+                "action--cfa834da-4e24-44d7-9262-6f2c6368b839",
+                "action--a8b21b8e-9d5f-4f2e-872e-15b1ae4e21ad",
+                "action--9a28b918-748b-49f6-abae-8fa76df6e58c"
+            ]
+        },
+        "action--3d0f26b3-1242-4db9-88b6-e846558f1151": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--cfa834da-4e24-44d7-9262-6f2c6368b839",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--8affe29a-f148-4afc-829a-c80de383353a"
+        },
+        "action--cfa834da-4e24-44d7-9262-6f2c6368b839": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete the backdoor user account created by the attacker.",
+            "on_completion": "action--a8b21b8e-9d5f-4f2e-872e-15b1ae4e21ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel attacker"
+                }
+            ],
+            "agent": "organization--8affe29a-f148-4afc-829a-c80de383353a"
+        },
+        "action--a8b21b8e-9d5f-4f2e-872e-15b1ae4e21ad": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive malware scan on the system.",
+            "on_completion": "loop--d5e12e49-3d66-4870-8561-1785b64efc58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--8affe29a-f148-4afc-829a-c80de383353a"
+        },
+        "loop--d5e12e49-3d66-4870-8561-1785b64efc58": {
+            "name": "Check Scan Results",
+            "description": "Repeat the malware scan until the system is clean.",
+            "on_completion": "decision--1b657075-64bd-43f7-bf56-2fdb71eda026",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--a8b21b8e-9d5f-4f2e-872e-15b1ae4e21ad"
+        },
+        "decision--1b657075-64bd-43f7-bf56-2fdb71eda026": {
+            "name": "Review Logs for Lateral Movement",
+            "type": "if-condition",
+            "condition": "evidence_of_lateral_movement_found == true",
+            "on_true": "action--2ebff516-e982-4757-86cc-6390283ebd9b",
+            "on_false": "end--c0ef9993-0793-4a00-80d8-e7cc1f28ae98"
+        },
+        "action--9a28b918-748b-49f6-abae-8fa76df6e58c": {
+            "name": "Review server access logs",
+            "description": "Check server access logs for signs of lateral movement.",
+            "on_completion": "decision--1b657075-64bd-43f7-bf56-2fdb71eda026",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--8affe29a-f148-4afc-829a-c80de383353a"
+        },
+        "end--c0ef9993-0793-4a00-80d8-e7cc1f28ae98": {
+            "type": "end"
+        },
+        "action--2ebff516-e982-4757-86cc-6390283ebd9b": {
+            "name": "Escalate Incident",
+            "description": "Escalate the incident for further investigation due to detected lateral movement.",
+            "on_completion": "end--c0ef9993-0793-4a00-80d8-e7cc1f28ae98",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Lateral movement detected, escalate for further investigation.'"
+                }
+            ],
+            "agent": "organization--8affe29a-f148-4afc-829a-c80de383353a"
+        }
+    },
+    "agent_definitions": {
+        "organization--8affe29a-f148-4afc-829a-c80de383353a": {
+            "type": "organization",
+            "name": "CyberSecurityOrg"
+        }
+    }
+}

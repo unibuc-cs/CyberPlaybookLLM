@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d54d57ac-6c3e-41f3-94cd-bffed1f2f5d4",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where a PowerShell script was executed to exfiltrate sensitive data from servers.",
+    "created_by": "identity--4f56b0fd-e2e1-4ee4-a81c-4a739370333e",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--2b470171-05f3-4439-80d0-86b42e38adea",
+    "workflow": {
+        "action--e4c6bf3b-2f83-4f6f-8314-a7351a68cf96": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes identified.",
+            "on_completion": "if-condition--a73f328d-d9c5-4dce-bec8-d94bef325a6d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--404f662f-fd07-4934-bae2-9ebaf21b4b5f"
+        },
+        "action--e97c30c3-04a8-4769-9ea3-3cc65d2c2579": {
+            "name": "Isolate affected hosts",
+            "description": "Disable network interface on compromised hosts.",
+            "on_completion": "parallel--113e19e4-1e15-4af6-890d-de8fa346d84f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--404f662f-fd07-4934-bae2-9ebaf21b4b5f"
+        },
+        "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225": {
+            "name": "Perform a security scan",
+            "description": "Run a security scan until the system is clean.",
+            "on_completion": "while-condition--874a855e-e309-4f69-a1b8-e4bcd8776921",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the security scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan.sh"
+                }
+            ],
+            "agent": "organization--404f662f-fd07-4934-bae2-9ebaf21b4b5f"
+        },
+        "start--2b470171-05f3-4439-80d0-86b42e38adea": {
+            "on_completion": "action--e4c6bf3b-2f83-4f6f-8314-a7351a68cf96",
+            "type": "start"
+        },
+        "if-condition--a73f328d-d9c5-4dce-bec8-d94bef325a6d": {
+            "name": "Check If Process Exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--e97c30c3-04a8-4769-9ea3-3cc65d2c2579",
+            "on_false": "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225"
+        },
+        "parallel--113e19e4-1e15-4af6-890d-de8fa346d84f": {
+            "name": "Isolation and Scanning",
+            "description": "Run isolation and scanning actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225"
+            ]
+        },
+        "while-condition--874a855e-e309-4f69-a1b8-e4bcd8776921": {
+            "name": "Security Scan Loop",
+            "description": "Repeat security scan until the system shows no threats.",
+            "on_true": "action--fbf82339-1c5b-4205-9cf9-a1a79ff3b225",
+            "condition": "scan_result != 'clean'",
+            "on_false": "end--ee1e0768-5cfc-4613-9763-48a554316490",
+            "type": "if-condition"
+        },
+        "end--ee1e0768-5cfc-4613-9763-48a554316490": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--404f662f-fd07-4934-bae2-9ebaf21b4b5f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

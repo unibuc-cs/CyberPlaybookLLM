@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--85d990f7-44ab-4e73-ab12-0b9e6c3f761b",
+    "name": "Playbook for Web Application Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability allowing arbitrary command execution on a server.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1c63d5f-b68a-4f34-87c3-920a173b3b37",
+    "workflow": {
+        "start--b1c63d5f-b68a-4f34-87c3-920a173b3b37": {
+            "on_completion": "action--0a1d5073-995f-4b58-ad59-4bc072c1de11",
+            "type": "start"
+        },
+        "action--0a1d5073-995f-4b58-ad59-4bc072c1de11": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running processes associated with the reverse shell.",
+            "on_completion": "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Check if payload exists",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/suspicious_payload')",
+            "on_true": "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "on_false": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3"
+        },
+        "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Remove dropped payload",
+            "description": "Delete the suspicious payload dropped in the /tmp directory.",
+            "on_completion": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3": {
+            "name": "Scan system for other anomalies",
+            "description": "Perform a security scan to detect other potential threats.",
+            "on_completion": "while-condition--scan-result-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "value": 0,
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--scan-result-check": {
+            "name": "Check scan results repeatedly",
+            "on_completion": "if-condition--scan-clean",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3"
+        },
+        "if-condition--scan-clean": {
+            "name": "Is the scan clean?",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--finish",
+            "on_false": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3"
+        },
+        "end--finish": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

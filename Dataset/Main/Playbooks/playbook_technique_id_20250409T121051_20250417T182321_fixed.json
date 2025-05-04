@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c68ed5a4-1fbb-4be3-ac61-9c8049d67e3d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script using a command interpreter, leading to unauthorized data access and potential data exfiltration.",
+    "created_by": "identity--c90a4cb0-8366-42b4-bae7-fc246bc5c64b",
+    "created": "2023-10-01T12:00:00.000Z",
+    "modified": "2023-10-01T12:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1f21c234-1345-46b1-81da-12bd9eeb6723",
+    "workflow": {
+        "start--1f21c234-1345-46b1-81da-12bd9eeb6723": {
+            "on_completion": "parallel--9ec3b02f-e8a5-4c5b-8912-ff0782390c40",
+            "type": "start"
+        },
+        "parallel--9ec3b02f-e8a5-4c5b-8912-ff0782390c40": {
+            "name": "Immediate Response",
+            "description": "Simultaneously execute mitigation steps to neutralize the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c618d4b8-8b21-4b54-a386-592216e5ea54",
+                "action--b17c6690-4db7-4963-9ca6-d0ac3dd8e607"
+            ]
+        },
+        "action--c618d4b8-8b21-4b54-a386-592216e5ea54": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--e2965299-c34e-46c5-af98-0a59ae9cf72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--e95d8d3c-8923-47a8-bf2b-5e6f92f4e898"
+        },
+        "action--b17c6690-4db7-4963-9ca6-d0ac3dd8e607": {
+            "name": "Isolate affected host from network",
+            "description": "Block incoming traffic from the identified suspicious IP address.",
+            "on_completion": "action--e2965299-c34e-46c5-af98-0a59ae9cf72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--e95d8d3c-8923-47a8-bf2b-5e6f92f4e898"
+        },
+        "action--e2965299-c34e-46c5-af98-0a59ae9cf72b": {
+            "name": "Conduct forensic investigation on logs",
+            "description": "Search the system logs for any evidence tied to the executed script.",
+            "type": "action",
+            "on_completion": "end--f1d8f8b2-daef-4c3c-abc2-d0b331ea2a91",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_script.sh' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--e95d8d3c-8923-47a8-bf2b-5e6f92f4e898",
+            "step_variables": {
+                "log_lines": {
+                    "type": "list",
+                    "description": "Lines found containing the suspicious script.",
+                    "value": "$result",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "next_steps": "loop--03074b4e-a0e1-4b25-8d8f-2d9cc8460de5"
+        },
+        "loop--03074b4e-a0e1-4b25-8d8f-2d9cc8460de5": {
+            "name": "Check log lines for critical errors",
+            "description": "Iterate over each log line to check for errors.",
+            "type": "while-condition",
+            "condition": "for each line in log_lines",
+            "on_true": "action--62e939bb-3529-4917-8134-5aa660221016",
+            "on_false": "end--f1d8f8b2-daef-4c3c-abc2-d0b331ea2a91"
+        },
+        "end--f1d8f8b2-daef-4c3c-abc2-d0b331ea2a91": {
+            "type": "end"
+        },
+        "action--62e939bb-3529-4917-8134-5aa660221016": {
+            "name": "Process lines containing ERROR",
+            "description": "Perform actions based on each error line found.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [[ '${line}' == *ERROR* ]]; then handle_error '${line}'; fi"
+                }
+            ],
+            "agent": "organization--e95d8d3c-8923-47a8-bf2b-5e6f92f4e898"
+        }
+    },
+    "agent_definitions": {
+        "organization--e95d8d3c-8923-47a8-bf2b-5e6f92f4e898": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

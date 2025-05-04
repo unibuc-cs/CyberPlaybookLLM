@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4a3e5f2-1f4b-4b75-a4f7-a332ec8aa146",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker deployed a script to execute unauthorized commands, leading to data exfiltration.",
+    "created_by": "identity--d5bcda9f-2b2c-4cf1-92b7-4ea690302435",
+    "created": "2025-04-10T07:44:29.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f4e2e38a-f8d1-4325-bf5a-b7e888188d0c",
+    "workflow": {
+        "start--f4e2e38a-f8d1-4325-bf5a-b7e888188d0c": {
+            "on_completion": "if-condition--2daba00d-c142-49a9-ad2b-13141d257802",
+            "type": "start"
+        },
+        "action--e7351a7e-bd4f-4909-9f36-b5c312b37412": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any suspicious processes that may be exploiting the system.",
+            "on_completion": "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(ps aux | grep '[s]uspicious_script.sh' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--aaf30e8c-0dc6-4a07-a793-c3ef15e00516"
+        },
+        "action--c3a4d8de-dbdc-42a8-9015-c8ee34efce72": {
+            "name": "Block External IPs",
+            "description": "Block outbound connections to known malicious IPs.",
+            "on_completion": "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.42 -j DROP"
+                }
+            ],
+            "agent": "organization--22133776-879b-46c3-9c05-2d4ec49125fb"
+        },
+        "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94": {
+            "name": "Delete Unauthorized Accounts",
+            "description": "Remove any unauthorized accounts that have been created.",
+            "on_completion": "while-condition--3d8fe35e-9b4c-4e06-aafe-d6e9e8f141c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel unauthorized_user"
+                }
+            ],
+            "agent": "organization--aaf30e8c-0dc6-4a07-a793-c3ef15e00516"
+        },
+        "while-condition--3d8fe35e-9b4c-4e06-aafe-d6e9e8f141c5": {
+            "name": "Delete Unauthorized Accounts Loop",
+            "description": "Continue deleting unauthorized accounts until none are left.",
+            "on_completion": "action--5deb7ee1-830e-4f27-9cde-51498c7ac58d",
+            "type": "while-condition",
+            "condition": "unauthorized_account_count > 0",
+            "on_true": "action--99c87374-ff42-4d8d-ba5b-4ee5cdbf4a94"
+        },
+        "action--5deb7ee1-830e-4f27-9cde-51498c7ac58d": {
+            "name": "Scan for Residual Scripts",
+            "description": "Look for and remove any residual scripts that could be used in further attacks.",
+            "on_completion": "end--a4e404f1-0bc6-4d48-9d47-52ebf5b1d27b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'suspicious_script.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--22133776-879b-46c3-9c05-2d4ec49125fb"
+        },
+        "end--a4e404f1-0bc6-4d48-9d47-52ebf5b1d27b": {
+            "type": "end"
+        },
+        "if-condition--2daba00d-c142-49a9-ad2b-13141d257802": {
+            "name": "Check for Malicious Process",
+            "type": "if-condition",
+            "condition": "process_exists == true",
+            "on_true": "action--e7351a7e-bd4f-4909-9f36-b5c312b37412",
+            "on_false": "action--c3a4d8de-dbdc-42a8-9015-c8ee34efce72"
+        }
+    },
+    "agent_definitions": {
+        "organization--aaf30e8c-0dc6-4a07-a793-c3ef15e00516": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--22133776-879b-46c3-9c05-2d4ec49125fb": {
+            "type": "organization",
+            "name": "ABC Firewall Management"
+        }
+    }
+}

@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--eca2c93b-3b1f-4d43-bc12-1c849b4f793d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the incident of unauthorized command execution and data exfiltration through malicious scripts.",
+    "created_by": "identity--12345678-9abc-def0-1234-56789abcdef0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--d4e5d37e-2deb-4a67-8dfb-b1bc4d1c80eb",
+            "type": "start"
+        },
+        "parallel--d4e5d37e-2deb-4a67-8dfb-b1bc4d1c80eb": {
+            "name": "Immediate Response Actions",
+            "description": "Execute immediate response actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5f5f1632-2ae2-4d75-9de1-b855141e0bf8",
+                "action--dbf1fae5-9e9a-4a1d-9a70-95599b6556dc",
+                "action--b08f34c0-4138-4de4-ba71-103290f52aab"
+            ]
+        },
+        "action--5f5f1632-2ae2-4d75-9de1-b855141e0bf8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts currently running.",
+            "on_completion": "action--dbf1fae5-9e9a-4a1d-9a70-95599b6556dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--dbf1fae5-9e9a-4a1d-9a70-95599b6556dc": {
+            "name": "Terminate outbound connections",
+            "description": "Block all outbound connections to prevent data exfiltration if executed as root.",
+            "on_completion": "action--7deddb52-03bb-4204-bab2-473e622943ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if executed_as_root"
+        },
+        "action--7deddb52-03bb-4204-bab2-473e622943ce": {
+            "name": "Perform a full system scan",
+            "description": "Scan the system for any potential threats.",
+            "on_completion": "action--a125ce39-09b6-429e-88c3-9330e78c7428",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "condition": "scan_result != 'clean'",
+                "next_step": "action--7deddb52-03bb-4204-bab2-473e622943ce"
+            }
+        },
+        "action--a125ce39-09b6-429e-88c3-9330e78c7428": {
+            "name": "Review code for unauthorized scripts",
+            "description": "Search for any unauthorized scripts that might still exist in the system.",
+            "on_completion": "end--d8c12e79-5820-4cfd-a597-86e948c6383f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -r 'suspiciousCommand' /path/to/scripts"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "script_folder": {
+                    "type": "string",
+                    "description": "Folder containing scripts to check for unauthorized commands.",
+                    "value": "/path/to/scripts",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--b08f34c0-4138-4de4-ba71-103290f52aab": {
+            "name": "Alert on unauthorized access attempts",
+            "description": "Continuously monitor for unauthorized access attempts.",
+            "on_completion": "end--d8c12e79-5820-4cfd-a597-86e948c6383f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep 'failed password'"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": {
+                "condition": "monitoring",
+                "next_step": "action--b08f34c0-4138-4de4-ba71-103290f52aab"
+            }
+        },
+        "end--d8c12e79-5820-4cfd-a597-86e948c6383f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "SecondOrganization"
+        }
+    }
+}

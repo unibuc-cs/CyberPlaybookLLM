@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6536e42-3fba-421a-a83d-57b8e68e4d20",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident involving malicious command execution for targeted network activities and unauthorized user accounts.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-11-01T12:30:00Z",
+    "modified": "2023-11-01T12:35:00Z",
+    "workflow_start": "start--16ad5a32-2bcf-42e2-a9d1-d54c68d11719",
+    "workflow": {
+        "action--a730dbe3-57e7-4574-b54c-4e4c254603d1": {
+            "name": "Terminate malicious process",
+            "description": "Terminate the identified malicious process.",
+            "on_completion": "parallel--8408d4e8-b078-4e64-89c7-29d81b7a3873",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--46ad6667-c379-4d73-b794-7a2c09af6a8a"
+        },
+        "action--2a2ecd2b-cb74-4c2e-9701-db55f0c8dd0f": {
+            "name": "Delete unauthorized user accounts",
+            "description": "Check if unauthorized user accounts exist and delete them.",
+            "on_completion": "parallel--8408d4e8-b078-4e64-89c7-29d81b7a3873",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if id malicious_user &>/dev/null; then userdel -r malicious_user; fi"
+                }
+            ],
+            "agent": "organization--46ad6667-c379-4d73-b794-7a2c09af6a8a"
+        },
+        "action--17c224fb-647b-459f-aa61-b42b9aef0653": {
+            "name": "Scan network for malicious traffic",
+            "description": "Conduct network scan for malicious activities.",
+            "on_completion": "if-condition--888a6315-3289-4713-be97-3c30e536ae1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sn 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--e5609907-1595-4a43-9d5d-885650c75ddc"
+        },
+        "action--b1fb61f6-185d-4d67-b84e-52562f67c118": {
+            "name": "Quarantine affected host",
+            "description": "Block traffic to isolate the affected host.",
+            "on_completion": "parallel--8408d4e8-b078-4e64-89c7-29d81b7a3873",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s 192.168.1.15 -j DROP"
+                }
+            ],
+            "agent": "organization--e5609907-1595-4a43-9d5d-885650c75ddc"
+        },
+        "action--33e593c4-43c2-493c-92c5-222c1f2a1bd8": {
+            "name": "Patch vulnerable systems",
+            "description": "Update and patch vulnerable systems identified during the incident.",
+            "on_completion": "action--abaf1f19-e873-46dc-8fa7-dde1c5853593",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade"
+                }
+            ],
+            "agent": "organization--46ad6667-c379-4d73-b794-7a2c09af6a8a"
+        },
+        "action--abaf1f19-e873-46dc-8fa7-dde1c5853593": {
+            "name": "Monitor script activity closely",
+            "description": "Set an audit rule to monitor for any script activity.",
+            "on_completion": "end--eeadb08b-5dcc-426f-95cf-3462c6018759",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/local/bin -p wa -k script_activity"
+                }
+            ],
+            "agent": "organization--e5609907-1595-4a43-9d5d-885650c75ddc",
+            "loop": "until further notice"
+        },
+        "start--16ad5a32-2bcf-42e2-a9d1-d54c68d11719": {
+            "on_completion": "action--a730dbe3-57e7-4574-b54c-4e4c254603d1",
+            "type": "start"
+        },
+        "parallel--8408d4e8-b078-4e64-89c7-29d81b7a3873": {
+            "name": "Resolve threats",
+            "description": "Perform multiple remediation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2a2ecd2b-cb74-4c2e-9701-db55f0c8dd0f",
+                "action--17c224fb-647b-459f-aa61-b42b9aef0653",
+                "action--b1fb61f6-185d-4d67-b84e-52562f67c118",
+                "action--33e593c4-43c2-493c-92c5-222c1f2a1bd8",
+                "action--abaf1f19-e873-46dc-8fa7-dde1c5853593"
+            ]
+        },
+        "if-condition--888a6315-3289-4713-be97-3c30e536ae1b": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--b1fb61f6-185d-4d67-b84e-52562f67c118",
+            "on_false": "action--17c224fb-647b-459f-aa61-b42b9aef0653"
+        },
+        "end--eeadb08b-5dcc-426f-95cf-3462c6018759": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--46ad6667-c379-4d73-b794-7a2c09af6a8a": {
+            "type": "organization",
+            "name": "XYZ Security"
+        },
+        "organization--e5609907-1595-4a43-9d5d-885650c75ddc": {
+            "type": "organization",
+            "name": "ABC Networks"
+        }
+    }
+}

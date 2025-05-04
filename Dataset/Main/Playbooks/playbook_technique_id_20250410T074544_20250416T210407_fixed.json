@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fd9bd98f-2f23-43da-8f8f-d39ce7c6eaf8",
+    "name": "Mitigation Playbook for Command Interpreter Exploit Incident",
+    "description": "Mitigates an exploit of a command interpreter vulnerability resulting in arbitrary code execution and persistence establishment on host-23.",
+    "created_by": "identity--cfe420fb-bfc7-49e1-9863-7370307336e5",
+    "created": "2023-10-11T15:30:00Z",
+    "modified": "2023-10-11T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--11fcb7a4-4386-4adb-a1f3-e362867148ec",
+    "workflow": {
+        "start--11fcb7a4-4386-4adb-a1f3-e362867148ec": {
+            "on_completion": "parallel--63eafda9-2975-4409-abd9-b0e5e3b9d4e2",
+            "type": "start"
+        },
+        "parallel--63eafda9-2975-4409-abd9-b0e5e3b9d4e2": {
+            "name": "Execute Initial Mitigations",
+            "description": "Terminate malicious scripts and check for persistence.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ba1f8b70-7254-4f5f-9d72-57a6c76483a1",
+                "if-condition--e7252077-b9ad-49e9-9f8f-7533eb8d5a40"
+            ]
+        },
+        "action--ba1f8b70-7254-4f5f-9d72-57a6c76483a1": {
+            "name": "Terminate Malicious Script Execution",
+            "description": "Terminate any ongoing execution of the suspicious script.",
+            "on_completion": "while-condition--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--88926707-efd5-443a-b793-0b80e0367fc8"
+        },
+        "if-condition--e7252077-b9ad-49e9-9f8f-7533eb8d5a40": {
+            "name": "Check for Persistent Backdoor",
+            "description": "Check if the malicious backdoor exists and remove it.",
+            "type": "if-condition",
+            "condition": "file_exists('/etc/init.d/malicious_backdoor')",
+            "on_true": "action--e7252077-b9ad-49e9-9f8f-7533eb8d5a40",
+            "on_false": "while-condition--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52"
+        },
+        "action--e7252077-b9ad-49e9-9f8f-7533eb8d5a40": {
+            "name": "Remove Persistent Backdoor",
+            "description": "Remove the backdoor file if it exists.",
+            "on_completion": "while-condition--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--88926707-efd5-443a-b793-0b80e0367fc8"
+        },
+        "while-condition--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52": {
+            "name": "Scan and Clean Loop",
+            "description": "Continuously scan and clean the host until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_results != CLEAN",
+            "on_true": "action--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52"
+        },
+        "action--d8eb2b98-65be-4fa2-b1ae-28aaa1d3da52": {
+            "name": "Scan Host for Threats",
+            "description": "Execute a system-wide scan to identify and remove threats.",
+            "on_completion": "if-condition--f3e5e8a4-a05e-4fad-9e41-614207cb36c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--88926707-efd5-443a-b793-0b80e0367fc8",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results from the scan operation.",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--f3e5e8a4-a05e-4fad-9e41-614207cb36c5": {
+            "name": "Monitor Network Traffic",
+            "description": "Check for any unusual outbound network traffic.",
+            "type": "if-condition",
+            "condition": "network_traffic_abnormalities_detected",
+            "on_true": "action--f3e5e8a4-a05e-4fad-9e41-614207cb36c5",
+            "on_false": "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91"
+        },
+        "action--f3e5e8a4-a05e-4fad-9e41-614207cb36c5": {
+            "name": "Monitor Outbound Network Traffic",
+            "description": "Use iftop to inspect any suspicious outbound connections.",
+            "on_completion": "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iftop -i eth0"
+                }
+            ],
+            "agent": "organization--88926707-efd5-443a-b793-0b80e0367fc8"
+        },
+        "action--bd8199a3-274f-4ed4-9c19-46c5e12cbb91": {
+            "name": "Update Security Patches",
+            "description": "Ensure all security patches are up-to-date.",
+            "on_completion": "end--b0d1c6a8-6b1a-4c0b-a2f3-f1e3b5c77167",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--88926707-efd5-443a-b793-0b80e0367fc8"
+        },
+        "end--b0d1c6a8-6b1a-4c0b-a2f3-f1e3b5c77167": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--88926707-efd5-443a-b793-0b80e0367fc8": {
+            "type": "organization",
+            "name": "SecurityOrg"
+        }
+    }
+}

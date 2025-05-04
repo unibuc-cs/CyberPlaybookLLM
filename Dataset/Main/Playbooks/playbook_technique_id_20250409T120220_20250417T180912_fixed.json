@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e5c1b31-d59f-4bca-85db-bc08defbbd1f",
+    "name": "Playbook for Exploitation of Client Execution Incident",
+    "description": "This playbook addresses an incident where a malicious email attachment was executed, resulting in remote code execution and unauthorized access to sensitive files.",
+    "created_by": "identity--c3ce6b06-dac7-4e76-b64c-63bceea27f68",
+    "created": "2023-10-10T08:00:00Z",
+    "modified": "2023-10-10T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--4f23f159-65ee-4b9a-b571-115d9f4fabc1",
+    "workflow": {
+        "start--4f23f159-65ee-4b9a-b571-115d9f4fabc1": {
+            "on_completion": "parallel--12f9b8cb-05a5-40d0-a36b-a03c3d024938",
+            "type": "start"
+        },
+        "parallel--12f9b8cb-05a5-40d0-a36b-a03c3d024938": {
+            "name": "Mitigation Actions",
+            "description": "Perform the necessary mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1f4333f3-292c-47b8-a3d9-f3f5432ff5c1",
+                "action--7c1d052d-c8d1-4b78-80c9-b7f74e470719"
+            ]
+        },
+        "action--1f4333f3-292c-47b8-a3d9-f3f5432ff5c1": {
+            "name": "Quarantine the infected host",
+            "description": "Quarantine the host identified as compromised.",
+            "on_completion": "if-condition--b4567438-654e-4b94-b309-5c8438c0d4c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-15' ]; then quarantine; fi"
+                }
+            ],
+            "agent": "organization--46ec1518-39ee-4feb-bd5c-f8775b125e08"
+        },
+        "action--7c1d052d-c8d1-4b78-80c9-b7f74e470719": {
+            "name": "Disconnect from network",
+            "description": "Disconnect the infected host from the network.",
+            "on_completion": "if-condition--b4567438-654e-4b94-b309-5c8438c0d4c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "disconnect host-15"
+                }
+            ],
+            "agent": "organization--46ec1518-39ee-4feb-bd5c-f8775b125e08"
+        },
+        "if-condition--b4567438-654e-4b94-b309-5c8438c0d4c2": {
+            "name": "Check if host is quarantined",
+            "type": "if-condition",
+            "condition": "quarantine == true",
+            "on_true": "loop--e94a8c3b-1928-404b-8c6d-6f3b0f24539e",
+            "on_false": "end--d13812ba-ad4e-4c2a-b58c-688773db95c7"
+        },
+        "loop--e94a8c3b-1928-404b-8c6d-6f3b0f24539e": {
+            "name": "Run full system scan",
+            "description": "Continuously run a system scan until the system is clean.",
+            "on_completion": "if-condition--b4567438-654e-4b94-b309-5c8438c0d4c2",
+            "type": "while-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--d13812ba-ad4e-4c2a-b58c-688773db95c7",
+            "on_false": "action--e94a8c3b-1928-404b-8c6d-6f3b0f24539e"
+        },
+        "action--e94a8c3b-1928-404b-8c6d-6f3b0f24539e": {
+            "name": "Execute system scan",
+            "on_completion": "set-scan-status--e6d2fae7-5473-418a-aeef-ad53e1a9b03e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan host-15"
+                }
+            ],
+            "agent": "organization--46ec1518-39ee-4feb-bd5c-f8775b125e08"
+        },
+        "end--d13812ba-ad4e-4c2a-b58c-688773db95c7": {
+            "type": "end"
+        },
+        "set-scan-status--e6d2fae7-5473-418a-aeef-ad53e1a9b03e": {
+            "description": "Set the status of the scan",
+            "on_completion": "loop--e94a8c3b-1928-404b-8c6d-6f3b0f24539e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(check_scan_result) == 'clean' ]; then scan_status=clean; fi"
+                }
+            ],
+            "agent": "organization--46ec1518-39ee-4feb-bd5c-f8775b125e08"
+        }
+    },
+    "agent_definitions": {
+        "organization--46ec1518-39ee-4feb-bd5c-f8775b125e08": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

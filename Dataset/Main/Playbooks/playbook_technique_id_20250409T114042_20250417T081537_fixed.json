@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3c36bb2-7b17-4e36-8c69-784b3c89556d",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command-line interface to execute malicious scripts, leading to unauthorized access of sensitive files.",
+    "created_by": "identity--b4266c64-48bb-45ed-b81d-f16d294b5470",
+    "created": "2023-10-15T14:35:00.000Z",
+    "modified": "2023-10-15T14:36:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f3bcd7ab-c12f-4d55-8cde-a814d938e7ed",
+    "workflow": {
+        "start--f3bcd7ab-c12f-4d55-8cde-a814d938e7ed": {
+            "on_completion": "action--d89b8d13-0786-4b2c-8ab4-24f403cdde5a",
+            "type": "start"
+        },
+        "action--d89b8d13-0786-4b2c-8ab4-24f403cdde5a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--1f02adab-6510-4c48-96ab-fc06895c1460",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b"
+        },
+        "action--1f02adab-6510-4c48-96ab-fc06895c1460": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming traffic from the affected host.",
+            "on_completion": "parallel--195f88e1-af2d-4c66-bc47-cfd6a3d58abe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b"
+        },
+        "parallel--195f88e1-af2d-4c66-bc47-cfd6a3d58abe": {
+            "name": "Conduct Mitigation Actions",
+            "description": "Perform further mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9eeb5f42-3fd6-47b6-b45f-82ed4fdc6ae8",
+                "action--c4a04166-bd64-4f15-b063-009dcf99e2c5",
+                "action--7b506fbb-b9e5-482c-bfc5-3c57ffc9f8b9"
+            ]
+        },
+        "action--9eeb5f42-3fd6-47b6-b45f-82ed4fdc6ae8": {
+            "name": "Conduct forensic analysis",
+            "description": "Run forensic analysis tool on the isolated host.",
+            "on_completion": "action--c4a04166-bd64-4f15-b063-009dcf99e2c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_analysis_tool -h host-22"
+                }
+            ],
+            "agent": "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b",
+            "loop": "repeat until no threats found"
+        },
+        "action--c4a04166-bd64-4f15-b063-009dcf99e2c5": {
+            "name": "Update firewall rules",
+            "description": "Update firewall rules to block the attacker's IP address.",
+            "on_completion": "action--7b506fbb-b9e5-482c-bfc5-3c57ffc9f8b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.100"
+                }
+            ],
+            "agent": "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b"
+        },
+        "action--7b506fbb-b9e5-482c-bfc5-3c57ffc9f8b9": {
+            "name": "Monitor network traffic",
+            "description": "Monitor network traffic for irregular activities.",
+            "on_completion": "end--a1f7a2f4-ee0d-4905-9cf0-48b77c0c10ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn"
+                }
+            ],
+            "agent": "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b",
+            "loop": "repeat every 5m"
+        },
+        "end--a1f7a2f4-ee0d-4905-9cf0-48b77c0c10ab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bb6e01c5-743b-4746-91ec-879f8f9fb07b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

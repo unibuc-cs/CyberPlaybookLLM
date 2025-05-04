@@ -1,0 +1,139 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3c5c3f5e-12b8-4e0c-bf1c-6ddefaa54c29",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained shell access and utilized a scripting interpreter for data exfiltration.",
+    "created_by": "identity--1a7d781a-faf3-46d4-8259-ff56e21ccdef",
+    "created": "2025-04-10T07:52:07Z",
+    "modified": "2025-04-10T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2a91f87-4e9a-41c0-8e91-47f1a5b9f20b",
+    "workflow": {
+        "start--b2a91f87-4e9a-41c0-8e91-47f1a5b9f20b": {
+            "on_completion": "if-condition--ea29f870-6686-4c0f-87b3-24eb935bc8bf",
+            "type": "start"
+        },
+        "if-condition--ea29f870-6686-4c0f-87b3-24eb935bc8bf": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "on_false": "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599"
+        },
+        "action--f47ac10b-58cc-4372-a567-0e02b2c3d479": {
+            "name": "Terminate malicious shell process",
+            "description": "Kill the malicious shell process identified on the system.",
+            "on_completion": "parallel--580e10f8-ec61-4b19-94dd-4f54ae7141ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[e]vil_shell' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--4168c9e9-a27c-48a0-823d-75e540ccbd7e"
+        },
+        "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599": {
+            "name": "Audit and monitor all executed scripts",
+            "description": "Audit logs for any executed scripts that may have been used for exfiltration.",
+            "on_completion": "parallel--580e10f8-ec61-4b19-94dd-4f54ae7141ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'sensitive_data' ${log_location} > /tmp/suspected_scripts.log"
+                }
+            ],
+            "agent": "organization--e27cbb68-1095-4385-a69f-850b672784c2",
+            "step_variables": {
+                "log_location": {
+                    "type": "string",
+                    "description": "The location of the script logs",
+                    "value": "/var/log/script_logs",
+                    "constant": false
+                }
+            }
+        },
+        "parallel--580e10f8-ec61-4b19-94dd-4f54ae7141ef": {
+            "name": "Undertake Next Steps",
+            "description": "Initiate network traffic analysis and update intrusion detection rules.",
+            "type": "parallel",
+            "next_steps": [
+                "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd",
+                "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123"
+            ]
+        },
+        "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd": {
+            "name": "Initiate network traffic analysis",
+            "description": "Conduct continuous monitoring of network traffic to capture suspicious activities.",
+            "on_completion": "while-loop--ef5c2f91-fad3-4bcb-a73b-c338d320c429",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'host not trusted_ip' -w /tmp/suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--4168c9e9-a27c-48a0-823d-75e540ccbd7e"
+        },
+        "while-loop--ef5c2f91-fad3-4bcb-a73b-c338d320c429": {
+            "name": "Network Traffic Analysis Loop",
+            "description": "Keep monitoring network traffic until no suspicious traffic is detected.",
+            "on_completion": "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123",
+            "type": "while-condition",
+            "condition": "suspicious_traffic > 0",
+            "on_true": "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd"
+        },
+        "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123": {
+            "name": "Update network intrusion detection rules",
+            "description": "Ensure IDS rules are updated and effective.",
+            "on_completion": "if-condition--3e72c0dc-84f4-4f90-bc88-7626e09e54fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "suricata-update && systemctl restart suricata"
+                }
+            ],
+            "agent": "organization--e27cbb68-1095-4385-a69f-850b672784c2"
+        },
+        "if-condition--3e72c0dc-84f4-4f90-bc88-7626e09e54fc": {
+            "name": "Check data integrity",
+            "type": "if-condition",
+            "condition": "data_integrity_compromised == true",
+            "on_true": "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd",
+            "on_false": "end--0c3dcb54-4053-40e0-9d2a-f4a72a1e7e04"
+        },
+        "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd": {
+            "name": "Roll back database to restore point",
+            "description": "Restore the database to a safe point to maintain integrity.",
+            "on_completion": "end--0c3dcb54-4053-40e0-9d2a-f4a72a1e7e04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/db_restore --point=2023-09-30"
+                }
+            ],
+            "agent": "organization--ee613c1a-2616-4d00-902a-1fbbe2977ff2"
+        },
+        "end--0c3dcb54-4053-40e0-9d2a-f4a72a1e7e04": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4168c9e9-a27c-48a0-823d-75e540ccbd7e": {
+            "type": "organization",
+            "name": "Threat Response Team"
+        },
+        "organization--e27cbb68-1095-4385-a69f-850b672784c2": {
+            "type": "organization",
+            "name": "Logging and Monitoring Team"
+        },
+        "organization--ee613c1a-2616-4d00-902a-1fbbe2977ff2": {
+            "type": "organization",
+            "name": "Database Admin Team"
+        }
+    }
+}

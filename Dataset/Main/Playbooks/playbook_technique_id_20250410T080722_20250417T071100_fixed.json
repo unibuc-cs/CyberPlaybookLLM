@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c7e4cba3-1234-44bb-b129-5be60b8e7eb5",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized commands and installed a backdoor on a compromised host.",
+    "created_by": "identity--7c89b61e-8472-429f-be4f-157795d33c83",
+    "created": "2023-10-15T09:00:00Z",
+    "modified": "2023-10-15T09:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--6c5a1bf2-0af8-42d1-90ec-f297ef163ca3",
+    "workflow": {
+        "action--def4567c-e89b-12d3-a456-426652174000": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process responsible for unauthorized command execution.",
+            "on_completion": "if-condition--99887766-a123-12d3-a456-426614174000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--09b5aa15-ee8a-458f-8b57-62a23f636359"
+        },
+        "if-condition--99887766-a123-12d3-a456-426614174000": {
+            "name": "Check if backdoor exists",
+            "type": "if-condition",
+            "condition": "path_exists('/usr/local/bin/backdoor')",
+            "on_true": "action--999e4567-e89b-12d3-a456-426614179000",
+            "on_false": "action--222e4567-e89b-12d3-a456-426614172000"
+        },
+        "action--999e4567-e89b-12d3-a456-426614179000": {
+            "name": "Remove backdoor",
+            "description": "Delete the persistent backdoor installed by the attacker.",
+            "on_completion": "action--222e4567-e89b-12d3-a456-426614172000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /usr/local/bin/backdoor"
+                }
+            ],
+            "agent": "organization--09b5aa15-ee8a-458f-8b57-62a23f636359"
+        },
+        "action--222e4567-e89b-12d3-a456-426614172000": {
+            "name": "Scan system for other threats",
+            "description": "Perform a full scan of the system to inspect for additional threats.",
+            "on_completion": "while-condition--2710a41c-e165-49ba-aebc-2683c3b4cc24",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan -full"
+                }
+            ],
+            "agent": "organization--09b5aa15-ee8a-458f-8b57-62a23f636359"
+        },
+        "action--823e4567-e89b-12d3-a456-426614154000": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Capture network traffic to identify any anomalous connections that may indicate ongoing activity.",
+            "on_completion": "action--333e4567-e89b-12d3-a456-426614173000",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w /var/log/capture.pcap"
+                }
+            ],
+            "agent": "organization--09b5aa15-ee8a-458f-8b57-62a23f636359",
+            "condition": "if connection_attempts_detected"
+        },
+        "action--333e4567-e89b-12d3-a456-426614173000": {
+            "name": "Reset compromised accounts",
+            "description": "Reset passwords for any compromised user accounts.",
+            "on_completion": "end--a1ada3fa-4ca0-47e0-adbf-e85d1d78a981",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd username"
+                }
+            ],
+            "agent": "organization--09b5aa15-ee8a-458f-8b57-62a23f636359"
+        },
+        "start--6c5a1bf2-0af8-42d1-90ec-f297ef163ca3": {
+            "on_completion": "action--def4567c-e89b-12d3-a456-426652174000",
+            "type": "start"
+        },
+        "while-condition--2710a41c-e165-49ba-aebc-2683c3b4cc24": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the system until it is deemed clean.",
+            "on_completion": "action--823e4567-e89b-12d3-a456-426614154000",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--222e4567-e89b-12d3-a456-426614172000"
+        },
+        "end--a1ada3fa-4ca0-47e0-adbf-e85d1d78a981": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--09b5aa15-ee8a-458f-8b57-62a23f636359": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9e2415af-5a0a-4d45-bb51-f96c270ae524",
+    "name": "Response Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a misconfigured server and executed malicious scripts to deploy a backdoor. Various mitigation strategies are deployed in response to detected activities.",
+    "created_by": "identity--b1a67115-f5f4-4939-9199-11970db4acff",
+    "created": "2023-10-17T12:00:00.000Z",
+    "modified": "2023-10-17T12:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--dbe0274f-c3f6-40b6-95e4-1d69183483f2",
+    "workflow": {
+        "start--dbe0274f-c3f6-40b6-95e4-1d69183483f2": {
+            "on_completion": "action--b2d4dcb1-876e-4c7e-85e5-290694877da9",
+            "type": "start"
+        },
+        "action--b2d4dcb1-876e-4c7e-85e5-290694877da9": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "parallel--ec685e69-50d0-46fd-9231-6f6d40c36c07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--a2865129-10be-4aba-bd0d-7d1621ab8778"
+        },
+        "parallel--ec685e69-50d0-46fd-9231-6f6d40c36c07": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--e99a8a81-ec43-4deb-ab77-d34dec94f766",
+                "action--f96f2b38-bf45-4f8f-aa46-3c7eeb8f7127"
+            ]
+        },
+        "if-condition--e99a8a81-ec43-4deb-ab77-d34dec94f766": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/malicious_script.sh')",
+            "on_true": "action--721168d7-c287-46b6-8edf-cb0b7e9fd355",
+            "on_false": "action--b9c88e64-3db1-4174-bbfa-f2e9cee4c86d"
+        },
+        "action--721168d7-c287-46b6-8edf-cb0b7e9fd355": {
+            "name": "Remove malicious files",
+            "description": "Delete the malicious script to prevent execution.",
+            "on_completion": "action--b9c88e64-3db1-4174-bbfa-f2e9cee4c86d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--a2865129-10be-4aba-bd0d-7d1621ab8778"
+        },
+        "action--f96f2b38-bf45-4f8f-aa46-3c7eeb8f7127": {
+            "name": "Scan for vulnerabilities",
+            "description": "Start a vulnerability scan to identify further issues.",
+            "on_completion": "while-condition--c4ca4228-6b18-42ed-a44a-9cf40ca4b894",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan"
+                }
+            ],
+            "agent": "organization--a2865129-10be-4aba-bd0d-7d1621ab8778"
+        },
+        "while-condition--c4ca4228-6b18-42ed-a44a-9cf40ca4b894": {
+            "name": "Check scan results",
+            "description": "Repeat the scan until no vulnerabilities are found.",
+            "on_completion": "end--c3f4aae9-b5d0-4f02-8f1e-19740a1e06b6",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f96f2b38-bf45-4f8f-aa46-3c7eeb8f7127"
+        },
+        "end--c3f4aae9-b5d0-4f02-8f1e-19740a1e06b6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a2865129-10be-4aba-bd0d-7d1621ab8778": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

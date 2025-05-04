@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7e0af34-681a-4e52-80a1-3ab1cbdd664c",
+    "name": "Mitigation Playbook for Malicious Script and Data Exfiltration Incident",
+    "description": "A playbook designed to mitigate an incident where an attacker executed malicious scripts to extract sensitive data through phishing.",
+    "created_by": "identity--abc12345-6789-0def-ghij-klmnopqrstuv",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1c2d3e4-f5a6-77b8-9c0d-e1a23456789b",
+    "workflow": {
+        "start--b1c2d3e4-f5a6-77b8-9c0d-e1a23456789b": {
+            "on_completion": "if-condition--c6d7e8f9-1a2b-3c4d-5e6f-7g8h9i0j1k2l",
+            "type": "start"
+        },
+        "if-condition--c6d7e8f9-1a2b-3c4d-5e6f-7g8h9i0j1k2l": {
+            "name": "Evaluate if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "check_process_running('PowerShell')",
+            "on_true": "action--759ab615-d508-4c7d-8b1e-40ff150a2897",
+            "on_false": "action--da8d15c8-e5ab-4383-8a49-df80b316c5de"
+        },
+        "action--759ab615-d508-4c7d-8b1e-40ff150a2897": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminates any running PowerShell processes that may be involved in the attack.",
+            "on_completion": "action--da8d15c8-e5ab-4383-8a49-df80b316c5de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--da8d15c8-e5ab-4383-8a49-df80b316c5de": {
+            "name": "Isolate affected hosts",
+            "description": "Disable firewall for all profiles to isolate affected hosts.",
+            "on_completion": "while-condition--e3bf7795-2ad2-475d-9802-02204f812b25",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e3bf7795-2ad2-475d-9802-02204f812b25": {
+            "name": "Run malware scan loop",
+            "description": "Continuously run malware scans until no threats are detected.",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--e3bf7795-2ad2-475d-9802-02204f812b25",
+            "on_false": "action--ec3f9e78-16ab-4536-8df8-e85ee2b67f20"
+        },
+        "action--e3bf7795-2ad2-475d-9802-02204f812b25": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan on the affected paths.",
+            "on_completion": "while-condition--e3bf7795-2ad2-475d-9802-02204f812b25",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "maldet -a /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "threats_detected": {
+                    "type": "boolean",
+                    "description": "Determines if any threats were detected during the scan",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--ec3f9e78-16ab-4536-8df8-e85ee2b67f20": {
+            "name": "Change credentials for impacted accounts",
+            "description": "Changes the password for the affected user account.",
+            "on_completion": "action--c3f75a88-5b94-4da7-b903-9abcd290173e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd ${affected_user}"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "affected_user": {
+                    "type": "string",
+                    "description": "Username of the affected account",
+                    "value": "username",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--c3f75a88-5b94-4da7-b903-9abcd290173e": {
+            "name": "Review access logs for anomalies",
+            "description": "Check the access logs for any further suspicious activities.",
+            "on_completion": "end--d77fa587-8f2a-4424-92ec-e3ab57b6e6f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'suspicious'"
+                }
+            ],
+            "agent": "organization--abc",
+            "condition": "if anomalies found"
+        },
+        "end--d77fa587-8f2a-4424-92ec-e3ab57b6e6f8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9a9bc7d4-7f8d-4daf-8b62-f2c26cf6a665",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute arbitrary commands and downloaded a malicious script.",
+    "created_by": "identity--e4d29f93-1730-4dde-9a62-0cd8d7d79278",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1f4d5aa-1d35-4a2d-840d-d907ff3e8a1c",
+    "workflow": {
+        "start--e1f4d5aa-1d35-4a2d-840d-d907ff3e8a1c": {
+            "on_completion": "if-condition--3c494503-b74d-4f69-bea7-6578838bd555",
+            "type": "start"
+        },
+        "if-condition--3c494503-b74d-4f69-bea7-6578838bd555": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--c4f3e8c1-4a93-4cd4-bd28-eff6391b8aef",
+            "on_false": "action--d21b358e-4865-4ff0-b4e1-a3e096e06d39"
+        },
+        "action--c4f3e8c1-4a93-4cd4-bd28-eff6391b8aef": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that are currently running.",
+            "on_completion": "action--d21b358e-4865-4ff0-b4e1-a3e096e06d39",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process'"
+                }
+            ],
+            "agent": "organization--7696d911-7fa7-4c62-9bbb-ab06c40e8dd7"
+        },
+        "action--d21b358e-4865-4ff0-b4e1-a3e096e06d39": {
+            "name": "Delete downloaded script",
+            "description": "Remove the malicious script that was downloaded.",
+            "on_completion": "while-condition--b7c39a68-789d-4d72-b9ed-da73a2d325c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--7696d911-7fa7-4c62-9bbb-ab06c40e8dd7"
+        },
+        "while-condition--b7c39a68-789d-4d72-b9ed-da73a2d325c3": {
+            "name": "Run security scan until clean",
+            "description": "Perform a security scan and repeat until the system is clean.",
+            "on_true": "action--c390a803-cd35-4e36-bfe2-9a612bb2b7b8",
+            "on_false": "end--8fb04d71-301e-404e-91ba-cdfae5f1cb63",
+            "type": "while-condition",
+            "condition": "scan_status == not_clean",
+            "on_completion": "action--b7c39a68-789d-4d72-b9ed-da73a2d325c3"
+        },
+        "action--c390a803-cd35-4e36-bfe2-9a612bb2b7b8": {
+            "name": "Run security scan",
+            "description": "Scan the entire system for threats.",
+            "on_completion": "set-scan-status--1d0694e5-40bf-441f-93f8-51e2e27f10b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--7696d911-7fa7-4c62-9bbb-ab06c40e8dd7",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan indicating if it's clean or not.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--8fb04d71-301e-404e-91ba-cdfae5f1cb63": {
+            "type": "end"
+        },
+        "set-scan-status--1d0694e5-40bf-441f-93f8-51e2e27f10b4": {
+            "name": "Check scan results",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $? -eq 0 ]; then scan_status='clean'; fi"
+                }
+            ],
+            "on_completion": "while-condition--b7c39a68-789d-4d72-b9ed-da73a2d325c3",
+            "agent": "organization--7696d911-7fa7-4c62-9bbb-ab06c40e8dd7"
+        }
+    },
+    "agent_definitions": {
+        "organization--7696d911-7fa7-4c62-9bbb-ab06c40e8dd7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

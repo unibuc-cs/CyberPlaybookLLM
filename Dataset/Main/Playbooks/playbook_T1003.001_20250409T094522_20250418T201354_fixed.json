@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ab564362-1c98-493b-a087-5c7869efa69e",
+    "name": "Playbook for LSASS Credential Dumping Incident",
+    "description": "This playbook responds to incidents involving unauthorized access and credential dumping from the LSASS process.",
+    "created_by": "identity--6e7e823d-ad75-4bd4-a534-dcaf69e293ea",
+    "created": "2025-04-09T09:45:22Z",
+    "modified": "2025-04-09T09:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--e8655709-70db-4b06-9da3-c8de6e5d6838",
+    "workflow": {
+        "action--d1eabcc7-0afc-4e1c-a6d6-ee02e6441f92": {
+            "name": "Kill malicious process accessing LSASS",
+            "description": "Terminate the process that is attempting to access LSASS for credential extraction.",
+            "on_completion": "if-condition--30f8c829-8161-4f64-86a5-b6e9f1d7a1a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f lsass.exe"
+                }
+            ],
+            "agent": "organization--847512ec-9f07-4533-a7e6-1c5a80408258"
+        },
+        "if-condition--30f8c829-8161-4f64-86a5-b6e9f1d7a1a3": {
+            "name": "Check memory dump existence",
+            "type": "if-condition",
+            "condition": "memory_dump_exists == true",
+            "on_true": "action--30f8c829-8161-4f64-86a5-b6e9f1d7a1a3",
+            "on_false": "action--2197fcd2-0d62-4baa-b6b9-bec96f5465aa"
+        },
+        "action--30f8c829-8161-4f64-86a5-b6e9f1d7a1a3": {
+            "name": "Perform memory dump analysis",
+            "description": "Analyze the memory dump for additional malicious activity.",
+            "on_completion": "action--2197fcd2-0d62-4baa-b6b9-bec96f5465aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "volatility -f memory.dmp --profile=Win10x64 lsass"
+                }
+            ],
+            "agent": "organization--65d65f00-cf23-4b55-9937-99fd16ddc30c"
+        },
+        "action--2197fcd2-0d62-4baa-b6b9-bec96f5465aa": {
+            "name": "Scan all hosts for unauthorized access",
+            "description": "Continuously scan the subnet for unauthorized access until it's clear.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p 445 --open -sS ${subnet}"
+                }
+            ],
+            "agent": "organization--847512ec-9f07-4533-a7e6-1c5a80408258",
+            "on_completion": "while-condition--de8b3c69-8739-496d-892e-71618b141b10",
+            "step_variables": {
+                "subnet": {
+                    "type": "string",
+                    "description": "The subnet to scan for unauthorized access.",
+                    "value": "192.168.1.0/24",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--b3e90ef8-e4c2-4f4f-a216-c2dfc9e74a1c": {
+            "name": "Change passwords for all affected accounts",
+            "description": "In response to the credential dump, change password for all accounts that might be compromised.",
+            "on_completion": "action--cfd57f5f-21af-428d-b373-92820d88589a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Change passwords for compromised users'"
+                }
+            ],
+            "agent": "organization--65d65f00-cf23-4b55-9937-99fd16ddc30c"
+        },
+        "action--cfd57f5f-21af-428d-b373-92820d88589a": {
+            "name": "Enable Windows Defender Credential Guard",
+            "description": "Enable Windows Defender Credential Guard to protect against future dumping.",
+            "type": "if-condition",
+            "on_completion": "end--b13ce285-e605-4bfd-857d-470a1f311b09",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bcdedit /set hypervisorlaunchtype auto"
+                }
+            ],
+            "agent": "organization--847512ec-9f07-4533-a7e6-1c5a80408258",
+            "condition": "if credential_guard_not_enabled"
+        },
+        "start--e8655709-70db-4b06-9da3-c8de6e5d6838": {
+            "on_completion": "action--d1eabcc7-0afc-4e1c-a6d6-ee02e6441f92",
+            "type": "start"
+        },
+        "while-condition--de8b3c69-8739-496d-892e-71618b141b10": {
+            "name": "Scan loop until clean",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--2197fcd2-0d62-4baa-b6b9-bec96f5465aa",
+            "on_false": "action--b3e90ef8-e4c2-4f4f-a216-c2dfc9e74a1c",
+            "type": "if-condition"
+        },
+        "end--b13ce285-e605-4bfd-857d-470a1f311b09": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--847512ec-9f07-4533-a7e6-1c5a80408258": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--65d65f00-cf23-4b55-9937-99fd16ddc30c": {
+            "type": "organization",
+            "name": "ABC Security Team"
+        }
+    }
+}

@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7b105734-567c-4702-b33d-db5d65e2f4ce",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a known vulnerability in the web server to execute a malicious script, exfiltrate sensitive data, and create a backdoor for future access.",
+    "created_by": "identity--58cde928-f80f-4e18-86ca-bb8681cf67dd",
+    "created": "2025-04-09T08:55:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--39a7d5cb-1f4e-4e15-b687-3f625b840bec",
+    "workflow": {
+        "action--a9e76d54-042a-4c13-8f08-fb5472ba1d63": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious running processes to prevent further actions.",
+            "on_completion": "action--b03b5679-fbb0-4f68-bc77-ec056f3414f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script_name"
+                }
+            ],
+            "agent": "organization--ada66838-423a-4896-a05a-7d3792120f97"
+        },
+        "action--b03b5679-fbb0-4f68-bc77-ec056f3414f5": {
+            "name": "Remove web shell",
+            "description": "Delete the web shell to eliminate backdoor access.",
+            "on_completion": "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/webshell.php"
+                }
+            ],
+            "agent": "organization--ada66838-423a-4896-a05a-7d3792120f97"
+        },
+        "action--b80d0a07-36dc-4e20-bc04-1072e39610f8": {
+            "name": "Block external IPs",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "action--cbe5492c-3cef-4930-a076-c43aff6855cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--ada66838-423a-4896-a05a-7d3792120f97",
+            "conditions": "if malicious_activity_detected"
+        },
+        "action--cbe5492c-3cef-4930-a076-c43aff6855cb": {
+            "name": "Notify Security Team",
+            "description": "Send notification to the security team regarding the incident.",
+            "on_completion": "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on webserver-01' | sendmail security@organization.com"
+                }
+            ],
+            "agent": "organization--ada66838-423a-4896-a05a-7d3792120f97"
+        },
+        "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e": {
+            "name": "Execute full system scan",
+            "description": "Perform a comprehensive scan of the system to identify any remaining threats.",
+            "on_completion": "while-condition--656ab853-70ce-492e-b5f8-35099f6aa6b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash scan.sh"
+                }
+            ],
+            "agent": "organization--ada66838-423a-4896-a05a-7d3792120f97"
+        },
+        "start--39a7d5cb-1f4e-4e15-b687-3f625b840bec": {
+            "on_completion": "parallel--013280d3-2fd4-4f46-8eff-055187963a55",
+            "type": "start"
+        },
+        "parallel--013280d3-2fd4-4f46-8eff-055187963a55": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate actions to mitigate the attack consequences.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a9e76d54-042a-4c13-8f08-fb5472ba1d63",
+                "action--b03b5679-fbb0-4f68-bc77-ec056f3414f5",
+                "action--b80d0a07-36dc-4e20-bc04-1072e39610f8",
+                "action--cbe5492c-3cef-4930-a076-c43aff6855cb"
+            ]
+        },
+        "while-condition--656ab853-70ce-492e-b5f8-35099f6aa6b0": {
+            "name": "Check scan results",
+            "description": "Repeat scanning until the system is clean.",
+            "type": "while-condition",
+            "on_true": "action--d6b64e28-6603-4a9b-a0e6-4a28c18f602e",
+            "condition": "scan_results != clean"
+        },
+        "end--763ed8f9-23bf-4874-8c27-6346685b7a81": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ada66838-423a-4896-a05a-7d3792120f97": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

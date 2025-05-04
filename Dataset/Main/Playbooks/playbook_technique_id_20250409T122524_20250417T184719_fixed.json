@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e11421f7-459e-48f9-96ce-3da73876fc42",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts on a web server, exfiltrating sensitive data.",
+    "created_by": "identity--f28f2394-4c8f-4d2b-9c54-49f423ab6706",
+    "created": "2023-10-25T14:20:00Z",
+    "modified": "2023-10-25T14:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--c01283a4-f4f3-4c8a-85cf-9f8f45661e8c",
+    "workflow": {
+        "start--c01283a4-f4f3-4c8a-85cf-9f8f45661e8c": {
+            "on_completion": "action--c53b2804-1034-4a9e-8536-9a9b69c564c0",
+            "type": "start"
+        },
+        "action--c53b2804-1034-4a9e-8536-9a9b69c564c0": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized script that was executed.",
+            "on_completion": "action--2e4b568d-0955-4ee7-b8b1-edf02bd3ad9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--ea79f4a9-f8fe-4489-b003-2da31c0cdd18"
+        },
+        "action--2e4b568d-0955-4ee7-b8b1-edf02bd3ad9a": {
+            "name": "Isolate affected host",
+            "description": "Drop all incoming traffic from the compromised host to prevent further damage.",
+            "on_completion": "loop--a6673ec9-5cd4-4393-8d56-9a6de265abb4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-45 -j DROP"
+                }
+            ],
+            "agent": "organization--ea79f4a9-f8fe-4489-b003-2da31c0cdd18"
+        },
+        "loop--a6673ec9-5cd4-4393-8d56-9a6de265abb4": {
+            "name": "Scan network for suspicious hosts",
+            "description": "Repeatedly scan the network to detect any unauthorized scripts or vulnerable hosts.",
+            "type": "while-condition",
+            "condition": "suspicious_hosts_found == true",
+            "on_true": "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4",
+            "on_false": "end--f2b24635-77e8-435d-9616-457657b2476f"
+        },
+        "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4": {
+            "name": "Scan network for other instances",
+            "description": "Perform a network scan to find other instances of unauthorized activity.",
+            "on_completion": "loop--a6673ec9-5cd4-4393-8d56-9a6de265abb4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--ea79f4a9-f8fe-4489-b003-2da31c0cdd18"
+        },
+        "end--f2b24635-77e8-435d-9616-457657b2476f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ea79f4a9-f8fe-4489-b003-2da31c0cdd18": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

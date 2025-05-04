@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8a1c123-4fea-4d6a-8b26-c54ebd4fe32c",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a command-line interface to execute unauthorized scripts, leading to malware deployment and data exfiltration.",
+    "created_by": "identity--77303e1d-45d5-497b-ae94-26edc5edf86d",
+    "created": "2023-10-23T15:00:00Z",
+    "modified": "2023-10-23T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1e32a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1e32a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--5b3dfa6c-475c-4903-9e6c-d56b0d691139",
+            "type": "start"
+        },
+        "action--5b3dfa6c-475c-4903-9e6c-d56b0d691139": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes related to unauthorized scripting.",
+            "on_completion": "if-condition--c5e7d7ec-6cf8-4f87-bc7b-d982f7b3a8e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d"
+        },
+        "if-condition--c5e7d7ec-6cf8-4f87-bc7b-d982f7b3a8e5": {
+            "name": "Check for running process",
+            "type": "if-condition",
+            "condition": "process is running",
+            "on_true": "action--c5e7d7ec-6cf8-4f87-bc7b-d982f7b3a8e5",
+            "on_false": "action--d4116cba-0cdf-4f5b-bcef-05b54d225c0e"
+        },
+        "action--c5e7d7ec-6cf8-4f87-bc7b-d982f7b3a8e5": {
+            "name": "Delete dropped files",
+            "description": "Remove malicious payload files from the temporary directory.",
+            "on_completion": "action--8b71a6a8-b2b9-4884-a96b-a3ebd44d77d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload.sh"
+                }
+            ],
+            "agent": "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d"
+        },
+        "action--8b71a6a8-b2b9-4884-a96b-a3ebd44d77d8": {
+            "name": "Perform network scan",
+            "description": "Conduct a network scan to identify any lingering malicious activities.",
+            "on_completion": "while-condition--d4116cba-0cdf-4f5b-bcef-05b54d225c0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d"
+        },
+        "while-condition--d4116cba-0cdf-4f5b-bcef-05b54d225c0e": {
+            "name": "Repeat until scan clear",
+            "description": "Keep scanning the network until no malicious activities are detected.",
+            "on_completion": "action--05464033-0ae9-48d1-b575-51e8b7a32843",
+            "type": "while-condition",
+            "condition": "malicious activities detected",
+            "on_true": "action--8b71a6a8-b2b9-4884-a96b-a3ebd44d77d8"
+        },
+        "action--05464033-0ae9-48d1-b575-51e8b7a32843": {
+            "name": "Monitor for further commands",
+            "description": "Continuously monitor logs for additional unauthorized command execution.",
+            "step_variables": {
+                "command_detected": {
+                    "type": "boolean",
+                    "description": "Indicates if a new command is detected.",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "action--d4116cba-0cdf-4f5b-bcef-05b54d225c0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/commands.log"
+                }
+            ],
+            "agent": "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d"
+        },
+        "action--d4116cba-0cdf-4f5b-bcef-05b54d225c0e": {
+            "name": "Adjust firewall rules",
+            "description": "Modify firewall settings to block outbound connections to malicious IP.",
+            "on_completion": "end--c8d2caa8-2f5d-4f80-a4b2-6ced6c2edc1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j REJECT"
+                }
+            ],
+            "agent": "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d"
+        },
+        "end--c8d2caa8-2f5d-4f80-a4b2-6ced6c2edc1c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b79ac74d-584b-4a06-b95e-d22fe28ee09d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

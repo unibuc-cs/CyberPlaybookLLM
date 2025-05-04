@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8f8f11ee-59f5-4186-944f-bbdfd2d92f03",
+    "name": "Mitigation Playbook for Backdoor Malicious Script Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script creating backdoors on a server.",
+    "created_by": "identity--f040a335-b0aa-4097-aba9-57287f904d5e",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--6ba2c67b-7d75-4b59-b638-ff913fc8ff76",
+    "workflow": {
+        "start--6ba2c67b-7d75-4b59-b638-ff913fc8ff76": {
+            "on_completion": "action--f65d2f26-d8e9-4d87-b6f2-e5b6b7c1b8d3",
+            "type": "start"
+        },
+        "action--f65d2f26-d8e9-4d87-b6f2-e5b6b7c1b8d3": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes associated with the malicious backdoor script.",
+            "on_completion": "decision--b32a8d2e-6bcb-4b99-8bce-a234d5f59e52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--78cf4319-8a36-4dcf-9de3-371c80efea06"
+        },
+        "decision--b32a8d2e-6bcb-4b99-8bce-a234d5f59e52": {
+            "name": "Check if backdoor detected",
+            "type": "if-condition",
+            "condition": "backdoor_detected",
+            "on_true": "loop--440c0dd3-d214-4d7d-9eb7-5bed1ee91b58",
+            "on_false": "action--997c1cfa-556e-4e78-a521-fc8e26039094"
+        },
+        "action--b32a8d2e-6bcb-4b99-8bce-a234d5f59e52": {
+            "name": "Run system scan",
+            "description": "Perform a detailed scan on the system to find indicators of compromise.",
+            "on_completion": "decision--e90b0601-3515-4853-8167-0e142e172857",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --target host-21"
+                }
+            ],
+            "agent": "organization--78cf4319-8a36-4dcf-9de3-371c80efea06"
+        },
+        "action--997c1cfa-556e-4e78-a521-fc8e26039094": {
+            "name": "Remove the backdoor file",
+            "description": "Delete the malicious backdoor file to prevent further exploitation.",
+            "on_completion": "end--d12196c3-8e3b-4482-a383-d070b554fd54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--78cf4319-8a36-4dcf-9de3-371c80efea06"
+        },
+        "loop--440c0dd3-d214-4d7d-9eb7-5bed1ee91b58": {
+            "name": "Scan system for indicators of compromise",
+            "type": "while-condition",
+            "condition": "backdoor_detected",
+            "on_true": "action--b32a8d2e-6bcb-4b99-8bce-a234d5f59e52",
+            "next_steps": [
+                "action--b32a8d2e-6bcb-4b99-8bce-a234d5f59e52"
+            ]
+        },
+        "decision--e90b0601-3515-4853-8167-0e142e172857": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_clean",
+            "on_true": "action--997c1cfa-556e-4e78-a521-fc8e26039094",
+            "on_false": "loop--440c0dd3-d214-4d7d-9eb7-5bed1ee91b58"
+        },
+        "end--d12196c3-8e3b-4482-a383-d070b554fd54": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--78cf4319-8a36-4dcf-9de3-371c80efea06": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "backdoor_detected": {
+            "type": "boolean",
+            "description": "Indicates if the backdoor is still detected on the system.",
+            "value": true,
+            "constant": false
+        },
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Indicates if the last scan cleared the indicators of compromise.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7e0fd46-58f8-4bfd-9306-4949b2c3e580",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook manages the incident due to exploitation of a vulnerable script interpreter for unauthorized command execution, leading to malware deployment across internal servers.",
+    "created_by": "identity--1c94ec1a-1441-40a2-ae9c-bce7704eb737",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e100e6d6-1060-4ace-b99d-43221b54e811",
+    "workflow": {
+        "start--e100e6d6-1060-4ace-b99d-43221b54e811": {
+            "on_completion": "parallel--819e1541-49e8-466c-b9e8-83a2a24510c5",
+            "type": "start"
+        },
+        "parallel--819e1541-49e8-466c-b9e8-83a2a24510c5": {
+            "name": "Immediate Actions for Incident Response",
+            "description": "Perform urgent actions in parallel to mitigate the risk.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c1f8e3a8-56f5-487c-b8b9-7d9c93c6f21a",
+                "action--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf"
+            ]
+        },
+        "action--c1f8e3a8-56f5-487c-b8b9-7d9c93c6f21a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are dangerous or unverified.",
+            "on_completion": "action--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep malprocess)"
+                }
+            ],
+            "agent": "organization--12e40ebb-339b-4a6f-be9c-1da53fb19df1"
+        },
+        "action--9b6426f1-78d2-4c6c-bc9a-275e6cde3cdf": {
+            "name": "Block suspicious IP",
+            "description": "Block the IP address of the attacker to prevent further damage.",
+            "on_completion": "action--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.0.75 -j DROP"
+                }
+            ],
+            "agent": "organization--12e40ebb-339b-4a6f-be9c-1da53fb19df1",
+            "condition": "if [ $(iptables -L | grep -c '192.168.0.75') -eq 0 ]"
+        },
+        "action--3d69f8a7-d157-47c6-a8a5-e8a3ef92b9a2": {
+            "name": "Scan and clean infected hosts",
+            "description": "Perform a scan of the affected hosts to identify and clean any malware.",
+            "on_completion": "action--2e8dcb95-62b0-411b-8eb9-f63c5c8eeb29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--12e40ebb-339b-4a6f-be9c-1da53fb19df1",
+            "loop": "until [ $(clamscan -i / | grep 'Infected files: 0') ]",
+            "variables": {
+                "scan_report": "/var/log/clamav_scan.log"
+            }
+        },
+        "action--2e8dcb95-62b0-411b-8eb9-f63c5c8eeb29": {
+            "name": "Apply security patches",
+            "description": "Update and upgrade the system to ensure all security patches are applied.",
+            "on_completion": "action--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--1d4f0859-3720-4bae-8eb0-0fdd1e67a08e",
+            "variables": {
+                "upgrade_log": "/var/log/apt/upgrade.log"
+            }
+        },
+        "action--1bbe5aaf-354b-4d43-b95c-e951fcb9c0bc": {
+            "name": "Change compromised account passwords",
+            "description": "Update passwords for any accounts identified as compromised.",
+            "on_completion": "end--58f8775b-a722-4afe-a863-29049376a16e",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo new-password | passwd --stdin user"
+                }
+            ],
+            "agent": "organization--1d4f0859-3720-4bae-8eb0-0fdd1e67a08e",
+            "condition": "if [ $(grep 'compromised' /etc/passwd) ]",
+            "variables": {
+                "username": "user",
+                "new_password": "S3creT!123"
+            }
+        },
+        "end--58f8775b-a722-4afe-a863-29049376a16e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--12e40ebb-339b-4a6f-be9c-1da53fb19df1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--1d4f0859-3720-4bae-8eb0-0fdd1e67a08e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

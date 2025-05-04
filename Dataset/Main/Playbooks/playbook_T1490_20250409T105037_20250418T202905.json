@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--473e8fc0-fe96-4fdb-8560-f017f37e36ef",
+    "name": "Mitigation Playbook for Inhibit System Recovery Incident",
+    "description": "This playbook responds to an incident where an attacker deployed malware to delete system restore points and disrupt operations.",
+    "created_by": "identity--12345678-1234-5678-1234-567812345678",
+    "created": "2025-04-09T10:50:37.000Z",
+    "modified": "2025-04-09T10:50:37.000Z",
+    "revoked": false,
+    "workflow_start": "start--f0d3e3c5-35e7-4a1c-b792-61d4ef776f5c",
+    "workflow": {
+        "start--f0d3e3c5-35e7-4a1c-b792-61d4ef776f5c": {
+            "on_completion": "action--9c2d7fdd-2f4c-490e-bd8f-71d43258f123",
+            "type": "start"
+        },
+        "action--9c2d7fdd-2f4c-490e-bd8f-71d43258f123": {
+            "name": "Terminate malicious script process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--32c25cbc-7590-4a0b-8f17-6e2f0f3c5e6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--32c25cbc-7590-4a0b-8f17-6e2f0f3c5e6a": {
+            "name": "Check for backup restore points",
+            "type": "if-condition",
+            "condition": "if [ -d /backup/restore_points/ ]; then",
+            "on_true": "action--32c25cbc-7590-4a0b-8f17-6e2f0f3c5e6a",
+            "on_false": "action--fa95b294-f32c-44d3-b8c0-b9ae831e74b3"
+        },
+        "action--32c25cbc-7590-4a0b-8f17-6e2f0f3c5e6a": {
+            "name": "Restore deleted restore points from backups",
+            "description": "Restore critical restore points to ensure system recovery.",
+            "on_completion": "action--fa95b294-f32c-44d3-b8c0-b9ae831e74b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/restore_points/ /mnt/c-drive/"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--fa95b294-f32c-44d3-b8c0-b9ae831e74b3": {
+            "name": "Enable system protections for recovery options",
+            "description": "Enable system restore to protect recovery options on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command 'Enable-ComputerRestore -Drive 'C:\\''"
+                }
+            ],
+            "agent": "organization--xyz",
+            "next_steps": [
+                "loop-condition--check-recovery-status"
+            ]
+        },
+        "loop-condition--check-recovery-status": {
+            "name": "Check Recovery Status",
+            "description": "Check the status of recovery options to ensure they are successfully enabled.",
+            "type": "while-condition",
+            "condition": "! system_protection_enabled()",
+            "on_true": "action--fa95b294-f32c-44d3-b8c0-b9ae831e74b3",
+            "on_false": "end--b0e746b5-0c5d-434b-81c8-f0fe00f53573"
+        },
+        "end--b0e746b5-0c5d-434b-81c8-f0fe00f53573": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

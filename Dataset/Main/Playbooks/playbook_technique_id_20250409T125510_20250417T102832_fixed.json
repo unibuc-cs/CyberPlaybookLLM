@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f3a1ae5-cd6f-4b9b-b1f8-ee7b9cc5ea2f",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses incidents involving unauthorized script execution leading to data exfiltration and system compromise.",
+    "created_by": "identity--d30c032e-2228-4d04-a48d-1d0214bee437",
+    "created": "2023-10-12T15:30:00Z",
+    "modified": "2023-10-12T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b135c418-b8df-4937-bc43-02e49451f42e",
+    "workflow": {
+        "start--b135c418-b8df-4937-bc43-02e49451f42e": {
+            "on_completion": "action--d4c63f8c-b48c-4c92-8237-36c2b0fbe3a1",
+            "type": "start"
+        },
+        "end--e988743e-f8b7-4f9f-bc99-bb69b9206c64": {
+            "type": "end"
+        },
+        "action--d4c63f8c-b48c-4c92-8237-36c2b0fbe3a1": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes running the malicious script.",
+            "on_completion": "action--fbd5e231-7c06-4388-a4bb-3b426a169a29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a"
+        },
+        "action--fbd5e231-7c06-4388-a4bb-3b426a169a29": {
+            "name": "Isolate infected host",
+            "description": "Isolate the host to prevent further compromise.",
+            "on_completion": "parallel--3bb75107-1571-4b29-9d41-c6d5365d5f01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = host-22 ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a"
+        },
+        "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885": {
+            "name": "Conduct system scan",
+            "description": "Perform a system scan for malicious files.",
+            "on_completion": "decision--dfe1f4de-e7c0-44b5-b4b4-5c542f1c4d88",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a"
+        },
+        "decision--dfe1f4de-e7c0-44b5-b4b4-5c542f1c4d88": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "action--752e5f0d-e1da-4ca2-8985-4cde2f993846",
+            "on_false": "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885"
+        },
+        "action--752e5f0d-e1da-4ca2-8985-4cde2f993846": {
+            "name": "Remove unauthorized scripts",
+            "description": "Find and delete unauthorized scripts.",
+            "on_completion": "action--2450aec6-dfd5-4825-af60-708e2852da57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /path/to/scripts -name '*.sh' -delete"
+                }
+            ],
+            "agent": "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a"
+        },
+        "action--2450aec6-dfd5-4825-af60-708e2852da57": {
+            "name": "Update firewall rules",
+            "description": "Update the firewall to drop suspicious outbound traffic.",
+            "on_completion": "end--e988743e-f8b7-4f9f-bc99-bb69b9206c64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a"
+        },
+        "parallel--3bb75107-1571-4b29-9d41-c6d5365d5f01": {
+            "name": "Conduct follow-up actions",
+            "description": "Run system scan and remove unauthorized scripts in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885",
+                "action--752e5f0d-e1da-4ca2-8985-4cde2f993846"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--217b6e75-c0a9-43ca-8f63-c9754e50618a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9f6c579-6a35-4fbc-9c02-cb5e2d4eee57",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to manipulate system configurations and establish a backdoor.",
+    "created_by": "identity--52dfb3a7-9c7d-4a37-8c72-a4261b0b3e72",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--905bd365-f91b-4d23-a71e-abd5be295f60",
+    "workflow": {
+        "action--b7f3c141-7f97-4c30-bc20-f5f844388ff4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious commands.",
+            "on_completion": "if-condition--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--b8964e18-0984-4614-877a-af10f7c58cc8"
+        },
+        "if-condition--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47": {
+            "name": "Check for Backup File",
+            "type": "if-condition",
+            "condition": "backup_file.ps1 exists",
+            "on_true": "action--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47",
+            "on_false": "action--c88dfe17-6b24-49f4-bf41-a8a85f793124"
+        },
+        "action--194d5f4f-7dcb-4fa2-b0d6-aeddcbbfeb47": {
+            "name": "Revert system changes",
+            "description": "Restore system configuration from backup.",
+            "on_completion": "action--c88dfe17-6b24-49f4-bf41-a8a85f793124",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-Expression -Command 'Get-Content backup_file.ps1 | Invoke-Expression'"
+                }
+            ],
+            "agent": "organization--b8964e18-0984-4614-877a-af10f7c58cc8"
+        },
+        "action--c88dfe17-6b24-49f4-bf41-a8a85f793124": {
+            "name": "Scan for additional threats",
+            "description": "Perform continuous security scans until all threats are cleared.",
+            "on_completion": "end--791e6055-4068-44e1-b3f4-f95665accf4d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! (scan_is_clean); do run_security_scan; done"
+                }
+            ],
+            "agent": "organization--b8964e18-0984-4614-877a-af10f7c58cc8",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--905bd365-f91b-4d23-a71e-abd5be295f60": {
+            "on_completion": "action--b7f3c141-7f97-4c30-bc20-f5f844388ff4",
+            "type": "start"
+        },
+        "end--791e6055-4068-44e1-b3f4-f95665accf4d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b8964e18-0984-4614-877a-af10f7c58cc8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

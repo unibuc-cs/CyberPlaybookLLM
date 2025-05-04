@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5b5a882c-0b9f-49b4-b645-51f17c9f5f45",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses the incident where an attacker leveraged a scripting interpreter to execute commands aimed at data exfiltration.",
+    "created_by": "identity--3ab2e088-2847-43d1-9bfd-814bef49ad78",
+    "created": "2023-10-06T08:00:00Z",
+    "modified": "2023-10-06T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2b0b26e-0423-4d7b-bc38-f079bf6ce582",
+    "workflow": {
+        "start--b2b0b26e-0423-4d7b-bc38-f079bf6ce582": {
+            "on_completion": "action--4a9ee90e-ac1e-4e84-b0e4-bbc365a26ae8",
+            "type": "start"
+        },
+        "action--4a9ee90e-ac1e-4e84-b0e4-bbc365a26ae8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious scripts running on the server.",
+            "on_completion": "if-condition--fb2cbe2e-d312-4e38-89b3-0c1d7a7334a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--c0ba2772-04df-4f79-bf67-99c681fba91c"
+        },
+        "if-condition--fb2cbe2e-d312-4e38-89b3-0c1d7a7334a4": {
+            "name": "Check if process is still running",
+            "type": "if-condition",
+            "condition": "ps aux | grep -q suspicious_script.sh",
+            "on_true": "action--2f5e1c57-5f96-43d5-bdc6-ea8870ef4eeb",
+            "on_false": "parallel--4e3d33d0-df3b-4529-bb7f-172505745ef8"
+        },
+        "action--2f5e1c57-5f96-43d5-bdc6-ea8870ef4eeb": {
+            "name": "Isolate affected host",
+            "description": "Disable network interface of the compromised host.",
+            "on_completion": "parallel--4e3d33d0-df3b-4529-bb7f-172505745ef8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c0ba2772-04df-4f79-bf67-99c681fba91c"
+        },
+        "parallel--4e3d33d0-df3b-4529-bb7f-172505745ef8": {
+            "name": "Perform Additional Mitigations",
+            "description": "Execute various post-incident actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f376d3bb-a80d-4670-b84e-e46b0f5eeffb",
+                "action--b5200fbe-68da-418b-bf48-07879b86b5c9",
+                "action--1e8ccdb5-9c67-46c0-b890-7551e2fd1160"
+            ]
+        },
+        "action--f376d3bb-a80d-4670-b84e-e46b0f5eeffb": {
+            "name": "Scan for additional threats",
+            "description": "Repeat scanning for threats until none are found.",
+            "on_completion": "end--0c58e746-76ed-4645-a9c5-1d9414828c46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while [ ! -z \"$(ps aux | grep suspicious_command)\" ]; do sleep 5; done"
+                }
+            ],
+            "agent": "organization--c0ba2772-04df-4f79-bf67-99c681fba91c"
+        },
+        "action--b5200fbe-68da-418b-bf48-07879b86b5c9": {
+            "name": "Update firewall rules",
+            "description": "Block any malicious IPs identified during the incident.",
+            "on_completion": "end--0c58e746-76ed-4645-a9c5-1d9414828c46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--c0ba2772-04df-4f79-bf67-99c681fba91c"
+        },
+        "action--1e8ccdb5-9c67-46c0-b890-7551e2fd1160": {
+            "name": "Review access logs",
+            "description": "Check the access logs for unauthorized activity related to the affected host.",
+            "on_completion": "end--0c58e746-76ed-4645-a9c5-1d9414828c46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'host-22'"
+                }
+            ],
+            "agent": "organization--c0ba2772-04df-4f79-bf67-99c681fba91c"
+        },
+        "end--0c58e746-76ed-4645-a9c5-1d9414828c46": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c0ba2772-04df-4f79-bf67-99c681fba91c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

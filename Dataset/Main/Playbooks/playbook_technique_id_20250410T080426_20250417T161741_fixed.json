@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c0b5e824-fb23-4912-a17b-22eab4e739da",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "Mitigation procedures following a phishing attack that executed a PowerShell script, leading to data exfiltration and backdoor installation.",
+    "created_by": "identity--e8672479-54d5-469f-9265-ecf409f16c81",
+    "created": "2025-04-10T08:04:26Z",
+    "modified": "2025-04-10T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--84c36b7b-ab01-4ff0-9835-ebe8aefc2160",
+    "workflow": {
+        "start--84c36b7b-ab01-4ff0-9835-ebe8aefc2160": {
+            "on_completion": "parallel--3cc40e7d-7fdb-4312-b2bb-7d36b688b918",
+            "type": "start"
+        },
+        "parallel--3cc40e7d-7fdb-4312-b2bb-7d36b688b918": {
+            "name": "Initial Mitigation Steps",
+            "description": "Start mitigation strategies to handle PowerShell script execution incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b",
+                "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68",
+                "if-condition--722b1a15-9d7b-48ad-8ee9-8a0627e02dab"
+            ]
+        },
+        "action--cff14664-2e2b-4c42-a75c-59b8b6159c9b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that may be running.",
+            "on_completion": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'powershell' | grep -v grep | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--8e19dfe3-e3c1-4899-8582-488f308da22f"
+        },
+        "action--568dbf30-8d6d-42ec-a6bd-c226144bbf68": {
+            "name": "Block outbound traffic from host-47",
+            "description": "Drop all outbound traffic from the compromised host.",
+            "on_completion": "end--f928843b-2464-4a87-8e07-fc56b835aee5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 0.0.0.0/0 -j DROP"
+                }
+            ],
+            "agent": "organization--e3aa6c75-7c90-407c-a33c-a146783e97b8",
+            "step_variables": {
+                "host": {
+                    "type": "string",
+                    "description": "The host that must be blocked",
+                    "value": "host-47",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--722b1a15-9d7b-48ad-8ee9-8a0627e02dab": {
+            "name": "Check if the backdoor registry exists",
+            "type": "if-condition",
+            "condition": "registry_backdoor_exists",
+            "on_true": "action--c4d002fa-f113-40ca-a366-202ad903424b",
+            "on_false": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f"
+        },
+        "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f": {
+            "name": "Scan for lingering malicious scripts",
+            "description": "Continuously scan for any remaining malicious PowerShell scripts in the system.",
+            "type": "action",
+            "on_completion": "while-condition--204b5fd6-446f-4c93-8f45-b8fced141e9f",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.ps1' -exec clamscan {} +"
+                }
+            ],
+            "agent": "organization--a0cece61-2503-4945-9143-10b9c4815e51"
+        },
+        "while-condition--204b5fd6-446f-4c93-8f45-b8fced141e9f": {
+            "name": "Check for clean scan",
+            "description": "Loop until scan for malicious scripts is clean.",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f",
+            "on_false": "end--f928843b-2464-4a87-8e07-fc56b835aee5"
+        },
+        "end--f928843b-2464-4a87-8e07-fc56b835aee5": {
+            "type": "end"
+        },
+        "action--c4d002fa-f113-40ca-a366-202ad903424b": {
+            "name": "Remove backdoor from registry",
+            "description": "Delete the registry key used for the backdoor persistence.",
+            "on_completion": "action--34f0ac3a-fd72-44f9-bc95-ed4f9ad2c60f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v backdoor /f"
+                }
+            ],
+            "agent": "organization--8e19dfe3-e3c1-4899-8582-488f308da22f"
+        }
+    },
+    "agent_definitions": {
+        "organization--8e19dfe3-e3c1-4899-8582-488f308da22f": {
+            "type": "organization",
+            "name": "Security Operations Team"
+        },
+        "organization--e3aa6c75-7c90-407c-a33c-a146783e97b8": {
+            "type": "organization",
+            "name": "Network Operations Team"
+        },
+        "organization--a0cece61-2503-4945-9143-10b9c4815e51": {
+            "type": "organization",
+            "name": "Antivirus Team"
+        }
+    }
+}

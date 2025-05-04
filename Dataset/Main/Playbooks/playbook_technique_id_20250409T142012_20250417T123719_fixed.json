@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--65c2a9d4-3a88-4cb6-9b3f-b79820d8dfdd",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker executed a malicious PowerShell script for data exfiltration.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2025-04-09T14:20:12.000Z",
+    "modified": "2025-04-09T14:20:12.000Z",
+    "revoked": false,
+    "workflow_start": "start--d4c4474b-de5e-49f3-bbd6-e55fa5b2f8bb",
+    "workflow": {
+        "start--d4c4474b-de5e-49f3-bbd6-e55fa5b2f8bb": {
+            "on_completion": "parallel--f0ae753e-d2ef-4ef5-bb2a-f635e232adee",
+            "type": "start"
+        },
+        "parallel--f0ae753e-d2ef-4ef5-bb2a-f635e232adee": {
+            "name": "Immediate Mitigation Actions",
+            "description": "Execute multiple actions to mitigate the ongoing attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ecfcc53c-6fcb-43b0-82c3-caa3d7bac5e0",
+                "action--4dc15c68-bf42-45c4-8acf-9941d8e84dbe",
+                "loop--e4b10ea2-88e1-4b4d-bb49-e6608e02f12e"
+            ]
+        },
+        "action--ecfcc53c-6fcb-43b0-82c3-caa3d7bac5e0": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes on the affected host.",
+            "on_completion": "parallel--f0ae753e-d2ef-4ef5-bb2a-f635e232adee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--97aa1c7e-a41d-42cb-b4c4-781a91d27566"
+        },
+        "action--4dc15c68-bf42-45c4-8acf-9941d8e84dbe": {
+            "name": "Remove scheduled task",
+            "description": "Delete the scheduled malicious task that executes every hour.",
+            "on_completion": "parallel--f0ae753e-d2ef-4ef5-bb2a-f635e232adee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /TN 'MaliciousTask' /F"
+                }
+            ],
+            "agent": "organization--97aa1c7e-a41d-42cb-b4c4-781a91d27566"
+        },
+        "loop--e4b10ea2-88e1-4b4d-bb49-e6608e02f12e": {
+            "name": "Scan for malware until clean",
+            "description": "Keep scanning the host for malware until the scan is complete and clean.",
+            "type": "while-condition",
+            "condition": "scan_result_clean == false",
+            "on_true": "action--e4b10ea2-88e1-4b4d-bb49-e6608e02f12e",
+            "on_false": "end--da9d2f39-ef28-4c15-9b20-eebdad5b3492"
+        },
+        "action--e4b10ea2-88e1-4b4d-bb49-e6608e02f12e": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan on the affected host.",
+            "on_completion": "loop--e4b10ea2-88e1-4b4d-bb49-e6608e02f12e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "agent": "organization--97aa1c7e-a41d-42cb-b4c4-781a91d27566"
+        },
+        "end--da9d2f39-ef28-4c15-9b20-eebdad5b3492": {
+            "name": "End of Mitigation Process",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--97aa1c7e-a41d-42cb-b4c4-781a91d27566": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

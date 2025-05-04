@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3f4ed93-45c5-4719-bb04-0e5070202f67",
+    "name": "Mitigation Playbook for Remote Code Execution Incident",
+    "description": "This playbook mitigates an incident of remote code execution following a phishing attack.",
+    "created_by": "identity--a1bc897b-01ab-4b9e-8995-b98d8d3126d8",
+    "created": "2023-10-23T14:40:00Z",
+    "modified": "2023-10-23T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--f5a63eae-b9fb-479d-b2c8-30ff45b7f2d2",
+    "workflow": {
+        "start--f5a63eae-b9fb-479d-b2c8-30ff45b7f2d2": {
+            "on_completion": "if-condition--cd91c3f2-733a-4287-857a-b2d5496447f8",
+            "type": "start"
+        },
+        "if-condition--cd91c3f2-733a-4287-857a-b2d5496447f8": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_detected == true",
+            "on_true": "action--f0bba2c5-8fc8-4346-bcf3-86b24b6aa660",
+            "on_false": "action--b4febc8c-907a-4e68-90b5-5dfe760be56a"
+        },
+        "action--f0bba2c5-8fc8-4346-bcf3-86b24b6aa660": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any executing PowerShell scripts.",
+            "on_completion": "parallel--b7e90633-5a04-4c0e-8461-ec9bc69db141",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b4febc8c-907a-4e68-90b5-5dfe760be56a": {
+            "name": "Block network connections to external IP",
+            "description": "Prevent network connections to the external IP associated with the attack.",
+            "on_completion": "parallel--b7e90633-5a04-4c0e-8461-ec9bc69db141",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external_ip> -j REJECT"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--b7e90633-5a04-4c0e-8461-ec9bc69db141": {
+            "name": "Run Mitigation Actions",
+            "description": "Run both mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d4b905b4-7e4e-4d5b-bc32-6cc4ba5c9efc"
+            ]
+        },
+        "action--d4b905b4-7e4e-4d5b-bc32-6cc4ba5c9efc": {
+            "name": "Run antivirus scan",
+            "description": "Perform a scan of the system for malware and ensure system is clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/directory"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--c787b3e9-932e-4698-b7e0-b030fc4f9238"
+        },
+        "while-condition--c787b3e9-932e-4698-b7e0-b030fc4f9238": {
+            "name": "Repeat scan until clean",
+            "description": "Continue to scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--d4b905b4-7e4e-4d5b-bc32-6cc4ba5c9efc",
+            "on_false": "end--76fcbc89-8b03-4c83-b4a4-c6da1a7ee91f"
+        },
+        "end--76fcbc89-8b03-4c83-b4a4-c6da1a7ee91f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

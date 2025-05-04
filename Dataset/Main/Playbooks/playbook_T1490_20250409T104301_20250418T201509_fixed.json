@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ec024c82-229b-4aca-8c9b-df1d10f39504",
+    "name": "Mitigation Playbook for Inhibited System Recovery",
+    "description": "This playbook initiates a restoration of system recovery options after an adversary disables them for multiple hosts.",
+    "created_by": "identity--dcf57804-61b8-473a-a7a3-b4b50c4c052b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--91d077d0-8932-4194-bf3d-c3a8728e158d",
+            "type": "start"
+        },
+        "action--91d077d0-8932-4194-bf3d-c3a8728e158d": {
+            "name": "Restore recovery settings",
+            "description": "Restore the Windows recovery settings to enable system recovery options.",
+            "on_completion": "action--f9e8b7b0-9554-4d0f-9c26-735a3a614e95",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System /v DisableRestore /t REG_DWORD /d 0 /f"
+                }
+            ],
+            "agent": "organization--8b91f641-1a49-499e-9037-b5af5fdb0c25"
+        },
+        "action--f9e8b7b0-9554-4d0f-9c26-735a3a614e95": {
+            "name": "Recreate deleted recovery points",
+            "description": "Create recovery points to serve as restorations against future incidents.",
+            "on_completion": "condition-check--c5dd9b6d-d5b8-44c8-aa64-279273d16ebc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command \"Checkpoint-Computer -Description 'Restored Recovery Point' -RestorePointType 'MODIFY_CONFIG'\""
+                }
+            ],
+            "agent": "organization--8b91f641-1a49-499e-9037-b5af5fdb0c25"
+        },
+        "action--e6de0e76-49c8-4a59-8b68-5065ccc092fc": {
+            "name": "Monitor for registry changes",
+            "description": "Keep track of the registry for any changes that may inhibit recovery.",
+            "on_completion": "end--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command \"Get-EventLog -LogName Security | Where-Object { $_.EventID -eq 4657 }\""
+                }
+            ],
+            "agent": "organization--8b91f641-1a49-499e-9037-b5af5fdb0c25"
+        },
+        "end--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "type": "end"
+        },
+        "condition-check--c5dd9b6d-d5b8-44c8-aa64-279273d16ebc": {
+            "name": "Check recovery point count",
+            "type": "if-condition",
+            "condition": "recovery_point_count < 3",
+            "on_true": "action--f9e8b7b0-9554-4d0f-9c26-735a3a614e95",
+            "on_false": "action--e6de0e76-49c8-4a59-8b68-5065ccc092fc"
+        }
+    },
+    "agent_definitions": {
+        "organization--8b91f641-1a49-499e-9037-b5af5fdb0c25": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

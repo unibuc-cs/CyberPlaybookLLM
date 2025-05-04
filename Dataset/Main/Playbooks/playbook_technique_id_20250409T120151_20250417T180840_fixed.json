@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8456ea7-13a1-48d2-a936-34c9b739e198",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts that modified critical system files.",
+    "created_by": "identity--f24e29ed-5cde-4e43-b3b6-6c0c059c1f26",
+    "created": "2023-10-10T14:50:00Z",
+    "modified": "2023-10-10T14:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--6b4f915d-3aeb-4ef4-a8d3-12b5cfe72f4a",
+            "type": "start",
+            "name": "Initiate Mitigation Workflow",
+            "description": "Starts the playbook to mitigate malicious script execution."
+        },
+        "action--6b4f915d-3aeb-4ef4-a8d3-12b5cfe72f4a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "if-condition--4a7e690c-af44-4f2f-9e75-b37e0e604752",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--ef431033-230b-4f4b-9e09-596a739e0557"
+        },
+        "if-condition--4a7e690c-af44-4f2f-9e75-b37e0e604752": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists == true",
+            "on_true": "action--4a7e690c-af44-4f2f-9e75-b37e0e604752",
+            "on_false": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572"
+        },
+        "action--4a7e690c-af44-4f2f-9e75-b37e0e604752": {
+            "name": "Restore modified files from backup",
+            "description": "Restore the important system files from backup.",
+            "on_completion": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a /backup/system_files/ /etc/system_files/ --delete"
+                }
+            ],
+            "agent": "organization--ef431033-230b-4f4b-9e09-596a739e0557"
+        },
+        "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572": {
+            "name": "Scan for additional malware",
+            "description": "Perform a recursive scan to find any additional malware on the system.",
+            "on_completion": "while-condition--306b473e-e258-46bd-a04c-0a0dcaee82de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--ef431033-230b-4f4b-9e09-596a739e0557"
+        },
+        "while-condition--306b473e-e258-46bd-a04c-0a0dcaee82de": {
+            "name": "Conduct malware scan loop",
+            "description": "Continue to scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572",
+            "on_false": "end--58384469-7c87-423f-8c30-dc9c76891019"
+        },
+        "end--58384469-7c87-423f-8c30-dc9c76891019": {
+            "type": "end",
+            "name": "Mitigation Completed",
+            "description": "Mitigation efforts completed successfully."
+        }
+    },
+    "agent_definitions": {
+        "organization--ef431033-230b-4f4b-9e09-596a739e0557": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "backup_exists": {
+            "type": "boolean",
+            "description": "Indicates whether a backup exists.",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "The current status of the malware scan.",
+            "value": "not clean",
+            "constant": false,
+            "external": false
+        }
+    }
+}

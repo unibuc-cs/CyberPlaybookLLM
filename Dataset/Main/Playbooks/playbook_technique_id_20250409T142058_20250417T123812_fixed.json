@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cb4f8b7c-00af-4187-bb65-8e637b6352a2",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed scripts through a command-line interpreter that aimed at exfiltrating sensitive data.",
+    "created_by": "identity--9e668c5f-aa9d-4d8f-931c-90602395f0d4",
+    "created": "2023-10-10T14:00:00Z",
+    "modified": "2023-10-10T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f804ece5-f558-4d0b-8ed8-d7f4d627448c",
+    "workflow": {
+        "start--f804ece5-f558-4d0b-8ed8-d7f4d627448c": {
+            "on_completion": "action--b9f42d3f-82be-4aad-84c7-c3c1a59837af",
+            "type": "start"
+        },
+        "action--b9f42d3f-82be-4aad-84c7-c3c1a59837af": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--a6b2de98-87e0-4a87-8f1b-d7c54ee7720c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--8023d14e-f22d-4b0c-b748-a17ec629f548"
+        },
+        "if-condition--a6b2de98-87e0-4a87-8f1b-d7c54ee7720c": {
+            "name": "Check if suspicious script process exists",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_script.sh)",
+            "on_true": "action--a6b2de98-87e0-4a87-8f1b-d7c54ee7720c",
+            "on_false": "action--4aef12d3-2b59-4bcc-b7ec-e9f99af74056"
+        },
+        "action--a6b2de98-87e0-4a87-8f1b-d7c54ee7720c": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent further data exfiltration.",
+            "on_completion": "while-condition--4aef12d3-2b59-4bcc-b7ec-e9f99af74056",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--8023d14e-f22d-4b0c-b748-a17ec629f548"
+        },
+        "while-condition--4aef12d3-2b59-4bcc-b7ec-e9f99af74056": {
+            "name": "Scan for rootkits and malware",
+            "description": "Perform a malware scan of the entire system and continue until the system is clean.",
+            "on_completion": "end--d84e1194-3a9c-4ff7-b675-fe7fd7ae7691",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--4aef12d3-2b59-4bcc-b7ec-e9f99af74056",
+            "on_false": "end--d84e1194-3a9c-4ff7-b675-fe7fd7ae7691"
+        },
+        "action--4aef12d3-2b59-4bcc-b7ec-e9f99af74056": {
+            "name": "Run malware scan",
+            "description": "Scan for rootkits and malware.",
+            "on_completion": "while-condition--4aef12d3-2b59-4bcc-b7ec-e9f99af74056",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--8023d14e-f22d-4b0c-b748-a17ec629f548",
+            "variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Stores the current status of the scan",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--d84e1194-3a9c-4ff7-b675-fe7fd7ae7691": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8023d14e-f22d-4b0c-b748-a17ec629f548": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

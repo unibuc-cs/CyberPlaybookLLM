@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b7a4c16-042e-4db5-a3db-8b9cde562640",
+    "name": "Mitigation Playbook for PowerShell Script Exploitation Incident",
+    "description": "This playbook addresses an incident where a PowerShell script was used to download and execute a malicious payload on the corporate network.",
+    "created_by": "identity--27929534-40e8-47a7-bfe0-578a6893de2c",
+    "created": "2023-10-20T16:00:00.000Z",
+    "modified": "2023-10-20T16:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--0e45e8f7-14ff-4e25-bc61-5ad1129dc2bc",
+    "workflow": {
+        "start--0e45e8f7-14ff-4e25-bc61-5ad1129dc2bc": {
+            "on_completion": "parallel--4f9a10f1-c8e4-4481-b4f4-6bca1b346e27",
+            "type": "start",
+            "name": "Start Mitigation Workflow",
+            "description": "Initiate the mitigation steps for the PowerShell script exploitation incident."
+        },
+        "parallel--4f9a10f1-c8e4-4481-b4f4-6bca1b346e27": {
+            "name": "Execute Mitigation Steps",
+            "description": "Perform mitigation actions in parallel to address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9f48a2b2-7627-47ef-bc02-a49fb659704d",
+                "action--0fda8c49-236d-4cff-af96-e94a05e9f4dd",
+                "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+                "action--8e632a5b-c6ce-472a-8e4e-9e22335fc6d9",
+                "action--3b20669d-4017-4bab-9429-673b93a6b2ea"
+            ]
+        },
+        "action--9f48a2b2-7627-47ef-bc02-a49fb659704d": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious processes initiated by the PowerShell script.",
+            "on_completion": "action--0fda8c49-236d-4cff-af96-e94a05e9f4dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo kill -9 $(ps aux | grep malicious_script | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--0e0dc28f-047e-439b-8dc6-67ece53af91c"
+        },
+        "action--0fda8c49-236d-4cff-af96-e94a05e9f4dd": {
+            "name": "Remove Malicious Script",
+            "description": "Remove the malicious payload from the temporary directory if it exists.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /tmp/malicious_payload ]; then rm /tmp/malicious_payload; fi"
+                }
+            ],
+            "agent": "organization--f00f3574-204b-4c38-8393-832557c3f6bd",
+            "on_completion": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d"
+        },
+        "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d": {
+            "name": "Scan All Hosts for Malicious Indicators",
+            "description": "Perform a scan across all hosts to identify any remaining signs of compromise.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r /"
+                }
+            ],
+            "agent": "organization--6fee1b3d-ef18-4c7e-84f6-b301fa237af7",
+            "next_steps": [
+                "while-condition--b56e64a9-6217-4e50-b7f9-4d1d3ae8ff6c"
+            ]
+        },
+        "while-condition--b56e64a9-6217-4e50-b7f9-4d1d3ae8ff6c": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Loop the scanning of hosts until there are no threats detected.",
+            "type": "while-condition",
+            "condition": "scan_result == 'dirty'",
+            "on_true": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+            "on_false": "action--8e632a5b-c6ce-472a-8e4e-9e22335fc6d9"
+        },
+        "action--8e632a5b-c6ce-472a-8e4e-9e22335fc6d9": {
+            "name": "Disable Remote Script Execution",
+            "description": "Set the PowerShell script execution policy to restricted to prevent further scripts from running.",
+            "on_completion": "action--3b20669d-4017-4bab-9429-673b93a6b2ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--0e0dc28f-047e-439b-8dc6-67ece53af91c"
+        },
+        "action--3b20669d-4017-4bab-9429-673b93a6b2ea": {
+            "name": "Log Review for Unauthorized Access Attempts",
+            "description": "Review logs for any unauthorized access attempts during the incident.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'unauthorized'"
+                }
+            ],
+            "agent": "organization--f00f3574-204b-4c38-8393-832557c3f6bd",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The file path to the authentication logs",
+                    "value": "/var/log/auth.log",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "end--428c2cb5-5aed-412c-b2f2-fb7be5083e7f"
+        },
+        "end--428c2cb5-5aed-412c-b2f2-fb7be5083e7f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0e0dc28f-047e-439b-8dc6-67ece53af91c": {
+            "type": "organization",
+            "name": "ClientOrganization-ABC"
+        },
+        "organization--f00f3574-204b-4c38-8393-832557c3f6bd": {
+            "type": "organization",
+            "name": "ClientOrganization-DEF"
+        },
+        "organization--6fee1b3d-ef18-4c7e-84f6-b301fa237af7": {
+            "type": "organization",
+            "name": "ClientOrganization-GHI"
+        }
+    }
+}

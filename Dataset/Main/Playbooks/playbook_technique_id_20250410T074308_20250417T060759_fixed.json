@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6e03da7-45f9-4e6e-9ddb-230f4aef8a9e",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution",
+    "description": "This playbook addresses a cyber incident where a malicious PowerShell script executed unauthorized commands on multiple endpoints, creating unauthorized user accounts and exfiltrating data.",
+    "created_by": "identity--50c2e68c-9a71-4f01-81ca-471bbbee9796",
+    "created": "2023-11-03T15:00:00Z",
+    "modified": "2023-11-03T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a50cd25-6748-4820-bc36-9582b6597e0c",
+    "workflow": {
+        "start--1a50cd25-6748-4820-bc36-9582b6597e0c": {
+            "on_completion": "action--05eec3a4-3210-4b9f-a8fb-97b149b532ea",
+            "type": "start"
+        },
+        "action--05eec3a4-3210-4b9f-a8fb-97b149b532ea": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Identify and stop all malicious PowerShell processes that are executing unauthorized commands.",
+            "on_completion": "action--2a1b281e-8b77-44a8-b72e-d8a72b0a1e6d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process PowerShell | Stop-Process"
+                }
+            ],
+            "agent": "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21"
+        },
+        "action--2a1b281e-8b77-44a8-b72e-d8a72b0a1e6d": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete any unauthorized user accounts created by the malicious script.",
+            "on_completion": "if-condition--e07c1b2c-d467-4d5d-9d69-fd452d4460df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Remove-LocalUser -Name 'SuspiciousUser'"
+                }
+            ],
+            "agent": "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21"
+        },
+        "if-condition--e07c1b2c-d467-4d5d-9d69-fd452d4460df": {
+            "name": "Check if outbound IP is blocked",
+            "type": "if-condition",
+            "condition": "outbound_IP_blocked != true",
+            "on_true": "action--e07c1b2c-d467-4d5d-9d69-fd452d4460df",
+            "on_false": "if-condition--436f2dab-43b9-438c-bc63-76b8d7b43b45"
+        },
+        "action--e07c1b2c-d467-4d5d-9d69-fd452d4460df": {
+            "name": "Block outbound connections to suspicious IP",
+            "description": "Create a firewall rule to block outbound connections to the suspicious IP address.",
+            "on_completion": "action--f1c1121f-9a25-43ce-a7b7-0999697a6b04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Malicious IP' -RemoteAddress 192.0.2.1 -Action Block"
+                }
+            ],
+            "agent": "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21"
+        },
+        "if-condition--436f2dab-43b9-438c-bc63-76b8d7b43b45": {
+            "name": "Check for available updates",
+            "type": "if-condition",
+            "condition": "security_updates_available == true",
+            "on_true": "action--436f2dab-43b9-438c-bc63-76b8d7b43b45",
+            "on_false": "action--f1c1121f-9a25-43ce-a7b7-0999697a6b04"
+        },
+        "action--436f2dab-43b9-438c-bc63-76b8d7b43b45": {
+            "name": "Update security patches on affected hosts",
+            "description": "Install security updates to protect against vulnerabilities exploited by the attack.",
+            "on_completion": "action--f1c1121f-9a25-43ce-a7b7-0999697a6b04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Install-PackageUpdate -Name 'Security Updates'"
+                }
+            ],
+            "agent": "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21"
+        },
+        "action--f1c1121f-9a25-43ce-a7b7-0999697a6b04": {
+            "name": "Scan affected systems for residual malware",
+            "description": "Conduct a comprehensive malware scan on the affected systems to ensure no malicious software remains.",
+            "on_completion": "end--4c8b5e7a-c1b4-4a8b-a3b5-5d23c5a225ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21",
+            "loop": {
+                "condition": "scan_status == 'in_progress'",
+                "on_true": "action--f1c1121f-9a25-43ce-a7b7-0999697a6b04"
+            }
+        },
+        "end--4c8b5e7a-c1b4-4a8b-a3b5-5d23c5a225ee": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f1bcc588-9c20-40da-91ee-5edd7e9efa21": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

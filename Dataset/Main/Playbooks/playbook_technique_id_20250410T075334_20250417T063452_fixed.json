@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b1e9765-1ea3-4dbc-bd6a-fcc4bca11f33",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script that escalated privileges and attempted to exfiltrate sensitive data.",
+    "created_by": "identity--7f243561-fd2c-4b52-af47-c79e97f9dd56",
+    "created": "2023-10-12T09:00:00Z",
+    "modified": "2023-10-12T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--24a72692-b1da-4e3a-b309-a05e0eaa1c3f",
+    "workflow": {
+        "start--24a72692-b1da-4e3a-b309-a05e0eaa1c3f": {
+            "on_completion": "action--26a2d655-e2c5-4094-83d4-cbde12a4e383",
+            "type": "start"
+        },
+        "action--26a2d655-e2c5-4094-83d4-cbde12a4e383": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--aeca6bf0-1fd0-4cec-84df-6b3a1f43c5dc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'malicious_script' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9"
+        },
+        "action--aeca6bf0-1fd0-4cec-84df-6b3a1f43c5dc": {
+            "name": "Remove malicious script",
+            "description": "Delete the malicious script from the system.",
+            "on_completion": "parallel--103ea587-7d6e-4d27-acae-d318f99e8cbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9"
+        },
+        "parallel--103ea587-7d6e-4d27-acae-d318f99e8cbb": {
+            "name": "Perform additional mitigations",
+            "description": "Execute multiple additional actions in parallel to remediate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8e5317b-a4a5-42d8-b267-57ce1db9d0fa",
+                "action--f7ab58ee-4451-4d5d-b07d-093c2879f75f",
+                "action--304d6910-2aa3-445e-9b58-8c9f07f12c0b"
+            ]
+        },
+        "action--f8e5317b-a4a5-42d8-b267-57ce1db9d0fa": {
+            "name": "Block external IP",
+            "description": "Block any outbound connections to the identified malicious external IP address.",
+            "on_completion": "end--f84d8e9a-98c1-4f29-a056-1d0574f8d8f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.5 -j DROP"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9"
+        },
+        "action--f7ab58ee-4451-4d5d-b07d-093c2879f75f": {
+            "name": "Reset all user passwords",
+            "description": "Change passwords for all user accounts to prevent further access.",
+            "on_completion": "action--47fcef48-3137-4ca5-9bc2-cfb9f62cb237",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for USER in $(cat /etc/passwd | cut -d':' -f1); do echo 'new_password' | passwd --stdin $USER; done"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9"
+        },
+        "action--47fcef48-3137-4ca5-9bc2-cfb9f62cb237": {
+            "name": "Scan system for remaining threats",
+            "description": "Run a malware scan to identify any remaining threats.",
+            "on_completion": "if-condition--a1f1ef36-bc5f-4b93-9b2f-89a59f326b07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --clean"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The output of the malware scan",
+                    "value": "infected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--a1f1ef36-bc5f-4b93-9b2f-89a59f326b07": {
+            "name": "Check malware scan result",
+            "type": "if-condition",
+            "condition": "scan_result == 'infected'",
+            "on_true": "action--47fcef48-3137-4ca5-9bc2-cfb9f62cb237",
+            "on_false": "end--f84d8e9a-98c1-4f29-a056-1d0574f8d8f3"
+        },
+        "action--304d6910-2aa3-445e-9b58-8c9f07f12c0b": {
+            "name": "Enable script restrictions",
+            "description": "Set execution policy to restricted to prevent script execution.",
+            "on_completion": "end--f84d8e9a-98c1-4f29-a056-1d0574f8d8f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9"
+        },
+        "end--f84d8e9a-98c1-4f29-a056-1d0574f8d8f3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8d2c7a6a-c389-42bc-a6fa-d81a8fb336f9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

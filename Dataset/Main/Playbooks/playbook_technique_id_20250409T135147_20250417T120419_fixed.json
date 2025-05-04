@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3bc81af-baa5-4c70-bf98-ede8a54d0a43",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook addresses an incident involving the execution of a malicious PowerShell script and subsequent data exfiltration.",
+    "created_by": "identity--abc12345-1234-5678-abcd-1234567890ef",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1a23b51-c12e-4a7f-aba1-dcc18ae12310",
+    "workflow": {
+        "start--b1a23b51-c12e-4a7f-aba1-dcc18ae12310": {
+            "on_completion": "if-condition--c5e6215a-b92f-4fed-a314-324932542e20",
+            "type": "start"
+        },
+        "if-condition--c5e6215a-b92f-4fed-a314-324932542e20": {
+            "name": "Check for malicious PowerShell process",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--9543fe88-e5e6-44cb-aa0d-a16824b569f2",
+            "on_false": "action--cc36772b-d534-4af2-a69f-cf6b54f1e9b5",
+            "type": "if-condition"
+        },
+        "action--9543fe88-e5e6-44cb-aa0d-a16824b569f2": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any processes that are running malicious PowerShell scripts.",
+            "on_completion": "action--cc36772b-d534-4af2-a69f-cf6b54f1e9b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--7144514e-179c-448d-a2c3-55f5b787e192"
+        },
+        "action--cc36772b-d534-4af2-a69f-cf6b54f1e9b5": {
+            "name": "Block outgoing traffic to suspicious IP",
+            "description": "Block outgoing traffic to address associated with data exfiltration.",
+            "on_completion": "while-condition--82b19cd6-8242-4c4f-bb5f-a2585861d89b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--7144514e-179c-448d-a2c3-55f5b787e192"
+        },
+        "while-condition--82b19cd6-8242-4c4f-bb5f-a2585861d89b": {
+            "name": "System integrity check",
+            "description": "Perform system integrity checks continuously until a match with the baseline.",
+            "on_completion": "end--f36be5fe-a9d5-432f-b645-416835ecd295",
+            "type": "while-condition",
+            "condition": "integrity_matches_baseline == false",
+            "on_true": "action--82b19cd6-8242-4c4f-bb5f-a2585861d89b",
+            "loop": {
+                "action": {
+                    "type": "action",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "find / -type f -exec sha256sum {} \\;"
+                        }
+                    ],
+                    "agent": "organization--7144514e-179c-448d-a2c3-55f5b787e192"
+                }
+            }
+        },
+        "end--f36be5fe-a9d5-432f-b645-416835ecd295": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7144514e-179c-448d-a2c3-55f5b787e192": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

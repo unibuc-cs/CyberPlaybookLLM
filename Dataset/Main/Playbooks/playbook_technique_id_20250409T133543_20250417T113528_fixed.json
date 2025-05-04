@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6b74a52-5cdb-4f4e-b8f1-e78b053d4977",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses an incident where an attacker used an application layer protocol to communicate with compromised endpoints and exfiltrate data.",
+    "created_by": "identity--413d53e6-cdec-4d2e-b463-922a82031acb",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--9ce01ef6-c8a8-40da-9e70-7ba67c45a47e",
+    "workflow": {
+        "action--c004f15e-b546-4dda-b1eb-f2bcd5d5678a": {
+            "name": "Terminate unauthorized network connection",
+            "description": "Terminate any unauthorized network connections established to suspicious IP.",
+            "on_completion": "action--bb76e79c-c676-463c-aed2-7bf073f2768b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo netstat -tulnp | grep :8080 && sudo kill -9 $(lsof -t -i:8080)"
+                }
+            ],
+            "agent": "organization--a8886c6b-f633-4a9e-ae99-2899751b4221"
+        },
+        "action--bb76e79c-c676-463c-aed2-7bf073f2768b": {
+            "name": "Initiate full malware scan on affected host",
+            "description": "Perform a full malware scan on the affected host to detect any malicious software.",
+            "on_completion": "while-condition--0f4b46bb-af0c-4a17-b614-45e2dca4ce53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r /home/user --bell"
+                }
+            ],
+            "agent": "organization--a8886c6b-f633-4a9e-ae99-2899751b4221"
+        },
+        "action--1c0d0833-7f40-4e15-8a86-f9025662c556": {
+            "name": "Review firewall rules and logs",
+            "description": "Review the firewall rules and logs for unusual traffic from the internal server.",
+            "on_completion": "end--075f8330-9b63-43bc-9c43-ac999293258d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -L; sudo cat /var/log/ufw.log"
+                }
+            ],
+            "agent": "organization--a8886c6b-f633-4a9e-ae99-2899751b4221"
+        },
+        "start--9ce01ef6-c8a8-40da-9e70-7ba67c45a47e": {
+            "on_completion": "if-condition--4ac3d4e5-d4b9-43b2-b750-289ea7ad16c2",
+            "type": "start"
+        },
+        "if-condition--4ac3d4e5-d4b9-43b2-b750-289ea7ad16c2": {
+            "name": "Check for unauthorized connections",
+            "type": "if-condition",
+            "condition": "connections_detected == true",
+            "on_true": "action--c004f15e-b546-4dda-b1eb-f2bcd5d5678a",
+            "on_false": "action--1c0d0833-7f40-4e15-8a86-f9025662c556"
+        },
+        "while-condition--0f4b46bb-af0c-4a17-b614-45e2dca4ce53": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is declared clean.",
+            "type": "while-condition",
+            "condition": "scan_result == 'not clean'",
+            "on_true": "action--bb76e79c-c676-463c-aed2-7bf073f2768b",
+            "on_false": "end--075f8330-9b63-43bc-9c43-ac999293258d"
+        },
+        "end--075f8330-9b63-43bc-9c43-ac999293258d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a8886c6b-f633-4a9e-ae99-2899751b4221": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

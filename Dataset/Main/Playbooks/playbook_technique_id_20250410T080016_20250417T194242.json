@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--61b89e7e-3f5c-496a-8903-4d0b0b6b835b",
+    "name": "Mitigation Playbook for PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script, establishing a reverse shell on host-45. It includes actions to halt the script, block network connections, and secure the system.",
+    "created_by": "identity--xyz123",
+    "created": "2025-04-10T08:00:16.000Z",
+    "modified": "2025-04-10T08:00:16.000Z",
+    "revoked": false,
+    "workflow_start": "start--6e74d3f8-d512-4d3c-9345-67e5f618c0e1",
+    "workflow": {
+        "start--6e74d3f8-d512-4d3c-9345-67e5f618c0e1": {
+            "on_completion": "parallel--c9a13eca-8f3b-4841-88bb-fa49062fba1e",
+            "type": "start"
+        },
+        "parallel--c9a13eca-8f3b-4841-88bb-fa49062fba1e": {
+            "name": "Parallel Execution for Immediate Actions",
+            "description": "Perform immediate steps concurrently",
+            "type": "parallel",
+            "next_steps": [
+                "action--5f37d1c4-6bfa-44c5-9d76-dec6a8a78213",
+                "action--98b69f23-be9a-43fd-9e32-4e335f60aad2"
+            ]
+        },
+        "action--5f37d1c4-6bfa-44c5-9d76-dec6a8a78213": {
+            "name": "Kill Malicious Script Process",
+            "description": "Stop the PowerShell script process running on host-45.",
+            "on_completion": "if-condition--e62b4e92-12c0-4ba8-b1cf-9edb84876152",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e62b4e92-12c0-4ba8-b1cf-9edb84876152": {
+            "name": "Check Reverse Shell Detection",
+            "type": "if-condition",
+            "condition": "reverse_shell_detected == true",
+            "on_true": "action--7032a8f5-1361-483d-95f8-cdb15433c489",
+            "on_false": "loop--6226e8b4-f6a9-4e57-aa44-292524aad0f1"
+        },
+        "action--7032a8f5-1361-483d-95f8-cdb15433c489": {
+            "name": "Block Outgoing Network Connections",
+            "description": "Block outgoing connections to known threatening IP addresses.",
+            "on_completion": "loop--6226e8b4-f6a9-4e57-aa44-292524aad0f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <threat_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--6226e8b4-f6a9-4e57-aa44-292524aad0f1": {
+            "name": "System Scan for Malicious Artifacts",
+            "description": "Scan system repeatedly until no malicious artifacts are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--6226e8b4-f6a9-4e57-aa44-292524aad0f1",
+            "on_false": "action--7e6dfc9e-b0d2-4bf4-8527-989d4e2b8941"
+        },
+        "action--6226e8b4-f6a9-4e57-aa44-292524aad0f1": {
+            "name": "Perform System Scan",
+            "description": "Execute clamscan to check for malicious artifacts.",
+            "on_completion": "loop--6226e8b4-f6a9-4e57-aa44-292524aad0f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--7e6dfc9e-b0d2-4bf4-8527-989d4e2b8941": {
+            "name": "Change Compromised Account Passwords",
+            "description": "Change passwords for accounts identified as compromised.",
+            "on_completion": "end--d815eeb2-1fc1-4d16-a5d7-086cf5eedc2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <compromised_user>"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "Username of the compromised account",
+                    "value": "extracted from logs"
+                }
+            }
+        },
+        "action--98b69f23-be9a-43fd-9e32-4e335f60aad2": {
+            "name": "Enable PowerShell Logging",
+            "description": "Set PowerShell execution policy to enable logging for future detection.",
+            "on_completion": "end--d815eeb2-1fc1-4d16-a5d7-086cf5eedc2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--d815eeb2-1fc1-4d16-a5d7-086cf5eedc2b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

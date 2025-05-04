@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--29d6c9b1-1c3e-4fbe-8799-7b60488192be",
+    "name": "Mitigation Playbook for Email Attachment Exploitation Incident",
+    "description": "A playbook to mitigate risks from a malicious email attachment that exploited a vulnerability leading to malware execution and data exfiltration.",
+    "created_by": "identity--8e4f57c4-7384-4c4c-bf7b-fcae137c0c20",
+    "created": "2023-10-16T08:55:35.498Z",
+    "modified": "2023-10-16T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c1a82649-10f6-4fcb-8f9f-b98cf71ee069",
+    "workflow": {
+        "start--c1a82649-10f6-4fcb-8f9f-b98cf71ee069": {
+            "on_completion": "action--f71e2a07-e6b5-4e5d-afed-234251d935cf",
+            "type": "start"
+        },
+        "action--f71e2a07-e6b5-4e5d-afed-234251d935cf": {
+            "name": "Isolate the Compromised Host",
+            "description": "Isolate the compromised host to prevent further data exfiltration.",
+            "on_completion": "action--a8d5cac2-1b5c-4786-9d76-2ab4483b896f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b"
+        },
+        "action--a8d5cac2-1b5c-4786-9d76-2ab4483b896f": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious process that has been executed.",
+            "on_completion": "loop--2c4f90fb-d46e-44d0-ac2e-f2a89c48cf67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_executable"
+                }
+            ],
+            "agent": "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b"
+        },
+        "loop--2c4f90fb-d46e-44d0-ac2e-f2a89c48cf67": {
+            "name": "Run A Full System Scan",
+            "description": "Continuously scan the system until the scan reports no threats.",
+            "on_completion": "action--639f8cc9-49e0-4701-8744-fef083165b6f",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--2c4f90fb-d46e-44d0-ac2e-f2a89c48cf67",
+            "on_false": "action--3ff1aa62-28b9-490c-9c20-2737a6cc51aa"
+        },
+        "action--2c4f90fb-d46e-44d0-ac2e-f2a89c48cf67": {
+            "name": "Scan the System",
+            "on_completion": "loop--2c4f90fb-d46e-44d0-ac2e-f2a89c48cf67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_status=$(clamscan -r / --bell -i); if [[ !$scan_status =~ 'Infected files: 0' ]]; then scan_status='dirty'; else scan_status='clean'; fi"
+                }
+            ],
+            "agent": "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b"
+        },
+        "action--3ff1aa62-28b9-490c-9c20-2737a6cc51aa": {
+            "name": "Change User Credentials",
+            "description": "Change credentials if the user account has been identified as compromised.",
+            "on_completion": "action--639f8cc9-49e0-4701-8744-fef083165b6f",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user_name"
+                }
+            ],
+            "agent": "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b",
+            "condition": "if user identified as compromised"
+        },
+        "action--639f8cc9-49e0-4701-8744-fef083165b6f": {
+            "name": "Notify All Users",
+            "description": "Notify all users of the ongoing security incident.",
+            "on_completion": "end--337008f6-d547-409d-8e8b-975d21c8a3a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --users 'all' --message 'Security Incident Detected'"
+                }
+            ],
+            "agent": "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b"
+        },
+        "end--337008f6-d547-409d-8e8b-975d21c8a3a4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ee9c7f19-681c-4dfc-a487-ea58068e687b": {
+            "type": "organization",
+            "name": "Security Response Team"
+        }
+    }
+}

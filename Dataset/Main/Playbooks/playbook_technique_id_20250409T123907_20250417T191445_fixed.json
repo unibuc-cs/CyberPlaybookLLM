@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2c47d08-b8fc-4d01-b3c9-e5fd76f95b93",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to extract sensitive data.",
+    "created_by": "identity--3d174e87-d4e5-4077-87d5-77b68b4c0970",
+    "created": "2025-04-09T12:30:00.000Z",
+    "modified": "2025-04-09T12:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e78f4c54-8105-4f82-bc13-7e984efb3688",
+    "workflow": {
+        "start--e78f4c54-8105-4f82-bc13-7e984efb3688": {
+            "on_completion": "if-condition--b5e5f3fc-3c74-43da-b11b-3f7ef1e50b10",
+            "type": "start"
+        },
+        "if-condition--b5e5f3fc-3c74-43da-b11b-3f7ef1e50b10": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--bfc79e9c-e8d1-44c5-ab7f-b67f4b1c63c1",
+            "on_false": "action--096ab68c-f9e5-4b6e-abc0-f2e7c26f079f"
+        },
+        "action--bfc79e9c-e8d1-44c5-ab7f-b67f4b1c63c1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running PowerShell process detected.",
+            "on_completion": "parallel--f97907a1-2f74-4381-8732-9b6ea70e5306",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--1fb33fdf-b439-439b-b227-27cfebef8a64"
+        },
+        "action--096ab68c-f9e5-4b6e-abc0-f2e7c26f079f": {
+            "name": "Remove temporary files",
+            "description": "Delete temporary files created by malicious scripts.",
+            "on_completion": "parallel--f97907a1-2f74-4381-8732-9b6ea70e5306",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/poisoned_script.ps1"
+                }
+            ],
+            "agent": "organization--1fb33fdf-b439-439b-b227-27cfebef8a64"
+        },
+        "parallel--f97907a1-2f74-4381-8732-9b6ea70e5306": {
+            "name": "Execute Cleanup Actions",
+            "type": "parallel",
+            "next_steps": [
+                "action--a0106b49-0e69-455a-9cc4-663574367cb4"
+            ]
+        },
+        "action--a0106b49-0e69-455a-9cc4-663574367cb4": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan to ensure the system is clean.",
+            "on_completion": "while-condition--ee6d097a-3f2c-42d4-bd1e-197eeb6d97eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--1fb33fdf-b439-439b-b227-27cfebef8a64"
+        },
+        "while-condition--ee6d097a-3f2c-42d4-bd1e-197eeb6d97eb": {
+            "name": "Antivirus Scan Loop",
+            "description": "Repeat scanning until the system is confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--a0106b49-0e69-455a-9cc4-663574367cb4",
+            "on_false": "end--3f2ee358-994f-4b6b-927d-3709db1a9935"
+        },
+        "end--3f2ee358-994f-4b6b-927d-3709db1a9935": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1fb33fdf-b439-439b-b227-27cfebef8a64": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_found": {
+            "type": "boolean",
+            "description": "Indicates if a malicious PowerShell process was found.",
+            "value": false,
+            "constant": false
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Indicates the status of the antivirus scan.",
+            "value": "unknown",
+            "constant": false
+        }
+    }
+}

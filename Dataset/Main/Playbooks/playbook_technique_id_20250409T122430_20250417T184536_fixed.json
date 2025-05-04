@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--aeb74ff2-7aa1-4e9b-b4b8-d8f9cf58c9f2",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web application vulnerability to execute malicious scripts, compromising sensitive files and installing backdoor utilities.",
+    "created_by": "identity--a9f49cba-8e42-4b61-a4c9-b75c43075fa7",
+    "created": "2023-10-03T12:30:00.000Z",
+    "modified": "2023-10-03T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e9c1aa59-4cb7-4fb0-bc2c-9f5c8d5af020",
+    "workflow": {
+        "start--e9c1aa59-4cb7-4fb0-bc2c-9f5c8d5af020": {
+            "on_completion": "action--ac0e3de5-eddc-4310-adbe-8389cb15f747",
+            "type": "start"
+        },
+        "action--ac0e3de5-eddc-4310-adbe-8389cb15f747": {
+            "name": "Kill the malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2",
+            "on_completion": "action--b2114c19-213c-4cc3-8e47-0ab237e29f38"
+        },
+        "action--b2114c19-213c-4cc3-8e47-0ab237e29f38": {
+            "name": "Delete dropped backdoor file",
+            "description": "Remove the backdoor file that was dropped by the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/dropped/file"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2",
+            "on_completion": "while-condition--c3e1bbf3-c98f-4a63-a80b-5d4f2828ef80"
+        },
+        "while-condition--c3e1bbf3-c98f-4a63-a80b-5d4f2828ef80": {
+            "name": "Run security scan for malware",
+            "description": "Perform a security scan on the system to detect any remaining malware.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--c3e1bbf3-c98f-4a63-a80b-5d4f2828ef80",
+            "next_steps": [
+                "action--e2236890-c156-4812-a133-4931e21575e1",
+                "action--1f3a8ca3-5f0b-469c-8132-5d1e2a6a99e0"
+            ]
+        },
+        "action--c3e1bbf3-c98f-4a63-a80b-5d4f2828ef80": {
+            "name": "Execute clamav security scan",
+            "description": "Run ClamAV for malware scanning.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2",
+            "on_completion": "set_variable--16904c54-b209-424c-ae18-8b4dad989b3a"
+        },
+        "action--e2236890-c156-4812-a133-4931e21575e1": {
+            "name": "Increase logging and monitoring",
+            "description": "If severity level is high, enable enhanced logging.",
+            "type": "if-condition",
+            "condition": "severity_level > 5",
+            "on_true": {
+                "next_steps": "action--f952d3ac-c392-493d-8d88-5074c655a1f3"
+            },
+            "on_false": {
+                "next_steps": "action--1f3a8ca3-5f0b-469c-8132-5d1e2a6a99e0"
+            }
+        },
+        "action--1f3a8ca3-5f0b-469c-8132-5d1e2a6a99e0": {
+            "name": "Review access logs for abnormal access patterns",
+            "description": "Check the access logs for any suspicious behaviors.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_user' /var/log/access.log"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2",
+            "on_completion": "end--eeb5fb1b-1e69-4cda-8dcb-f81f307a8bc1"
+        },
+        "end--eeb5fb1b-1e69-4cda-8dcb-f81f307a8bc1": {
+            "type": "end"
+        },
+        "set_variable--16904c54-b209-424c-ae18-8b4dad989b3a": {
+            "on_completion": "while-condition--c3e1bbf3-c98f-4a63-a80b-5d4f2828ef80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_scan_status"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2"
+        },
+        "action--f952d3ac-c392-493d-8d88-5074c655a1f3": {
+            "name": "Log enhanced monitoring",
+            "description": "Log the change in monitoring level.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Enhanced logging enabled' >> /etc/security/log.conf"
+                }
+            ],
+            "agent": "organization--23be4a76-4a53-4158-ab9a-1797e49998b2",
+            "on_completion": "action--1f3a8ca3-5f0b-469c-8132-5d1e2a6a99e0"
+        }
+    },
+    "agent_definitions": {
+        "organization--23be4a76-4a53-4158-ab9a-1797e49998b2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5f9da37-3fff-4d7e-b97c-dbb2a7d33aae",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts for data exfiltration after gaining unauthorized access through a vulnerable web application.",
+    "created_by": "identity--bdb83905-0571-4d5d-857e-5542cfb65b68",
+    "created": "2023-10-17T14:30:00Z",
+    "modified": "2023-10-17T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1f0b26e-bc42-4cf8-acc1-59c47fa5f927",
+    "workflow": {
+        "start--a1f0b26e-bc42-4cf8-acc1-59c47fa5f927": {
+            "on_completion": "action--b31f6d71-a063-4be8-82bc-ada4e7b737cf",
+            "type": "start",
+            "name": "Start Mitigation Playbook",
+            "description": "Initiates the workflow to mitigate the incident."
+        },
+        "action--b31f6d71-a063-4be8-82bc-ada4e7b737cf": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the attacker\u2019s actions.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "if-condition--c48710d4-9f83-4c40-bde6-6d02c055d507"
+        },
+        "if-condition--c48710d4-9f83-4c40-bde6-6d02c055d507": {
+            "name": "Check if dropped files exist",
+            "type": "if-condition",
+            "condition": "$(ls /tmp/malicious_payload) != ''",
+            "on_true": "action--749ff112-3ad3-4f91-ab92-ec0a4c9a92a6",
+            "on_false": "loop--f4607147-5f54-4af1-b057-920358fb4455"
+        },
+        "action--749ff112-3ad3-4f91-ab92-ec0a4c9a92a6": {
+            "name": "Delete dropped files",
+            "description": "Remove any malicious files that have been dropped on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--f4607147-5f54-4af1-b057-920358fb4455"
+        },
+        "loop--f4607147-5f54-4af1-b057-920358fb4455": {
+            "name": "Run security scans until clean",
+            "description": "Initiate security scan and repeat until a clean results are achieved.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--e4b92c53-59e2-4cfd-bbce-f4c1eec0a106",
+            "on_false": "end--d1ea85d0-ced7-4f2e-86eb-ee8daa01e6b1"
+        },
+        "action--e4b92c53-59e2-4cfd-bbce-f4c1eec0a106": {
+            "name": "Run security scans",
+            "description": "Perform a security scan on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_tool --scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan result.",
+                    "value": "running"
+                }
+            },
+            "on_completion": "loop--f4607147-5f54-4af1-b057-920358fb4455"
+        },
+        "end--d1ea85d0-ced7-4f2e-86eb-ee8daa01e6b1": {
+            "name": "End of Mitigation Playbook",
+            "type": "end",
+            "description": "Completes the mitigation process."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

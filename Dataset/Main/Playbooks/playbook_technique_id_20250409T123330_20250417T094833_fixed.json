@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7f7567f-d128-4a4d-bbc4-1cc3dbe35644",
+    "name": "Mitigation Playbook for PowerShell Command and Scripting Incident",
+    "description": "This playbook addresses an incident involving unauthorized PowerShell usage leading to data exfiltration from a critical server.",
+    "created_by": "identity--aebb7bfc-6520-470b-9cc8-70f21c0093f1",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fee0a152-906e-41aa-aac4-0459c8057f2a",
+    "workflow": {
+        "action--f9c6b3de-7899-4c1e-8753-ec250ec0440f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious process.",
+            "on_completion": "action--3720d167-df94-4bae-be4c-9ca6e0ec1d72",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--dc9c794c-c97d-41fb-a7eb-2f9d7ca93f32"
+        },
+        "action--3720d167-df94-4bae-be4c-9ca6e0ec1d72": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "loop--9a0422bd-45fb-49cd-8c93-b86f1c0fde05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--dc9c794c-c97d-41fb-a7eb-2f9d7ca93f32"
+        },
+        "loop--9a0422bd-45fb-49cd-8c93-b86f1c0fde05": {
+            "name": "Perform deep scan for malicious artifacts",
+            "description": "Conduct a deep scan to identify any remaining malicious artifacts on host-22.",
+            "on_completion": "action--c9e8a5b2-f259-44a9-9b0b-d6af57b2ff7e",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--9a0422bd-45fb-49cd-8c93-b86f1c0fde05",
+            "on_false": "action--c9e8a5b2-f259-44a9-9b0b-d6af57b2ff7e"
+        },
+        "action--9a0422bd-45fb-49cd-8c93-b86f1c0fde05": {
+            "name": "Run malware scan",
+            "description": "Execute malware scan to check for remnants of the attack.",
+            "on_completion": "loop--9a0422bd-45fb-49cd-8c93-b86f1c0fde05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan.sh --host host-22"
+                }
+            ],
+            "agent": "organization--dc9c794c-c97d-41fb-a7eb-2f9d7ca93f32"
+        },
+        "action--c9e8a5b2-f259-44a9-9b0b-d6af57b2ff7e": {
+            "name": "Patch all vulnerable systems",
+            "description": "Ensure all systems are updated and patched against vulnerabilities.",
+            "on_completion": "action--1f1e6d77-a78a-4ebf-bf58-eece0f3634fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade"
+                }
+            ],
+            "agent": "organization--dc9c794c-c97d-41fb-a7eb-2f9d7ca93f32"
+        },
+        "action--1f1e6d77-a78a-4ebf-bf58-eece0f3634fa": {
+            "name": "Check firewall rules for anomalies",
+            "description": "Review firewall rules and configurations to ensure compliance.",
+            "type": "if-condition",
+            "condition": "firewall_rules_deviate",
+            "on_true": "action--1f1e6d77-a78a-4ebf-bf58-eece0f3634fa",
+            "on_false": "end--93a6bc4e-4f82-4b96-b029-45edc8ef074a"
+        },
+        "end--93a6bc4e-4f82-4b96-b029-45edc8ef074a": {
+            "type": "end"
+        },
+        "start--fee0a152-906e-41aa-aac4-0459c8057f2a": {
+            "on_completion": "action--f9c6b3de-7899-4c1e-8753-ec250ec0440f",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--dc9c794c-c97d-41fb-a7eb-2f9d7ca93f32": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

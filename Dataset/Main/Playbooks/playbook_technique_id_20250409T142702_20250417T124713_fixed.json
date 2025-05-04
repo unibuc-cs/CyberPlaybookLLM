@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6c5c73f-75fd-4517-ae3c-dc84c3812a8e",
+    "name": "Mitigation Playbook for Process Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable application to inject malicious code into a legitimate process.",
+    "created_by": "identity--4274196a-f685-4f05-99b3-a112a1a8b477",
+    "created": "2023-10-06T14:32:00Z",
+    "modified": "2023-10-06T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1f12bde-91c1-4c6a-a8c4-abcde1234567",
+    "workflow": {
+        "start--c1f12bde-91c1-4c6a-a8c4-abcde1234567": {
+            "on_completion": "if-condition--f5f12bde-91c1-4c6a-a8c4-abcde1234568",
+            "type": "start"
+        },
+        "if-condition--f5f12bde-91c1-4c6a-a8c4-abcde1234568": {
+            "name": "Check if svchost.exe process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f 'svchost.exe' | wc -l) -gt 0",
+            "on_true": "action--f5e74493-3de1-4b6a-9ac6-22f77c737c34",
+            "on_false": "action--e6eddb8c-50d6-4d4c-a491-650873f1d9c0"
+        },
+        "action--f5e74493-3de1-4b6a-9ac6-22f77c737c34": {
+            "name": "Terminate injected process",
+            "description": "Terminate the svchost.exe process if it exists.",
+            "on_completion": "while-condition--fd20449c-40c5-4a25-8280-742df92f7c54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'svchost.exe'"
+                }
+            ],
+            "agent": "organization--1295a7f5-0e20-4477-921f-c0ca4c0622f5"
+        },
+        "action--109c93de-49a1-4708-9c4f-2386c4f962bc": {
+            "name": "Scan system for malicious files",
+            "description": "Scan the entire file system for malicious files.",
+            "on_completion": "while-condition--fd20449c-40c5-4a25-8280-742df92f7c54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--1295a7f5-0e20-4477-921f-c0ca4c0622f5"
+        },
+        "action--e6eddb8c-50d6-4d4c-a491-650873f1d9c0": {
+            "name": "Update antivirus definitions",
+            "description": "Update antivirus definitions to the latest version.",
+            "on_completion": "end--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get install --only-upgrade clamav"
+                }
+            ],
+            "agent": "organization--1295a7f5-0e20-4477-921f-c0ca4c0622f5"
+        },
+        "end--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "type": "end"
+        },
+        "while-condition--fd20449c-40c5-4a25-8280-742df92f7c54": {
+            "name": "Scan system for malicious files",
+            "description": "Scan the system for potential threats.",
+            "type": "while-condition",
+            "condition": "$(clamscan -r / --bell | grep 'Infected files: 0' | wc -l) -eq 0",
+            "on_true": "action--109c93de-49a1-4708-9c4f-2386c4f962bc",
+            "on_false": "end--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e"
+        }
+    },
+    "agent_definitions": {
+        "organization--1295a7f5-0e20-4477-921f-c0ca4c0622f5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

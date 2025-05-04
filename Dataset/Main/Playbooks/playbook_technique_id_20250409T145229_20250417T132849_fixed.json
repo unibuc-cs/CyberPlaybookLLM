@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d62ad8bc-49e7-4b05-8a89-e4046be27d90",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via a compromised user account, creating persistence and exfiltrating sensitive data.",
+    "created_by": "identity--2bdc18c5-ada0-4af9-a6c9-99b4f1baac40",
+    "created": "2023-10-23T15:00:00.000Z",
+    "modified": "2023-10-23T15:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d1e4e7d5-b1fd-4e82-b3b9-1b8abf8dce55",
+    "workflow": {
+        "start--d1e4e7d5-b1fd-4e82-b3b9-1b8abf8dce55": {
+            "on_completion": "action--d5e4a7ef-d4b6-4c1e-bd52-08f084234be3",
+            "type": "start"
+        },
+        "action--d5e4a7ef-d4b6-4c1e-bd52-08f084234be3": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--913b1ee7-9cc3-4393-81ee-58ab5f13b017",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--ad2aace9-2e9b-45db-85a7-ceeb70029238"
+        },
+        "action--03b57f1e-7446-4e3b-aa1c-341014b73171": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan on the system to detect other potential threats.",
+            "on_completion": "loop--f410292c-ed06-4371-8bf3-d3423198dbcb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /tmp"
+                }
+            ],
+            "agent": "organization--ad2aace9-2e9b-45db-85a7-ceeb70029238",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Flag indicating if the scan is complete and no threats were found.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--54abd890-b061-4e95-a4b5-74c15c88f4a8": {
+            "name": "Change user account credentials",
+            "description": "Update the credentials of the compromised user account.",
+            "on_completion": "end--088ec0b2-aeb9-4648-bb87-84bd9760400d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_password' | passwd compromised_user"
+                }
+            ],
+            "agent": "organization--ad2aace9-2e9b-45db-85a7-ceeb70029238",
+            "step_variables": {
+                "new_password": {
+                    "type": "string",
+                    "description": "The variable contains the newly generated password for the compromised user",
+                    "value": "RandomGeneratedPassword123!",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--913b1ee7-9cc3-4393-81ee-58ab5f13b017": {
+            "name": "Check if malicious process was killed",
+            "type": "if-condition",
+            "condition": "malicious_process_killed == True",
+            "on_true": "loop--f410292c-ed06-4371-8bf3-d3423198dbcb",
+            "on_false": "action--54abd890-b061-4e95-a4b5-74c15c88f4a8"
+        },
+        "loop--f410292c-ed06-4371-8bf3-d3423198dbcb": {
+            "name": "Repeat Scan for Threats",
+            "description": "Scan the system for additional threats repeatedly until the scan is clean.",
+            "on_completion": "while-condition--38af358b-0e94-4f76-b4e1-3cff98fa725c",
+            "type": "loop",
+            "conditions": [
+                {
+                    "type": "check",
+                    "condition": "scan_complete == False"
+                }
+            ],
+            "next_steps": [
+                "action--03b57f1e-7446-4e3b-aa1c-341014b73171"
+            ]
+        },
+        "while-condition--38af358b-0e94-4f76-b4e1-3cff98fa725c": {
+            "name": "Scan completion check",
+            "on_true": "end--088ec0b2-aeb9-4648-bb87-84bd9760400d",
+            "on_false": "action--03b57f1e-7446-4e3b-aa1c-341014b73171",
+            "type": "while-condition",
+            "condition": "scan_complete == False"
+        },
+        "end--088ec0b2-aeb9-4648-bb87-84bd9760400d": {
+            "step_extensions": {
+                "": "extension-definition--123abc45-6789-01234-def567890abcd"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ad2aace9-2e9b-45db-85a7-ceeb70029238": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

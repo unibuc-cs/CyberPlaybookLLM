@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8a9f8b09-459c-4b4b-ab23-90c276bcc5bf",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses incidents where unauthorized scripts are executed on a server, leading to potential data breaches and service disruptions.",
+    "created_by": "identity--00bcb186-b125-47fd-8ec4-afb531f72b37",
+    "created": "2023-10-11T14:40:00.000Z",
+    "modified": "2023-10-11T14:40:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f5c1eab5-4b67-4a5f-9d77-a72fd499f1b8",
+    "workflow": {
+        "start--f5c1eab5-4b67-4a5f-9d77-a72fd499f1b8": {
+            "on_completion": "action--b2e5ad44-d178-42e5-8fbf-8c1cf2d9f860",
+            "type": "start"
+        },
+        "action--b2e5ad44-d178-42e5-8fbf-8c1cf2d9f860": {
+            "name": "Disable script execution permissions",
+            "description": "Prevent unauthorized script execution on the affected server.",
+            "on_completion": "if-condition--c8be3b12-2566-4b02-ba84-1169478bc215",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -x /path/to/scripts"
+                }
+            ],
+            "agent": "organization--6738fbac-6038-482a-9210-ab6a6a25b425"
+        },
+        "if-condition--c8be3b12-2566-4b02-ba84-1169478bc215": {
+            "name": "Check if unauthorized scripts detected",
+            "type": "if-condition",
+            "condition": "unauthorized_scripts_detected == true",
+            "on_true": "action--c3f49025-3d02-4f9c-8c10-e7b3d5f2e9ed",
+            "on_false": "action--e5ad1f57-a08c-4ff6-b23c-b329f8dfcfab"
+        },
+        "action--c3f49025-3d02-4f9c-8c10-e7b3d5f2e9ed": {
+            "name": "Block outbound traffic to exfiltration IP",
+            "description": "Prevent data exfiltration by blocking outbound traffic to the detected IP.",
+            "on_completion": "action--e5ad1f57-a08c-4ff6-b23c-b329f8dfcfab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.0 -j DROP"
+                }
+            ],
+            "agent": "organization--6738fbac-6038-482a-9210-ab6a6a25b425",
+            "step_variables": {
+                "exfiltration_ip": {
+                    "type": "string",
+                    "description": "IP address believed to be exfiltrating data",
+                    "value": "198.51.100.0",
+                    "constant": false
+                }
+            }
+        },
+        "action--e5ad1f57-a08c-4ff6-b23c-b329f8dfcfab": {
+            "name": "Restart disrupted critical services",
+            "description": "Restart critical services that were disrupted during the attack.",
+            "type": "loop",
+            "loop_condition": "each disrupted service",
+            "on_iteration": "action--f37bf2c0-924f-45df-aa47-b8914de6d1eb",
+            "on_completion": "end--7e8c4e48-d401-4c1c-9887-7fbc98070c2b"
+        },
+        "action--f37bf2c0-924f-45df-aa47-b8914de6d1eb": {
+            "name": "Scan system for malicious scripts",
+            "description": "Perform a full system scan to identify and remove any remaining malicious scripts.",
+            "type": "loop",
+            "loop_condition": "scan_is_clean == false",
+            "on_iteration": "action--f37bf2c0-924f-45df-aa47-b8914de6d1eb",
+            "on_completion": "end--7e8c4e48-d401-4c1c-9887-7fbc98070c2b",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--6738fbac-6038-482a-9210-ab6a6a25b425"
+        },
+        "end--7e8c4e48-d401-4c1c-9887-7fbc98070c2b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6738fbac-6038-482a-9210-ab6a6a25b425": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}

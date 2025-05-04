@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fbbb6738-a889-4e42-b8f6-456bfc1c27f9",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook mitigates an incident involving malicious PowerShell script executions leading to unauthorized access and lateral movement across the network.",
+    "created_by": "identity--cb8c9310-d597-4d76-b97b-92c8aefc2d25",
+    "created": "2025-04-10T08:55:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1e849e47-ce2c-4e54-b6ab-b20034287286",
+    "workflow": {
+        "start--1e849e47-ce2c-4e54-b6ab-b20034287286": {
+            "on_completion": "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b",
+            "type": "start"
+        },
+        "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Stop any running PowerShell processes that may be executing malicious scripts.",
+            "on_completion": "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process -Name 'powershell' | Stop-Process"
+                }
+            ],
+            "agent": "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b"
+        },
+        "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9": {
+            "name": "Block network connections from host-34",
+            "description": "Prevent any further outbound connections from the compromised host.",
+            "on_completion": "if-condition--1f151b94-ce9e-4949-8357-f702314494cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.34 -j DROP"
+                }
+            ],
+            "agent": "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b"
+        },
+        "if-condition--1f151b94-ce9e-4949-8357-f702314494cc": {
+            "name": "Check if compromised credentials need to be identified",
+            "type": "if-condition",
+            "condition": "compromised_users.count > 0",
+            "on_true": "loop--441b4d79-6833-4e05-b929-82c71b44cd60",
+            "on_false": "action--544e6ca1-fd90-4cd1-8e92-c17934c53392"
+        },
+        "loop--441b4d79-6833-4e05-b929-82c71b44cd60": {
+            "name": "Identify and revoke compromised credentials",
+            "description": "Revoke access for each user identified as compromised.",
+            "type": "loop",
+            "on_completion": "action--544e6ca1-fd90-4cd1-8e92-c17934c53392",
+            "iteration_condition": "has_more_compromised_users",
+            "steps": [
+                {
+                    "id": "action--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd",
+                    "type": "action",
+                    "name": "Revoke one compromised user",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "net user compromised_user /del"
+                        }
+                    ],
+                    "agent": "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b",
+                    "set_variable": {
+                        "compromised_user": "get_next_compromised_user()"
+                    }
+                }
+            ]
+        },
+        "action--544e6ca1-fd90-4cd1-8e92-c17934c53392": {
+            "name": "Patch all systems with the latest security updates",
+            "description": "Ensure all systems are running the latest security patches.",
+            "on_completion": "action--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo yum update -y"
+                }
+            ],
+            "agent": "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b"
+        },
+        "action--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77": {
+            "name": "Conduct full network scan for residual threats",
+            "description": "Check for any remaining threats on the network.",
+            "on_completion": "end--ecb02067-8c35-460e-9f43-e60174a68eeb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -T4 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b"
+        },
+        "end--ecb02067-8c35-460e-9f43-e60174a68eeb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e9a4b78d-483f-4da3-965f-ef6e6c905d8b": {
+            "type": "organization",
+            "name": "Cybersecurity Incident Response Team"
+        }
+    },
+    "step_variables": {
+        "compromised_users": {
+            "type": "array",
+            "description": "List of users that have compromised access.",
+            "value": [],
+            "constant": false,
+            "external": true
+        },
+        "has_more_compromised_users": {
+            "type": "boolean",
+            "description": "Indicates if there are more compromised users to revoke.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--218364b0-8826-4e05-b8ad-3bf46d172e31",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker uploaded and executed a malicious script, allowing unauthorized access to sensitive database information.",
+    "created_by": "identity--df7ed0c1-6814-4c20-a1bd-4a500fa5540b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c7cf63b6-df97-4508-84fd-c4e993f3e5d8",
+    "workflow": {
+        "start--c7cf63b6-df97-4508-84fd-c4e993f3e5d8": {
+            "on_completion": "parallel--7b034f46-13b2-4e8c-a7ea-e32b76a9b51a",
+            "type": "start"
+        },
+        "parallel--7b034f46-13b2-4e8c-a7ea-e32b76a9b51a": {
+            "name": "Execute Mitigations",
+            "description": "Perform all necessary mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c84e0a2f-0336-4852-8fad-d496c9103f8a",
+                "action--aa8ec7b5-3f45-424e-a066-da3c2080b1aa",
+                "loop--25f412c4-cd73-4f35-a9f5-dbcb28bebef8"
+            ]
+        },
+        "action--c84e0a2f-0336-4852-8fad-d496c9103f8a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--aa8ec7b5-3f45-424e-a066-da3c2080b1aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--29f7807a-28f3-4e70-9322-0c9713c0c015"
+        },
+        "action--aa8ec7b5-3f45-424e-a066-da3c2080b1aa": {
+            "name": "Remove uploaded malicious script",
+            "description": "Delete the uploaded malicious script from the temporary directory.",
+            "on_completion": "loop--25f412c4-cd73-4f35-a9f5-dbcb28bebef8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--29f7807a-28f3-4e70-9322-0c9713c0c015"
+        },
+        "loop--25f412c4-cd73-4f35-a9f5-dbcb28bebef8": {
+            "name": "Run full system scan",
+            "description": "Perform a complete scan of the system to identify any other threats.",
+            "on_completion": "end--6e932a28-5be2-4e61-8b32-c9a78de3c79e",
+            "type": "while-condition",
+            "condition": "${scan_complete} == false",
+            "on_true": "action--1be3031d-8933-44be-922f-2cfc58063140",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates whether the scan is complete.",
+                    "value": false,
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--6e932a28-5be2-4e61-8b32-c9a78de3c79e": {
+            "type": "end"
+        },
+        "action--1be3031d-8933-44be-922f-2cfc58063140": {
+            "name": "Execute system scan",
+            "on_completion": "check-scan-completion--d4e91397-3d65-4c97-a676-f3dbbc91a412",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--29f7807a-28f3-4e70-9322-0c9713c0c015"
+        },
+        "check-scan-completion--d4e91397-3d65-4c97-a676-f3dbbc91a412": {
+            "name": "Check scan completion",
+            "type": "if-condition",
+            "condition": "last_scan_exit_code == 0",
+            "on_true": "set-scan-complete--ee9ebcd1-daae-4501-9704-29c7a8ad5055",
+            "on_false": "loop--25f412c4-cd73-4f35-a9f5-dbcb28bebef8"
+        },
+        "set-scan-complete--ee9ebcd1-daae-4501-9704-29c7a8ad5055": {
+            "name": "Set scan complete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set scan complete:  "
+                }
+            ],
+            "on_completion": "end--6e932a28-5be2-4e61-8b32-c9a78de3c79e",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Set scan complete to true.",
+                    "value": true,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "agent": "organization--29f7807a-28f3-4e70-9322-0c9713c0c015"
+        }
+    },
+    "agent_definitions": {
+        "organization--29f7807a-28f3-4e70-9322-0c9713c0c015": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

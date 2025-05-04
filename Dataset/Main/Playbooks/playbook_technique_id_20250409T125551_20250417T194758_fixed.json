@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1a91a3c-9c91-4d8b-b35a-ade4cc60b8c9",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook contains steps to mitigate an incident of unauthorized access via PowerShell script execution that leads to data exfiltration.",
+    "created_by": "identity--9827c5e3-bcc5-434b-be37-47301dfe1fe5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:35.043Z",
+    "revoked": false,
+    "workflow_start": "start--c8a9f3e9-9c8e-4b3a-b849-329f95f79856",
+    "workflow": {
+        "start--c8a9f3e9-9c8e-4b3a-b849-329f95f79856": {
+            "on_completion": "if-condition--707f03e1-d3f0-48f5-8f43-9f9fd574bba4",
+            "type": "start"
+        },
+        "if-condition--707f03e1-d3f0-48f5-8f43-9f9fd574bba4": {
+            "name": "Check if suspicious process is running",
+            "type": "if-condition",
+            "condition": "suspicious_process_running == true",
+            "on_true": "action--a3fa3bbc-8e73-41c9-9ee8-be9debc1863d",
+            "on_false": "if-condition--aa5b20dc-5a9d-4853-b0ff-43a46cb4d5c8"
+        },
+        "if-condition--aa5b20dc-5a9d-4853-b0ff-43a46cb4d5c8": {
+            "name": "Check if data exfiltration is detected",
+            "type": "if-condition",
+            "condition": "data_exfiltration_detected == true",
+            "on_true": "action--f128b0a5-e43f-4c89-9368-e7d1d2f2ecee",
+            "on_false": "action--0f3cdaff-1a00-4532-a455-9189eaf280a1"
+        },
+        "action--a3fa3bbc-8e73-41c9-9ee8-be9debc1863d": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "if-condition--aa5b20dc-5a9d-4853-b0ff-43a46cb4d5c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a2b6c234-4d1a-45c2-b874-a9f8f2eac78e"
+        },
+        "action--f128b0a5-e43f-4c89-9368-e7d1d2f2ecee": {
+            "name": "Isolate infected host from network",
+            "description": "Disconnect the infected host from the network to prevent further data exfiltration.",
+            "on_completion": "action--0f3cdaff-1a00-4532-a455-9189eaf280a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--a2b6c234-4d1a-45c2-b874-a9f8f2eac78e"
+        },
+        "action--0f3cdaff-1a00-4532-a455-9189eaf280a1": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan to check for remnants of the malicious activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "on_completion": "while-condition--bde7d2c8-048b-4df8-b11b-76998ad9ca04",
+            "agent": "organization--a2b6c234-4d1a-45c2-b874-a9f8f2eac78e"
+        },
+        "while-condition--bde7d2c8-048b-4df8-b11b-76998ad9ca04": {
+            "name": "Scan until clean",
+            "description": "Repeat scanning until the system is confirmed clean.",
+            "condition": "scan_not_clean == true",
+            "on_true": "action--0f3cdaff-1a00-4532-a455-9189eaf280a1",
+            "on_false": "end--aa2bb669-c564-4fb8-b5bc-f4070f2136c4",
+            "type": "if-condition"
+        },
+        "end--aa2bb669-c564-4fb8-b5bc-f4070f2136c4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a2b6c234-4d1a-45c2-b874-a9f8f2eac78e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

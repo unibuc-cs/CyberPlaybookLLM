@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7d79cfd7-054f-43d4-bd5f-db9e6a9e2959",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Abuse",
+    "description": "This playbook addresses an incident where an attacker utilized command-line interfaces to execute malicious scripts, leading to unauthorized file access.",
+    "created_by": "identity--6ba41db6-fe5b-494b-91ca-7dd138278c3d",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1b1d1de3-1357-4f2b-9b54-528d8c17bfcc",
+    "workflow": {
+        "start--1b1d1de3-1357-4f2b-9b54-528d8c17bfcc": {
+            "on_completion": "action--0cf22621-bcda-4740-a0a9-dbe7da63c963",
+            "type": "start"
+        },
+        "parallel--f5b1be11-c1e2-4c2c-be0f-c0aed2b1673d": {
+            "name": "Initiate Isolation and Monitoring",
+            "description": "Simultaneously isolate the affected host and monitor ongoing activities.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1f02adab-6510-4c48-96ab-fc06895c1460",
+                "action--7b506fbb-b9e5-482c-bfc5-3c57ffc9f8b9"
+            ]
+        },
+        "action--1f02adab-6510-4c48-96ab-fc06895c1460": {
+            "name": "Isolate affected host",
+            "description": "Block incoming traffic from the suspicious host.",
+            "on_completion": "action--9eeb5f42-3fd6-47b6-b45f-82ed4fdc6ae8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35"
+        },
+        "action--7b506fbb-b9e5-482c-bfc5-3c57ffc9f8b9": {
+            "name": "Monitor network traffic",
+            "description": "Monitor network traffic continuously.",
+            "on_completion": "end--e7e77757-e8eb-4a46-a0a6-bbcfe2e636c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn"
+                }
+            ],
+            "agent": "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35",
+            "loop": {
+                "repeat": "5m"
+            }
+        },
+        "action--9eeb5f42-3fd6-47b6-b45f-82ed4fdc6ae8": {
+            "name": "Conduct forensic analysis",
+            "description": "Run forensic analysis on the affected host.",
+            "on_completion": {
+                "condition": "threat_detected--6a6c4bd3-09d3-480c-855f-cf6473e3df44",
+                "action_true": "action--9eeb5f42-3fd6-47b6-b45f-82ed4fdc6ae8",
+                "action_false": "action--c4a04166-bd64-4f15-b063-009dcf99e2c5"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_analysis_tool -h host-22"
+                }
+            ],
+            "agent": "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35",
+            "loop": {
+                "repeat_until": {
+                    "condition": "no_threats_found"
+                }
+            }
+        },
+        "action--c4a04166-bd64-4f15-b063-009dcf99e2c5": {
+            "name": "Update firewall rules",
+            "description": "Block all incoming connections from the attacker's IP.",
+            "on_completion": "end--e7e77757-e8eb-4a46-a0a6-bbcfe2e636c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.100"
+                }
+            ],
+            "agent": "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35"
+        },
+        "end--e7e77757-e8eb-4a46-a0a6-bbcfe2e636c4": {
+            "type": "end"
+        },
+        "action--0cf22621-bcda-4740-a0a9-dbe7da63c963": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "parallel--f5b1be11-c1e2-4c2c-be0f-c0aed2b1673d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35"
+        }
+    },
+    "agent_definitions": {
+        "organization--47c5f2b8-fc08-46f1-90c7-f4522a4f2c35": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

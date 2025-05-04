@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d271f3b0-dd59-41ae-95b2-b60e6b2f846e",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution on host-22, leading to potential lateral movement within the network.",
+    "created_by": "identity--46f36ca2-aaba-4d72-8849-38747f974c3e",
+    "created": "2023-10-10T14:50:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d271f3b0-dd59-41ae-95b2-b60e6b2f846e",
+    "workflow": {
+        "start--d271f3b0-dd59-41ae-95b2-b60e6b2f846e": {
+            "on_completion": "action--e6b8f7b1-f2ba-4bae-bf85-05fb813c1a5a",
+            "type": "start"
+        },
+        "action--e6b8f7b1-f2ba-4bae-bf85-05fb813c1a5a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes related to the unauthorized script.",
+            "on_completion": "parallel--2a5ae7da-beee-42a7-930f-4d4990bcea76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_command'"
+                }
+            ],
+            "agent": "organization--8e038048-6160-4075-99cd-8df69bfdd06c"
+        },
+        "action--0f87f210-a045-4ab1-880b-a9b0aadae1ac": {
+            "name": "Remove unauthorized script files",
+            "description": "Delete any unauthorized PowerShell scripts found on the system.",
+            "on_completion": "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--8e038048-6160-4075-99cd-8df69bfdd06c"
+        },
+        "action--bbdc3f66-29bd-4f42-bd4f-411d8d191f5e": {
+            "name": "Monitor network traffic for suspicious activity",
+            "description": "Monitor network traffic for any unusual behavior related to the compromised host.",
+            "on_completion": "action--5332bae7-23bf-4f89-b77e-28dc0fadef52",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tshark -i eth0 -Y 'tcp.port == 4455'"
+                }
+            ],
+            "agent": "organization--8e038048-6160-4075-99cd-8df69bfdd06c",
+            "step_variables": {
+                "unusual_port": {
+                    "type": "integer",
+                    "description": "The unusual port for monitoring",
+                    "value": 4455
+                }
+            }
+        },
+        "action--5332bae7-23bf-4f89-b77e-28dc0fadef52": {
+            "name": "Isolate affected host-22 from the network",
+            "description": "Disconnect host-22 from the network to prevent lateral movement.",
+            "on_completion": "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmcli dev disconnect iface eth0"
+                }
+            ],
+            "agent": "organization--8e038048-6160-4075-99cd-8df69bfdd06c",
+            "condition": "if containment needed"
+        },
+        "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5": {
+            "name": "Run system integrity check",
+            "description": "Perform a thorough system integrity check to identify any other potential issues.",
+            "on_completion": "end--ac7992a5-0145-403b-9438-ffab3488f234",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "agent": "organization--8e038048-6160-4075-99cd-8df69bfdd06c",
+            "loop": {
+                "condition": "system_integrity_check == false",
+                "on_true": "action--a0473d05-c5ef-4178-a5cb-15416f7e4fe5"
+            }
+        },
+        "parallel--2a5ae7da-beee-42a7-930f-4d4990bcea76": {
+            "name": "Cleanup actions",
+            "description": "Execute cleanup actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--0f87f210-a045-4ab1-880b-a9b0aadae1ac",
+                "action--bbdc3f66-29bd-4f42-bd4f-411d8d191f5e",
+                "action--5332bae7-23bf-4f89-b77e-28dc0fadef52"
+            ]
+        },
+        "end--ac7992a5-0145-403b-9438-ffab3488f234": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8e038048-6160-4075-99cd-8df69bfdd06c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

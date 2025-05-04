@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e68c45a8-88c3-49cf-b51b-8dffa49b6883",
+    "name": "Mitigation Playbook for Unauthorized Shell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a shell script to execute unauthorized commands, leading to data exfiltration.",
+    "created_by": "identity--f022179c-0ee3-4fa0-b7f7-7f0f0ce9c3b7",
+    "created": "2025-04-09T08:55:00.000Z",
+    "modified": "2025-04-09T08:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--86f72627-c024-443b-8289-e74eb045f77b",
+    "workflow": {
+        "start--86f72627-c024-443b-8289-e74eb045f77b": {
+            "on_completion": "action--ffa1874b-7857-40e4-a37d-41d6fc740910",
+            "type": "start"
+        },
+        "action--ffa1874b-7857-40e4-a37d-41d6fc740910": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes executing unauthorized commands.",
+            "on_completion": "action--8ad8c70a-7d6c-422b-8884-4e2ae4a4a26c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'suspicious_process')"
+                }
+            ],
+            "agent": "organization--1275426d-a501-465b-b8a0-d30573d30ab7"
+        },
+        "action--8ad8c70a-7d6c-422b-8884-4e2ae4a4a26c": {
+            "name": "Scan for rootkits",
+            "description": "Perform a rootkit scan to check for hidden malicious activities.",
+            "on_completion": "parallel--97d27952-0a17-4c9c-baf6-8bb2c598ff9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--1275426d-a501-465b-b8a0-d30573d30ab7"
+        },
+        "parallel--97d27952-0a17-4c9c-baf6-8bb2c598ff9e": {
+            "name": "Monitor Network Traffic",
+            "description": "Monitor network traffic to detect any further suspicious activities.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab5c867a-47f7-45f8-9af2-420740a083a6"
+            ]
+        },
+        "action--ab5c867a-47f7-45f8-9af2-420740a083a6": {
+            "name": "Start network monitoring",
+            "description": "Monitor traffic while checking for suspicious activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any port not 22"
+                }
+            ],
+            "agent": "organization--1275426d-a501-465b-b8a0-d30573d30ab7",
+            "on_completion": "decision--2958002c-9ef1-4deb-ac97-cc3971d3e100"
+        },
+        "decision--2958002c-9ef1-4deb-ac97-cc3971d3e100": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "traffic matches known_IOCs",
+            "on_true": "action--324ac631-bdf3-4307-a8e3-48e746ed4a8f",
+            "on_false": "action--80b698f4-572b-4f79-82cd-c9c7a6ccd6a9"
+        },
+        "action--324ac631-bdf3-4307-a8e3-48e746ed4a8f": {
+            "name": "Handle suspicious network activity",
+            "description": "Respond to detected suspicious activity.",
+            "on_completion": "end--2677e2d4-767f-4800-9080-cfb059b25b94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Suspicious activity detected!'"
+                }
+            ],
+            "agent": "organization--1275426d-a501-465b-b8a0-d30573d30ab7"
+        },
+        "action--80b698f4-572b-4f79-82cd-c9c7a6ccd6a9": {
+            "name": "No suspicious activity detected",
+            "description": "Log and terminate network monitoring if no threats are found.",
+            "on_completion": "end--2677e2d4-767f-4800-9080-cfb059b25b94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'No suspicious activity detected, terminating monitoring.'"
+                }
+            ],
+            "agent": "organization--1275426d-a501-465b-b8a0-d30573d30ab7"
+        },
+        "end--2677e2d4-767f-4800-9080-cfb059b25b94": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1275426d-a501-465b-b8a0-d30573d30ab7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4e05c3a8-8353-4f9c-b312-946c5fc92b60",
+    "name": "Mitigation Playbook for Web Application Exploit Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute malicious scripts and extract sensitive data.",
+    "created_by": "identity--771a8d8c-f630-4481-9ae5-1867106a82d6",
+    "created": "2023-10-15T14:00:00Z",
+    "modified": "2023-10-15T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--114fcc31-9d84-4849-9c67-3e6397105653",
+    "workflow": {
+        "action--e5c29f45-34cf-4c7d-8c67-bd3ee6c2597c": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any malicious PowerShell script that is being executed.",
+            "on_completion": "action--3c6012d6-a055-4c8b-83f4-15f3c8783e80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--1045a8b6-8d10-4887-bf8d-56557a690158"
+        },
+        "action--3c6012d6-a055-4c8b-83f4-15f3c8783e80": {
+            "name": "Inspect all outbound connections",
+            "description": "Check all established and time-wait connections for abnormal activity.",
+            "on_completion": "while-condition--94178168-1e83-4c98-89e3-01ff1edf9d75",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -antp | grep ESTABLISHED && netstat -antp | grep TIME_WAIT"
+                }
+            ],
+            "agent": "organization--1045a8b6-8d10-4887-bf8d-56557a690158"
+        },
+        "while-condition--94178168-1e83-4c98-89e3-01ff1edf9d75": {
+            "name": "Run Malware Scan Loop",
+            "description": "Repeat the malware scan until no threats are found.",
+            "type": "while-condition",
+            "condition": "no_threats_found == false",
+            "on_true": "action--94178168-1e83-4c98-89e3-01ff1edf9d75",
+            "on_false": "end--4300f67f-c09d-439c-83f7-cf3e45f852d1"
+        },
+        "action--94178168-1e83-4c98-89e3-01ff1edf9d75": {
+            "name": "Run comprehensive malware scan",
+            "description": "Execute a malware scan to detect and remove threats.",
+            "on_completion": "if-condition--003b4266-554e-4fc3-a523-ec3127b9e5a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_malware_scan.sh"
+                }
+            ],
+            "agent": "organization--1045a8b6-8d10-4887-bf8d-56557a690158",
+            "step_variables": {
+                "no_threats_found": {
+                    "type": "boolean",
+                    "description": "Indicates whether any threats were found during the scan.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--114fcc31-9d84-4849-9c67-3e6397105653": {
+            "on_completion": "action--e5c29f45-34cf-4c7d-8c67-bd3ee6c2597c",
+            "type": "start"
+        },
+        "if-condition--003b4266-554e-4fc3-a523-ec3127b9e5a0": {
+            "name": "Check if threats were found",
+            "type": "if-condition",
+            "condition": "no_threats_found == false",
+            "on_true": "while-condition--94178168-1e83-4c98-89e3-01ff1edf9d75",
+            "on_false": "end--4300f67f-c09d-439c-83f7-cf3e45f852d1"
+        },
+        "end--4300f67f-c09d-439c-83f7-cf3e45f852d1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1045a8b6-8d10-4887-bf8d-56557a690158": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

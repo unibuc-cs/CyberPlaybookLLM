@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7a1e62e-5b03-4b1c-b903-ac38be71a61e",
+    "name": "Mitigation Playbook for RDP Compromise Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to the corporate network through a compromised RDP session.",
+    "created_by": "identity--b2df5040-b78f-11ec-9b8b-0242ac120002",
+    "created": "2025-04-09T10:48:24.000Z",
+    "modified": "2025-04-09T10:50:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bc24de59-73db-4001-a8e8-49741fc2e7f5",
+    "workflow": {
+        "start--bc24de59-73db-4001-a8e8-49741fc2e7f5": {
+            "on_completion": "parallel--b2fa3d52-90db-48f6-9552-1e23bc8a2f80",
+            "type": "start"
+        },
+        "parallel--b2fa3d52-90db-48f6-9552-1e23bc8a2f80": {
+            "name": "Immediate Mitigations",
+            "description": "Perform immediate actions to mitigate unauthorized access.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fbdfe72b-4727-4e89-8b92-73340871fd78",
+                "if-condition--c4b290d8-31f7-4b42-b28d-3fcbdeae7ba6"
+            ]
+        },
+        "if-condition--c4b290d8-31f7-4b42-b28d-3fcbdeae7ba6": {
+            "name": "Check for active RDP session",
+            "type": "if-condition",
+            "condition": "session_id is not null",
+            "on_true": "action--1f3e7a1c-5788-48a2-80b3-b8e08cb072ed",
+            "on_false": "action--c1988f54-90db-4f23-bbac-009b9abc961b"
+        },
+        "action--fbdfe72b-4727-4e89-8b92-73340871fd78": {
+            "name": "Block unauthorized IP addresses",
+            "description": "Block access from the unauthorized external IP address.",
+            "on_completion": "end--e2072f6e-cae0-4e8f-afb9-3b35c5b6dcb8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s {ip_address} -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--1f3e7a1c-5788-48a2-80b3-b8e08cb072ed": {
+            "name": "Kill suspicious RDP session",
+            "description": "Terminate the unauthorized RDP session.",
+            "on_completion": "action--c1988f54-90db-4f23-bbac-009b9abc961b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tscon {session_id} /dest:console"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--c1988f54-90db-4f23-bbac-009b9abc961b": {
+            "name": "Run malware scan on affected host",
+            "description": "Perform a malware scan on the affected server.",
+            "on_completion": "end--e2072f6e-cae0-4e8f-afb9-3b35c5b6dcb8",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan /path/to/scanned/files"
+                }
+            ],
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the malware scan",
+                    "value": "unknown",
+                    "constant": false
+                }
+            },
+            "agent": "organization--xyz"
+        },
+        "end--e2072f6e-cae0-4e8f-afb9-3b35c5b6dcb8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

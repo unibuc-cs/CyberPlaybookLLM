@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1d4d563-2f2b-4f4b-a292-ff9f326701b2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook mitigates an incident where an attacker executed malicious scripts on a server to maintain persistence and exfiltrate sensitive data.",
+    "created_by": "identity--093e2e9e-f3a4-4229-aaa4-85544e49ddc1",
+    "created": "2025-10-01T09:00:00.000Z",
+    "modified": "2025-10-01T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1d4d563-2f2b-4f4b-a292-ff9f326701b2",
+    "workflow": {
+        "start--b1d4d563-2f2b-4f4b-a292-ff9f326701b2": {
+            "on_completion": "if-condition--a5184234-2086-45ca-a6da-d23ca422a59d",
+            "type": "start"
+        },
+        "if-condition--a5184234-2086-45ca-a6da-d23ca422a59d": {
+            "name": "Check for malicious processes",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--e3f7498c-de56-4b10-9b01-2370916ca80a",
+            "on_false": "action--fd9dc226-cce8-4ccd-a3a1-e66af6440fa3"
+        },
+        "action--e3f7498c-de56-4b10-9b01-2370916ca80a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes on the system.",
+            "on_completion": "action--1bc42a76-cc0e-4c07-8fe6-ce78fe981cf9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--684dc0bb-9050-43e2-9922-960ff6e38704"
+        },
+        "action--1bc42a76-cc0e-4c07-8fe6-ce78fe981cf9": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan of the system to detect any additional threats.",
+            "on_completion": "while-condition--e3f15298-922c-447e-982d-19dc0351afe3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--684dc0bb-9050-43e2-9922-960ff6e38704"
+        },
+        "while-condition--e3f15298-922c-447e-982d-19dc0351afe3": {
+            "name": "Scan loop",
+            "description": "Continue scanning until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--1bc42a76-cc0e-4c07-8fe6-ce78fe981cf9",
+            "on_false": "action--fd9dc226-cce8-4ccd-a3a1-e66af6440fa3"
+        },
+        "action--fd9dc226-cce8-4ccd-a3a1-e66af6440fa3": {
+            "name": "Block outbound traffic to C2 server",
+            "description": "Prevent the server from communicating with the known command and control server.",
+            "on_completion": "end--89be4636-7da8-4f08-b54c-9dbb69e09e13",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--684dc0bb-9050-43e2-9922-960ff6e38704"
+        },
+        "end--89be4636-7da8-4f08-b54c-9dbb69e09e13": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--684dc0bb-9050-43e2-9922-960ff6e38704": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "process_found": {
+            "type": "boolean",
+            "description": "Indicates if the malicious process was found and terminated.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the scan.",
+            "value": "running",
+            "constant": false,
+            "external": true
+        }
+    }
+}

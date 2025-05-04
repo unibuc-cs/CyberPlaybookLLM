@@ -1,0 +1,141 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b9115e2-0feb-4f8b-beb1-2457ded356b1",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution Incident",
+    "description": "This playbook automates the mitigation of unauthorized PowerShell script execution across multiple hosts within the network.",
+    "created_by": "identity--616f696b-8c5a-4f66-b75e-bff4ad31865a",
+    "created": "2023-10-15T14:52:10Z",
+    "modified": "2023-10-15T14:52:10Z",
+    "revoked": false,
+    "workflow_start": "start--8b9a1a09-cdde-4e71-bc40-fbbf8452658d",
+    "workflow": {
+        "start--8b9a1a09-cdde-4e71-bc40-fbbf8452658d": {
+            "on_completion": "parallel--c72f2653-eec9-453a-bab7-7e27895f5a1c",
+            "type": "start"
+        },
+        "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59": {
+            "name": "Terminate the unauthorized PowerShell process",
+            "description": "Terminate any unauthorized PowerShell scripts currently running.",
+            "on_completion": "action--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec"
+        },
+        "action--d8955b97-6ec8-4872-acb0-0f83765052d7": {
+            "name": "Block external IP address",
+            "description": "Block the external IP address associated with the malicious activity.",
+            "on_completion": "action--af4f3653-3467-4c72-872f-e063cbda7d65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"malicious-external-ip\" reject'"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec"
+        },
+        "action--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7": {
+            "name": "Remove downloaded payload and scan host for anomalies",
+            "description": "Remove the downloaded payload and perform a scan for any anomalies.",
+            "on_completion": "while-condition--ab1d99b4-e3d4-4f28-b007-bf1b3a3781ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/downloaded/payload && clamscan -r /"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec",
+            "step_variables": {
+                "downloaded_payload_path": {
+                    "type": "string",
+                    "description": "The path of the downloaded malicious payload.",
+                    "value": "/path/to/downloaded/payload",
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--ab1d99b4-e3d4-4f28-b007-bf1b3a3781ed": {
+            "name": "Check for anomalies after scan",
+            "description": "Loop until a clean scan is achieved.",
+            "on_completion": "action--af4f3653-3467-4c72-872f-e063cbda7d65",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7"
+        },
+        "action--af4f3653-3467-4c72-872f-e063cbda7d65": {
+            "name": "Monitor network traffic for additional anomalies",
+            "description": "Monitor network traffic for any further anomalies.",
+            "on_completion": "end--3a623e3c-9254-4b95-8ee9-816be4ad2fc7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec",
+            "next_steps": [
+                "if-condition--a1f94d6b-ccd0-414d-9202-57ea677304d7"
+            ]
+        },
+        "if-condition--a1f94d6b-ccd0-414d-9202-57ea677304d7": {
+            "name": "Check if anomalies are detected",
+            "type": "if-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--69ac55c1-e7a0-4baa-b73d-07a5e631d0e9",
+            "on_false": "end--3a623e3c-9254-4b95-8ee9-816be4ad2fc7"
+        },
+        "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e": {
+            "name": "Enable logging of command and script execution",
+            "description": "Ensure logging of command and script executions is enabled for audit.",
+            "on_completion": "end--3a623e3c-9254-4b95-8ee9-816be4ad2fc7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/powershell -p x -k powershell_exec"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec"
+        },
+        "end--3a623e3c-9254-4b95-8ee9-816be4ad2fc7": {
+            "type": "end"
+        },
+        "parallel--c72f2653-eec9-453a-bab7-7e27895f5a1c": {
+            "name": "Execute mitigation steps in parallel",
+            "description": "Terminate unauthorized processes, block external IP, and enable logging simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59",
+                "action--d8955b97-6ec8-4872-acb0-0f83765052d7",
+                "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e"
+            ]
+        },
+        "action--69ac55c1-e7a0-4baa-b73d-07a5e631d0e9": {
+            "name": "Escalate incident to security team",
+            "description": "Notifies the security team about detected anomalies.",
+            "on_completion": "end--3a623e3c-9254-4b95-8ee9-816be4ad2fc7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "notify_security_team 'Anomalies detected during network monitoring'"
+                }
+            ],
+            "agent": "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec"
+        }
+    },
+    "agent_definitions": {
+        "organization--21822734-369e-4dbd-8fb0-cf1602f0f8ec": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bcd88a09-61ee-4c81-8d3f-5d20ae2a63c2",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts on multiple hosts to exfiltrate sensitive data.",
+    "created_by": "identity--abc12345-6789-4cde-b123-456789abcdef",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d09cffa4-b1f5-4156-89ed-d22192bb058c",
+    "workflow": {
+        "action--7e14c02e-1bef-4a99-8c93-dabe61c7d8e0": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell scripts associated with malicious activities.",
+            "on_completion": "action--f83c5a02-77f9-4677-9e7a-4f59a8d6cb91",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--7e23a17a-b89f-4662-b452-c046dd441d8e"
+        },
+        "action--f83c5a02-77f9-4677-9e7a-4f59a8d6cb91": {
+            "name": "Isolate affected hosts from the network",
+            "description": "Take affected hosts offline to prevent further data exfiltration.",
+            "on_completion": "loop--34b3b692-a5f7-4c1f-bc4a-7f457e6ff79f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-12 down; ifconfig host-14 down"
+                }
+            ],
+            "agent": "organization--7e23a17a-b89f-4662-b452-c046dd441d8e"
+        },
+        "loop--34b3b692-a5f7-4c1f-bc4a-7f457e6ff79f": {
+            "name": "Conduct forensic analysis on affected hosts",
+            "description": "Initiate forensic analysis for each affected host.",
+            "on_completion": "end--e06b9986-5bde-481b-ba7b-32b7c82a18e7",
+            "type": "loop",
+            "loop_condition": "i < length(affected_hosts)",
+            "loop_variable": "i",
+            "variables": {
+                "affected_hosts": [
+                    "host-12",
+                    "host-14"
+                ]
+            },
+            "next_steps": []
+        },
+        "start--d09cffa4-b1f5-4156-89ed-d22192bb058c": {
+            "on_completion": "if-condition--0646c67c-1d59-430d-a152-fec4fbb7f019",
+            "type": "start"
+        },
+        "if-condition--0646c67c-1d59-430d-a152-fec4fbb7f019": {
+            "name": "Check if malicious PowerShell processes are running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--7e14c02e-1bef-4a99-8c93-dabe61c7d8e0",
+            "on_false": "action--f83c5a02-77f9-4677-9e7a-4f59a8d6cb91"
+        },
+        "action--1270922f-1d90-44a7-ae2d-f629feb72083": {
+            "name": "Run forensic analysis for each host",
+            "description": "Execute forensic scripts on the host being processed.",
+            "on_completion": "loop--34b3b692-a5f7-4c1f-bc4a-7f457e6ff79f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_forensics.sh ${affected_hosts[i]}"
+                }
+            ],
+            "agent": "organization--7e23a17a-b89f-4662-b452-c046dd441d8e"
+        },
+        "end--e06b9986-5bde-481b-ba7b-32b7c82a18e7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7e23a17a-b89f-4662-b452-c046dd441d8e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

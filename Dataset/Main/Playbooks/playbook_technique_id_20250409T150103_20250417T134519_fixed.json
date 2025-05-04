@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5398e154-40d7-4c65-a1c5-a4673b4fccf0",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker used a malicious PowerShell script to execute arbitrary commands, leading to unauthorized data access.",
+    "created_by": "identity--a9ebe561-6dfc-459d-8684-da700e1ca97e",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--789abcde-1234-4567-abcd-ef0123456789",
+    "workflow": {
+        "start--789abcde-1234-4567-abcd-ef0123456789": {
+            "on_completion": "action--a7b5e7af-be5c-4988-9bcb-b322c3c1e7be",
+            "type": "start"
+        },
+        "action--a7b5e7af-be5c-4988-9bcb-b322c3c1e7be": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes running on the system.",
+            "on_completion": "parallel--fc4c3b2e-3a45-4bc8-9237-2fe8b5778067",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--14acab3b-a58c-4c36-bd90-05b041b1edd3"
+        },
+        "parallel--fc4c3b2e-3a45-4bc8-9237-2fe8b5778067": {
+            "name": "Mitigation Steps",
+            "description": "Execute quarantine and scan steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--733c8e47-e8d3-4433-8938-1e2ec889d210",
+                "if-condition--fb3e8d5a-0d58-4620-9866-aaa85e4e8aeb"
+            ]
+        },
+        "if-condition--733c8e47-e8d3-4433-8938-1e2ec889d210": {
+            "name": "Check if the malicious script is found",
+            "type": "if-condition",
+            "condition": "script_found == true",
+            "on_true": "loop--ecf7c256-c7e8-4d1d-b0af-2c760312e046",
+            "on_false": "action--fb876b39-bc18-41c3-ad24-a695a78c76f1"
+        },
+        "loop--ecf7c256-c7e8-4d1d-b0af-2c760312e046": {
+            "name": "Quarantine Malicious Script Loop",
+            "description": "Repeat the process of quarantining the malicious script until it is no longer found.",
+            "on_completion": "if-condition--733c8e47-e8d3-4433-8938-1e2ec889d210",
+            "type": "while-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /tmp/malicious_script.ps1 /tmp/quarantine/"
+                }
+            ],
+            "condition": "script_found == true"
+        },
+        "if-condition--fb3e8d5a-0d58-4620-9866-aaa85e4e8aeb": {
+            "name": "Proceed to full system scan",
+            "type": "if-condition",
+            "condition": "script_found == false",
+            "on_true": "loop--fb876b39-bc18-41c3-ad24-a695a78c76f1",
+            "on_false": "end--789abcde-1234-4567-abcd-ef0123456789"
+        },
+        "loop--fb876b39-bc18-41c3-ad24-a695a78c76f1": {
+            "name": "Run a full system scan",
+            "description": "Continuously scan the system until it is clean.",
+            "on_completion": "if-condition--fb3e8d5a-0d58-4620-9866-aaa85e4e8aeb",
+            "type": "while-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "condition": "scan_is_clean == false"
+        },
+        "end--789abcde-1234-4567-abcd-ef0123456789": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--14acab3b-a58c-4c36-bd90-05b041b1edd3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

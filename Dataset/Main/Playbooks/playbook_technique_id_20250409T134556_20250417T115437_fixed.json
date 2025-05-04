@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8e7a765-8b99-4172-b3e2-d5d3e22da9ab",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts that harvested sensitive data through command-line activity on critical servers.",
+    "created_by": "identity--753ef1aa-1192-4b0e-95e0-ade0c5cd6ab3",
+    "created": "2023-10-10T12:00:00.000Z",
+    "modified": "2023-10-10T12:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--a3f44345-587c-48fc-8b3a-3fb9f8bde6a7",
+            "type": "start"
+        },
+        "if-condition--87fbc7b5-1e68-4e1b-9397-5e04be7cd8e9": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--a3f44345-587c-48fc-8b3a-3fb9f8bde6a7",
+            "on_false": "action--5d12fd45-7d12-4a1c-bf92-5471c7b4a22f"
+        },
+        "action--a3f44345-587c-48fc-8b3a-3fb9f8bde6a7": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running instances of PowerShell suspected to be malicious.",
+            "on_completion": "action--5d12fd45-7d12-4a1c-bf92-5471c7b4a22f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--efb1a9c3-edaa-451e-b947-13808e181bd3"
+        },
+        "action--5d12fd45-7d12-4a1c-bf92-5471c7b4a22f": {
+            "name": "Block outgoing connection to suspicious IP",
+            "description": "Block any outgoing connections to the identified suspicious IP.",
+            "on_completion": "action--f04c1622-0c33-4cd8-bc3b-aa9a45e2d97b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--efb1a9c3-edaa-451e-b947-13808e181bd3"
+        },
+        "action--f04c1622-0c33-4cd8-bc3b-aa9a45e2d97b": {
+            "name": "Scan affected host for malware",
+            "description": "Continuously scan the affected host until the scan is confirmed clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_complete; do run_scan; done"
+                }
+            ],
+            "agent": "organization--efb1a9c3-edaa-451e-b947-13808e181bd3",
+            "loop": {
+                "condition": "scan_is_clean",
+                "on_true": "action--c8cb1d38-5129-41ff-bb85-b3d58e1b5bd2",
+                "on_false": "action--f04c1622-0c33-4cd8-bc3b-aa9a45e2d97b"
+            }
+        },
+        "if-condition--fa1a9d05-3c29-4da6-8f68-f659cfed239b": {
+            "name": "Check if command line history exists",
+            "type": "if-condition",
+            "condition": "history_exists == true",
+            "on_true": "action--c8cb1d38-5129-41ff-bb85-b3d58e1b5bd2",
+            "on_false": "end--9c37cbd8-6b2f-4386-be1b-8f71f3a2a3a0"
+        },
+        "action--c8cb1d38-5129-41ff-bb85-b3d58e1b5bd2": {
+            "name": "Review command-line history for anomalies",
+            "description": "Check the command-line history for any malicious commands executed.",
+            "on_completion": "end--9c37cbd8-6b2f-4386-be1b-8f71f3a2a3a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat ~/.bash_history | grep 'malicious_command'"
+                }
+            ],
+            "agent": "organization--efb1a9c3-edaa-451e-b947-13808e181bd3"
+        },
+        "end--9c37cbd8-6b2f-4386-be1b-8f71f3a2a3a0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--efb1a9c3-edaa-451e-b947-13808e181bd3": {
+            "type": "organization",
+            "name": "Security Organization"
+        }
+    },
+    "variables": {
+        "malicious_process_exists": {
+            "type": "boolean",
+            "description": "Indicates if any malicious PowerShell processes are currently running.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "history_exists": {
+            "type": "boolean",
+            "description": "Indicates if command line history is available for review.",
+            "value": false,
+            "constant": false,
+            "external": true
+        },
+        "scan_is_clean": {
+            "type": "boolean",
+            "description": "Indicates whether the scan has returned clean results.",
+            "value": false,
+            "constant": false,
+            "external": true
+        }
+    }
+}

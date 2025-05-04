@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4a1a10b-fc6e-4f7a-b7a4-3f0a0956d524",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an adversary executed remote commands using a PowerShell script on a compromised host, leading to unauthorized data access and exfiltration.",
+    "created_by": "identity--7869ae5c-5368-44d3-8408-9385be794170",
+    "created": "2023-10-10T10:00:00Z",
+    "modified": "2023-10-10T10:05:00Z",
+    "workflow_start": "start--0b9d90d1-53eb-4f39-b2ee-fb8dcf3d5b8e",
+    "workflow": {
+        "start--0b9d90d1-53eb-4f39-b2ee-fb8dcf3d5b8e": {
+            "on_completion": "decision--3919f1b7-3504-4219-9464-9458a72a8adb",
+            "type": "start"
+        },
+        "decision--3919f1b7-3504-4219-9464-9458a72a8adb": {
+            "name": "Checkout if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process.running.powershell",
+            "on_true": "action--4edc4a6b-6751-4e02-bab5-4850e6a9f418",
+            "on_false": "parallel--dffdb3c1-0f06-4ca7-873c-4601ef0749d2"
+        },
+        "action--4edc4a6b-6751-4e02-bab5-4850e6a9f418": {
+            "name": "Terminate unauthorized PowerShell process",
+            "description": "Terminate any running PowerShell processes.",
+            "on_completion": "parallel--dffdb3c1-0f06-4ca7-873c-4601ef0749d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1"
+        },
+        "parallel--dffdb3c1-0f06-4ca7-873c-4601ef0749d2": {
+            "name": "Mitigation Steps",
+            "description": "Perform all mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bf7763c4-552e-444a-a0e2-3ee679b4f247",
+                "while-condition--4c0d44c5-9406-47d7-b8a2-4b874e48a325",
+                "action--dd574c58-2b9a-4f8a-ae5e-0251f5b2264e",
+                "action--7b0b3120-bb45-42c6-af1b-500b403cb3bd"
+            ]
+        },
+        "action--bf7763c4-552e-444a-a0e2-3ee679b4f247": {
+            "name": "Isolate the affected host from the network",
+            "description": "Disconnect the compromised host from the network to prevent further access.",
+            "on_completion": "end--a3f1c249-d5c1-454c-a69e-8beee667d7c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh interface set interface \"Ethernet\" admin=disable"
+                }
+            ],
+            "agent": "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1"
+        },
+        "while-condition--4c0d44c5-9406-47d7-b8a2-4b874e48a325": {
+            "name": "Conduct forensic scan loop",
+            "description": "Perform a forensic scan to identify persistence mechanisms.",
+            "on_completion": "end--a3f1c249-d5c1-454c-a69e-8beee667d7c8",
+            "type": "while-condition",
+            "condition": "scan.not_clean",
+            "on_true": "action--bde4d0b7-57bc-45a2-9b31-26b67438e4b2"
+        },
+        "action--bde4d0b7-57bc-45a2-9b31-26b67438e4b2": {
+            "name": "Conduct a forensic scan",
+            "description": "Scan for any persistence mechanisms.",
+            "on_completion": "while-condition--4c0d44c5-9406-47d7-b8a2-4b874e48a325",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-ForensicScan -AllUsers -Verbose"
+                }
+            ],
+            "agent": "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1"
+        },
+        "action--dd574c58-2b9a-4f8a-ae5e-0251f5b2264e": {
+            "name": "Update endpoint protection",
+            "description": "Update endpoint protection with the latest definitions.",
+            "on_completion": "end--a3f1c249-d5c1-454c-a69e-8beee667d7c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Update-MpSignature"
+                }
+            ],
+            "agent": "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1"
+        },
+        "action--7b0b3120-bb45-42c6-af1b-500b403cb3bd": {
+            "name": "Reset credentials for all affected accounts",
+            "description": "Reset credentials for identified affected account users.",
+            "on_completion": "end--a3f1c249-d5c1-454c-a69e-8beee667d7c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Invoke-CredentialReset -User \"All affected\""
+                }
+            ],
+            "agent": "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1"
+        },
+        "end--a3f1c249-d5c1-454c-a69e-8beee667d7c8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4a533a0e-7bf8-4bac-abc7-7bfeeff84bf1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

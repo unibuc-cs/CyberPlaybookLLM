@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6f08e1d9-9196-41ab-bb01-4c37a336ed30",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts leading to data exfiltration and unauthorized access to user accounts.",
+    "created_by": "identity--00527f9f-9de5-4a8a-bff1-81d521159cc0",
+    "created": "2025-10-10T14:40:00Z",
+    "modified": "2025-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--ff2345c0-35c0-11ec-9cdc-0242ac130003",
+    "workflow": {
+        "start--ff2345c0-35c0-11ec-9cdc-0242ac130003": {
+            "on_completion": "action--3b36c3c5-0e97-4e2e-b3c7-9e68f2d03299",
+            "type": "start"
+        },
+        "action--3b36c3c5-0e97-4e2e-b3c7-9e68f2d03299": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "action--6a64f63f-68bc-4c0c-9985-52f29eedc9a5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--771b52a8-20dc-4250-bd50-0f4013f891d4"
+        },
+        "action--6a64f63f-68bc-4c0c-9985-52f29eedc9a5": {
+            "name": "Monitor network traffic for suspicious activity",
+            "description": "Monitor network traffic and analyze for unusual patterns.",
+            "on_completion": "if-condition--128db70e-0a87-48d0-b814-82432dd8f93f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i all -n -s 0 -A"
+                }
+            ],
+            "agent": "organization--771b52a8-20dc-4250-bd50-0f4013f891d4"
+        },
+        "if-condition--128db70e-0a87-48d0-b814-82432dd8f93f": {
+            "name": "Check if traffic exceeds normal thresholds",
+            "type": "if-condition",
+            "condition": "traffic_exceeds_normal_thresholds",
+            "on_true": "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592",
+            "on_false": "action--c2031c67-f154-41ea-a616-3c791f3c7ce9"
+        },
+        "action--9b6f0dc1-0b3d-4b40-bbc5-949fc58fc592": {
+            "name": "Isolate compromised hosts",
+            "description": "Drop incoming traffic from malicious IPs to isolate compromised hosts.",
+            "on_completion": "action--c2031c67-f154-41ea-a616-3c791f3c7ce9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--771b52a8-20dc-4250-bd50-0f4013f891d4"
+        },
+        "action--c2031c67-f154-41ea-a616-3c791f3c7ce9": {
+            "name": "Audit user account activity",
+            "description": "Review recent user account activity to identify unauthorized access.",
+            "on_completion": "end--aa80f047-278e-42dc-b59d-50663df75001",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "last -n ${audit_window}"
+                }
+            ],
+            "agent": "organization--771b52a8-20dc-4250-bd50-0f4013f891d4",
+            "step_variables": {
+                "audit_window": {
+                    "type": "integer",
+                    "description": "Number of last entries to review for audit",
+                    "value": 100,
+                    "constant": false
+                }
+            }
+        },
+        "end--aa80f047-278e-42dc-b59d-50663df75001": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--771b52a8-20dc-4250-bd50-0f4013f891d4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

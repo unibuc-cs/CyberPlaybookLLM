@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3e6f51c-e004-4c70-83c1-bd7579ef258e",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an unauthorized user executed PowerShell scripts remotely on a server, potentially gaining access to sensitive data.",
+    "created_by": "identity--12345678-abcd-1234-abcd-123456789abc",
+    "created": "2025-04-09T12:37:00.498Z",
+    "modified": "2025-04-09T12:50:00.043Z",
+    "revoked": false,
+    "workflow_start": "start--d21e1e94-d6b5-4e88-b93a-7da4952631f3",
+    "workflow": {
+        "start--d21e1e94-d6b5-4e88-b93a-7da4952631f3": {
+            "on_completion": "if-condition--12345678-abcd-1234-abcd-123456789abc",
+            "type": "start"
+        },
+        "if-condition--12345678-abcd-1234-abcd-123456789abc": {
+            "name": "Check for unauthorized PowerShell sessions",
+            "type": "if-condition",
+            "condition": "unauthorized_session_exists",
+            "on_true": "action--b13e639f-6a8f-4d1f-8d61-575330be4975",
+            "on_false": "action--416b4dc5-7c4b-4f6b-b7d6-d2bfa913539d"
+        },
+        "action--b13e639f-6a8f-4d1f-8d61-575330be4975": {
+            "name": "Terminate unauthorized PowerShell session",
+            "description": "Removing unauthorized PowerShell sessions.",
+            "on_completion": "parallel--c7a87b54-68aa-41e4-b36b-abb830977eab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-PSSession | Where-Object { $_.User -eq 'unauthorized_user' } | Remove-PSSession"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--416b4dc5-7c4b-4f6b-b7d6-d2bfa913539d": {
+            "name": "Block outbound connection to suspicious IP",
+            "on_completion": "parallel--c7a87b54-68aa-41e4-b36b-abb830977eab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Suspicious IP' -Direction Outbound -Action Block -RemoteAddress '1.2.3.4'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--c7a87b54-68aa-41e4-b36b-abb830977eab": {
+            "name": "Perform additional mitigations",
+            "description": "Run a full system scan for malware.",
+            "type": "parallel",
+            "next_steps": [
+                "action--df33772f-48b1-4674-83fd-5a32b15e745a"
+            ]
+        },
+        "action--df33772f-48b1-4674-83fd-5a32b15e745a": {
+            "name": "Run a full system scan for malware",
+            "description": "Perform a full system scan to detect any malware that may have been installed.",
+            "on_completion": "end--9f4ba2e5-11cf-4b73-b288-f0c4e44d629e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--abc",
+            "loop": "repeat until scan is clear"
+        },
+        "end--9f4ba2e5-11cf-4b73-b288-f0c4e44d629e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

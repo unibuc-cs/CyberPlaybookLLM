@@ -1,0 +1,136 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5f6c9f85-062a-4c8c-b3fc-e1eb0984fe41",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a scripting engine vulnerability to execute unauthorized commands on the server.",
+    "created_by": "identity--5b63ca27-2fa3-4375-9054-afd7eebc8623",
+    "created": "2023-10-27T15:00:00Z",
+    "modified": "2023-10-27T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--7ee1e5d5-68f1-4aa4-9825-ab85ee271ae0",
+    "workflow": {
+        "start--7ee1e5d5-68f1-4aa4-9825-ab85ee271ae0": {
+            "on_completion": "decision--8e1db2e2-30d7-48c4-b51a-29455bb8f2d2",
+            "type": "start"
+        },
+        "decision--8e1db2e2-30d7-48c4-b51a-29455bb8f2d2": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--81eaf625-0b64-4a8d-8cb4-ff9515eaeef0",
+            "on_false": "action--fcb73259-3ea8-4e67-acbd-3c9ad1ece842"
+        },
+        "action--81eaf625-0b64-4a8d-8cb4-ff9515eaeef0": {
+            "name": "Kill malicious process",
+            "description": "Terminate the identified malicious process running on the server.",
+            "on_completion": "action--fcb73259-3ea8-4e67-acbd-3c9ad1ece842",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f '<malicious_process>'"
+                }
+            ],
+            "agent": "organization--a3cf9b56-60a0-4818-b010-8a993b9fbbfc"
+        },
+        "action--fcb73259-3ea8-4e67-acbd-3c9ad1ece842": {
+            "name": "Isolate compromised host",
+            "description": "Block further communication from compromised host.",
+            "on_completion": "action--a729ea0f-6f5f-45cb-afc7-a6f6854f08c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--a3cf9b56-60a0-4818-b010-8a993b9fbbfc"
+        },
+        "action--a729ea0f-6f5f-45cb-afc7-a6f6854f08c8": {
+            "name": "Scan for malware",
+            "description": "Perform a malware scan until status is clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--f8c477b2-abf2-47ef-a904-7632cdc8a535",
+            "on_completion": "loop--11c32ade-bec4-494e-a22f-bb21e7e41912"
+        },
+        "loop--11c32ade-bec4-494e-a22f-bb21e7e41912": {
+            "name": "Repeat malware scan",
+            "description": "Continue scanning for malware until system is clean.",
+            "on_true": "action--a729ea0f-6f5f-45cb-afc7-a6f6854f08c8",
+            "condition": "scan_status != 'clean'",
+            "type": "while-condition"
+        },
+        "action--5b1ed749-b5c0-44c9-82fb-b9a00f1bbf9a": {
+            "name": "Reset admin credentials",
+            "description": "Reset the admin credentials to a secure password.",
+            "on_completion": "action--4c158d1e-40d2-4f71-939d-a9dcca7e5823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo '<new_password>' | passwd --stdin admin"
+                }
+            ],
+            "agent": "organization--f8c477b2-abf2-47ef-a904-7632cdc8a535",
+            "step_variables": {
+                "new_password": {
+                    "type": "string",
+                    "description": "A newly generated secure password for admin.",
+                    "value": "generated_secure_password",
+                    "constant": false
+                }
+            }
+        },
+        "action--4c158d1e-40d2-4f71-939d-a9dcca7e5823": {
+            "name": "Apply security patches",
+            "description": "Ensure all security patches are updated.",
+            "on_completion": "action--33d1f374-5bd0-4c2e-8f67-0f8c56d8f830",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y"
+                }
+            ],
+            "agent": "organization--a3cf9b56-60a0-4818-b010-8a993b9fbbfc",
+            "condition": "system_running_outdated_packages == true"
+        },
+        "action--33d1f374-5bd0-4c2e-8f67-0f8c56d8f830": {
+            "name": "Monitor network traffic",
+            "description": "Capture network traffic for analysis over a specified duration.",
+            "on_completion": "end--f1977a7e-0db2-4b3e-89d3-1f184c97b0fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--f8c477b2-abf2-47ef-a904-7632cdc8a535",
+            "loop": {
+                "duration": "24 hours",
+                "repeat": true
+            }
+        },
+        "end--f1977a7e-0db2-4b3e-89d3-1f184c97b0fd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a3cf9b56-60a0-4818-b010-8a993b9fbbfc": {
+            "type": "organization",
+            "name": "ClientOrganization-ABC"
+        },
+        "organization--f8c477b2-abf2-47ef-a904-7632cdc8a535": {
+            "type": "organization",
+            "name": "ClientOrganization-XYZ"
+        }
+    }
+}

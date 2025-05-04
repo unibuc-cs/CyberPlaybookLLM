@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f15a7c91-8c01-4be7-9e0b-ebbb2e48960b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts via the command line, targeting critical system files.",
+    "created_by": "identity--4d437900-dc7c-4a77-bb9e-9e580c1b0387",
+    "created": "2025-04-09T12:45:00Z",
+    "modified": "2025-04-09T12:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1b7e4e0-6a0c-4dd5-905f-af4c98aaaabc",
+    "workflow": {
+        "start--e1b7e4e0-6a0c-4dd5-905f-af4c98aaaabc": {
+            "on_completion": "action--6fa9f616-d1d2-4f6d-8b0d-3b1ff7dc7f00",
+            "type": "start"
+        },
+        "action--6fa9f616-d1d2-4f6d-8b0d-3b1ff7dc7f00": {
+            "name": "Kill malicious process",
+            "description": "Terminate malicious scripts that are currently running.",
+            "on_completion": "if-condition--6c0ea848-4a0e-4034-b098-b227fd1d7b9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--8fb6426c-9c13-42b5-995b-2eb05d0c2515"
+        },
+        "if-condition--6c0ea848-4a0e-4034-b098-b227fd1d7b9c": {
+            "name": "Check if any malicious processes are still running",
+            "type": "if-condition",
+            "condition": "pgrep malicious_script != None",
+            "on_true": "action--6fa9f616-d1d2-4f6d-8b0d-3b1ff7dc7f00",
+            "on_false": "action--dfffb56d-1519-4eb4-bf37-51c23a56667d"
+        },
+        "action--dfffb56d-1519-4eb4-bf37-51c23a56667d": {
+            "name": "Remove dropped files",
+            "description": "Delete any detected malicious files from the system.",
+            "on_completion": "while-condition--244b7ba0-fc5b-4a16-a650-1ac4a2c1dc6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--8fb6426c-9c13-42b5-995b-2eb05d0c2515"
+        },
+        "while-condition--244b7ba0-fc5b-4a16-a650-1ac4a2c1dc6b": {
+            "name": "Check for remaining malicious files",
+            "description": "Repeat the removal of malicious files until none are found.",
+            "on_completion": "action--2b49dc41-d47e-4cd6-b625-95e1039e86d0",
+            "type": "while-condition",
+            "condition": "! ls /tmp/malicious_script.sh",
+            "on_true": "action--dfffb56d-1519-4eb4-bf37-51c23a56667d"
+        },
+        "action--2b49dc41-d47e-4cd6-b625-95e1039e86d0": {
+            "name": "Isolate affected host",
+            "description": "Take the affected host offline to prevent further damage.",
+            "on_completion": "end--2890d514-6e36-418c-a5d9-2ddb6b354062",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--8fb6426c-9c13-42b5-995b-2eb05d0c2515",
+            "step_variables": {
+                "host": {
+                    "type": "string",
+                    "description": "Host being isolated",
+                    "value": "host-22",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--2890d514-6e36-418c-a5d9-2ddb6b354062": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8fb6426c-9c13-42b5-995b-2eb05d0c2515": {
+            "type": "organization",
+            "name": "ThreatResponseTeam"
+        }
+    }
+}

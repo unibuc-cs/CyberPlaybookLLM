@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0c290d2e-9875-49ae-8a73-4aacd23046ab",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained internal access and executed malicious PowerShell scripts.",
+    "created_by": "identity--b1a2e3f2-d454-4562-bbab-12c4e0c3d3ea",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c0455a98-d547-4c75-a186-0013bc3cf0d3",
+    "workflow": {
+        "start--c0455a98-d547-4c75-a186-0013bc3cf0d3": {
+            "on_completion": "action--2a80e3c2-864f-4cb3-9bac-29309e6241ef",
+            "type": "start"
+        },
+        "action--2a80e3c2-864f-4cb3-9bac-29309e6241ef": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes executing unauthorized commands.",
+            "on_completion": "parallel--8aaf0aa0-2ce0-4f92-a887-2a4c34c38078",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--5dff2977-4fd0-42c5-b26b-5d7fa9e3f53c"
+        },
+        "action--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd": {
+            "name": "Scan hosts for unauthorized scripts",
+            "description": "Find all PowerShell scripts on the system.",
+            "on_completion": "if-condition--c10a3e03-01e0-409c-afb5-0ae524a05abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1'"
+                }
+            ],
+            "agent": "organization--5dff2977-4fd0-42c5-b26b-5d7fa9e3f53c"
+        },
+        "if-condition--c10a3e03-01e0-409c-afb5-0ae524a05abc": {
+            "name": "Check for unauthorized scripts",
+            "type": "if-condition",
+            "condition": "unauthorized_scripts_found == True",
+            "on_true": "action--unauthorized-script-handling--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd",
+            "on_false": "action--e3ca962f-2f3c-4fe7-af7a-0af1a2587a3b"
+        },
+        "action--unauthorized-script-handling--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd": {
+            "name": "Handle unauthorized scripts",
+            "description": "Take action on unauthorized scripts found during the scan.",
+            "on_completion": "end--f10bfc63-dcbf-48de-b233-3b3545312850",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "remove_unauthorized_scripts"
+                }
+            ],
+            "agent": "organization--5dff2977-4fd0-42c5-b26b-5d7fa9e3f53c"
+        },
+        "action--e3ca962f-2f3c-4fe7-af7a-0af1a2587a3b": {
+            "name": "Review and rotate credentials for affected accounts",
+            "description": "Change passwords for accounts that may be compromised.",
+            "on_completion": "end--f10bfc63-dcbf-48de-b233-3b3545312850",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd --change username"
+                }
+            ],
+            "agent": "organization--5dff2977-4fd0-42c5-b26b-5d7fa9e3f53c"
+        },
+        "end--f10bfc63-dcbf-48de-b233-3b3545312850": {
+            "step_extensions": {},
+            "type": "end"
+        },
+        "parallel--8aaf0aa0-2ce0-4f92-a887-2a4c34c38078": {
+            "name": "Scan and Review Actions",
+            "description": "Simultaneously scan for unauthorized scripts and review affected accounts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b5c10d4c-5d87-4fc0-8507-b5935e1b36cd",
+                "action--e3ca962f-2f3c-4fe7-af7a-0af1a2587a3b"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--5dff2977-4fd0-42c5-b26b-5d7fa9e3f53c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

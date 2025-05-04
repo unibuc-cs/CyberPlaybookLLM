@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9e06a051-0de6-4589-b78e-64f479c994bb",
+    "name": "Mitigation Playbook for Unauthorized Shell Commands Incident",
+    "description": "This playbook addresses an incident involving unauthorized remote shell access and the execution of malicious commands on the system.",
+    "created_by": "identity--abc-12345",
+    "created": "2023-11-01T10:30:00Z",
+    "modified": "2023-11-01T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--61a5f737-4b7a-4c71-8a7e-07c7322ee4d2",
+    "workflow": {
+        "start--61a5f737-4b7a-4c71-8a7e-07c7322ee4d2": {
+            "on_completion": "action--98765432-1234-5678-90ab-cdef98765432",
+            "type": "start"
+        },
+        "action--98765432-1234-5678-90ab-cdef98765432": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "parallel--4a1c25a0-e78b-4ab6-900b-b4938646bf7e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--4a1c25a0-e78b-4ab6-900b-b4938646bf7e": {
+            "name": "Restrict access and conduct scan",
+            "description": "Deploy multiple actions - Restrict unauthorized access and conduct full system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--ee8f25d9-45ea-4c49-b8b2-8c654eaaf6e0",
+                "loop--9abeabe7-9a91-442e-aafc-bb2fb50abb3c"
+            ]
+        },
+        "if-condition--ee8f25d9-45ea-4c49-b8b2-8c654eaaf6e0": {
+            "name": "Check for Non-Admin User Access",
+            "type": "if-condition",
+            "condition": "user_not_admin",
+            "on_true": "action--044e7cbb-e8b3-4191-9a19-6dbee4b9b99e",
+            "on_false": "loop--9abeabe7-9a91-442e-aafc-bb2fb50abb3c"
+        },
+        "action--044e7cbb-e8b3-4191-9a19-6dbee4b9b99e": {
+            "name": "Restrict remote shell access",
+            "description": "Deny SSH access from unauthorized users.",
+            "on_completion": "loop--9abeabe7-9a91-442e-aafc-bb2fb50abb3c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from any to any port 22"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--9abeabe7-9a91-442e-aafc-bb2fb50abb3c": {
+            "name": "Conduct Full System Scan Loop",
+            "description": "Regularly conduct scan until the system is found clean.",
+            "on_completion": "action--d2ce5b8a-3266-428c-9d76-648266891c77",
+            "condition": "scan_result != clean",
+            "on_true": "action--b1f5dd5e-9c76-4f74-9c75-c5c4624dfad0"
+        },
+        "action--b1f5dd5e-9c76-4f74-9c75-c5c4624dfad0": {
+            "name": "Conduct full system scan",
+            "description": "Perform a comprehensive scan of the entire system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d443eaa2-f5f7-4a32-a957-06329edbdc9e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

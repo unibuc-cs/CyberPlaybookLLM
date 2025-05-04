@@ -1,0 +1,141 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d598221-a1f5-4bd5-b376-9a27e3970890",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates a PowerShell-based attack by executing multiple mitigation actions in a structured workflow involving parallel, conditional, and iterative processes.",
+    "created_by": "identity--8a18cc88-c6f2-4616-a07a-4abc0362e622",
+    "created": "2023-10-25T14:30:00Z",
+    "modified": "2023-10-25T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--97d6e831-12d8-4c54-9d4f-1afaa2376069",
+    "workflow": {
+        "start--97d6e831-12d8-4c54-9d4f-1afaa2376069": {
+            "on_completion": "parallel--0b424f64-8a5d-4796-bb6f-6125acafb03f",
+            "type": "start"
+        },
+        "parallel--0b424f64-8a5d-4796-bb6f-6125acafb03f": {
+            "name": "Execute parallel disconnection and process termination",
+            "description": "Disconnect the compromised host and terminate malicious PowerShell processes in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1e451c36-cfe7-41dc-892c-b3083071125e",
+                "action--d4d290e7-ba7b-48c8-934c-a7349d4bf92b"
+            ]
+        },
+        "action--1e451c36-cfe7-41dc-892c-b3083071125e": {
+            "name": "Disconnect Compromised Host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "action--2e51c813-4027-4ea7-9b8d-edcff1a33359",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6"
+        },
+        "action--d4d290e7-ba7b-48c8-934c-a7349d4bf92b": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate any malicious PowerShell processes.",
+            "type": "action",
+            "on_completion": "while-loop--d32b1f08-8d05-46bb-89d7-79fc86c1b6f5",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process | Where-Object {$_.Name -eq 'powershell'} | Stop-Process"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6"
+        },
+        "while-loop--d32b1f08-8d05-46bb-89d7-79fc86c1b6f5": {
+            "name": "Check and Remove Malicious Files",
+            "description": "Iteratively check and remove malicious files until none are found.",
+            "type": "while-condition",
+            "condition": "files_exist == true",
+            "on_true": "action--06dca964-3b67-4e2a-a61b-05dcf63bab19",
+            "on_false": "end--8ca81c24-e668-4b10-9348-84d2d0231d1a"
+        },
+        "action--06dca964-3b67-4e2a-a61b-05dcf63bab19": {
+            "name": "Remove Malicious Files",
+            "description": "Remove identified malicious files from the system.",
+            "type": "action",
+            "on_completion": "while-loop--d32b1f08-8d05-46bb-89d7-79fc86c1b6f5",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo rm -rf /var/tmp/malicious_files"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6"
+        },
+        "action--2e51c813-4027-4ea7-9b8d-edcff1a33359": {
+            "name": "Antivirus Scan",
+            "description": "Run a full antivirus scan only if the host is accessible.",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full /"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6",
+            "condition": "host_accessible == true",
+            "on_completion": "parallel--edb002b0-59a9-4457-9316-2a96888115e1"
+        },
+        "parallel--edb002b0-59a9-4457-9316-2a96888115e1": {
+            "name": "Network Monitoring and Data Purge",
+            "description": "Monitor network traffic and purge exfiltrated data from the external server in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9cfc835f-0bec-4e0a-a775-7986ee6e58d5",
+                "action--52fd7999-3d6d-43d7-aec4-a77724942458"
+            ]
+        },
+        "action--9cfc835f-0bec-4e0a-a775-7986ee6e58d5": {
+            "name": "Monitor Network Traffic",
+            "description": "Monitor network traffic for anomalies.",
+            "on_completion": "end--8ca81c24-e668-4b10-9348-84d2d0231d1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "wireshark --monitor"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6",
+            "step_variables": {
+                "monitor_duration": {
+                    "type": "string",
+                    "description": "Duration for which network monitoring should occur",
+                    "value": "24h",
+                    "constant": false
+                }
+            }
+        },
+        "action--52fd7999-3d6d-43d7-aec4-a77724942458": {
+            "name": "Purge Data from External Server",
+            "description": "Purge exfiltrated data from the external server if control is verified.",
+            "on_completion": "end--8ca81c24-e668-4b10-9348-84d2d0231d1a",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh admin@192.168.1.200 'rm -rf /data/exfiltrated'"
+                }
+            ],
+            "agent": "organization--aade5e9b-9275-4198-be95-60d2b40b65d6",
+            "condition": "control_verified == true"
+        },
+        "end--8ca81c24-e668-4b10-9348-84d2d0231d1a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--aade5e9b-9275-4198-be95-60d2b40b65d6": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a9d5b00-48cd-4c32-987c-66b8ca8ea1f6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the exploitation of a vulnerable web application allowing arbitrary Python script execution.",
+    "created_by": "identity--ca13e847-5973-4eb5-b5a0-05d3fb8c4f10",
+    "created": "2023-10-10T08:00:00.000Z",
+    "modified": "2023-10-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b61a9719-cfef-44c7-ac65-afc1c9ef0b6f",
+    "workflow": {
+        "start--b61a9719-cfef-44c7-ac65-afc1c9ef0b6f": {
+            "on_completion": "loop--205f9715-64aa-4671-a637-7645fc1e3c5a",
+            "type": "start"
+        },
+        "end--e45fbbd9-c8d3-41fc-b9a3-3e67a4430e4f": {
+            "type": "end"
+        },
+        "loop--205f9715-64aa-4671-a637-7645fc1e3c5a": {
+            "name": "Loop: Terminate Unauthorized Python Processes",
+            "description": "Repeat termination of unauthorized Python processes every minute until none are found.",
+            "type": "while-condition",
+            "condition": "command_output_contains(process_status, 'Unauthorized Python')",
+            "on_true": "action--7cdf56c6-c213-44cd-a565-8ef02cdcf719",
+            "on_completion": "decision--b25028a3-2b22-4e10-8a4a-2656c09a5409"
+        },
+        "action--7cdf56c6-c213-44cd-a565-8ef02cdcf719": {
+            "name": "Terminate Unauthorized Python Processes",
+            "description": "Terminate processes executing unauthorized Python scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f python"
+                }
+            ],
+            "agent": "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58",
+            "on_completion": "loop--205f9715-64aa-4671-a637-7645fc1e3c5a"
+        },
+        "decision--b25028a3-2b22-4e10-8a4a-2656c09a5409": {
+            "name": "Decision: Block Connections or Conduct RCA",
+            "type": "if-condition",
+            "condition": "unauthorized_access_vector != obscure",
+            "on_true": "action--1b7b83b0-b613-46be-977a-5cbe1d5d9dd4",
+            "on_false": "action--cbb5fb94-2170-4350-86d1-47347436c230"
+        },
+        "action--1b7b83b0-b613-46be-977a-5cbe1d5d9dd4": {
+            "name": "Block All Outbound Connections to Suspicious IPs",
+            "description": "Block outbound connections to known suspicious IP addresses.",
+            "on_completion": "action--9876dfba-675d-4db4-a2df-4c5be1ce7d6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58"
+        },
+        "action--cbb5fb94-2170-4350-86d1-47347436c230": {
+            "name": "Conduct Root Cause Analysis",
+            "description": "Investigate application logs to determine how unauthorized access was obtained.",
+            "on_completion": "action--9876dfba-675d-4db4-a2df-4c5be1ce7d6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Investigate web application logs for initial compromise vector'"
+                }
+            ],
+            "agent": "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58"
+        },
+        "action--9876dfba-675d-4db4-a2df-4c5be1ce7d6f": {
+            "name": "Patch Vulnerable Software",
+            "description": "Update the vulnerable application package to the latest version.",
+            "on_completion": "action--864d43a5-1533-41d4-8818-c3c009c923ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install --only-upgrade web-app-package"
+                }
+            ],
+            "agent": "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58"
+        },
+        "action--864d43a5-1533-41d4-8818-c3c009c923ca": {
+            "name": "Review and Restrict Script Execution Privileges",
+            "description": "Review and restrict the execution of scripts, ensuring critical processes remain unaffected.",
+            "on_completion": "end--e45fbbd9-c8d3-41fc-b9a3-3e67a4430e4f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R o-x /restricted-scripts"
+                }
+            ],
+            "agent": "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58"
+        }
+    },
+    "agent_definitions": {
+        "organization--2abbf081-aabe-4a0e-93b5-45683ef85d58": {
+            "type": "organization",
+            "name": "XYZ Cybersecurity Team"
+        }
+    }
+}

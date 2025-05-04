@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a48e1005-32e5-4e78-8c56-6e9c97dac74a",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script to download malicious payloads, leading to unauthorized data exfiltration.",
+    "created_by": "identity--1eed9817-775b-4e08-a94d-827315e42c27",
+    "created": "2025-04-06T12:00:00Z",
+    "modified": "2025-04-06T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b27e0d5a-1fe2-45b8-a72e-dc15b5958742",
+    "workflow": {
+        "start--b27e0d5a-1fe2-45b8-a72e-dc15b5958742": {
+            "on_completion": "action--99ba6b07-10b2-46d3-8e42-df23b0ae9e1d",
+            "type": "start"
+        },
+        "action--99ba6b07-10b2-46d3-8e42-df23b0ae9e1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious payload.",
+            "on_completion": "action--b39d3b24-7c76-4f63-bf73-a539427c5e0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.exe"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b39d3b24-7c76-4f63-bf73-a539427c5e0f": {
+            "name": "Block outgoing connections to suspicious IPs",
+            "description": "Prevent any outgoing connections to suspicious IP addresses.",
+            "on_completion": "loop--3d2a2e8d-8f9b-439e-bf5f-ae41b4865d15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--3d2a2e8d-8f9b-439e-bf5f-ae41b4865d15": {
+            "name": "Run threat scan until clean",
+            "description": "Continuously run a threat scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "! scan_is_clean",
+            "on_true": "action--c986c2ab-37cf-41f8-bded-5b7581476205",
+            "on_false": "end--be3a3d7a-9532-4b42-b652-e9d7a466d0a5"
+        },
+        "action--c986c2ab-37cf-41f8-bded-5b7581476205": {
+            "name": "Run threat scan",
+            "description": "Perform a threat scan to identify any remaining threats.",
+            "on_completion": "loop--3d2a2e8d-8f9b-439e-bf5f-ae41b4865d15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--be3a3d7a-9532-4b42-b652-e9d7a466d0a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

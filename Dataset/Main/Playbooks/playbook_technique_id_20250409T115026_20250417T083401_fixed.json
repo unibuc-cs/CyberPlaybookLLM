@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--db5838cc-7f25-4add-8f3b-ffb90b135aef",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to harvest sensitive information and exfiltrate data.",
+    "created_by": "identity--4feaf760-1629-4afc-9024-0e24b51c0a96",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1cf3a90e-502b-425d-b941-de9db1169172",
+    "workflow": {
+        "action--23ee6cd0-e1ec-4f5b-975e-7d86d4c57c4f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes used for malicious activity.",
+            "on_completion": "if-condition--fe9533a0-8028-4c27-9439-8b41c4c4e363",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--3d38eca3-4713-47cb-8bc6-8275a0d57b40"
+        },
+        "action--b1134331-ef0c-4deb-8a2e-9c8341a4c317": {
+            "name": "Run malware scan on affected host",
+            "description": "Perform a malware scan on the affected host to identify any lingering threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan has been completed successfully.",
+                    "value": "false",
+                    "constant": false
+                }
+            },
+            "on_completion": "while-condition--17f562d3-741a-419d-9153-9fa318e253ad",
+            "agent": "organization--3d38eca3-4713-47cb-8bc6-8275a0d57b40"
+        },
+        "start--1cf3a90e-502b-425d-b941-de9db1169172": {
+            "on_completion": "action--23ee6cd0-e1ec-4f5b-975e-7d86d4c57c4f",
+            "type": "start"
+        },
+        "if-condition--fe9533a0-8028-4c27-9439-8b41c4c4e363": {
+            "name": "Check if PowerShell process was found",
+            "type": "if-condition",
+            "condition": "process_found == true",
+            "on_true": "action--eaa5a494-5222-49fb-b53e-cf99e1655d4f",
+            "on_false": "action--b1134331-ef0c-4deb-8a2e-9c8341a4c317"
+        },
+        "action--eaa5a494-5222-49fb-b53e-cf99e1655d4f": {
+            "name": "Block outbound traffic to known malicious IPs",
+            "description": "Prevent any data from being sent to known malicious external servers.",
+            "on_completion": "action--b1134331-ef0c-4deb-8a2e-9c8341a4c317",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--3d38eca3-4713-47cb-8bc6-8275a0d57b40"
+        },
+        "while-condition--17f562d3-741a-419d-9153-9fa318e253ad": {
+            "name": "Check if the malware scan is complete",
+            "description": "Repeat the scan until complete.",
+            "condition": "scan_complete == false",
+            "on_true": "action--b1134331-ef0c-4deb-8a2e-9c8341a4c317",
+            "next_steps": [],
+            "on_false": "end--b01e7067-7b8b-470a-9581-07e74e42c586",
+            "type": "if-condition"
+        },
+        "end--b01e7067-7b8b-470a-9581-07e74e42c586": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3d38eca3-4713-47cb-8bc6-8275a0d57b40": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

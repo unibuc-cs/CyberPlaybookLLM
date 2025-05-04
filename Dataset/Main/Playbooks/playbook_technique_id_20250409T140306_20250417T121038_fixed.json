@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bfc12c81-d33e-4a7f-9444-9c4ee55fcb9b",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident involving unauthorized script execution leading to data extraction. It includes mitigation steps to neutralize threats and monitor activity.",
+    "created_by": "identity--b6742fb0-4e93-4d5e-b9a7-394f8146d1bc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--5a46b964-ff64-48bb-bb8c-423d288cdf3d",
+    "workflow": {
+        "start--5a46b964-ff64-48bb-bb8c-423d288cdf3d": {
+            "on_completion": "action--2f396b92-c3b7-4d9c-af87-ffcadcedc0b8",
+            "type": "start"
+        },
+        "action--2f396b92-c3b7-4d9c-af87-ffcadcedc0b8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing unauthorized scripts.",
+            "on_completion": "parallel--4b9f3a1e-f057-4b70-b3ba-8fa11e0168ff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--8c81580d-59da-44a3-a9b5-389c6011426e"
+        },
+        "parallel--4b9f3a1e-f057-4b70-b3ba-8fa11e0168ff": {
+            "name": "Execute File Cleanup and Monitoring",
+            "description": "Perform file cleanup and monitor outgoing connections in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "loop--1345b0e2-e24d-4e12-8018-40c8d3cbf43f",
+                "loop--7a663549-4d1a-4495-b109-b7a049608cd7"
+            ]
+        },
+        "loop--1345b0e2-e24d-4e12-8018-40c8d3cbf43f": {
+            "name": "Remove dropped files",
+            "description": "Iteratively remove malicious files until none are found.",
+            "type": "while-condition",
+            "condition": "if [ -f /tmp/malicious_file ]; then",
+            "on_true": "action--6276e0b6-b6cb-46bf-8602-bc5e07fdfab8",
+            "next_steps": "loop--1345b0e2-e24d-4e12-8018-40c8d3cbf43f",
+            "on_false": "loop--7a663549-4d1a-4495-b109-b7a049608cd7"
+        },
+        "loop--7a663549-4d1a-4495-b109-b7a049608cd7": {
+            "name": "Monitor outgoing connections",
+            "description": "Monitor outgoing connections for 5 minutes and report any established connections.",
+            "type": "while-condition",
+            "on_true": {
+                "next_steps": "action--0f30d0d9-217d-4bad-b26b-073ec69d638e"
+            },
+            "condition": "if [ $(netstat -ant | grep ESTABLISHED | wc -l) -ne 0 ]; then",
+            "on_false": "end--f39c6213-5259-4b2e-a3ca-a0dbf778e96e"
+        },
+        "end--f39c6213-5259-4b2e-a3ca-a0dbf778e96e": {
+            "type": "end"
+        },
+        "action--6276e0b6-b6cb-46bf-8602-bc5e07fdfab8": {
+            "name": "Remove Malicious File",
+            "description": "Delete the identified malicious file.",
+            "on_completion": {
+                "next_steps": "loop--1345b0e2-e24d-4e12-8018-40c8d3cbf43f"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_file"
+                }
+            ],
+            "agent": "organization--8c81580d-59da-44a3-a9b5-389c6011426e"
+        },
+        "action--0f30d0d9-217d-4bad-b26b-073ec69d638e": {
+            "name": "Check Established Connections",
+            "description": "List established connections to identify any ongoing malicious activity.",
+            "on_completion": {
+                "next_steps": "loop--7a663549-4d1a-4495-b109-b7a049608cd7"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -ant | grep ESTABLISHED"
+                }
+            ],
+            "agent": "organization--8c81580d-59da-44a3-a9b5-389c6011426e"
+        }
+    },
+    "agent_definitions": {
+        "organization--8c81580d-59da-44a3-a9b5-389c6011426e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

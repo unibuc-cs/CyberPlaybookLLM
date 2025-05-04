@@ -1,0 +1,135 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3fdf3b4-db80-4050-a331-6146ec6b3f84",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a server, resulting in unauthorized data exfiltration. The playbook includes conditional actions, iterations, and parallel execution.",
+    "created_by": "identity--b8d5c7b0-2814-4998-bd18-72a6baf6ddf3",
+    "created": "2025-04-10T08:15:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--749327ea-f95f-43b8-8d60-47a5d4f1e54a",
+    "workflow": {
+        "start--749327ea-f95f-43b8-8d60-47a5d4f1e54a": {
+            "on_completion": "parallel--3f2a3e1b-99c4-4c6e-ae3e-09287c651b02",
+            "type": "start"
+        },
+        "parallel--3f2a3e1b-99c4-4c6e-ae3e-09287c651b02": {
+            "name": "Execute Parallel Mitigation Steps",
+            "description": "Execute steps to kill malicious process and block suspicious IP address in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--89785c96-d89f-4c3f-a881-76333b3ba9ad",
+                "action--b2c3d793-d6e0-4f92-a71f-8060a4f8ca4a"
+            ]
+        },
+        "if-condition--89785c96-d89f-4c3f-a881-76333b3ba9ad": {
+            "name": "Check if PowerShell Process is Running",
+            "type": "if-condition",
+            "condition": "process_running('PowerShell')",
+            "on_true": "action--7febc4e5-f9fc-4d89-91d1-f6e82731d94d",
+            "on_false": "action--2f3043f6-7311-4b00-96ac-d841cbfa2371"
+        },
+        "action--7febc4e5-f9fc-4d89-91d1-f6e82731d94d": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate any processes that are executing PowerShell scripts.",
+            "on_completion": "end--872e1cdd-a1b6-4b81-b4e0-614922b7d8da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--b2c3d793-d6e0-4f92-a71f-8060a4f8ca4a": {
+            "name": "Block Suspicious IP Address",
+            "description": "Block outbound connections to the suspicious IP address detected.",
+            "on_completion": "loop--9b91d54b-bf15-4337-91f1-85737fc88dc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.0.2.1"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "suspicious_ip": {
+                    "type": "string",
+                    "description": "IP address suspected of malicious activity",
+                    "value": "192.0.2.1",
+                    "constant": true
+                }
+            }
+        },
+        "loop--9b91d54b-bf15-4337-91f1-85737fc88dc2": {
+            "name": "Perform System Scan Until Clean",
+            "description": "Perform consecutive system scans until the system is free from malware.",
+            "type": "while-condition",
+            "condition": "!scan_clean",
+            "on_true": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58"
+        },
+        "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58": {
+            "name": "Perform System Scan",
+            "description": "Scan the system to detect and remove known threats.",
+            "on_completion": "end--872e1cdd-a1b6-4b81-b4e0-614922b7d8da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --recursive --remove"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--2f3043f6-7311-4b00-96ac-d841cbfa2371": {
+            "name": "Reset High-Privilege Credentials",
+            "description": "Reset credentials for accounts where suspicious login activity was detected.",
+            "on_completion": "end--872e1cdd-a1b6-4b81-b4e0-614922b7d8da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd admin"
+                }
+            ],
+            "agent": "organization--xyz",
+            "condition": "suspicious_login_detected"
+        },
+        "action--fa496e95-e8b3-4bcd-8a72-e96c8a1d6a33": {
+            "name": "Deploy Intrusion Detection System",
+            "description": "Install and configure an IDS to monitor network traffic for future attacks.",
+            "on_completion": "end--872e1cdd-a1b6-4b81-b4e0-614922b7d8da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt install snort && snort -D -i eth0 -c /etc/snort/snort.conf"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "network_interface": {
+                    "type": "string",
+                    "value": "eth0",
+                    "constant": true
+                }
+            }
+        },
+        "end--872e1cdd-a1b6-4b81-b4e0-614922b7d8da": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        },
+        "organization--abc": {
+            "type": "organization",
+            "name": "Organization ABC"
+        }
+    }
+}

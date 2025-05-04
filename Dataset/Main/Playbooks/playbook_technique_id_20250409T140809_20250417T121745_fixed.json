@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b0c442-98fc-4a9b-b891-3249c1a6df78",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute shell commands remotely and attempted to escalate privileges.",
+    "created_by": "identity--a2f650a4-b7bb-4a2e-b3f7-7c757f7eb417",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--8c9b1e47-dbf3-4a9e-8a8e-e76a6609744c",
+    "workflow": {
+        "start--8c9b1e47-dbf3-4a9e-8a8e-e76a6609744c": {
+            "on_completion": "action--b32b17e3-1df8-4a7f-814a-dc1238d0365d",
+            "type": "start"
+        },
+        "action--b32b17e3-1df8-4a7f-814a-dc1238d0365d": {
+            "name": "Kill the malicious process",
+            "description": "Terminate any processes that are executing the suspicious reverse shell command.",
+            "on_completion": "if-condition--3b560c4a-305a-4eb5-b69d-e1add957ccbd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell"
+                }
+            ],
+            "agent": "organization--62e8b833-6619-4769-9275-ba0736f3d262"
+        },
+        "if-condition--3b560c4a-305a-4eb5-b69d-e1add957ccbd": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "pgrep reverse_shell != ''",
+            "on_true": "action--467d26bf-1a2f-467b-97bb-e74e1a0c62de",
+            "on_false": "parallel--bf1d26c4-9847-4a47-bb16-07e1f55bd078"
+        },
+        "action--467d26bf-1a2f-467b-97bb-e74e1a0c62de": {
+            "name": "Update firewall rules",
+            "description": "Block the malicious IP address from accessing the server.",
+            "on_completion": "action--f190c38f-207c-49fc-8af3-3e2f8447d9ad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--62e8b833-6619-4769-9275-ba0736f3d262"
+        },
+        "parallel--bf1d26c4-9847-4a47-bb16-07e1f55bd078": {
+            "name": "Conduct Recovery Procedures",
+            "description": "Notify security team and run a scan for persistent threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f190c38f-207c-49fc-8af3-3e2f8447d9ad",
+                "action--1e409cb9-44a7-42f3-bd85-15c83d30bb61"
+            ]
+        },
+        "action--f190c38f-207c-49fc-8af3-3e2f8447d9ad": {
+            "name": "Notify security team",
+            "description": "Send an alert email to the security team about the detected malicious activity.",
+            "on_completion": "action--d2a66031-fd3a-4531-8983-f8c6e3b128f5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security Alert: Malicious activity detected!' | mail -s 'Alert' security@organization.xyz"
+                }
+            ],
+            "agent": "organization--62e8b833-6619-4769-9275-ba0736f3d262"
+        },
+        "action--1e409cb9-44a7-42f3-bd85-15c83d30bb61": {
+            "name": "Scan for persistent threats",
+            "description": "Perform a thorough scan of the system to identify any persistent threats.",
+            "on_completion": "while-condition--ea18b8cf-bb7e-413d-baad-1eef396af317",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--62e8b833-6619-4769-9275-ba0736f3d262"
+        },
+        "while-condition--ea18b8cf-bb7e-413d-baad-1eef396af317": {
+            "name": "Check scan results",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "if-condition--750badb6-d76c-43d8-91e0-6615976cae37",
+            "type": "while-condition",
+            "condition": "scan_results == 'not clean'",
+            "on_true": "action--1e409cb9-44a7-42f3-bd85-15c83d30bb61"
+        },
+        "if-condition--750badb6-d76c-43d8-91e0-6615976cae37": {
+            "name": "Check if critical files are compromised",
+            "type": "if-condition",
+            "condition": "critical_files_compromised == true",
+            "on_true": "action--d2a66031-fd3a-4531-8983-f8c6e3b128f5",
+            "on_false": "end--ed82ed65-e77b-4d51-a524-0d7e51a04f9a"
+        },
+        "action--d2a66031-fd3a-4531-8983-f8c6e3b128f5": {
+            "name": "Restore affected systems from backup",
+            "description": "Restore the affected systems from the latest backup to ensure no compromised files remain.",
+            "on_completion": "end--ed82ed65-e77b-4d51-a524-0d7e51a04f9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -avz /backup/ /production/"
+                }
+            ],
+            "agent": "organization--62e8b833-6619-4769-9275-ba0736f3d262"
+        },
+        "end--ed82ed65-e77b-4d51-a524-0d7e51a04f9a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--62e8b833-6619-4769-9275-ba0736f3d262": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

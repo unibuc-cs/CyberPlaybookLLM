@@ -1,0 +1,144 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d44b1e45-3ae8-46d9-8430-cc6fa9e4ee3b",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to deploy a backdoor, allowing persistent access to the compromised system.",
+    "created_by": "identity--97a3b554-1814-495e-8487-82262a7d55e7",
+    "created": "2023-10-20T08:55:35.498Z",
+    "modified": "2023-10-20T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c5e6515a-a9db-4c23-a216-0c94555d5ee3",
+    "workflow": {
+        "start--c5e6515a-a9db-4c23-a216-0c94555d5ee3": {
+            "name": "Start Incident Handling",
+            "description": "Initiate the incident response workflow.",
+            "on_completion": "parallel--7a8b78bb-6fef-4664-ad85-4f0c1e7c9530",
+            "type": "start"
+        },
+        "parallel--7a8b78bb-6fef-4664-ad85-4f0c1e7c9530": {
+            "name": "Parallel Mitigation Steps",
+            "description": "Execute multiple mitigations simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1a3f1b0-d37b-4a1f-85bb-09dee6c9c463",
+                "if-condition--efe120c1-cf34-4a89-bc5b-e539b1dad45c",
+                "loop--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+                "action--2e3d2f63-e8b2-472d-8b0b-2759adae7302"
+            ]
+        },
+        "action--b1a3f1b0-d37b-4a1f-85bb-09dee6c9c463": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate suspicious script processes.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f 'suspicious_script.sh')"
+                }
+            ],
+            "agent": "organization--819c486d-a916-4f31-8d25-55463040bda9"
+        },
+        "if-condition--efe120c1-cf34-4a89-bc5b-e539b1dad45c": {
+            "name": "Check Network Isolation Necessity",
+            "description": "Determine if network isolation of host is required.",
+            "type": "if-condition",
+            "condition": "$ISOLATION_NEEDED == true",
+            "on_true": "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--efe120c1-cf34-4a89-bc5b-e539b1dad45c": {
+            "name": "Network Isolation of Host",
+            "description": "Drop all incoming traffic to the affected host.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--819c486d-a916-4f31-8d25-55463040bda9"
+        },
+        "loop--f3ac9f29-4aab-463d-934b-7c653c9ef975": {
+            "name": "Remove Malicious Files Loop",
+            "description": "Continuously remove malicious files until they're confirmed deleted.",
+            "type": "while-condition",
+            "condition": "$FILES_REMOVED == false",
+            "on_true": "action--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--f3ac9f29-4aab-463d-934b-7c653c9ef975": {
+            "name": "Remove Malicious Files",
+            "description": "Delete suspicious files from system.",
+            "on_completion": "loop--f3ac9f29-4aab-463d-934b-7c653c9ef975",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/suspicious/files/*"
+                }
+            ],
+            "agent": "organization--819c486d-a916-4f31-8d25-55463040bda9",
+            "step_variables": {
+                "FILES_REMOVED": {
+                    "type": "boolean",
+                    "description": "Indicate whether files have been removed.",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "action--2e3d2f63-e8b2-472d-8b0b-2759adae7302": {
+            "name": "Update Firewall Rules",
+            "description": "Deny outgoing connections to external IP.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny external_ip"
+                }
+            ],
+            "agent": "organization--819c486d-a916-4f31-8d25-55463040bda9"
+        },
+        "loop--c754f6ad-6e12-4ffa-8c2c-846658adf556": {
+            "name": "Conduct Full System Scan Loop",
+            "description": "Perform full system scan iteratively until successful.",
+            "type": "while-condition",
+            "condition": "$scan_complete == false",
+            "on_true": "action--c754f6ad-6e12-4ffa-8c2c-846658adf556"
+        },
+        "action--c754f6ad-6e12-4ffa-8c2c-846658adf556": {
+            "name": "Conduct Full System Scan",
+            "description": "Scan the entire system for threats.",
+            "on_completion": "loop--c754f6ad-6e12-4ffa-8c2c-846658adf556",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--819c486d-a916-4f31-8d25-55463040bda9",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicate whether the full system scan is complete.",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--819c486d-a916-4f31-8d25-55463040bda9": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}

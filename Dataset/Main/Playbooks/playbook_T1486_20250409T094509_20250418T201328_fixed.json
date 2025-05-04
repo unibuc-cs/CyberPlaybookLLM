@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f45bc38f-4871-4ef0-b733-0e549215c38d",
+    "name": "Ransomware Mitigation Playbook",
+    "description": "This playbook addresses the ransomware incident by isolating affected systems, killing malicious processes, and initiating data recovery.",
+    "created_by": "identity--fab63bb7-b73f-4f12-96c6-513a457d5b76",
+    "created": "2025-04-09T09:45:09.000Z",
+    "modified": "2025-04-09T09:45:09.000Z",
+    "revoked": false,
+    "workflow_start": "start--4f99c9ba-3eca-4f3e-abc0-b5bb8c9494e1",
+    "workflow": {
+        "start--4f99c9ba-3eca-4f3e-abc0-b5bb8c9494e1": {
+            "on_completion": "action--d40448ec-ec15-4d1f-a318-08c53863b5fe",
+            "type": "start"
+        },
+        "action--d40448ec-ec15-4d1f-a318-08c53863b5fe": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the ransomware.",
+            "on_completion": "if-condition--04a3d1e2-11f1-4bfd-b209-ec29c905069f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f ransomware_process"
+                }
+            ],
+            "agent": "organization--9a452bb9-9bbc-4cbf-940d-d79e457c544f"
+        },
+        "if-condition--04a3d1e2-11f1-4bfd-b209-ec29c905069f": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f ransomware_process) != ''",
+            "on_true": "action--a2153abf-d53f-4a9f-af02-7f299031be1a",
+            "on_false": "action--8f7a3023-349c-4c87-b3b1-b59b8f43e2c6"
+        },
+        "action--a2153abf-d53f-4a9f-af02-7f299031be1a": {
+            "name": "Isolate affected host",
+            "description": "Shut down network interface to prevent further spread of ransomware.",
+            "on_completion": "while-condition--208f4b7b-ba06-4dbc-b91c-7a1e9427b0f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--9a452bb9-9bbc-4cbf-940d-d79e457c544f"
+        },
+        "while-condition--208f4b7b-ba06-4dbc-b91c-7a1e9427b0f7": {
+            "name": "Repeat until all threats contained",
+            "description": "Continue isolating hosts until all are secured.",
+            "on_true": "action--a2153abf-d53f-4a9f-af02-7f299031be1a",
+            "condition": "check_for_remaining_threats() == true",
+            "on_false": "action--8f7a3023-349c-4c87-b3b1-b59b8f43e2c6",
+            "type": "if-condition"
+        },
+        "action--8f7a3023-349c-4c87-b3b1-b59b8f43e2c6": {
+            "name": "Initiate data recovery procedure",
+            "description": "Recover data from the last backup before the ransomware attack.",
+            "on_completion": "end--bfc9538d-8f5c-4db5-9ae0-b14e46d2779c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "perform_data_recovery --backup /backups/last_week"
+                }
+            ],
+            "step_variables": {
+                "backup_location": {
+                    "type": "string",
+                    "description": "Location of the backup to recover data from.",
+                    "value": "/backups/last_week",
+                    "constant": false
+                },
+                "recovery_status": {
+                    "type": "string",
+                    "description": "Status of the data recovery process.",
+                    "value": "pending",
+                    "constant": false
+                }
+            },
+            "agent": "organization--9a452bb9-9bbc-4cbf-940d-d79e457c544f"
+        },
+        "end--bfc9538d-8f5c-4db5-9ae0-b14e46d2779c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9a452bb9-9bbc-4cbf-940d-d79e457c544f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

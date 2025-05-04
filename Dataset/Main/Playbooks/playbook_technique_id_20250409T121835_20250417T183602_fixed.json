@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--dcbcd125-8d2b-4f29-b382-7f9b53c7b6e4",
+    "name": "Mitigation Playbook for PowerShell Escalation Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts, exploited privileges, and exfiltrated sensitive data.",
+    "created_by": "identity--5800e60e-dd58-4411-8cad-8c46a7a3d9cb",
+    "created": "2023-10-20T14:32:00Z",
+    "modified": "2023-10-20T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--eb8483cc-90ad-4f4c-b6be-a9babb151af2",
+    "workflow": {
+        "action--a99764e5-f137-4858-bd6b-1ab62ec9dadc": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any detected PowerShell scripts that are executed by malicious actors.",
+            "on_completion": "action--5f921f4e-0673-4c36-8bf4-b688b5e62f5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--03da5c32-4a0a-4e30-820b-474d1a2a82ca"
+        },
+        "action--5f921f4e-0673-4c36-8bf4-b688b5e62f5c": {
+            "name": "Isolate the affected host",
+            "description": "Prevent further communication from the compromised host.",
+            "on_completion": "while-condition--205d8313-58fb-4717-a530-1a739189125d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-03 -j DROP"
+                }
+            ],
+            "agent": "organization--03da5c32-4a0a-4e30-820b-474d1a2a82ca"
+        },
+        "action--51c7b099-9640-49be-8468-e3e0c604d150": {
+            "name": "Perform a full system scan and cleanup",
+            "description": "Scan the system for malicious files and clean them.",
+            "on_completion": "while-condition--205d8313-58fb-4717-a530-1a739189125d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--03da5c32-4a0a-4e30-820b-474d1a2a82ca"
+        },
+        "start--eb8483cc-90ad-4f4c-b6be-a9babb151af2": {
+            "on_completion": "if-condition--8e31e2e3-4c15-4304-8c3d-ca53d7270046",
+            "type": "start"
+        },
+        "if-condition--8e31e2e3-4c15-4304-8c3d-ca53d7270046": {
+            "name": "Check for malicious PowerShell processes",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--a99764e5-f137-4858-bd6b-1ab62ec9dadc",
+            "on_false": "action--5f921f4e-0673-4c36-8bf4-b688b5e62f5c"
+        },
+        "while-condition--205d8313-58fb-4717-a530-1a739189125d": {
+            "name": "Perform full system scan",
+            "description": "Repeat scanning until the system is clean of malware.",
+            "on_true": "action--51c7b099-9640-49be-8468-e3e0c604d150",
+            "condition": "scan_status != clean",
+            "on_completion": "end--3efa53c3-4403-4b81-81c6-d43d8cf1d3e7",
+            "type": "if-condition"
+        },
+        "end--3efa53c3-4403-4b81-81c6-d43d8cf1d3e7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--03da5c32-4a0a-4e30-820b-474d1a2a82ca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7f73639-4c45-4c05-9750-83951e298629",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script on host-14, establishing a reverse shell connection via a phishing email.",
+    "created_by": "identity--dba153e3-669e-4108-88e6-ed8097135456",
+    "created": "2023-10-10T14:00:00Z",
+    "modified": "2023-10-10T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f8d1f88-ff34-4577-bb2c-e29df4338b79",
+    "workflow": {
+        "start--1f8d1f88-ff34-4577-bb2c-e29df4338b79": {
+            "on_completion": "action--ab77e35a-da91-4c1a-8774-1229f67c063a",
+            "type": "start"
+        },
+        "action--ab77e35a-da91-4c1a-8774-1229f67c063a": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate all PowerShell processes suspected of being malicious.",
+            "on_completion": "if-condition--d49682ba-f2f6-4c24-abcd-e09bc52c5d74",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--c52c9e7b-492e-4ae1-8507-bf156b4ba011"
+        },
+        "if-condition--d49682ba-f2f6-4c24-abcd-e09bc52c5d74": {
+            "name": "Check if infection is detected",
+            "type": "if-condition",
+            "condition": "infection_detected == true",
+            "on_true": "action--2f76c09d-eb93-4e1f-bec2-2f5a5cc282c4",
+            "on_false": "action--97ee50c0-7f79-4e81-8495-c2e08a103f6e"
+        },
+        "action--2f76c09d-eb93-4e1f-bec2-2f5a5cc282c4": {
+            "name": "Block outbound connections to command and control",
+            "description": "Prevent any further communication with the attacker's server.",
+            "on_completion": "action--97ee50c0-7f79-4e81-8495-c2e08a103f6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious-server.com -j DROP"
+                }
+            ],
+            "agent": "organization--c52c9e7b-492e-4ae1-8507-bf156b4ba011"
+        },
+        "action--97ee50c0-7f79-4e81-8495-c2e08a103f6e": {
+            "name": "Run malware scan on host-14",
+            "description": "Perform a thorough scan of the host to detect and remove any malware.",
+            "on_completion": "while-condition--b9c871e9-60c5-497f-a344-d3571d4d51de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--c52c9e7b-492e-4ae1-8507-bf156b4ba011"
+        },
+        "while-condition--b9c871e9-60c5-497f-a344-d3571d4d51de": {
+            "name": "Repeat Malware Scan Until Clean",
+            "description": "Continue running malware scans until no threats are detected.",
+            "on_completion": "end--9c0e125a-49d8-4b35-95eb-1e2a46a298c4",
+            "type": "while-condition",
+            "condition": "scan_results == clean",
+            "on_true": "end--9c0e125a-49d8-4b35-95eb-1e2a46a298c4",
+            "on_false": "action--97ee50c0-7f79-4e81-8495-c2e08a103f6e"
+        },
+        "end--9c0e125a-49d8-4b35-95eb-1e2a46a298c4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c52c9e7b-492e-4ae1-8507-bf156b4ba011": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

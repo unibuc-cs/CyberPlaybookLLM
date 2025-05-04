@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3f4b7fa3-bbc5-4b12-9d0c-931c0c422f40",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via command line to establish a backdoor and attempted data exfiltration.",
+    "created_by": "identity--ab12c45f-56c3-479f-9bb2-59e1f7e12c1e",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7fd63d8f-3c29-474e-8886-3af3c5ddf66f",
+    "workflow": {
+        "start--7fd63d8f-3c29-474e-8886-3af3c5ddf66f": {
+            "on_completion": "action--d72c1b9e-1647-488f-bd8e-5f0b4c8b5eec",
+            "type": "start"
+        },
+        "action--d72c1b9e-1647-488f-bd8e-5f0b4c8b5eec": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts that have been executed.",
+            "on_completion": "action--4b7f90f2-03d7-4d1e-be46-81bee9e7ddc1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--4b7f90f2-03d7-4d1e-be46-81bee9e7ddc1": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host where the attack was detected.",
+            "on_completion": "loop--d1f10d4e-74e7-4725-9c81-b52ebcd57680",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then ifconfig eth0 down; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--d1f10d4e-74e7-4725-9c81-b52ebcd57680": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full scan of the system until no threats are detected.",
+            "on_completion": "end--e687f6bc-9c41-42f0-a4b7-b13926489c54",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "loop-action--d1f10d4e-74e7-4725-9c81-b52ebcd57680",
+            "on_false": "end--e687f6bc-9c41-42f0-a4b7-b13926489c54"
+        },
+        "loop-action--d1f10d4e-74e7-4725-9c81-b52ebcd57680": {
+            "name": "Run system scan",
+            "on_completion": "loop--d1f10d4e-74e7-4725-9c81-b52ebcd57680",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the security scan.",
+                    "value": "scanning",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e687f6bc-9c41-42f0-a4b7-b13926489c54": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

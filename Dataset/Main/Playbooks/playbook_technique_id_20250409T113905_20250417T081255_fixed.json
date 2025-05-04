@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3b2a3c0-e98c-4f26-b5c1-61b7e9b62374",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to exfiltrate sensitive data using a command and scripting interpreter.",
+    "created_by": "identity--a7c85e9c-5a39-4142-87b5-65d145de22e4",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b4de1b38-47fe-4c0b-b3b5-0cdf3bc8d37a",
+            "type": "start"
+        },
+        "action--b4de1b38-47fe-4c0b-b3b5-0cdf3bc8d37a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script execution.",
+            "on_completion": "if-condition--196c381f-da77-423e-aa1b-e4e3e200d141",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--8bb1ed45-ae6d-4a9a-9107-ba98ec40cfc3"
+        },
+        "if-condition--196c381f-da77-423e-aa1b-e4e3e200d141": {
+            "name": "Check if host compromised",
+            "type": "if-condition",
+            "condition": "host compromised == true",
+            "on_true": "action--196c381f-da77-423e-aa1b-e4e3e200d141",
+            "on_false": "action--d17b7230-5b3e-495d-9bee-6818e2369384"
+        },
+        "action--196c381f-da77-423e-aa1b-e4e3e200d141": {
+            "name": "Isolate affected host from network",
+            "description": "Block incoming traffic from the potential compromised IP range.",
+            "on_completion": "action--d17b7230-5b3e-495d-9bee-6818e2369384",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--8bb1ed45-ae6d-4a9a-9107-ba98ec40cfc3"
+        },
+        "action--d17b7230-5b3e-495d-9bee-6818e2369384": {
+            "name": "Monitor for further changes",
+            "description": "Continuously monitor the syslog for unusual activities.",
+            "on_completion": "while-condition--b3c31f40-aaa8-4e92-bf7e-090daa6b4f10",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -F /var/log/syslog"
+                }
+            ],
+            "agent": "organization--8bb1ed45-ae6d-4a9a-9107-ba98ec40cfc3"
+        },
+        "while-condition--b3c31f40-aaa8-4e92-bf7e-090daa6b4f10": {
+            "name": "Check syslog status",
+            "type": "while-condition",
+            "condition": "syslog clean == false",
+            "on_true": "action--d17b7230-5b3e-495d-9bee-6818e2369384",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8bb1ed45-ae6d-4a9a-9107-ba98ec40cfc3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7f0f2c9-c51d-4b06-9f1f-e9e8e5d8381e",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited vulnerabilities in the application layer to exfiltrate sensitive data through standard protocols.",
+    "created_by": "identity--c245ec08-6e13-45a8-9422-2a93fb1aa17a",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--c0a7b50e-bdb9-4179-ae7d-f7c6b5fcbc39",
+    "workflow": {
+        "start--c0a7b50e-bdb9-4179-ae7d-f7c6b5fcbc39": {
+            "on_completion": "action--2fc32e62-b457-4f01-8bbb-e9db1b584a31",
+            "type": "start"
+        },
+        "action--2fc32e62-b457-4f01-8bbb-e9db1b584a31": {
+            "name": "Kill malicious process",
+            "description": "Terminate any unauthorized applications found running on the host.",
+            "on_completion": "if-condition--3218f7e5-7d1c-4b42-83d0-5001b7c8e922",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_app"
+                }
+            ],
+            "agent": "organization--8a569fb1-ba6a-4ecb-9711-eb288718ae47"
+        },
+        "action--8781fa76-d614-4222-bb21-137cdd1744a7": {
+            "name": "Block outbound traffic to suspicious IPs",
+            "description": "Block outgoing connections to any suspicious IP addresses identified in the logs.",
+            "on_completion": "action--aa7aeb4c-3fc2-4f0d-81e9-b34c1975399f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--8a569fb1-ba6a-4ecb-9711-eb288718ae47"
+        },
+        "action--aa7aeb4c-3fc2-4f0d-81e9-b34c1975399f": {
+            "name": "Analyze logs for further anomalies",
+            "description": "Search through application logs for any additional signs of suspicious activity.",
+            "on_completion": "while-condition--51002a31-aefd-485c-b535-19360d35a2c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_pattern' /var/logs/application.log"
+                }
+            ],
+            "agent": "organization--8a569fb1-ba6a-4ecb-9711-eb288718ae47"
+        },
+        "end--6e1c1254-47b3-4c5a-b8b5-0f7c741e2c53": {
+            "type": "end"
+        },
+        "if-condition--3218f7e5-7d1c-4b42-83d0-5001b7c8e922": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep unauthorized_app) != ''",
+            "on_true": "action--8781fa76-d614-4222-bb21-137cdd1744a7",
+            "on_false": "action--aa7aeb4c-3fc2-4f0d-81e9-b34c1975399f"
+        },
+        "while-condition--51002a31-aefd-485c-b535-19360d35a2c2": {
+            "name": "Inspect logs for anomalies",
+            "description": "Continue analyzing logs until no further anomalies are found.",
+            "type": "while-condition",
+            "condition": "grep 'suspicious_pattern' /var/logs/application.log | wc -l > 0",
+            "on_true": "action--aa7aeb4c-3fc2-4f0d-81e9-b34c1975399f",
+            "on_false": "end--6e1c1254-47b3-4c5a-b8b5-0f7c741e2c53"
+        }
+    },
+    "agent_definitions": {
+        "organization--8a569fb1-ba6a-4ecb-9711-eb288718ae47": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f0c45768-5554-4d1c-b5ef-48d1e163ee9a",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed malicious scripts to exfiltrate sensitive data from a compromised server.",
+    "created_by": "identity--abcde12345-abc-12345-abc-1234567890ab",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--f0c45768-5554-4d1c-b5ef-48d1e163ee9b",
+    "workflow": {
+        "start--f0c45768-5554-4d1c-b5ef-48d1e163ee9b": {
+            "on_completion": "action--e10f77e4-21d8-4b09-b891-58e7558b15c8",
+            "type": "start"
+        },
+        "action--e10f77e4-21d8-4b09-b891-58e7558b15c8": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes that may be running.",
+            "on_completion": "if-condition--b85f1f5e-655e-420f-8e55-21e5bab9d512",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b85f1f5e-655e-420f-8e55-21e5bab9d512": {
+            "name": "Check if process was killed",
+            "type": "if-condition",
+            "condition": "process_exist(powershell) == false",
+            "on_true": "action--b8cd9799-ff9e-48a1-82c1-cc25f9018ac0",
+            "on_false": "action--a40c0f63-51a0-4903-a71b-f9f0801e4f35"
+        },
+        "action--b8cd9799-ff9e-48a1-82c1-cc25f9018ac0": {
+            "name": "Isolate affected host from the network",
+            "description": "Take the affected host offline to prevent further damage.",
+            "on_completion": "parallel--c7f5ac7c-25b8-48ac-9e57-57fc5d06b2e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-34 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--c7f5ac7c-25b8-48ac-9e57-57fc5d06b2e3": {
+            "name": "Execute additional mitigations",
+            "description": "Run a malware scan and update firewall rules.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d15f7939-e392-4b62-95c0-7bb9b20aef1f",
+                "action--493c245b-65da-495d-b7f7-f8aa2cce25ba",
+                "action--a40c0f63-51a0-4903-a71b-f9f0801e4f35"
+            ]
+        },
+        "action--d15f7939-e392-4b62-95c0-7bb9b20aef1f": {
+            "name": "Conduct a full malware scan",
+            "description": "Perform a comprehensive scan of the affected host.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan --full"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--6f7f321d-dae9-4c2e-a51f-302fb3e402d8"
+        },
+        "while-condition--6f7f321d-dae9-4c2e-a51f-302fb3e402d8": {
+            "name": "Repeat scan until no threats detected",
+            "description": "Repeat the malware scan until no threats are found.",
+            "on_true": "action--d15f7939-e392-4b62-95c0-7bb9b20aef1f",
+            "condition": "threats_detected() == true",
+            "type": "while-condition"
+        },
+        "action--493c245b-65da-495d-b7f7-f8aa2cce25ba": {
+            "name": "Update firewall rules to block outbound connections",
+            "description": "Update firewall rules to prevent exfiltration of data.",
+            "on_completion": "action--a40c0f63-51a0-4903-a71b-f9f0801e4f35",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to any port 80,443"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a40c0f63-51a0-4903-a71b-f9f0801e4f35": {
+            "name": "Notify security team for further investigation",
+            "description": "Alert the security team about the incident for further actions.",
+            "on_completion": "end--f0f45768-5554-4d1c-b5ef-48d1e163ee9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-34' | mail -s 'Security Alert' security-team@company.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--f0f45768-5554-4d1c-b5ef-48d1e163ee9a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

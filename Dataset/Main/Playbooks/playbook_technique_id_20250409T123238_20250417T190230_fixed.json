@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b17988f0-91c6-4e6b-9319-f2c8193b8c5a",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the organization's network by exploiting a vulnerable web application and executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--f2d0d80e-0680-40dc-b473-9907e3e18388",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d79e4a2a-14a0-428c-9706-4ddc4f64cab2",
+    "workflow": {
+        "start--d79e4a2a-14a0-428c-9706-4ddc4f64cab2": {
+            "on_completion": "action--d38960e1-2b58-47a2-b95a-4490c04a60f3",
+            "type": "start"
+        },
+        "action--d38960e1-2b58-47a2-b95a-4490c04a60f3": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--b62b478c-1748-44b6-9a34-8c907d7ad8bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--394e611a-4b27-401c-8f20-ad09d187467a"
+        },
+        "if-condition--b62b478c-1748-44b6-9a34-8c907d7ad8bc": {
+            "name": "Check if logs are missing",
+            "type": "if-condition",
+            "condition": "logs_missing == true",
+            "on_true": "action--b62b478c-1748-44b6-9a34-8c907d7ad8bc",
+            "on_false": "loop--d2463229-82bb-452c-8503-72b140dda43c"
+        },
+        "action--b62b478c-1748-44b6-9a34-8c907d7ad8bc": {
+            "name": "Restore logs from backup",
+            "description": "Copy logs from backup to restore logs.",
+            "on_completion": "loop--d2463229-82bb-452c-8503-72b140dda43c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/logs/* /var/log/"
+                }
+            ],
+            "agent": "organization--394e611a-4b27-401c-8f20-ad09d187467a"
+        },
+        "loop--d2463229-82bb-452c-8503-72b140dda43c": {
+            "name": "Run malware scanning",
+            "description": "Perform a scan of the affected hosts repeatedly until a clean state is achieved.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d2463229-82bb-452c-8503-72b140dda43c",
+            "next_steps": "action--d2463229-82bb-452c-8503-72b140dda43c"
+        },
+        "action--d2463229-82bb-452c-8503-72b140dda43c": {
+            "name": "Run malware scanning on affected hosts",
+            "description": "Perform a scan on user directories to find malware.",
+            "on_completion": "loop--d2463229-82bb-452c-8503-72b140dda43c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--394e611a-4b27-401c-8f20-ad09d187467a"
+        },
+        "end--77e4b726-9ad5-47c5-888a-e2019019a74b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--394e611a-4b27-401c-8f20-ad09d187467a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "logs_missing": {
+            "type": "boolean",
+            "description": "Indicates if logs are missing after the incident.",
+            "value": true,
+            "constant": false
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the malware scan.",
+            "value": "not_scanned",
+            "constant": false
+        }
+    }
+}

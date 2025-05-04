@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b6beb5b-af5e-4a99-9242-1bf92498c517",
+    "name": "Mitigation Playbook for Phishing Incident with Command Execution",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through a phishing attack, leading to data exfiltration.",
+    "created_by": "identity--2b70305a-59d8-4135-a888-baa080966e24",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--b1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--d80cb211-6861-4edd-8ca7-68899b5b712b",
+            "type": "start"
+        },
+        "action--c1e7b74a-8533-40e3-b9ad-929f1234a3a1": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any running malicious processes.",
+            "on_completion": "action--6e4088c7-6c3c-4ef7-bb52-c1ec855fa3d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--fabab5a3-0486-4511-9e88-80549c65d8f7"
+        },
+        "action--6e4088c7-6c3c-4ef7-bb52-c1ec855fa3d0": {
+            "name": "Disconnect Compromised Host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "action--9bff645b-c261-4d46-abc1-e4dff23df6b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-34 down"
+                }
+            ],
+            "agent": "organization--fabab5a3-0486-4511-9e88-80549c65d8f7"
+        },
+        "action--9bff645b-c261-4d46-abc1-e4dff23df6b2": {
+            "name": "Monitor Network Traffic",
+            "description": "Monitor network traffic for unusual activity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'port 80 or port 443'"
+                }
+            ],
+            "agent": "organization--fabab5a3-0486-4511-9e88-80549c65d8f7"
+        },
+        "parallel--d80cb211-6861-4edd-8ca7-68899b5b712b": {
+            "name": "Execute Initial Mitigations",
+            "description": "Perform initial actions to mitigate the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--60fd2a4f-387a-4a11-8336-6b4cb445c901",
+                "action--4ba45c66-9cdf-43b1-bc13-b6c09c4c646e"
+            ]
+        },
+        "if-condition--60fd2a4f-387a-4a11-8336-6b4cb445c901": {
+            "name": "Check for Malicious Process Running",
+            "type": "if-condition",
+            "condition": "malicious_process_running",
+            "on_true": "action--c1e7b74a-8533-40e3-b9ad-929f1234a3a1",
+            "on_false": "action--6e4088c7-6c3c-4ef7-bb52-c1ec855fa3d0"
+        },
+        "while-condition--4593112d-f4df-4a8f-b8fd-ee6e2def6048": {
+            "name": "Monitor Network Analysis",
+            "description": "Keep monitoring until analysis is complete.",
+            "type": "while-condition",
+            "condition": "analysis_status == 'in_progress'",
+            "on_true": "action--9bff645b-c261-4d46-abc1-e4dff23df6b2",
+            "on_completion": "end--9b1a4862-7d95-4bda-9fe9-cad60aae2599"
+        },
+        "end--9b1a4862-7d95-4bda-9fe9-cad60aae2599": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fabab5a3-0486-4511-9e88-80549c65d8f7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates if a malicious process is currently running.",
+            "value": true,
+            "constant": false,
+            "external": false
+        },
+        "host_compromised": {
+            "type": "boolean",
+            "description": "Indicates if the host is compromised.",
+            "value": true,
+            "constant": false,
+            "external": false
+        },
+        "analysis_status": {
+            "type": "string",
+            "description": "Tracks the status of the ongoing analysis.",
+            "value": "in_progress",
+            "constant": false,
+            "external": false
+        }
+    }
+}

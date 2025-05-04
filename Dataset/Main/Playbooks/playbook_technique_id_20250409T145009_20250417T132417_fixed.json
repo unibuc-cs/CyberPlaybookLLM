@@ -1,0 +1,131 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8b7dff9-2c4b-4f8e-aa34-68bc5b27de3c",
+    "name": "Mitigation Playbook for Arbitrary Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute arbitrary commands on the host system.",
+    "created_by": "identity--3cbab8aa-d4d2-434a-af81-fe7b4e2f31d7",
+    "created": "2025-04-01T12:00:00.000Z",
+    "modified": "2025-04-01T12:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9b8f3f9e-04ad-4e11-b7e9-c10d4a070b89",
+    "workflow": {
+        "start--9b8f3f9e-04ad-4e11-b7e9-c10d4a070b89": {
+            "on_completion": "action--7ae51e64-55a7-4c33-814b-f9b97e2e7c23",
+            "type": "start"
+        },
+        "action--7ae51e64-55a7-4c33-814b-f9b97e2e7c23": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that match the malicious script.",
+            "on_completion": "if-condition--d46b8474-1c2e-4e82-ae26-f125d91f4e04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        },
+        "if-condition--d46b8474-1c2e-4e82-ae26-f125d91f4e04": {
+            "name": "Check if malicious process was found",
+            "condition": "malicious_process_found",
+            "on_true": "action--a2db7d18-57f5-4c44-b1d3-6046fcbb14e0",
+            "on_false": "action--846aeeb7-8141-4db0-94c1-b8f34d98e11a",
+            "type": "if-condition"
+        },
+        "action--a2db7d18-57f5-4c44-b1d3-6046fcbb14e0": {
+            "name": "Isolate affected host",
+            "description": "Bring down the network interface of the affected host.",
+            "on_completion": "parallel--bf1fbdf2-a17b-46bc-b0c6-517964498d4e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        },
+        "parallel--bf1fbdf2-a17b-46bc-b0c6-517964498d4e": {
+            "name": "Conduct Mitigation Actions in Parallel",
+            "description": "Run multiple actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--846aeeb7-8141-4db0-94c1-b8f34d98e11a",
+                "action--81f67e87-3b52-4df4-913e-d7335ce56fe6",
+                "action--3fa9a4f2-d47e-4a3c-b163-d6ab1838f9c1",
+                "action--d2eb7910-7b17-4a9e-bf73-4a4a176ef188"
+            ]
+        },
+        "while-condition--b881856f-5870-4970-89e3-4dfdf90f2f53": {
+            "name": "Check rootkit scan results",
+            "description": "Repeat the rootkit scan until no rootkits are found.",
+            "on_true": "action--846aeeb7-8141-4db0-94c1-b8f34d98e11a",
+            "condition": "rootkit_found",
+            "on_false": "action--81f67e87-3b52-4df4-913e-d7335ce56fe6",
+            "type": "while-condition"
+        },
+        "action--81f67e87-3b52-4df4-913e-d7335ce56fe6": {
+            "name": "Review system logs for anomalies",
+            "description": "Search the system logs for any unusual error messages.",
+            "on_completion": "action--3fa9a4f2-d47e-4a3c-b163-d6ab1838f9c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'ERROR' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        },
+        "action--3fa9a4f2-d47e-4a3c-b163-d6ab1838f9c1": {
+            "name": "Change passwords for compromised accounts",
+            "description": "Update passwords for any accounts that may have been compromised.",
+            "on_completion": "action--d2eb7910-7b17-4a9e-bf73-4a4a176ef188",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd username"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        },
+        "action--d2eb7910-7b17-4a9e-bf73-4a4a176ef188": {
+            "name": "Conduct user awareness training",
+            "description": "Schedule a training session for users about security practices.",
+            "on_completion": "end--f64ed660-a12d-4e85-bb37-62bb42e975f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schedule training session"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        },
+        "end--f64ed660-a12d-4e85-bb37-62bb42e975f9": {
+            "type": "end"
+        },
+        "action--846aeeb7-8141-4db0-94c1-b8f34d98e11a": {
+            "name": "Scan for rootkit",
+            "description": "Scan the system for rootkit installations.",
+            "on_completion": "while-condition--b881856f-5870-4970-89e3-4dfdf90f2f53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "agent": "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e"
+        }
+    },
+    "agent_definitions": {
+        "organization--539d16f1-f996-405b-9bb8-0d9614e5dc2e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

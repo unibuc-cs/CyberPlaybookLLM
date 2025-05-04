@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1737f89-781c-41fc-bae8-3bde1c55e21b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute a malicious script on the server, modifying system files and creating a backdoor for unauthorized data exfiltration.",
+    "created_by": "identity--ab6ac678-d3c2-4ef6-b156-4aa067b8e100",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e173e742-3f5e-4e57-8e8e-e917b429b85e",
+    "workflow": {
+        "start--e173e742-3f5e-4e57-8e8e-e917b429b85e": {
+            "on_completion": "action--b9b182e1-8f69-4fcb-9e7c-2c23a5d78d02",
+            "type": "start"
+        },
+        "action--b9b182e1-8f69-4fcb-9e7c-2c23a5d78d02": {
+            "name": "Kill malicious process",
+            "description": "Kill the malicious PowerShell script that has been executed.",
+            "on_completion": "action--ed72ac3b-7e2a-4141-8194-e14f1d3edcb2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--029fc474-0bef-40ad-8788-681c696e4673"
+        },
+        "action--ed72ac3b-7e2a-4141-8194-e14f1d3edcb2": {
+            "name": "Alert the security team",
+            "description": "Notify the security team of the incident.",
+            "on_completion": "if-condition--bfea12a4-a7b8-48ee-bd87-d2e740546913",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-22' | mail -s 'Security Alert' security-team@company.com"
+                }
+            ],
+            "agent": "organization--029fc474-0bef-40ad-8788-681c696e4673"
+        },
+        "if-condition--bfea12a4-a7b8-48ee-bd87-d2e740546913": {
+            "name": "Check if backups are available",
+            "type": "if-condition",
+            "condition": "backups_are_available",
+            "on_true": "action--bfea12a4-a7b8-48ee-bd87-d2e740546913",
+            "on_false": "action--c31c9268-d37d-4cba-bbd3-60b5c2410c82"
+        },
+        "action--bfea12a4-a7b8-48ee-bd87-d2e740546913": {
+            "name": "Restore modified files",
+            "description": "Restore the system configuration file from backup.",
+            "on_completion": "action--c31c9268-d37d-4cba-bbd3-60b5c2410c82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/system_config /etc/system_config"
+                }
+            ],
+            "agent": "organization--029fc474-0bef-40ad-8788-681c696e4673"
+        },
+        "action--c31c9268-d37d-4cba-bbd3-60b5c2410c82": {
+            "name": "Scan for other suspicious scripts",
+            "description": "Iterate to find and flag all scripts with suspicious patterns.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' | xargs grep 'suspect_pattern'"
+                }
+            ],
+            "agent": "organization--029fc474-0bef-40ad-8788-681c696e4673",
+            "on_completion": "while-condition--c264b368-be3b-4697-83b4-54cdb86c181b"
+        },
+        "while-condition--c264b368-be3b-4697-83b4-54cdb86c181b": {
+            "name": "Repeat finding scripts",
+            "description": "Repeat scanning until no more suspicious scripts are found.",
+            "on_completion": "action--b45df904-06fb-4aae-98c6-652d4838dc4c",
+            "type": "while-condition",
+            "condition": "suspicious_scripts_found"
+        },
+        "action--b45df904-06fb-4aae-98c6-652d4838dc4c": {
+            "name": "Isolate compromised machine from the network",
+            "description": "Block network access to the machine by the attacker's IP.",
+            "on_completion": "end--f3904bb4-59f6-4ddc-bcd5-9860787eaa69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--029fc474-0bef-40ad-8788-681c696e4673",
+            "targets": [
+                "host-22"
+            ]
+        },
+        "end--f3904bb4-59f6-4ddc-bcd5-9860787eaa69": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--029fc474-0bef-40ad-8788-681c696e4673": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

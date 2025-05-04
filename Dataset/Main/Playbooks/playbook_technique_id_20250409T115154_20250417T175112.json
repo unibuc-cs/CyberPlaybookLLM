@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c56e84b4-81c5-4c6c-b01f-ec8eaba35dc5",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where malicious scripts were executed on a system through phishing, leading to data exfiltration.",
+    "created_by": "identity--01c4fb3a-f35a-4ace-b4f3-e7f21a47d77f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--222b6a09-45de-4f40-8ea8-2fcde80caced",
+    "workflow": {
+        "start--222b6a09-45de-4f40-8ea8-2fcde80caced": {
+            "on_completion": "action--e1b307b9-6dd7-4084-ba7a-afa99ba4e025",
+            "type": "start"
+        },
+        "action--e1b307b9-6dd7-4084-ba7a-afa99ba4e025": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process executing the malicious script.",
+            "on_completion": "action--c5aa4c2d-30f9-4794-9895-620e52d90a34",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c5aa4c2d-30f9-4794-9895-620e52d90a34": {
+            "name": "Isolate affected host from the network",
+            "description": "Block any inbound connections from the malicious IP.",
+            "on_completion": "while-condition--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-until-clean": {
+            "name": "Run antivirus scan loop",
+            "description": "Continuously run an antivirus scan until no malware is detected.",
+            "on_true": "action--a2b2d846-ee6c-4f4e-afc2-6a82f16f8415",
+            "type": "while-condition",
+            "condition": "malware_found == true",
+            "on_false": "end--end-1"
+        },
+        "action--a2b2d846-ee6c-4f4e-afc2-6a82f16f8415": {
+            "name": "Run full system antivirus scan",
+            "description": "Perform a complete antivirus scan of the system.",
+            "on_completion": "while-condition--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "malware_found": {
+                    "type": "boolean",
+                    "description": "Indicates if malware was found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--end-1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

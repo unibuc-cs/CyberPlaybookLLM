@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5e2745a4-4b50-4b92-a83c-9e23be830349",
+    "name": "Mitigation Playbook for Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker exploited the organization's web application to exfiltrate sensitive data using a legitimate communication protocol.",
+    "created_by": "identity--1b701f8a-2701-46cb-a780-96cf66c6f0e6",
+    "created": "2023-10-01T13:00:00.000Z",
+    "modified": "2023-10-01T14:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b8a15221-df7f-4376-8668-2944ee1c2ace",
+    "workflow": {
+        "action--93d6d13f-5478-4cc6-ac9f-6e07b602a4dc": {
+            "name": "Monitor outgoing traffic for anomalies",
+            "description": "Capture and analyze outgoing traffic to detect suspicious activities.",
+            "on_completion": "action--b77f2f22-c94d-4aec-b202-659ef4797619",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn host suspicious-ip"
+                }
+            ],
+            "agent": "organization--dffee5fc-8846-4374-83ed-04ec996010ea"
+        },
+        "action--b77f2f22-c94d-4aec-b202-659ef4797619": {
+            "name": "Terminate suspicious connections",
+            "description": "Block any connections to the suspicious IP identified from monitoring.",
+            "on_completion": "if-condition--a7308f45-e300-4394-b473-7c29be273e5f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--dffee5fc-8846-4374-83ed-04ec996010ea"
+        },
+        "if-condition--a7308f45-e300-4394-b473-7c29be273e5f": {
+            "name": "Check for vulnerabilities",
+            "type": "if-condition",
+            "condition": "vulnerability_detected == true",
+            "on_true": "loop--69030e59-f47c-4655-b929-d1d416c0d8c1",
+            "on_false": "end--e4f7b6c0-de00-4d8f-a2c2-20b0ecf0e5b7"
+        },
+        "action--a7308f45-e300-4394-b473-7c29be273e5f": {
+            "name": "Perform vulnerability scan",
+            "description": "Scan the host for vulnerabilities to identify any security issues.",
+            "on_completion": "loop--69030e59-f47c-4655-b929-d1d416c0d8c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p- host-15"
+                }
+            ],
+            "agent": "organization--dffee5fc-8846-4374-83ed-04ec996010ea"
+        },
+        "end--e4f7b6c0-de00-4d8f-a2c2-20b0ecf0e5b7": {
+            "type": "end"
+        },
+        "start--b8a15221-df7f-4376-8668-2944ee1c2ace": {
+            "on_completion": "action--93d6d13f-5478-4cc6-ac9f-6e07b602a4dc",
+            "type": "start"
+        },
+        "loop--69030e59-f47c-4655-b929-d1d416c0d8c1": {
+            "name": "Run vulnerability assessment",
+            "description": "Conduct a vulnerability scan on the affected host and repeat until no vulnerabilities are found.",
+            "on_completion": "if-condition--a7308f45-e300-4394-b473-7c29be273e5f",
+            "type": "while-condition",
+            "condition": "vulnerabilities_remaining > 0",
+            "on_true": "action--a7308f45-e300-4394-b473-7c29be273e5f",
+            "on_false": "end--e4f7b6c0-de00-4d8f-a2c2-20b0ecf0e5b7"
+        }
+    },
+    "agent_definitions": {
+        "organization--dffee5fc-8846-4374-83ed-04ec996010ea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

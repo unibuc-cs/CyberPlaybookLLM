@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--28b3f7b1-70a0-4b7d-91d1-d1c6085d9a85",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook automates responses to an incident where an attacker executed malicious scripts to exfiltrate sensitive data and installed backdoors on compromised hosts.",
+    "created_by": "identity--ab6dc26d-1d7f-4f4b-8c52-3b02ad6706f8",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--e3c5188b-be12-425b-8225-cc702d47ed45",
+    "workflow": {
+        "action--e7e2f3b5-abc3-4232-9919-a4bd61cd3f78": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--bfe55e54-b59e-4e49-b7f7-f5c42a4c8551",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--afd14862-040f-4b7e-a0ea-74bcab1dfac3"
+        },
+        "if-condition--bfe55e54-b59e-4e49-b7f7-f5c42a4c8551": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "$(pgrep -f malicious_script.sh) != ''",
+            "on_true": "action--bfe55e54-b59e-4e49-b7f7-f5c42a4c8551",
+            "on_false": "action--d09f9069-b44e-4846-bb66-e878095e044d"
+        },
+        "action--bfe55e54-b59e-4e49-b7f7-f5c42a4c8551": {
+            "name": "Isolate compromised host",
+            "description": "Take network offline for compromised host to prevent further damage.",
+            "on_completion": "action--d09f9069-b44e-4846-bb66-e878095e044d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-12 down"
+                }
+            ],
+            "agent": "organization--afd14862-040f-4b7e-a0ea-74bcab1dfac3"
+        },
+        "action--d09f9069-b44e-4846-bb66-e878095e044d": {
+            "name": "Check for remaining backdoors",
+            "description": "Search the file system for any backdoors and delete them.",
+            "on_completion": "while-condition--a41e813a-b25e-45e0-bf8a-c1cdef9876ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*backdoor*' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--afd14862-040f-4b7e-a0ea-74bcab1dfac3"
+        },
+        "while-condition--a41e813a-b25e-45e0-bf8a-c1cdef9876ed": {
+            "name": "Backdoors Removal Loop",
+            "description": "Repeat searching for backdoors until none are found.",
+            "on_completion": "end--99e5d106-17a5-41bf-9a6b-2b818d64f824",
+            "type": "while-condition",
+            "condition": "find / -name '*backdoor*'",
+            "on_true": "action--d09f9069-b44e-4846-bb66-e878095e044d"
+        },
+        "end--99e5d106-17a5-41bf-9a6b-2b818d64f824": {
+            "step_extensions": {
+                "": "extension-definition--1a1b2345-c67e-4df0-89fb-9abcdef01234"
+            },
+            "type": "end"
+        },
+        "start--e3c5188b-be12-425b-8225-cc702d47ed45": {
+            "on_completion": "action--e7e2f3b5-abc3-4232-9919-a4bd61cd3f78",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--afd14862-040f-4b7e-a0ea-74bcab1dfac3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b38e79c2-1a45-4e52-802b-39d8cbf58c47",
+    "name": "Mitigation Playbook for PowerShell Malware Execution Incident",
+    "description": "This playbook addresses incidents where an attacker leveraged PowerShell to execute a script that downloaded and installed malware on a corporate server.",
+    "created_by": "identity--c65a9632-2fdc-4c6e-abc1-0dc8e12b8d89",
+    "created": "2025-04-09T11:00:00.000Z",
+    "modified": "2025-04-09T11:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7c843030-996a-4ec3-a1b8-7a94e38de43a",
+    "workflow": {
+        "start--7c843030-996a-4ec3-a1b8-7a94e38de43a": {
+            "on_completion": "if-condition--b65a2b92-2dcd-4a5f-b8cb-f259b947a593",
+            "type": "start"
+        },
+        "if-condition--b65a2b92-2dcd-4a5f-b8cb-f259b947a593": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--f1e86c6e-3dd7-4d88-92b3-3b7bccd6be9a",
+            "on_false": "action--84f0327e-3c17-4b69-af83-8a1d976c60d5"
+        },
+        "action--f1e86c6e-3dd7-4d88-92b3-3b7bccd6be9a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process currently running.",
+            "on_completion": "loop--6a4f6089-1c44-4f69-b90b-250fb4f06c1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--4b49c901-5412-455e-9bb2-74a921474a37"
+        },
+        "loop--6a4f6089-1c44-4f69-b90b-250fb4f06c1a": {
+            "name": "Remove dropped files loop",
+            "description": "Loop to remove any dropped malicious files until none are found.",
+            "type": "while-condition",
+            "condition": "dropped_files_found == true",
+            "on_true": "action--6a4f6089-1c44-4f69-b90b-250fb4f06c1a",
+            "on_false": "end--a4e36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--6a4f6089-1c44-4f69-b90b-250fb4f06c1a": {
+            "name": "Remove dropped files",
+            "description": "Delete any detected malicious payload files.",
+            "on_completion": "loop--6a4f6089-1c44-4f69-b90b-250fb4f06c1a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload*"
+                }
+            ],
+            "agent": "organization--4b49c901-5412-455e-9bb2-74a921474a37"
+        },
+        "action--84f0327e-3c17-4b69-af83-8a1d976c60d5": {
+            "name": "Alert security team",
+            "description": "Notify the security team about the malicious activity detected.",
+            "on_completion": "end--a4e36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious activity detected on host-15' | mail -s 'Incident Alert' security@company.com"
+                }
+            ],
+            "agent": "organization--4b49c901-5412-455e-9bb2-74a921474a37"
+        },
+        "end--a4e36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4b49c901-5412-455e-9bb2-74a921474a37": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_found": {
+            "type": "boolean",
+            "description": "Indicates if a malicious process is currently running.",
+            "value": "true",
+            "constant": false
+        },
+        "dropped_files_found": {
+            "type": "boolean",
+            "description": "Indicates if any dropped malicious files are detected.",
+            "value": "true",
+            "constant": false
+        }
+    }
+}

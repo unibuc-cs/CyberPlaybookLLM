@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9531fcb-b22f-499c-8b77-ac46cef62b1e",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--e6206370-10ef-4dce-ae51-fe1adfc74553",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-7890-abcd-ef1a2b3c4d5e",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-7890-abcd-ef1a2b3c4d5e": {
+            "on_completion": "action--94d2f049-2b01-4c8e-9879-60dcb230fcfb",
+            "type": "start"
+        },
+        "action--94d2f049-2b01-4c8e-9879-60dcb230fcfb": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that may be running.",
+            "on_completion": "action--144fa8c1-76e6-4cbc-b08f-ddb0e7ce0960",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--144fa8c1-76e6-4cbc-b08f-ddb0e7ce0960": {
+            "name": "Isolate infected host",
+            "description": "Isolate the infected host from the network to prevent further unauthorized access.",
+            "on_completion": "while-condition--f5e631d9-415b-4de5-b003-e3e8bb0e7c63",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -n $(netstat -tuln | grep 'malicious_ip') ]; then iptables -A INPUT -s malicious_ip -j DROP; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--f5e631d9-415b-4de5-b003-e3e8bb0e7c63": {
+            "name": "Scan for additional threats",
+            "description": "Continuously scan for additional threats until the environment is confirmed clean.",
+            "on_true": "action--c222a872-dc60-4650-811a-d61ae1a215c5",
+            "condition": "scan_is_clean == false",
+            "type": "while-condition",
+            "next_steps": [
+                "action--c222a872-dc60-4650-811a-d61ae1a215c5"
+            ]
+        },
+        "action--c222a872-dc60-4650-811a-d61ae1a215c5": {
+            "name": "Run antivirus scan",
+            "description": "Run the antivirus to scan for any remaining threats.",
+            "on_completion": {
+                "type": "update_var",
+                "variable": {
+                    "scan_is_clean": {
+                        "type": "boolean",
+                        "value": "false"
+                    }
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_antivirus"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f0e8f3b8-e0e7-4a3c-abc4-ddbc77ac72e0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c43b1f81-a977-4f1e-86dd-3c6476f6f1a9",
+    "name": "Mitigation Playbook for Unauthorized Command Execution via Script Interpreter",
+    "description": "This playbook addresses incidents where an attacker exploits a vulnerable script interpreter to execute unauthorized commands, leading to unexpected behavior on the server.",
+    "created_by": "identity--e6721bdf-8df0-4634-869e-7c18ad05fb73",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a90fc7d3-cdbf-4e37-8a0b-16c0c88b5c3d",
+    "workflow": {
+        "start--a90fc7d3-cdbf-4e37-8a0b-16c0c88b5c3d": {
+            "on_completion": "action--c89b5525-6cbf-4ef9-9f42-c3b1ed73af10",
+            "type": "start"
+        },
+        "action--c89b5525-6cbf-4ef9-9f42-c3b1ed73af10": {
+            "name": "Terminate unauthorized scripts",
+            "description": "Terminate any processes that are executing unauthorized scripts.",
+            "on_completion": "if-condition--3eb76771-d3e1-4a4d-b463-61a9af1bd4bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--d6f00527-bf31-4138-a4c4-fb86bb989432"
+        },
+        "if-condition--3eb76771-d3e1-4a4d-b463-61a9af1bd4bc": {
+            "name": "Check for running scripts",
+            "type": "if-condition",
+            "condition": "ps -ef | grep unauthorized_script.sh | grep -v grep",
+            "on_true": "action--2d5f6e75-93a8-4a11-8377-18753c80163a",
+            "on_false": "action--e9b8f1a9-752b-4c83-95e7-35b70dbb3f98"
+        },
+        "action--2d5f6e75-93a8-4a11-8377-18753c80163a": {
+            "name": "Block suspicious IP addresses",
+            "description": "Block outbound connections to suspicious IP addresses.",
+            "on_completion": "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--d6f00527-bf31-4138-a4c4-fb86bb989432"
+        },
+        "action--e9b8f1a9-752b-4c83-95e7-35b70dbb3f98": {
+            "name": "Reset permissions on script directory",
+            "description": "Reset permissions for the script directory to prevent unauthorized modifications.",
+            "on_completion": "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 750 /var/scripts"
+                }
+            ],
+            "agent": "organization--d6f00527-bf31-4138-a4c4-fb86bb989432"
+        },
+        "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan to identify any modifications made by the attacker.",
+            "on_completion": "while-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--d6f00527-bf31-4138-a4c4-fb86bb989432"
+        },
+        "while-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3": {
+            "name": "Antivirus Scan Loop",
+            "description": "Repeat until the scan shows clean results",
+            "on_completion": "action--73a4ac0f-846a-4d56-a0ed-d9f73358b8d8",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--73a4ac0f-846a-4d56-a0ed-d9f73358b8d8",
+            "on_false": "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e",
+            "type": "if-condition"
+        },
+        "action--73a4ac0f-846a-4d56-a0ed-d9f73358b8d8": {
+            "name": "Update firewall rules",
+            "description": "Reload firewall rules to apply the default-deny policy.",
+            "on_completion": "end--750b25b1-ef25-4852-97aa-fd9b32c2203e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--d6f00527-bf31-4138-a4c4-fb86bb989432"
+        },
+        "end--750b25b1-ef25-4852-97aa-fd9b32c2203e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d6f00527-bf31-4138-a4c4-fb86bb989432": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

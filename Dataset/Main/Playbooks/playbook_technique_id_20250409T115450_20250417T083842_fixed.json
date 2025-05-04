@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f033fe99-47bc-4d60-9182-75b8a6dd1a5f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of scripts to exfiltrate sensitive data.",
+    "created_by": "identity--bd914312-392c-4f34-9bc4-9c140125e1a5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d23fc402-038e-4b3d-8744-aca210a5b01a",
+    "workflow": {
+        "action--2c0d4e36-5e04-4c7d-abc5-1ad929edbc02": {
+            "name": "Kill malicious process",
+            "description": "Terminate any PowerShell processes suspected of being malicious.",
+            "on_completion": "action--6d4eeb4b-eced-48f2-98f3-2b9e0a7f87e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--fe5bab58-020a-4112-80db-19befc78541f"
+        },
+        "action--6d4eeb4b-eced-48f2-98f3-2b9e0a7f87e3": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming traffic from the identified malicious host.",
+            "on_completion": "action--7a8dc23b-2b7b-4ed2-866e-e5e0347cfb2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--fe5bab58-020a-4112-80db-19befc78541f"
+        },
+        "while-condition--e41b50da-44d2-4e3a-b9b0-4979ad13ab15": {
+            "name": "Perform full network scan loop",
+            "description": "Repeat scanning the network until no vulnerabilities are found.",
+            "on_true": "action--50e83422-cfaa-41db-85e2-1dfc9075cc6b",
+            "condition": "vulnerabilities_found == true",
+            "on_completion": "action--d534798f-6c47-4a76-84c2-63d10972f849",
+            "type": "if-condition"
+        },
+        "action--7a8dc23b-2b7b-4ed2-866e-e5e0347cfb2d": {
+            "name": "Collect logs for analysis",
+            "description": "Back up system logs for further investigation.",
+            "on_completion": "action--d534798f-6c47-4a76-84c2-63d10972f849",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /var/log/syslog /logs/syslog_backup_$(date +%F).log"
+                }
+            ],
+            "agent": "organization--fe5bab58-020a-4112-80db-19befc78541f"
+        },
+        "action--d534798f-6c47-4a76-84c2-63d10972f849": {
+            "name": "Alert incident response team",
+            "description": "Notify the incident response team regarding the incident.",
+            "on_completion": "end--faa9b6b9-1884-40b2-95bf-04f87b47b25d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-01' | mail -s 'Incident Alert' ir_team@example.com"
+                }
+            ],
+            "agent": "organization--fe5bab58-020a-4112-80db-19befc78541f"
+        },
+        "start--d23fc402-038e-4b3d-8744-aca210a5b01a": {
+            "on_completion": "action--2c0d4e36-5e04-4c7d-abc5-1ad929edbc02",
+            "type": "start"
+        },
+        "action--50e83422-cfaa-41db-85e2-1dfc9075cc6b": {
+            "name": "Perform a full network scan",
+            "on_completion": "while-condition--e41b50da-44d2-4e3a-b9b0-4979ad13ab15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--fe5bab58-020a-4112-80db-19befc78541f"
+        },
+        "end--faa9b6b9-1884-40b2-95bf-04f87b47b25d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fe5bab58-020a-4112-80db-19befc78541f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

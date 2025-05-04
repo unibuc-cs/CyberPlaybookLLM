@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b297395-4bea-4ef4-88fa-5b46774014ca",
+    "name": "Mitigation Playbook for PowerShell Exfiltration Incident",
+    "description": "This playbook addresses an incident in which an attacker leveraged a PowerShell script to exfiltrate sensitive files from the network.",
+    "created_by": "identity--e3b81ce6-b4ce-4fb0-bd75-dbe63fcabb92",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--3b22d7ef-4b39-497d-ad0a-2c02a9c6ae92",
+    "workflow": {
+        "start--3b22d7ef-4b39-497d-ad0a-2c02a9c6ae92": {
+            "on_completion": "action--a0b73c4d-3f1c-4194-aa76-799a7389bd73",
+            "type": "start"
+        },
+        "action--a0b73c4d-3f1c-4194-aa76-799a7389bd73": {
+            "name": "Kill the PowerShell process",
+            "description": "Terminate any running PowerShell scripts on host-15.",
+            "on_completion": "if-condition--f1a002e5-4569-426f-990d-267b840bb02a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--6f8df594-32b8-4496-84e6-bfe0f1b1a817"
+        },
+        "action--c8e58f65-e693-440b-b1d1-f6bd9f1ecd18": {
+            "name": "Initiate a network scan to identify data transfers",
+            "description": "Run a network scan to identify any unauthorized data transfers.",
+            "on_completion": "while-condition--b9b18970-b62f-4e90-b5c5-57d5c5b1be71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--6f8df594-32b8-4496-84e6-bfe0f1b1a817"
+        },
+        "while-condition--b9b18970-b62f-4e90-b5c5-57d5c5b1be71": {
+            "name": "Repeat scan until clean",
+            "description": "Repeat the network scan until no unauthorized transfers are detected",
+            "type": "while-condition",
+            "condition": "unauthorized_transfer_detected == true",
+            "on_true": "action--c8e58f65-e693-440b-b1d1-f6bd9f1ecd18",
+            "on_false": "action--2c1eb5b0-500e-4541-bf8d-7c5647a7e356"
+        },
+        "action--2c1eb5b0-500e-4541-bf8d-7c5647a7e356": {
+            "name": "Revoke permissions for affected user account",
+            "description": "Revoke permissions for the malicious user.",
+            "on_completion": "end--b819c144-4fff-46e4-990e-e39c63e8e67c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L malicious_user"
+                }
+            ],
+            "agent": "organization--6f8df594-32b8-4496-84e6-bfe0f1b1a817"
+        },
+        "end--b819c144-4fff-46e4-990e-e39c63e8e67c": {
+            "type": "end"
+        },
+        "if-condition--f1a002e5-4569-426f-990d-267b840bb02a": {
+            "name": "Check if unauthorized transfer detected",
+            "type": "if-condition",
+            "condition": "unauthorized_transfer_detected == true",
+            "on_true": "action--c8e58f65-e693-440b-b1d1-f6bd9f1ecd18",
+            "on_false": "action--2c1eb5b0-500e-4541-bf8d-7c5647a7e356"
+        }
+    },
+    "agent_definitions": {
+        "organization--6f8df594-32b8-4496-84e6-bfe0f1b1a817": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

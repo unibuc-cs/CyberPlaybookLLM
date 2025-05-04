@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f74a4d60-e641-4d59-95de-4aa1cc9c2f67",
+    "name": "Playbook for Response to Unauthorized Access through Script Execution",
+    "description": "This playbook addresses the incident where an attacker used a custom script causing unauthorized access to sensitive files.",
+    "created_by": "identity--2202c632-0e72-4f29-87fd-30bf7fe4c3db",
+    "created": "2023-10-10T12:00:00Z",
+    "modified": "2023-10-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d2b08f8f-1f5a-49c2-91b6-9f7e0221d64e",
+    "workflow": {
+        "start--d2b08f8f-1f5a-49c2-91b6-9f7e0221d64e": {
+            "on_completion": "action--963c8f13-d0f1-4f90-bd2a-5e9c2d72f03b",
+            "type": "start"
+        },
+        "action--963c8f13-d0f1-4f90-bd2a-5e9c2d72f03b": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the suspicious PowerShell script executing on the host.",
+            "on_completion": "while-condition--bc9f3f39-fb9e-427e-ae6a-2e1207c4a7b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--afd499f3-4f5c-4312-90ef-f1cffee20591"
+        },
+        "while-condition--bc9f3f39-fb9e-427e-ae6a-2e1207c4a7b6": {
+            "name": "File Scan Condition",
+            "description": "Scan files until no malicious files are found.",
+            "on_completion": "action--db9e4fb5-8730-4ff6-9ae3-28a872ed009e",
+            "type": "while-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a",
+            "on_false": "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a"
+        },
+        "action--bfb82c4a-437e-4e39-95b3-108e1b0b5f2a": {
+            "name": "Scan for Malicious Files",
+            "description": "Perform a scan for malicious files in the Temp directory.",
+            "on_completion": "while-condition--bc9f3f39-fb9e-427e-ae6a-2e1207c4a7b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /home/user/Temp"
+                }
+            ],
+            "agent": "organization--afd499f3-4f5c-4312-90ef-f1cffee20591",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan indicating if it's clean or has threats.",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--db9e4fb5-8730-4ff6-9ae3-28a872ed009e": {
+            "name": "Remove Unauthorized Access",
+            "description": "Lock the admin user account to prevent further unauthorized access.",
+            "on_completion": "end--73bd5fd7-9053-4b36-bb36-be7c2086c4a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L admin"
+                }
+            ],
+            "agent": "organization--afd499f3-4f5c-4312-90ef-f1cffee20591"
+        },
+        "end--73bd5fd7-9053-4b36-bb36-be7c2086c4a1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--afd499f3-4f5c-4312-90ef-f1cffee20591": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2620215-c9d3-48a4-9c7a-1aaf7b52a74a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute arbitrary commands, resulting in the download and execution of a malicious payload.",
+    "created_by": "identity--abcd1234-abcd-1234-abcd-1234567890ef",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--abc12345-2cfe-4f6d-bbbf-3847427fc3f6",
+    "workflow": {
+        "start--abc12345-2cfe-4f6d-bbbf-3847427fc3f6": {
+            "on_completion": "if-condition--b7c2bd82-153f-44f8-a6da-58a9381abd13",
+            "type": "start"
+        },
+        "if-condition--b7c2bd82-153f-44f8-a6da-58a9381abd13": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists(malicious_payload)",
+            "on_true": "action--7b9bc5f2-a52b-4e7a-9e72-2e3c8aaf2ed8",
+            "on_false": "action--1f20238b-6b11-42f5-9679-0b60b5f618a6"
+        },
+        "action--7b9bc5f2-a52b-4e7a-9e72-2e3c8aaf2ed8": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious payload.",
+            "on_completion": "action--1f20238b-6b11-42f5-9679-0b60b5f618a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_payload"
+                }
+            ],
+            "agent": "organization--70d3ce26-3ec5-48c9-9f04-e69fa246dbc5"
+        },
+        "action--1f20238b-6b11-42f5-9679-0b60b5f618a6": {
+            "name": "Remove dropped files",
+            "description": "Remove any files dropped by the malicious payload.",
+            "on_completion": "loop--f4668eda-b125-4e14-a571-553191eeeb57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/malicious_payload"
+                }
+            ],
+            "agent": "organization--70d3ce26-3ec5-48c9-9f04-e69fa246dbc5"
+        },
+        "loop--f4668eda-b125-4e14-a571-553191eeeb57": {
+            "name": "Check and remove dropped files loop",
+            "description": "Repeat file removal until the malicious file no longer exists.",
+            "condition": "file_exists(/path/to/malicious_payload)",
+            "on_true": "action--1f20238b-6b11-42f5-9679-0b60b5f618a6",
+            "on_false": "action--86548246-e971-4c58-888e-a965ac84001f",
+            "type": "while-condition"
+        },
+        "action--86548246-e971-4c58-888e-a965ac84001f": {
+            "name": "Run full system scan",
+            "description": "Perform a comprehensive scan of the system after removing the malicious payload.",
+            "on_completion": "end--e4471be9-27d8-4370-8b16-b29df53f2fd1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --full"
+                }
+            ],
+            "agent": "organization--70d3ce26-3ec5-48c9-9f04-e69fa246dbc5",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The output from the full system scan.",
+                    "value": "scan_output",
+                    "constant": false
+                }
+            }
+        },
+        "end--e4471be9-27d8-4370-8b16-b29df53f2fd1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--70d3ce26-3ec5-48c9-9f04-e69fa246dbc5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8476c4c8-5c17-4798-8a29-57740bed2f68",
+    "name": "Playbook for Rogue Script Execution Incident Mitigation",
+    "description": "This playbook addresses an incident where a rogue script was executed on multiple hosts, leading to potential information compromise.",
+    "created_by": "identity--b6f3c00f-9d73-4840-b35b-fbf71e331dee",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--cd5e4b1a-e623-4aee-82d5-09f0172c4c84",
+    "workflow": {
+        "action--4f3e4c74-92fe-4d7f-bd3f-1e948fb5c1c1": {
+            "name": "Block Outbound Connection to Malicious IPs",
+            "description": "Block any outbound connections to the known malicious IP address.",
+            "on_completion": "action--5e9b5e5e-8271-4c92-905e-f48881356816",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--27c8a743-9d2b-46af-a659-5254078fd364"
+        },
+        "action--2d281631-182c-4f3c-8bf7-b0eb7c7234c7": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the rogue script process that was executed.",
+            "on_completion": "action--5e9b5e5e-8271-4c92-905e-f48881356816",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'rogue_script.sh'"
+                }
+            ],
+            "agent": "organization--27c8a743-9d2b-46af-a659-5254078fd364"
+        },
+        "action--5e9b5e5e-8271-4c92-905e-f48881356816": {
+            "name": "Run Antivirus Scan on Affected Hosts",
+            "description": "Initiate a scan for malware on the affected hosts and repeat if malware is found.",
+            "on_completion": "while-condition--000a605d-d83a-4775-bff1-dc59fe870f45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--27c8a743-9d2b-46af-a659-5254078fd364"
+        },
+        "start--cd5e4b1a-e623-4aee-82d5-09f0172c4c84": {
+            "on_completion": "parallel--1ca4c945-e4bb-41c8-868c-db44b0a849c3",
+            "type": "start"
+        },
+        "parallel--1ca4c945-e4bb-41c8-868c-db44b0a849c3": {
+            "name": "Execute Response Actions",
+            "description": "Trigger multiple mitigation actions to respond to the rogue script execution.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4f3e4c74-92fe-4d7f-bd3f-1e948fb5c1c1",
+                "action--2d281631-182c-4f3c-8bf7-b0eb7c7234c7"
+            ]
+        },
+        "while-condition--000a605d-d83a-4775-bff1-dc59fe870f45": {
+            "name": "Check Scan Results",
+            "description": "Repeat the antivirus scan until no malware is detected.",
+            "type": "while-condition",
+            "condition": "scan_results_contain_malware",
+            "on_true": "action--5e9b5e5e-8271-4c92-905e-f48881356816",
+            "on_false": "end--58e7f3d8-1887-415e-80b4-53914d54d955"
+        },
+        "end--58e7f3d8-1887-415e-80b4-53914d54d955": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--27c8a743-9d2b-46af-a659-5254078fd364": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2e78be40-30ca-4fdd-a37e-d1fe43853ac8",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a series of malicious commands through a compromised command line interface.",
+    "created_by": "identity--0dd5ae10-2061-484a-b589-c568dd32ab0f",
+    "created": "2023-10-01T14:32:00Z",
+    "modified": "2023-10-01T14:32:00Z",
+    "revoked": false,
+    "workflow_start": "start--ffff1c0f-7aa9-4470-8839-a89f2d935861",
+    "workflow": {
+        "action--455cdafc-dc7d-4cb1-92e6-a2db37bc8e38": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to malicious activity.",
+            "on_completion": "action--c7fe164d-5839-4b6f-bb5d-e50dc03b36f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298"
+        },
+        "action--c7fe164d-5839-4b6f-bb5d-e50dc03b36f3": {
+            "name": "Block external IPs",
+            "description": "Block outgoing connections to the malicious IP.",
+            "on_completion": "parallel--27872f6e-9f1b-4c76-bc0c-cecf547dc865",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298"
+        },
+        "parallel--27872f6e-9f1b-4c76-bc0c-cecf547dc865": {
+            "name": "Concurrent Mitigations",
+            "description": "Run concurrent actions for further mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a0ee75e9-5aaf-43a4-b9f6-6e36d5ab21ab",
+                "action--e6253335-50e2-4e7a-8263-5586eb31acbb"
+            ]
+        },
+        "loop--f1b0626d-c916-4f7b-bc03-4c7f4d9ac276": {
+            "name": "Repeat Malware Scan Until Clear",
+            "description": "Continue scanning until no malware is found.",
+            "on_true": "action--a0ee75e9-5aaf-43a4-b9f6-6e36d5ab21ab",
+            "on_false": "action--e6253335-50e2-4e7a-8263-5586eb31acbb",
+            "type": "while-condition",
+            "condition": "malware_found == true"
+        },
+        "action--e6253335-50e2-4e7a-8263-5586eb31acbb": {
+            "name": "Review user access logs",
+            "description": "Examine user access logs to identify any suspicious activities.",
+            "on_completion": "if-condition--f9f05a45-9c5e-467d-8e4f-1f43e2b60d0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298"
+        },
+        "if-condition--f9f05a45-9c5e-467d-8e4f-1f43e2b60d0a": {
+            "name": "Check for suspicious logins",
+            "type": "if-condition",
+            "condition": "suspicious_login_found == true",
+            "on_true": "action--ab3740c4-a577-42b6-b2a5-5b54c77b9102",
+            "on_false": "end--dcd7b03e-21ec-4ae7-a912-e8ecb254de5c"
+        },
+        "action--ab3740c4-a577-42b6-b2a5-5b54c77b9102": {
+            "name": "Reset compromised user passwords",
+            "description": "Reset passwords for any accounts that were compromised.",
+            "on_completion": "end--dcd7b03e-21ec-4ae7-a912-e8ecb254de5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_password' | passwd ${username}"
+                }
+            ],
+            "agent": "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "Compromised username to reset password",
+                    "value": "compromised_user",
+                    "constant": false
+                }
+            }
+        },
+        "end--dcd7b03e-21ec-4ae7-a912-e8ecb254de5c": {
+            "type": "end"
+        },
+        "start--ffff1c0f-7aa9-4470-8839-a89f2d935861": {
+            "on_completion": "action--455cdafc-dc7d-4cb1-92e6-a2db37bc8e38",
+            "type": "start"
+        },
+        "action--a0ee75e9-5aaf-43a4-b9f6-6e36d5ab21ab": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the affected host.",
+            "on_completion": "loop--f1b0626d-c916-4f7b-bc03-4c7f4d9ac276",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298"
+        }
+    },
+    "agent_definitions": {
+        "organization--2ab9ebb8-15a5-49c5-bd95-0ef80336d298": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

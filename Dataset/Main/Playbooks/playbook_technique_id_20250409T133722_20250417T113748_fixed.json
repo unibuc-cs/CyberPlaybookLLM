@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4fbcdbf4-0c89-4e4d-b263-c4c45bea1ae3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "Automated response to an incident involving a malicious PowerShell script that collected user credentials.",
+    "created_by": "identity--69514f08-a830-459d-a9ac-118844dd0f65",
+    "created": "2025-10-10T08:55:35.498Z",
+    "modified": "2025-10-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b1d76082-54cf-4310-8e2c-1ff1c2f0c5d2",
+            "type": "start"
+        },
+        "action--b1d76082-54cf-4310-8e2c-1ff1c2f0c5d2": {
+            "name": "Terminate malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--8308821f-3564-4ec8-82aa-9b65d4d68407",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_process_name'"
+                }
+            ],
+            "agent": "organization--9d15c9ba-6667-419f-b537-5d4792f14b36"
+        },
+        "if-condition--8308821f-3564-4ec8-82aa-9b65d4d68407": {
+            "name": "Check if malicious process is still running",
+            "type": "if-condition",
+            "condition": "malicious_process_is_running",
+            "on_true": "action--8308821f-3564-4ec8-82aa-9b65d4d68407",
+            "on_false": "loop--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be"
+        },
+        "action--8308821f-3564-4ec8-82aa-9b65d4d68407": {
+            "name": "Quarantine affected machine",
+            "description": "Block connections from the attacker's IP.",
+            "on_completion": "loop--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A INPUT -s [ATTACKER_IP] -j DROP"
+                }
+            ],
+            "agent": "organization--9d15c9ba-6667-419f-b537-5d4792f14b36"
+        },
+        "loop--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the system to find other possible threats.",
+            "type": "while-condition",
+            "condition": "threats_detected",
+            "on_true": "action--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be": {
+            "name": "Execute full malware scan",
+            "description": "Run a comprehensive malware scan.",
+            "on_completion": "loop--c6cb2cf7-fe1f-4f37-97b1-ec01b41f16be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --bell -i"
+                }
+            ],
+            "agent": "organization--9d15c9ba-6667-419f-b537-5d4792f14b36"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9d15c9ba-6667-419f-b537-5d4792f14b36": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

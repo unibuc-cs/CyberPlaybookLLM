@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a9db5b45-638e-4b73-baa2-ec4f2a8aff77",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where an attacker used a scripting language to execute commands remotely.",
+    "created_by": "identity--052f2441-5ffd-4227-b09d-5feb7572f93d",
+    "created": "2023-10-18T14:30:00Z",
+    "modified": "2023-10-18T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--e2c9d632-baf6-4fd3-a699-e47f33ca9f19",
+    "workflow": {
+        "start--e2c9d632-baf6-4fd3-a699-e47f33ca9f19": {
+            "on_completion": "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68",
+            "type": "start"
+        },
+        "action--dc5f2389-ef16-4d8e-bf75-874a11bdae68": {
+            "name": "Terminate PowerShell processes",
+            "description": "Terminate all suspicious PowerShell processes running on the host.",
+            "on_completion": "parallel--7d402204-9a94-4a6b-b14b-dad433eb3f78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for pid in $(pgrep -x PowerShell); do kill -9 $pid; done"
+                }
+            ],
+            "agent": "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a"
+        },
+        "parallel--7d402204-9a94-4a6b-b14b-dad433eb3f78": {
+            "name": "Mitigation Steps Execution",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3427c9bc-3b51-42e0-bf0e-90746dce3678",
+                "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+                "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce",
+                "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65"
+            ]
+        },
+        "action--3427c9bc-3b51-42e0-bf0e-90746dce3678": {
+            "name": "Change access permissions for sensitive directories",
+            "description": "Restrict access to sensitive directories.",
+            "on_completion": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /sensitive_data/"
+                }
+            ],
+            "agent": "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a"
+        },
+        "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13": {
+            "name": "Scan for residual malicious scripts",
+            "description": "Perform a scan for any remaining malicious PowerShell scripts.",
+            "on_completion": "while-condition--acb32e65-f7bc-4b69-baa0-5a7881af14dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --include='*.ps1'"
+                }
+            ],
+            "agent": "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a"
+        },
+        "while-condition--acb32e65-f7bc-4b69-baa0-5a7881af14dd": {
+            "name": "Residual Scan Loop",
+            "description": "Repeat scanning until no malicious scripts are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f0b8e76c-77c4-4c78-9f81-83f09fdd1f13",
+            "next_steps": [
+                "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce"
+            ]
+        },
+        "action--7a1f880e-c492-4b72-9a20-3f4c89be1bce": {
+            "name": "Update firewall rules to block remote command execution",
+            "description": "Update firewall rules to restrict remote command execution via WinRM.",
+            "on_completion": "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny proto tcp from any to any port 5985"
+                }
+            ],
+            "agent": "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a"
+        },
+        "action--1ddedf59-05e0-46e1-a5aa-ddebf3f25f65": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Begin monitoring network traffic for unusual activity.",
+            "on_completion": "end--b4382cb3-2e93-4e43-9e01-98c19e4a5b26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a",
+            "step_variables": {
+                "alert_threshold": {
+                    "type": "integer",
+                    "description": "Threshold for alerting on packet volume.",
+                    "value": 1000,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b4382cb3-2e93-4e43-9e01-98c19e4a5b26": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0fd7d44e-f333-4cac-a9e3-9ffffd86720a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d19c46ab-54a6-4e74-8f20-abf803e3487f",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to exfiltrate sensitive data. It implements various mitigation actions including terminating the malicious process, removing scheduled tasks, scanning for other scripts, checking firewall rules, and notifying the IT Security team.",
+    "created_by": "identity--1f0e4561-4467-4f1a-aaa4-2cad27fbd978",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--8d4437d1-d3ea-442c-b5b3-fd6beab7c1c8",
+    "workflow": {
+        "start--8d4437d1-d3ea-442c-b5b3-fd6beab7c1c8": {
+            "on_completion": "action--6c28fb08-55df-4aad-9fc3-f23a5d2245f9",
+            "type": "start"
+        },
+        "action--6c28fb08-55df-4aad-9fc3-f23a5d2245f9": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that is currently running.",
+            "on_completion": "action--9df8cba2-c3d9-45af-a3f4-0761d8e48052",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f '/path/to/malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        },
+        "action--9df8cba2-c3d9-45af-a3f4-0761d8e48052": {
+            "name": "Remove scheduled task",
+            "description": "Remove any scheduled tasks related to the malicious script.",
+            "on_completion": "loop--4fcb53d7-f8bc-49ef-8d46-6d4b4cdd707e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "crontab -l | grep -v 'malicious_script' | crontab -"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        },
+        "loop--4fcb53d7-f8bc-49ef-8d46-6d4b4cdd707e": {
+            "name": "Scan for other malicious scripts",
+            "description": "Loop until no more malicious scripts are found on the system.",
+            "type": "while-condition",
+            "on_true": "action--4fcb53d7-f8bc-49ef-8d46-6d4b4cdd707e",
+            "condition": "malicious_scripts_found == true",
+            "on_completion": "action--5e100e69-0cf8-4208-a1eb-0f717f8fcbd6"
+        },
+        "action--4fcb53d7-f8bc-49ef-8d46-6d4b4cdd707e": {
+            "name": "Find and remove malicious scripts",
+            "description": "Search for malicious scripts on the system and remove them.",
+            "on_completion": "loop--4fcb53d7-f8bc-49ef-8d46-6d4b4cdd707e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*malicious*' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        },
+        "action--5e100e69-0cf8-4208-a1eb-0f717f8fcbd6": {
+            "name": "Check firewall for unauthorized connections",
+            "description": "Inspect the firewall rules for any unauthorized connections.",
+            "on_completion": "if-condition--e9a0371b-29fe-48bb-b8b2-2455ab061b96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -L -v -n"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        },
+        "end--f3e1a42d-73cc-4e37-8f29-10499f1ff2d8": {
+            "type": "end"
+        },
+        "if-condition--e9a0371b-29fe-48bb-b8b2-2455ab061b96": {
+            "name": "Check if unauthorized connections were found",
+            "type": "if-condition",
+            "condition": "unauthorized_connections_found == true",
+            "on_true": "action--d48ebdec-e846-436d-a357-1b3913acb340",
+            "on_false": "action--c93bb8b0-35d9-4fe8-94c2-6f6460f67002"
+        },
+        "action--d48ebdec-e846-436d-a357-1b3913acb340": {
+            "name": "Block unauthorized connections",
+            "description": "Terminate any unauthorized connections discovered in the previous step.",
+            "on_completion": "action--c93bb8b0-35d9-4fe8-94c2-6f6460f67002",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <unauthorized_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        },
+        "action--c93bb8b0-35d9-4fe8-94c2-6f6460f67002": {
+            "name": "Notify IT Security team",
+            "description": "Send an alert to the IT Security team regarding the malicious activity.",
+            "on_completion": "end--f3e1a42d-73cc-4e37-8f29-10499f1ff2d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Malicious activity detected' | mail -s 'Security Alert' it_security@organization.com"
+                }
+            ],
+            "agent": "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066"
+        }
+    },
+    "agent_definitions": {
+        "organization--a54f3edd-f13d-4c16-a0cd-e775c5fb4066": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

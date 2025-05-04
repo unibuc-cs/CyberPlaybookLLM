@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b5d3c789-1f9f-4eec-afec-5f1a6de7c8b4",
+    "name": "Mitigation for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident involving unauthorized script execution that resulted in a backdoor installation.",
+    "created_by": "identity--c4f0b671-3700-4e92-b8f9-6f78da2a4452",
+    "created": "2023-10-18T12:00:00Z",
+    "modified": "2023-10-18T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b0c82469-c3d4-4f4e-8391-d5691e6c6467",
+    "workflow": {
+        "start--b0c82469-c3d4-4f4e-8391-d5691e6c6467": {
+            "on_completion": "if-condition--ca2e6e9f-ec4f-4708-823f-470a3fda17b1",
+            "type": "start"
+        },
+        "end--d3f31736-a971-451b-9772-f2709a29a5fd": {
+            "type": "end"
+        },
+        "if-condition--ca2e6e9f-ec4f-4708-823f-470a3fda17b1": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "process_running('malicious_process_name')",
+            "on_true": "action--def4567c-e89b-12d3-a456-426652174000",
+            "on_false": "action--999e4567-e89b-12d3-a456-426614179000"
+        },
+        "action--def4567c-e89b-12d3-a456-426652174000": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--999e4567-e89b-12d3-a456-426614179000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc"
+        },
+        "action--999e4567-e89b-12d3-a456-426614179000": {
+            "name": "Remove backdoor",
+            "description": "Remove the installed backdoor from the system.",
+            "on_completion": "parallel--8a2a9a16-fb12-4e06-9a39-885c7e6a47e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /usr/local/bin/backdoor"
+                }
+            ],
+            "agent": "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc"
+        },
+        "parallel--8a2a9a16-fb12-4e06-9a39-885c7e6a47e6": {
+            "name": "Concurrent Tasks",
+            "description": "Perform system scan and network monitoring in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "while-loop--33e7567e-7e99-45c0-a84c-0167a4ef8285",
+                "if-condition--532e5678-fd43-48ab-aca9-8d94564c8cf6"
+            ]
+        },
+        "while-loop--33e7567e-7e99-45c0-a84c-0167a4ef8285": {
+            "name": "System Threat Scan Loop",
+            "description": "Repeat system scan until it is clean.",
+            "condition": "!scan_is_clean",
+            "on_true": "action--222e4567-e89b-12d3-a456-426614172000",
+            "type": "while-condition",
+            "on_false": "end--d3f31736-a971-451b-9772-f2709a29a5fd"
+        },
+        "action--222e4567-e89b-12d3-a456-426614172000": {
+            "name": "Scan System for Threats",
+            "description": "Perform a full system scan to detect any threats.",
+            "on_completion": "while-loop--33e7567e-7e99-45c0-a84c-0167a4ef8285",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan -full"
+                }
+            ],
+            "agent": "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc"
+        },
+        "if-condition--532e5678-fd43-48ab-aca9-8d94564c8cf6": {
+            "name": "Monitor Network Traffic for Anomalies",
+            "type": "if-condition",
+            "condition": "connection_attempts_detected",
+            "on_true": "action--823e4567-e89b-12d3-a456-426614154000",
+            "on_false": "action--333e4567-e89b-12d3-a456-426614173000"
+        },
+        "action--823e4567-e89b-12d3-a456-426614154000": {
+            "name": "Capture Network Traffic",
+            "description": "Capture network traffic to identify anomalies.",
+            "on_completion": "action--333e4567-e89b-12d3-a456-426614173000",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w /var/log/capture.pcap"
+                }
+            ],
+            "agent": "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc"
+        },
+        "action--333e4567-e89b-12d3-a456-426614173000": {
+            "name": "Reset Compromised Accounts",
+            "description": "Reset passwords for any compromised user accounts.",
+            "on_completion": "end--d3f31736-a971-451b-9772-f2709a29a5fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd username"
+                }
+            ],
+            "agent": "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc"
+        }
+    },
+    "agent_definitions": {
+        "organization--aae9af30-4510-47a3-9469-9c4fc98f52bc": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

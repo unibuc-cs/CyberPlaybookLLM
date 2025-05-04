@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f48afd06-5b8b-4fe9-9c7e-c43bc2e1a6d4",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where a threat actor utilized a scripting interpreter to deploy malicious scripts across several compromised hosts, disrupting services and exfiltrating sensitive data.",
+    "created_by": "identity--c27fdc07-6827-4d7b-8348-af82cbbb6d80",
+    "created": "2023-11-10T15:00:00.000Z",
+    "modified": "2023-11-10T15:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a9506d73-776f-4fb3-bc99-cac33cc19e09",
+    "workflow": {
+        "start--a9506d73-776f-4fb3-bc99-cac33cc19e09": {
+            "on_completion": "action--f3a31876-b21c-4e7e-8869-97a2a9505adf",
+            "type": "start"
+        },
+        "action--f3a31876-b21c-4e7e-8869-97a2a9505adf": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script running with elevated privileges.",
+            "on_completion": "if-condition--d2b41376-d79d-44ce-aaea-7377190e3f91",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--ddfd0c91-dc80-4c19-9dbb-c5b2905a5f9b"
+        },
+        "if-condition--d2b41376-d79d-44ce-aaea-7377190e3f91": {
+            "name": "Check if malicious script was detected running",
+            "type": "if-condition",
+            "condition": "script_detected == true",
+            "on_true": "action--404d7e68-82b9-4cd7-980a-599e742d9deb",
+            "on_false": "action--d48faf33-94df-4a5e-8587-9259bc96c667"
+        },
+        "action--404d7e68-82b9-4cd7-980a-599e742d9deb": {
+            "name": "Remove dropped files",
+            "description": "Remove any files dropped by the malicious script.",
+            "on_completion": "while-condition--527c70a4-25ed-462f-9b87-0c08a0b0330e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--ddfd0c91-dc80-4c19-9dbb-c5b2905a5f9b"
+        },
+        "while-condition--527c70a4-25ed-462f-9b87-0c08a0b0330e": {
+            "name": "Check for remaining dropped files",
+            "description": "Continue to remove files until no suspicious files are found.",
+            "type": "while-condition",
+            "condition": "files_remaining == true",
+            "on_true": "action--404d7e68-82b9-4cd7-980a-599e742d9deb",
+            "on_false": "action--d48faf33-94df-4a5e-8587-9259bc96c667"
+        },
+        "action--d48faf33-94df-4a5e-8587-9259bc96c667": {
+            "name": "Block malicious IP",
+            "description": "Block outbound connections to the identified malicious IP.",
+            "on_completion": "loop--e7d315a8-5715-41b6-87a9-1a02531830da",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.25 -j DROP"
+                }
+            ],
+            "agent": "organization--ddfd0c91-dc80-4c19-9dbb-c5b2905a5f9b"
+        },
+        "loop--e7d315a8-5715-41b6-87a9-1a02531830da": {
+            "name": "Investigate and quarantine affected hosts",
+            "description": "For each compromised host, isolate it from the network.",
+            "type": "loop",
+            "iteration": "foreach host in [\"host-77\", \"host-34\", \"host-22\"]",
+            "next_steps": "action--9a019d9d-9fa3-4069-87ac-af13044c83ff",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "isolate --host $HOST"
+                }
+            ],
+            "variables": {
+                "HOST": [
+                    "host-77",
+                    "host-34",
+                    "host-22"
+                ]
+            }
+        },
+        "action--9a019d9d-9fa3-4069-87ac-af13044c83ff": {
+            "name": "Scan network for further intrusions",
+            "description": "Conduct a scan of the network for further potential intrusions.",
+            "on_completion": "end--c19660df-8a56-4d2f-a4c3-1d2966b8036e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -oA /logs/scan_results $NETWORK"
+                }
+            ],
+            "agent": "organization--ddfd0c91-dc80-4c19-9dbb-c5b2905a5f9b",
+            "variables": {
+                "NETWORK": "192.168.0.0/24"
+            }
+        },
+        "end--c19660df-8a56-4d2f-a4c3-1d2966b8036e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ddfd0c91-dc80-4c19-9dbb-c5b2905a5f9b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--23d10f8a-2f01-4a96-bb3d-fc7b0a771831",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker utilized PowerShell to execute a malicious script, establishing persistence and exfiltrating data.",
+    "created_by": "identity--f9a4377c-2aa4-463f-a3c1-4602886c77bf",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1b2c3d4-e5f6-4a0b-96c4-1d2a3b4e8f90",
+    "workflow": {
+        "start--a1b2c3d4-e5f6-4a0b-96c4-1d2a3b4e8f90": {
+            "on_completion": "parallel--bb2c1e32-34d9-414e-9767-0a7e9b5e2775",
+            "type": "start"
+        },
+        "parallel--bb2c1e32-34d9-414e-9767-0a7e9b5e2775": {
+            "name": "Start Mitigation Actions",
+            "description": "Terminate malicious processes and isolate the host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d4e3eb6e-a6b6-441d-b75b-c37b8b3b42f5",
+                "action--c9b10f0b-4e53-49a0-9624-fc174f9b9251"
+            ]
+        },
+        "action--d4e3eb6e-a6b6-441d-b75b-c37b8b3b42f5": {
+            "name": "Terminate PowerShell Processes",
+            "description": "Terminate any running PowerShell processes associated with the malicious script.",
+            "on_completion": "action--8f0b51f3-a0f3-4dba-83e2-2b8b0b521fd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--7864d805-1df6-469c-8da0-448a2160cfaa"
+        },
+        "action--c9b10f0b-4e53-49a0-9624-fc174f9b9251": {
+            "name": "Isolate Affected Host",
+            "description": "Isolate affected host from the network.",
+            "on_completion": "action--8f0b51f3-a0f3-4dba-83e2-2b8b0b521fd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--7864d805-1df6-469c-8da0-448a2160cfaa"
+        },
+        "action--8f0b51f3-a0f3-4dba-83e2-2b8b0b521fd5": {
+            "name": "Perform Full System Scan",
+            "description": "Perform a full system scan to detect other threats.",
+            "on_completion": "while-condition--2d22a5b1-8e98-4284-a2b3-00f94a0f185e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan --deep"
+                }
+            ],
+            "agent": "organization--7864d805-1df6-469c-8da0-448a2160cfaa"
+        },
+        "while-condition--2d22a5b1-8e98-4284-a2b3-00f94a0f185e": {
+            "name": "Check if Scan is Clean",
+            "description": "Repeat scanning until the system is clean.",
+            "on_true": "end--f3d1d1a1-5f86-4e6e-a9bb-2e10d612be74",
+            "on_false": "action--8f0b51f3-a0f3-4dba-83e2-2b8b0b521fd5",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'"
+        },
+        "end--f3d1d1a1-5f86-4e6e-a9bb-2e10d612be74": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7864d805-1df6-469c-8da0-448a2160cfaa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

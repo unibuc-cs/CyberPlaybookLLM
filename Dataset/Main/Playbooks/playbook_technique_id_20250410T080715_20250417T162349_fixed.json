@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a4b5d78e-957e-43a2-891e-4e68755a61d1",
+    "name": "Mitigation for Exploited Server Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a web server to execute unauthorized scripts. Immediate actions are performed to terminate malicious processes, block outbound connections, scan for infections, evaluate logs, and restore the server.",
+    "created_by": "identity--abc12345-78f9-432d-ba5b-0dac002dc5aa",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f3c7b390-9881-4b13-b002-bf6f91d131ec",
+    "workflow": {
+        "start--f3c7b390-9881-4b13-b002-bf6f91d131ec": {
+            "on_completion": "if-condition--b23d825e-1288-4aa3-8f2f-4973371b3587",
+            "type": "start"
+        },
+        "if-condition--b23d825e-1288-4aa3-8f2f-4973371b3587": {
+            "name": "Check if malicious script is running",
+            "type": "if-condition",
+            "condition": "script_running",
+            "on_true": "action--20960666-4dc6-42f3-ac4a-2356941c65aa",
+            "on_false": "action--6aafcdfe-5eae-42e0-a311-05aab85a6ad9"
+        },
+        "action--20960666-4dc6-42f3-ac4a-2356941c65aa": {
+            "name": "Terminate malicious process",
+            "description": "Terminate the unauthorized script that was executed.",
+            "on_completion": "action--6aafcdfe-5eae-42e0-a311-05aab85a6ad9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37"
+        },
+        "action--6aafcdfe-5eae-42e0-a311-05aab85a6ad9": {
+            "name": "Block outbound connections from suspected host",
+            "description": "Block outbound connections from the host to prevent further malicious activity.",
+            "on_completion": "while-condition--ba1254fc-77e3-4b48-9d7d-2aaf30b7415b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d evil-domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37"
+        },
+        "while-condition--ba1254fc-77e3-4b48-9d7d-2aaf30b7415b": {
+            "name": "Conduct host scan until no infections detected",
+            "description": "Scan the host for malware until no infections are detected.",
+            "on_true": "action--557dde24-72d3-4bbb-b6c8-037243413012",
+            "on_completion": "if-condition--28ea4202-11f2-4ffc-a505-7b0325bad52d",
+            "type": "while-condition",
+            "condition": "no_infection_detected",
+            "next_steps": [
+                "action--557dde24-72d3-4bbb-b6c8-037243413012"
+            ]
+        },
+        "action--557dde24-72d3-4bbb-b6c8-037243413012": {
+            "name": "Conduct a scan of the host",
+            "description": "Perform a scan on the whole host.",
+            "on_completion": "while-condition--ba1254fc-77e3-4b48-9d7d-2aaf30b7415b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --remove"
+                }
+            ],
+            "agent": "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37"
+        },
+        "if-condition--28ea4202-11f2-4ffc-a505-7b0325bad52d": {
+            "name": "Evaluate server logs for redundancy",
+            "type": "if-condition",
+            "condition": "incident_found",
+            "on_true": "action--f27e4869-1da5-4e6f-be11-fec994f4c9ae",
+            "on_false": "if-condition--1164cf25-561a-4a15-8ff8-60cf28be8b04"
+        },
+        "action--f27e4869-1da5-4e6f-be11-fec994f4c9ae": {
+            "name": "Evaluate server logs",
+            "description": "Evaluate logs for any errors that could indicate further issues.",
+            "on_completion": "if-condition--1164cf25-561a-4a15-8ff8-60cf28be8b04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'error' /var/log/httpd/access_log"
+                }
+            ],
+            "agent": "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37"
+        },
+        "if-condition--1164cf25-561a-4a15-8ff8-60cf28be8b04": {
+            "name": "Restore backup and patch vulnerability",
+            "type": "if-condition",
+            "condition": "vulnerability_assessed",
+            "on_true": "action--32767e7a-d788-46a4-9480-71adb8d81a19",
+            "on_false": "end--19a48590-bff0-4692-b751-91edc5ec45f2"
+        },
+        "action--32767e7a-d788-46a4-9480-71adb8d81a19": {
+            "name": "Restore backup and patch vulnerability",
+            "description": "Restore the server from backup and patch any vulnerabilities.",
+            "on_completion": "end--19a48590-bff0-4692-b751-91edc5ec45f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup/webserver/ /var/www/html/ && apt-get install --only-upgrade vulnerable-package"
+                }
+            ],
+            "agent": "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37"
+        },
+        "end--19a48590-bff0-4692-b751-91edc5ec45f2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--10e421f1-9db1-49f7-8302-7a89b06a0c37": {
+            "type": "organization",
+            "name": "SecurityResponseTeam"
+        }
+    }
+}

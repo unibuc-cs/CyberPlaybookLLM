@@ -1,0 +1,152 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--06cb5d3b-4e9d-45f6-8a76-fd1dbb0b54d2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "A playbook to mitigate malicious script execution detected on host systems.",
+    "created_by": "identity--8a503a54-5169-4918-aed6-8f1ee6428ca3",
+    "created": "2023-11-01T14:40:00Z",
+    "modified": "2023-11-01T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--8c7d2eac-941d-42f3-877e-7f094edc3b33",
+    "workflow": {
+        "start--8c7d2eac-941d-42f3-877e-7f094edc3b33": {
+            "on_completion": "parallel--bc8e5aad-7d77-45b2-9c3d-df614c5b8b5f",
+            "type": "start"
+        },
+        "parallel--bc8e5aad-7d77-45b2-9c3d-df614c5b8b5f": {
+            "name": "Execute parallel mitigation actions",
+            "description": "Execute multiple mitigation steps in parallel to quickly address the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5fa8b194-a9af-4e26-b253-7d47b88587f0",
+                "action--ac301e84-7330-4f84-9a58-62b47e6a0e47",
+                "while-loop--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8",
+                "action--d9f8c246-939b-4982-8f99-74558f05b1ac",
+                "action--123e4567-e89b-12d3-a456-426614174000",
+                "if-condition--48640097-5fb4-4349-a6a1-4ce6a5e3cf52"
+            ]
+        },
+        "action--5fa8b194-a9af-4e26-b253-7d47b88587f0": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate processes executing suspicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--72573340-0f2c-41b6-a6be-47803dd6ce6b",
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "action--ac301e84-7330-4f84-9a58-62b47e6a0e47": {
+            "name": "Block Offending IP",
+            "description": "Block network traffic from the suspicious IP address if identified.",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--ee2bdb04-8d1a-49b6-95b3-2175be3b8af5",
+            "condition": "if [ $(fail2ban-client status ssh | grep -c '192.168.1.100') -gt 0 ]",
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "while-loop--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8": {
+            "name": "Scan System for Further Infections",
+            "description": "Perform system scan iteratively until no infections are found.",
+            "type": "while-condition",
+            "condition": "grep -c 'Infected files: 0' /var/log/clamscan.log == 0",
+            "on_true": "action--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8",
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "action--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8": {
+            "name": "Perform ClamAV Scan",
+            "description": "Recursively scan the system with ClamAV and log results.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --log=/var/log/clamscan.log"
+                }
+            ],
+            "agent": "organization--401b2951-f181-41a6-a8d7-3d9b768d7327",
+            "on_completion": "while-loop--1d2b908a-8f8e-4732-aa0e-d6c7d1d6e4e8"
+        },
+        "action--d9f8c246-939b-4982-8f99-74558f05b1ac": {
+            "name": "Reset User Access Credentials",
+            "description": "Reset credentials for user accounts as a security measure.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Reset all user passwords and keys'"
+                }
+            ],
+            "agent": "organization--ee2bdb04-8d1a-49b6-95b3-2175be3b8af5",
+            "step_variables": {
+                "userList": {
+                    "type": "string",
+                    "description": "List of users from passwd file",
+                    "value": "$(cat /etc/passwd | cut -d: -f1)",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "action--123e4567-e89b-12d3-a456-426614174000": {
+            "name": "Apply Security Patches",
+            "description": "Install available security updates and patches.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--72573340-0f2c-41b6-a6be-47803dd6ce6b",
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "if-condition--48640097-5fb4-4349-a6a1-4ce6a5e3cf52": {
+            "name": "Monitor for Repeated Attack Attempts",
+            "description": "Continuously monitor authentication logs for suspicious activities.",
+            "type": "if-condition",
+            "condition": "test -f /var/log/auth.log",
+            "on_true": "action--48640097-5fb4-4349-a6a1-4ce6a5e3cf52",
+            "on_false": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "action--48640097-5fb4-4349-a6a1-4ce6a5e3cf52": {
+            "name": "Log Monitoring",
+            "description": "Tail the authentication log for suspicious activities and alert if any.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/auth.log | grep -i 'suspicious activity'"
+                }
+            ],
+            "agent": "organization--401b2951-f181-41a6-a8d7-3d9b768d7327",
+            "on_completion": "end--1fad44b5-8ca9-402b-ab7a-810260a324d4"
+        },
+        "end--1fad44b5-8ca9-402b-ab7a-810260a324d4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--72573340-0f2c-41b6-a6be-47803dd6ce6b": {
+            "type": "organization",
+            "name": "ABC Security Agency"
+        },
+        "organization--ee2bdb04-8d1a-49b6-95b3-2175be3b8af5": {
+            "type": "organization",
+            "name": "XYZ Cybersecurity Firm"
+        },
+        "organization--401b2951-f181-41a6-a8d7-3d9b768d7327": {
+            "type": "organization",
+            "name": "DEF SOC Team"
+        }
+    }
+}

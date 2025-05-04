@@ -1,0 +1,137 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e90fbcf9-8c6e-4c4e-9cb7-dcabc123456f",
+    "name": "Mitigation Playbook for Shell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web service to execute unauthorized shell commands, drop malware and initiate a reverse shell.",
+    "created_by": "identity--c54191fa-8dbb-4c6d-abfc-78a6fa9877f2",
+    "created": "2025-04-10T10:00:00.000Z",
+    "modified": "2025-04-10T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b59f48e3-f139-4cde-9736-4ac3842b7877",
+    "workflow": {
+        "start--b59f48e3-f139-4cde-9736-4ac3842b7877": {
+            "on_completion": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a",
+            "type": "start"
+        },
+        "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a": {
+            "name": "Mitigation Steps",
+            "description": "Executing multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4",
+                "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9",
+                "if-condition--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f",
+                "loop--f2c6c0a2-8c19-4005-9bfa-76edfcea7820",
+                "action--d7acd6dc-bd44-4b8f-a9be-98596e7b6b49"
+            ]
+        },
+        "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4": {
+            "name": "Kill malicious process",
+            "description": "Kill the malicious process that executed the payload.",
+            "on_completion": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'payload.sh' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--8db7b05d-c576-47fa-9e98-826817ea630c"
+        },
+        "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9": {
+            "name": "Delete malicious script file",
+            "description": "Remove the downloaded malicious script file to prevent further execution.",
+            "on_completion": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/payload.sh"
+                }
+            ],
+            "agent": "organization--aba7520b-1932-4e70-b0f5-ee3e6d0ee07a"
+        },
+        "if-condition--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f": {
+            "name": "Check if hacker's IP is blocked",
+            "type": "if-condition",
+            "condition": "if [ $(iptables -L OUTPUT | grep -c 'hacker-ip') -eq 0 ]",
+            "on_true": "action--75c2e4d0-d440-425d-a562-f09340e4dea3",
+            "on_false": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a"
+        },
+        "loop--f2c6c0a2-8c19-4005-9bfa-76edfcea7820": {
+            "name": "Scan for additional threats",
+            "description": "Run clamscan repeatedly until it indicates that the system is clean.",
+            "on_completion": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a",
+            "type": "while-condition",
+            "condition": "clamscan_result != 'clean'",
+            "next_steps": [
+                "action--68a5325a-ed88-40a8-bba8-88d577449672"
+            ]
+        },
+        "action--d7acd6dc-bd44-4b8f-a9be-98596e7b6b49": {
+            "name": "Audit logs for unauthorized activities",
+            "description": "Check system logs for any unauthorized activities post-incident.",
+            "on_completion": "end--1ff750ea-c1c8-4b65-981a-b0585a68b2b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'unauthorized' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--affd53aa-d512-41dc-8774-2476c084e2d5",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The log file to be audited",
+                    "value": "/var/log/syslog",
+                    "constant": false
+                }
+            }
+        },
+        "end--1ff750ea-c1c8-4b65-981a-b0585a68b2b0": {
+            "type": "end"
+        },
+        "action--75c2e4d0-d440-425d-a562-f09340e4dea3": {
+            "name": "Block outbound connections to attacker's IP",
+            "description": "Using iptables to block any outbound traffic to the attacker's IP.",
+            "on_completion": "parallel--5a915e80-c1f7-47bf-9d87-8c0cdb52769a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d hacker-ip -j DROP"
+                }
+            ],
+            "agent": "organization--8db7b05d-c576-47fa-9e98-826817ea630c"
+        },
+        "action--68a5325a-ed88-40a8-bba8-88d577449672": {
+            "name": "Perform threat scan",
+            "description": "Scan the entire host for additional malware or threats.",
+            "on_completion": "end--1ff750ea-c1c8-4b65-981a-b0585a68b2b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--affd53aa-d512-41dc-8774-2476c084e2d5"
+        }
+    },
+    "agent_definitions": {
+        "organization--8db7b05d-c576-47fa-9e98-826817ea630c": {
+            "type": "organization",
+            "name": "ClientOrganizationDef"
+        },
+        "organization--aba7520b-1932-4e70-b0f5-ee3e6d0ee07a": {
+            "type": "organization",
+            "name": "ClientOrganizationGhj"
+        },
+        "organization--affd53aa-d512-41dc-8774-2476c084e2d5": {
+            "type": "organization",
+            "name": "ClientOrganizationXyz"
+        }
+    }
+}

@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f9b182e-89a4-4b90-b162-9c75305ced95",
+    "name": "Response Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook automates the response to an incident where an attacker executed commands through a compromised command prompt, leading to malware installation and data exfiltration.",
+    "created_by": "identity--cde89f7c-e5c8-4b0d-a456-dce1c847f581",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0f4e5e87-8f00-4c3c-8ab4-9d746c5ca2c5",
+    "workflow": {
+        "start--0f4e5e87-8f00-4c3c-8ab4-9d746c5ca2c5": {
+            "on_completion": "action--6b8b98d8-16d6-4a59-a97a-b642cd7f4613",
+            "type": "start"
+        },
+        "action--6b8b98d8-16d6-4a59-a97a-b642cd7f4613": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious payload.",
+            "on_completion": "action--bda4c712-b53b-41c1-b026-893f5da199ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--7fd21e9e-7934-493a-8050-be41f2c373e1"
+        },
+        "action--bda4c712-b53b-41c1-b026-893f5da199ea": {
+            "name": "Isolate compromised host",
+            "description": "Check connection and isolate the compromised host from the network.",
+            "on_completion": "if-condition--a594e225-c6ba-4130-8181-cc5a149d55ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--7fd21e9e-7934-493a-8050-be41f2c373e1"
+        },
+        "if-condition--a594e225-c6ba-4130-8181-cc5a149d55ef": {
+            "name": "Check if host is still connected",
+            "type": "if-condition",
+            "condition": "is_host_connected('host-12')",
+            "on_true": "action--b1e3f452-8a5c-4be0-a6b7-9774def0d7f8",
+            "on_false": "action--162e0f5b-5ab2-4a17-b95c-e2e76c258425"
+        },
+        "action--b1e3f452-8a5c-4be0-a6b7-9774def0d7f8": {
+            "name": "Perform full system scan",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "while-condition--73e774e3-4f58-44ee-8df7-9851b393bb7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--7fd21e9e-7934-493a-8050-be41f2c373e1"
+        },
+        "while-condition--73e774e3-4f58-44ee-8df7-9851b393bb7a": {
+            "name": "Wait for clean scan",
+            "description": "Repeat the scan until no threats are detected.",
+            "on_completion": "action--162e0f5b-5ab2-4a17-b95c-e2e76c258425",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--b1e3f452-8a5c-4be0-a6b7-9774def0d7f8",
+            "on_false": {
+                "type": "action--2827b1d3-2116-4608-9bf7-648d5c861fe0",
+                "commands": [
+                    {
+                        "type": "bash",
+                        "command": "set scan_clean = true"
+                    }
+                ]
+            }
+        },
+        "action--162e0f5b-5ab2-4a17-b95c-e2e76c258425": {
+            "name": "Change passwords for affected accounts",
+            "description": "Reset passwords for any accounts that may have been accessed.",
+            "on_completion": "action--48a9f7c2-4e9c-4221-9b44-063cc57c5c5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user_name"
+                }
+            ],
+            "agent": "organization--7fd21e9e-7934-493a-8050-be41f2c373e1"
+        },
+        "action--48a9f7c2-4e9c-4221-9b44-063cc57c5c5c": {
+            "name": "Enable enhanced logging",
+            "description": "Increase the level of logging to capture more detailed information about activities.",
+            "on_completion": "end--0b682e01-70d1-406c-8cb5-b1d1430939b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo auditd -set-policy high"
+                }
+            ],
+            "agent": "organization--7fd21e9e-7934-493a-8050-be41f2c373e1"
+        },
+        "end--0b682e01-70d1-406c-8cb5-b1d1430939b4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7fd21e9e-7934-493a-8050-be41f2c373e1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Flag indicating if the system scan returned no threats.",
+            "value": false,
+            "constant": false,
+            "external": false
+        }
+    }
+}

@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3b9a1b9-6b69-4aef-bc2f-46bddadc2eaf",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute arbitrary commands, gaining unauthorized access and creating a backdoor.",
+    "created_by": "identity--0deaac21-8823-4779-b4d3-63f74eab843d",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1e3a1f8d-d614-4c36-999f-d74d22ea2802",
+    "workflow": {
+        "start--1e3a1f8d-d614-4c36-999f-d74d22ea2802": {
+            "on_completion": "action--62e1ab52-9aec-4e1b-bb8f-6b6f97ff233c",
+            "type": "start"
+        },
+        "action--62e1ab52-9aec-4e1b-bb8f-6b6f97ff233c": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the backdoor.",
+            "on_completion": "action--1fdbf795-2383-4be5-bc05-5d9b5b371e89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor_script.sh"
+                }
+            ],
+            "agent": "organization--a835453c-9e87-4e8a-9594-43002046126b"
+        },
+        "action--1fdbf795-2383-4be5-bc05-5d9b5b371e89": {
+            "name": "Remove dropped files",
+            "description": "Remove the backdoor script from the web root directory.",
+            "on_completion": "while-condition--c23613b2-d73b-442d-ae50-c760b7b8bd59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /var/www/html/backdoor_script.sh"
+                }
+            ],
+            "agent": "organization--a835453c-9e87-4e8a-9594-43002046126b"
+        },
+        "while-condition--c23613b2-d73b-442d-ae50-c760b7b8bd59": {
+            "name": "Run system scan",
+            "description": "Perform a full system scan and repeat until the system is clean.",
+            "on_true": "action--c23613b2-d73b-442d-ae50-c760b7b8bd59",
+            "condition": "scan_status != 'clean'",
+            "type": "while-condition"
+        },
+        "action--c23613b2-d73b-442d-ae50-c760b7b8bd59": {
+            "name": "Run full system scan",
+            "description": "Initiate a full system scan for threats.",
+            "on_completion": "decision--73c3c828-87bc-4d87-890f-268813067142",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --bell -i /"
+                }
+            ],
+            "agent": "organization--a835453c-9e87-4e8a-9594-43002046126b"
+        },
+        "end--completion--01a2f9fc-5e4a-4b63-8ef9-f4e905b96c8a": {
+            "type": "end"
+        },
+        "decision--73c3c828-87bc-4d87-890f-268813067142": {
+            "name": "Check Scan Status",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--completion--01a2f9fc-5e4a-4b63-8ef9-f4e905b96c8a",
+            "on_false": "action--c23613b2-d73b-442d-ae50-c760b7b8bd59"
+        }
+    },
+    "agent_definitions": {
+        "organization--a835453c-9e87-4e8a-9594-43002046126b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

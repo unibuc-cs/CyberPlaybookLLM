@@ -1,0 +1,134 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5d1aec2-9c98-4a9d-b09b-3d0e7b479c96",
+    "name": "Mitigation Playbook for Exploited Web Interface Incident",
+    "description": "This playbook mitigates the impacts of an incident involving unauthorized script execution on a vulnerable web interface, including removing a backdoor and reverting configuration changes.",
+    "created_by": "identity--a12a4bc9-ab89-4ff3-91a4-2e1438d76b98",
+    "created": "2023-11-18T15:00:00Z",
+    "modified": "2023-11-18T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--bee97f3d-841c-4ec1-a3bb-97723c7793b0",
+            "type": "start"
+        },
+        "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious scripts.",
+            "on_completion": "action--fe5bd426-bb75-4575-a44e-2321c3a83901",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79"
+        },
+        "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7": {
+            "name": "Remove backdoor files",
+            "description": "Delete any files related to the backdoor if they exist.",
+            "on_completion": "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -e /tmp/backdoor ]; then rm -rf /tmp/backdoor; fi"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79"
+        },
+        "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5": {
+            "name": "Revert configuration changes",
+            "description": "Restore the original configuration of system settings.",
+            "on_completion": "loop--0badae11-12dc-4ddb-9fa1-ec86e0f804c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -R /etc/config"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79"
+        },
+        "loop--0badae11-12dc-4ddb-9fa1-ec86e0f804c6": {
+            "name": "Scan System for Additional Threats",
+            "description": "Loop through scanning until no more threats are found",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan to detect any residual threats.",
+            "on_completion": "loop--0badae11-12dc-4ddb-9fa1-ec86e0f804c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79"
+        },
+        "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490": {
+            "name": "Update firewall rules",
+            "description": "Block the attacker\u2019s IP to prevent reconnection.",
+            "on_completion": "action--fe5bd426-bb75-4575-a44e-2321c3a83901",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79"
+        },
+        "action--fe5bd426-bb75-4575-a44e-2321c3a83901": {
+            "name": "Notify IT security team for incident report",
+            "description": "E-mail IT security about the incident for proper reporting.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mail -s 'Security Incident Report' it-security@organization.com"
+                }
+            ],
+            "agent": "organization--fed289ab-0646-4c96-9c8a-32b92527eb79",
+            "targets": [
+                "individual--78b1d43e-1aaa-4d55-84bc-ec3e4e9e090f"
+            ]
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        },
+        "parallel--bee97f3d-841c-4ec1-a3bb-97723c7793b0": {
+            "name": "Execute Mitigation Actions",
+            "description": "Perform all necessary actions to mitigate the incident",
+            "type": "parallel",
+            "next_steps": [
+                "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070",
+                "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7",
+                "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5",
+                "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--fed289ab-0646-4c96-9c8a-32b92527eb79": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "target_definitions": {
+        "individual--78b1d43e-1aaa-4d55-84bc-ec3e4e9e090f": {
+            "type": "individual",
+            "name": "IT Security Team"
+        }
+    }
+}

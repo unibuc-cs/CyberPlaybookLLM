@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3c7c1d4-37a6-4eec-bbdf-e8754f5035bc",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script via a phishing email, dropping additional payloads and establishing a command and control channel.",
+    "created_by": "identity--efb0e94e-6297-4c4e-bf0f-b7b7a10569c0",
+    "created": "2023-10-12T14:00:00Z",
+    "modified": "2023-10-12T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2feff66-07ce-4b6b-a6ab-c32bfd5b66e7",
+    "workflow": {
+        "start--b2feff66-07ce-4b6b-a6ab-c32bfd5b66e7": {
+            "on_completion": "action--d2e1f1d6-53e5-4d42-88b0-5b25c8bbd6c4",
+            "type": "start"
+        },
+        "action--d2e1f1d6-53e5-4d42-88b0-5b25c8bbd6c4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "parallel--d65e3ab3-5c8b-4cf7-bb4f-113e19966cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--67e72f94-29cb-465a-ba6a-ea35158d2244"
+        },
+        "parallel--d65e3ab3-5c8b-4cf7-bb4f-113e19966cb5": {
+            "name": "Perform Cleanup and Scan",
+            "description": "Handles both file removal and system scanning in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a15f5bfa-1b0e-4c7d-b88e-5f4043e8e261",
+                "action--409d7e83-4f8d-4ac9-9fe7-f862cb9c5b15"
+            ]
+        },
+        "action--a15f5bfa-1b0e-4c7d-b88e-5f4043e8e261": {
+            "name": "Remove dropped files",
+            "description": "Delete files dropped by the malicious script if they exist.",
+            "on_completion": "if-condition--b2d33d82-dc54-4062-b4ab-be6b9f10c55d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/dropped/files/*"
+                }
+            ],
+            "agent": "organization--67e72f94-29cb-465a-ba6a-ea35158d2244"
+        },
+        "if-condition--b2d33d82-dc54-4062-b4ab-be6b9f10c55d": {
+            "name": "Check for remaining dropped files",
+            "type": "if-condition",
+            "condition": "files_exist('/path/to/dropped/files')",
+            "on_true": "action--a15f5bfa-1b0e-4c7d-b88e-5f4043e8e261",
+            "on_false": "action--409d7e83-4f8d-4ac9-9fe7-f862cb9c5b15"
+        },
+        "action--409d7e83-4f8d-4ac9-9fe7-f862cb9c5b15": {
+            "name": "Scan system for threats",
+            "description": "Perform a complete scan of the system for any remaining threats.",
+            "on_completion": "loop--9f966fa6-5184-49fc-bb4d-61d6abd8cfb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--67e72f94-29cb-465a-ba6a-ea35158d2244"
+        },
+        "loop--9f966fa6-5184-49fc-bb4d-61d6abd8cfb5": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the system until no threats are found.",
+            "on_completion": "end--1f45f5ff-9730-4b38-aafc-fc424be394bc",
+            "type": "while-condition",
+            "condition": "scan_results_infected()",
+            "next_steps": [
+                "action--409d7e83-4f8d-4ac9-9fe7-f862cb9c5b15"
+            ]
+        },
+        "end--1f45f5ff-9730-4b38-aafc-fc424be394bc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--67e72f94-29cb-465a-ba6a-ea35158d2244": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

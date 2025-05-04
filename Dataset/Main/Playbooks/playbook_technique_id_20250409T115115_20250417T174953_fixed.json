@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--28a0163d-3bb6-4ae8-91fa-750994cb9ae0",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates the incident of unauthorized PowerShell script execution on a compromised endpoint.",
+    "created_by": "identity--d229a14a-d25f-459d-b0e5-2932ff4e95a9",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--560d7c96-ede7-44cd-a179-3942bff73b4b",
+    "workflow": {
+        "action--b6f27e85-c94c-4c0e-8e28-047c2fee17e9": {
+            "name": "Terminate suspicious PowerShell processes",
+            "description": "Terminate any PowerShell processes that may be executing unauthorized scripts.",
+            "on_completion": "action--422d8d34-c03d-4c78-9fad-4b9cc3c78c02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--4bffca53-d459-42f8-8e68-26edb5cb48b9"
+        },
+        "action--422d8d34-c03d-4c78-9fad-4b9cc3c78c02": {
+            "name": "Identify and isolate the compromised endpoint",
+            "description": "Set the compromised endpoint down to prevent further loss.",
+            "on_completion": "while-condition--e2c2e76f-610c-44f0-b1d2-f04b32071b51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-12 down"
+                }
+            ],
+            "agent": "organization--4bffca53-d459-42f8-8e68-26edb5cb48b9"
+        },
+        "while-condition--e2c2e76f-610c-44f0-b1d2-f04b32071b51": {
+            "name": "Run malware scans until clean",
+            "description": "Continuously scan for malware until no threats are detected.",
+            "on_completion": "action--d1e1aa70-651b-47a2-bd2b-aa2f12d120f0",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--25c25670-c6e9-4c2a-bd10-94594efd8c10",
+            "on_false": "end--f0b97cac-ca0a-4701-8191-2e614a28aa42"
+        },
+        "start--560d7c96-ede7-44cd-a179-3942bff73b4b": {
+            "on_completion": "action--b6f27e85-c94c-4c0e-8e28-047c2fee17e9",
+            "type": "start"
+        },
+        "action--25c25670-c6e9-4c2a-bd10-94594efd8c10": {
+            "name": "Run malware scans for any additional infection",
+            "description": "Perform a malware scan to detect any additional infections.",
+            "on_completion": "while-condition--e2c2e76f-610c-44f0-b1d2-f04b32071b51",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--4bffca53-d459-42f8-8e68-26edb5cb48b9",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the malware scan that indicates if the system is clean or not.",
+                    "value": "result_of_clamscan",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--f0b97cac-ca0a-4701-8191-2e614a28aa42": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4bffca53-d459-42f8-8e68-26edb5cb48b9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

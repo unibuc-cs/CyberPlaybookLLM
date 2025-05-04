@@ -1,0 +1,140 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--de7b591a-937b-4a1d-b0f8-5773e8e104e1",
+    "name": "Incident Response for Script Execution on Internal Server",
+    "description": "This playbook addresses an incident involving the use of Command and Scripting Interpreter to execute malicious scripts.",
+    "created_by": "identity--a614b75f-62cd-4218-9f75-6811e3b27211",
+    "created": "2023-10-19T15:00:00Z",
+    "modified": "2023-10-19T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--37f5c4bd-19bc-4eec-8996-d9640afee52c",
+    "workflow": {
+        "start--37f5c4bd-19bc-4eec-8996-d9640afee52c": {
+            "on_completion": "parallel--a8f4d7ea-b881-4b6d-92ed-d96b56b44dea",
+            "type": "start"
+        },
+        "parallel--a8f4d7ea-b881-4b6d-92ed-d96b56b44dea": {
+            "name": "Execute initial mitigations in parallel",
+            "description": "Kill malicious processes and isolate host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3faaa2b2-4e4d-11ec-81d3-0242ac130003",
+                "decision--4fc33b9a-4e4d-11ec-81d3-0242ac130003"
+            ]
+        },
+        "action--3faaa2b2-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Kill malicious processes",
+            "description": "Terminate processes that are executing malicious scripts.",
+            "on_completion": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--5e55fc47-928a-40df-8fb7-34fe207ee942"
+        },
+        "decision--4fc33b9a-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Check for network anomaly",
+            "description": "Determine if there is network anomaly to decide on host isolation.",
+            "type": "if-condition",
+            "condition": "network_anomaly_detected == True",
+            "on_true": "action--5bd7c9ce-6390-4a67-b96c-8bebdcf7410f",
+            "on_false": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003"
+        },
+        "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Scan and remove scripts until clean",
+            "description": "Thoroughly scan the system and remove any malicious scripts.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--099c9ba9-1a2d-4811-a0c8-8bea14f710e7",
+            "on_completion": "action--64f110a4-4e4d-11ec-81d3-0242ac130003"
+        },
+        "action--64f110a4-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Restart Affected Services",
+            "description": "Restart services to restore functionality.",
+            "on_completion": "decision--6f34b6e4-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart ${service_name}"
+                }
+            ],
+            "agent": "organization--5e55fc47-928a-40df-8fb7-34fe207ee942",
+            "step_variables": {
+                "service_name": {
+                    "type": "string",
+                    "description": "Name of the service to restart",
+                    "value": "apache2",
+                    "constant": true
+                }
+            }
+        },
+        "decision--6f34b6e4-4e4d-11ec-81d3-0242ac130003": {
+            "name": "Check for Threat IOC",
+            "description": "Determines whether an IOC was found to update threat intelligence.",
+            "type": "if-condition",
+            "condition": "threat_ioc_found == True",
+            "on_true": "action--965839ee-da86-48f0-8497-3e0daf235003",
+            "on_false": "end--4d19a275-4dbb-4ed0-9b8b-e5dfad07dff0"
+        },
+        "action--5bd7c9ce-6390-4a67-b96c-8bebdcf7410f": {
+            "name": "Isolate affected host from network",
+            "description": "Restrict network access from the affected host.",
+            "on_completion": "loop--5d6e7bfa-4e4d-11ec-81d3-0242ac130003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--5e55fc47-928a-40df-8fb7-34fe207ee942"
+        },
+        "action--099c9ba9-1a2d-4811-a0c8-8bea14f710e7": {
+            "name": "Perform Scan to Remove Malicious Scripts",
+            "description": "Run a deep system scan to remove all found malicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home --remove"
+                }
+            ],
+            "agent": "organization--5e55fc47-928a-40df-8fb7-34fe207ee942",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Scan result status",
+                    "value": "in-progress",
+                    "constant": false
+                }
+            }
+        },
+        "action--965839ee-da86-48f0-8497-3e0daf235003": {
+            "name": "Update Threat Intelligence Database",
+            "description": "Update threat intelligence database with new IOCs.",
+            "on_completion": "end--4d19a275-4dbb-4ed0-9b8b-e5dfad07dff0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "python update_intel.py"
+                }
+            ],
+            "agent": "organization--5e55fc47-928a-40df-8fb7-34fe207ee942"
+        },
+        "end--4d19a275-4dbb-4ed0-9b8b-e5dfad07dff0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5e55fc47-928a-40df-8fb7-34fe207ee942": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

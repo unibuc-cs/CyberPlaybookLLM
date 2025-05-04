@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2226d3b-5f40-41de-ab2c-74e6d4fef857",
+    "name": "Incident Response Playbook for Web Application Exploitation",
+    "description": "Playbook to handle incidents involving exploitation of a web application leading to unauthorized command execution and data exfiltration.",
+    "created_by": "identity--f3b1b1f5-8cdf-423b-aba3-4789e527eaaa",
+    "created": "2023-10-20T14:35:00.000Z",
+    "modified": "2023-10-20T14:40:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b5e2f317-56ea-4b88-b078-7e6886cb833c",
+    "workflow": {
+        "start--b5e2f317-56ea-4b88-b078-7e6886cb833c": {
+            "on_completion": "action--8baada5e-b6ba-44a8-b4b3-b9c787a06262",
+            "type": "start"
+        },
+        "action--8baada5e-b6ba-44a8-b4b3-b9c787a06262": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious process that was executed by the attacker.",
+            "on_completion": "if-condition--2f626f13-9d96-49ac-8ee9-47e6ec92733e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--514e23d4-283d-4399-bbf3-9d98ce1dd946"
+        },
+        "if-condition--2f626f13-9d96-49ac-8ee9-47e6ec92733e": {
+            "name": "Check for active connections",
+            "type": "if-condition",
+            "condition": "$(netstat -tuln | grep 'external_ip' | wc -l) > 0",
+            "on_true": "loop--9e664c9a-1b23-48d3-a617-43fcc700db47",
+            "on_false": "action--e6269d57-29a1-4795-abab-fef5b4e9cf8f"
+        },
+        "loop--9e664c9a-1b23-48d3-a617-43fcc700db47": {
+            "name": "Terminate suspicious network connections",
+            "description": "Terminate any remaining suspicious network connections in a loop until they are all closed.",
+            "on_completion": "if-condition--2f626f13-9d96-49ac-8ee9-47e6ec92733e",
+            "type": "while-condition",
+            "condition": "$(netstat -tuln | grep 'external_ip' | wc -l) > 0",
+            "on_true": "action--ab3fa933-19a3-4790-8c8f-4b2c295b58a3",
+            "on_false": "action--e6269d57-29a1-4795-abab-fef5b4e9cf8f"
+        },
+        "action--ab3fa933-19a3-4790-8c8f-4b2c295b58a3": {
+            "name": "Kill connections to external IP",
+            "description": "Kill all active connections to the external suspicious IP.",
+            "on_completion": "loop--9e664c9a-1b23-48d3-a617-43fcc700db47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -tuln | grep 'external_ip' | awk '{print $9}' | xargs -r kill -9"
+                }
+            ],
+            "agent": "organization--514e23d4-283d-4399-bbf3-9d98ce1dd946"
+        },
+        "action--e6269d57-29a1-4795-abab-fef5b4e9cf8f": {
+            "name": "Isolate infected host",
+            "description": "Isolate the infected host to prevent further data exfiltration.",
+            "on_completion": "end--3e5e3ef0-7fce-4400-a6d6-3a238d1a6767",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--514e23d4-283d-4399-bbf3-9d98ce1dd946"
+        },
+        "end--3e5e3ef0-7fce-4400-a6d6-3a238d1a6767": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--514e23d4-283d-4399-bbf3-9d98ce1dd946": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

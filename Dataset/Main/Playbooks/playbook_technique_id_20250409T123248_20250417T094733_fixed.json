@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3f4a6595-e913-4a29-b9a9-4e6221b6a7c2",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook outlines the steps to mitigate the impact of a malicious script executed through a compromised command-line interface to exfiltrate sensitive data and establish a backdoor for future access.",
+    "created_by": "identity--0891bd57-d2ab-4ed8-a0b2-14e1e485322f",
+    "created": "2025-10-18T14:32:00Z",
+    "modified": "2025-10-18T14:32:00Z",
+    "revoked": false,
+    "workflow_start": "start--0a5c5996-a93c-4007-8cb3-1ee80a2c39e6",
+    "workflow": {
+        "action--72b258e7-ccf4-4f5a-87a1-34adb973cb4a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious backdoor script.",
+            "on_completion": "parallel--a5967180-4cf9-4617-8d4d-ee29c5e1a48f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3"
+        },
+        "action--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec": {
+            "name": "Remove dropped malicious files",
+            "description": "Delete the backdoor script dropped by the attacker if it exists.",
+            "on_completion": "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /tmp/backdoor.sh ]; then rm -f /tmp/backdoor.sh; fi"
+                }
+            ],
+            "agent": "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3"
+        },
+        "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be": {
+            "name": "Block outbound connection",
+            "description": "Prevent any outbound connections to the attacker-controlled IP.",
+            "on_completion": "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.50 -j DROP"
+                }
+            ],
+            "agent": "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3"
+        },
+        "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d": {
+            "name": "Scan system for other malicious artifacts",
+            "description": "Perform a comprehensive scan of the system for any additional threats.",
+            "on_completion": "decision--03dc7a29-afa3-4ee4-8bd3-f0897d400cbe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3"
+        },
+        "action--089b0212-4c14-4c77-a369-6bfae00e4018": {
+            "name": "Update firewall rules",
+            "description": "Allow SSH connections through the firewall to maintain access for legitimate users.",
+            "on_completion": "end--1e4bf21c-502f-4f53-82c0-1f47195ac802",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw allow from any to any port ${port}"
+                }
+            ],
+            "agent": "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3",
+            "step_variables": {
+                "port": {
+                    "type": "integer",
+                    "description": "SSH port number",
+                    "value": 22,
+                    "constant": true
+                }
+            }
+        },
+        "start--0a5c5996-a93c-4007-8cb3-1ee80a2c39e6": {
+            "on_completion": "action--72b258e7-ccf4-4f5a-87a1-34adb973cb4a",
+            "type": "start"
+        },
+        "parallel--a5967180-4cf9-4617-8d4d-ee29c5e1a48f": {
+            "name": "Perform concurrent mitigation actions",
+            "description": "Execute multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec",
+                "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be",
+                "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d"
+            ]
+        },
+        "decision--03dc7a29-afa3-4ee4-8bd3-f0897d400cbe": {
+            "name": "Check if the system is clean",
+            "type": "if-condition",
+            "condition": "scan_report == 'clean'",
+            "on_true": "action--089b0212-4c14-4c77-a369-6bfae00e4018",
+            "on_false": "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d"
+        },
+        "end--1e4bf21c-502f-4f53-82c0-1f47195ac802": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--31efa4aa-8be7-4ddb-8f63-d56ec87192f3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

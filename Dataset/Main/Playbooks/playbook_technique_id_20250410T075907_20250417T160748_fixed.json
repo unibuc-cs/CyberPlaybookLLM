@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e34f27a3-8501-4c6b-b0b6-8d762c5fb6b2",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Incident",
+    "description": "This playbook enables responses to the execution of a malicious PowerShell script that resulted in data exfiltration.",
+    "created_by": "identity--8d334ab3-7b24-44f7-8084-cc772f6d369c",
+    "created": "2023-10-27T15:00:00Z",
+    "modified": "2023-10-27T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--2017cea0-55fa-49bb-9218-cfd0fc04692a",
+    "workflow": {
+        "action--0a7f959b-5a6e-4a60-9397-f175c6dcbef3": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "conditional--3a8b7496-3dd2-4a9f-8e70-426453470f0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--5729e3ba-df0d-4161-abb9-dfb402ab3b05"
+        },
+        "conditional--3a8b7496-3dd2-4a9f-8e70-426453470f0e": {
+            "name": "Check for external connection",
+            "type": "if-condition",
+            "condition": "external_connection_detected",
+            "on_true": "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0",
+            "on_false": "loop--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356"
+        },
+        "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0": {
+            "name": "Isolate the affected host from network",
+            "description": "Disable the network interface to prevent further data exfiltration.",
+            "on_completion": "loop--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "netsh interface set interface \"Ethernet\" admin=DISABLED"
+                }
+            ],
+            "agent": "organization--5729e3ba-df0d-4161-abb9-dfb402ab3b05"
+        },
+        "loop--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356": {
+            "name": "Scan and remove malicious scripts",
+            "description": "Continuously scan and remove malicious PowerShell scripts from the system.",
+            "on_completion": "action--d2cf62f8-5e72-4cf3-9b7e-7982c2b9afa4",
+            "type": "while-condition",
+            "condition": "no_malicious_files_detected",
+            "on_true": "action--d2cf62f8-5e72-4cf3-9b7e-7982c2b9afa4",
+            "on_false": {
+                "next_steps": {
+                    "action-loop": "action--4f6c9ad9-e03d-4e0b-937a-665f5f21b1e0"
+                }
+            },
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "powershell.exe -Command \"Get-ChildItem -Path C:\\ -Recurse -Include *.ps1 | ForEach-Object { Remove-Item $_.FullName -Force }\""
+                }
+            ],
+            "agent": "organization--5729e3ba-df0d-4161-abb9-dfb402ab3b05"
+        },
+        "action--d2cf62f8-5e72-4cf3-9b7e-7982c2b9afa4": {
+            "name": "Reset compromised credentials",
+            "description": "Revokes and resets credentials that may have been compromised.",
+            "on_completion": "action--5d9f6e13-d84b-41fa-9c2a-4b1f3f004356",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-Password -User compromisedUser -Length 15"
+                }
+            ],
+            "agent": "organization--9503a7d3-256f-48a9-9cfd-5f04e9583e0c"
+        },
+        "end--b7d55d6e-1f6a-4e4b-b9b1-c15b70f4b914": {
+            "type": "end"
+        },
+        "start--2017cea0-55fa-49bb-9218-cfd0fc04692a": {
+            "on_completion": "action--0a7f959b-5a6e-4a60-9397-f175c6dcbef3",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--5729e3ba-df0d-4161-abb9-dfb402ab3b05": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--9503a7d3-256f-48a9-9cfd-5f04e9583e0c": {
+            "type": "organization",
+            "name": "AnotherOrganization"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d364d885-1b87-4279-b28b-01b05f6a7c4a",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to create backdoors for further exploitation and data exfiltration.",
+    "created_by": "identity--f71e92c3-d84c-475c-9ec4-78f02c92fde7",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--f127bcb1-2ac3-4e44-a6ff-3e1f89cb0f90",
+            "type": "start"
+        },
+        "action--f127bcb1-2ac3-4e44-a6ff-3e1f89cb0f90": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process responsible for executing malicious scripts.",
+            "on_completion": "if-condition--c94f8e29-ee9c-48ea-bb68-1495d20e9204",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-script.sh"
+                }
+            ],
+            "agent": "organization--f8aaa1a7-8b3c-456a-b97f-520fae161e99"
+        },
+        "if-condition--c94f8e29-ee9c-48ea-bb68-1495d20e9204": {
+            "name": "Check for external IP communications",
+            "type": "if-condition",
+            "condition": "connection_established == true",
+            "on_true": "action--c94f8e29-ee9c-48ea-bb68-1495d20e9204",
+            "on_false": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73"
+        },
+        "action--c94f8e29-ee9c-48ea-bb68-1495d20e9204": {
+            "name": "Block external IP communications",
+            "description": "Block outbound connections to the malicious IP address.",
+            "on_completion": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--f8aaa1a7-8b3c-456a-b97f-520fae161e99"
+        },
+        "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73": {
+            "name": "Scan system for other malicious artifacts",
+            "description": "Perform a recursive scan on the entire system to identify other potential threats.",
+            "on_completion": "while-condition--f15f5fde-820d-4a98-8524-05a2d269cf80",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--f8aaa1a7-8b3c-456a-b97f-520fae161e99"
+        },
+        "while-condition--f15f5fde-820d-4a98-8524-05a2d269cf80": {
+            "name": "Repeat scan loop",
+            "description": "Repeat the scanning process until the scan result is clean",
+            "on_true": "action--d542d42b-cf27-47f8-9c42-1e831cbd2a73",
+            "type": "while-condition",
+            "condition": "scan_clean == false"
+        },
+        "end--5d063002-7286-492b-a234-2ac5fa168486": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f8aaa1a7-8b3c-456a-b97f-520fae161e99": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "variables": {
+        "connection_established": {
+            "type": "boolean",
+            "description": "Variable indicating if a connection to an external IP is established.",
+            "value": false,
+            "constant": false
+        },
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Variable indicating if the system scan is clean.",
+            "value": false,
+            "constant": false
+        }
+    }
+}

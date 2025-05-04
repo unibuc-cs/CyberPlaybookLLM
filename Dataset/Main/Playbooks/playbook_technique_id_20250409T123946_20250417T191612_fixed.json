@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c1b5d55f-ec1a-43d6-8176-e0d8f9d9b28c",
+    "name": "Mitigation Playbook for PowerShell Malware Download Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to download and execute malware on a corporate network.",
+    "created_by": "identity--b3e1c8f3-56c1-44be-bdba-0be8f8d671c5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--45bcbf83-ff09-4fcd-bb80-963a2fa728d2",
+    "workflow": {
+        "start--45bcbf83-ff09-4fcd-bb80-963a2fa728d2": {
+            "on_completion": "parallel--c6d4f788-07b9-46b1-a79f-dd9c1b5cad61",
+            "type": "start"
+        },
+        "parallel--c6d4f788-07b9-46b1-a79f-dd9c1b5cad61": {
+            "name": "Execute Mitigations",
+            "description": "Execute multiple mitigation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b2e3d200-3f90-4bdf-a3d0-5cf7ddf48ff1",
+                "if-condition--a4224b41-1d31-4705-b1e2-4b8d1e4e75b4",
+                "action--4ff622eb-e945-469f-b45e-725a6c67efc9"
+            ]
+        },
+        "action--b2e3d200-3f90-4bdf-a3d0-5cf7ddf48ff1": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any running processes related to the malware.",
+            "on_completion": "action--4ff622eb-e945-469f-b45e-725a6c67efc9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--98444baa-ff90-485f-bef7-ae5f8dc2c82b"
+        },
+        "if-condition--a4224b41-1d31-4705-b1e2-4b8d1e4e75b4": {
+            "name": "Check If Malicious File Exists",
+            "type": "if-condition",
+            "condition": "test -e /tmp/malware_file",
+            "on_true": "action--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b",
+            "on_false": "action--4ff622eb-e945-469f-b45e-725a6c67efc9"
+        },
+        "action--0aee2f36-7ebf-4a3d-a27f-8c2d9b32111b": {
+            "name": "Remove Dropped Files",
+            "description": "Delete the malware file dropped in the temp directory.",
+            "on_completion": "action--4ff622eb-e945-469f-b45e-725a6c67efc9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware_file"
+                }
+            ],
+            "agent": "organization--98444baa-ff90-485f-bef7-ae5f8dc2c82b"
+        },
+        "action--4ff622eb-e945-469f-b45e-725a6c67efc9": {
+            "name": "Run Endpoint Detection Scan",
+            "description": "Perform a full endpoint detection scan to identify and remove any other potential threats.",
+            "on_completion": "while-condition--5d81a07e-a659-4e8c-9ec4-be2d2648d53e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full-scan"
+                }
+            ],
+            "agent": "organization--98444baa-ff90-485f-bef7-ae5f8dc2c82b"
+        },
+        "while-condition--5d81a07e-a659-4e8c-9ec4-be2d2648d53e": {
+            "name": "Check Scan Status",
+            "description": "Repeat scan until it is clean.",
+            "on_completion": "end--c3c501b2-0839-4273-b22f-b42b238f3ab3",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--4ff622eb-e945-469f-b45e-725a6c67efc9"
+        },
+        "end--c3c501b2-0839-4273-b22f-b42b238f3ab3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--98444baa-ff90-485f-bef7-ae5f8dc2c82b": {
+            "type": "organization",
+            "name": "YourOrganizationName"
+        }
+    }
+}

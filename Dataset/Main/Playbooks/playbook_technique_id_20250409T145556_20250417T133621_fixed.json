@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5a77b1ed-4384-4af0-a420-e580ff58b5e9",
+    "name": "Response Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via the command interpreter, leading to unauthorized file modifications and potential data exfiltration.",
+    "created_by": "identity--e238d904-e15e-4c4e-910a-d6f17ed9790f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d5a830ce-7fcb-4eee-a995-d592b0d2bfc1",
+    "workflow": {
+        "start--d5a830ce-7fcb-4eee-a995-d592b0d2bfc1": {
+            "on_completion": "action--4f273eb3-ff71-4137-b41b-ae0194bf4005",
+            "type": "start"
+        },
+        "action--4f273eb3-ff71-4137-b41b-ae0194bf4005": {
+            "name": "Kill all suspicious processes",
+            "description": "Terminate any processes that are associated with malicious commands.",
+            "on_completion": "parallel--b5bf6c41-0b3d-4c12-9c31-07d620f5d6b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4"
+        },
+        "parallel--b5bf6c41-0b3d-4c12-9c31-07d620f5d6b1": {
+            "name": "Mitigation Actions",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f9f15e06-eb14-4fda-8e36-e7485b7cfdd7",
+                "action--f1b2a479-49b6-4b3c-8e15-f5c9624f1df7",
+                "action--c7d99dfa-47b5-4e05-9d83-ef2780564f8f",
+                "action--26550d46-9a9f-4085-9d55-e2faf173df0e"
+            ]
+        },
+        "action--f9f15e06-eb14-4fda-8e36-e7485b7cfdd7": {
+            "name": "Scan system for known malware",
+            "description": "Perform a comprehensive scan of the system.",
+            "on_completion": "while-condition--a8cc00dd-955f-4cc6-b7e0-ad73cee07e8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4"
+        },
+        "while-condition--a8cc00dd-955f-4cc6-b7e0-ad73cee07e8f": {
+            "name": "Check scan result",
+            "description": "Repeat scanning until the system is clean.",
+            "on_completion": "action--231cfd3f-bac6-45a0-8f87-b21e3b89be90",
+            "type": "while-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--f9f15e06-eb14-4fda-8e36-e7485b7cfdd7"
+        },
+        "action--f1b2a479-49b6-4b3c-8e15-f5c9624f1df7": {
+            "name": "Rollback unauthorized file modifications",
+            "description": "Restore affected files to their previous state.",
+            "on_completion": "action--26550d46-9a9f-4085-9d55-e2faf173df0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "git checkout HEAD -- /path_to_affected_files"
+                }
+            ],
+            "agent": "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4",
+            "conditional": {
+                "condition": "unauthorized_changes_detected"
+            }
+        },
+        "action--26550d46-9a9f-4085-9d55-e2faf173df0e": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Prevent communications with known malicious IPs.",
+            "on_completion": "action--bbd0b1bf-f38c-4691-b0b8-cf2bb86e4db4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4"
+        },
+        "action--bbd0b1bf-f38c-4691-b0b8-cf2bb86e4db4": {
+            "name": "Notify security team of the incident",
+            "description": "Alert the security team regarding the detected incident.",
+            "on_completion": "end--f2b3d8bc-8b00-48e3-89c6-b7ee281b6c9b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-22' | mail -s 'Security Alert' security_team@company.com"
+                }
+            ],
+            "agent": "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4"
+        },
+        "end--f2b3d8bc-8b00-48e3-89c6-b7ee281b6c9b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e7750efa-2a0f-4cbe-8e03-c771059f32e4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

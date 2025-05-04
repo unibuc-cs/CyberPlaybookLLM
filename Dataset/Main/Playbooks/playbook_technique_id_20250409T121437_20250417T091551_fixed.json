@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7114d30-f8ae-4d7b-8a1b-871e6262e4ec",
+    "name": "Mitigation Playbook for Web Server Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web server, leading to execution of unauthorized commands, data exfiltration, and system compromise.",
+    "created_by": "identity--5e5e3f1d-3ccd-47db-bcaa-d42d7200f7c6",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--b64dff51-7621-4df3-bef4-45b5c4004913",
+    "workflow": {
+        "start--b64dff51-7621-4df3-bef4-45b5c4004913": {
+            "on_completion": "parallel--02772d2e-ff3f-4bf3-a8be-bd1e23a9c244",
+            "type": "start"
+        },
+        "parallel--02772d2e-ff3f-4bf3-a8be-bd1e23a9c244": {
+            "name": "Initial Mitigation Steps",
+            "description": "Execute initial response actions in parallel to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4b8e67c9-4aab-436b-9c81-4a324cad325a",
+                "action--fbf7b1a0-d0af-45bb-b154-8c8e5040629f",
+                "action--4a7e1d2f-bba3-4a5b-a65e-1b907af1be6b"
+            ]
+        },
+        "action--4b8e67c9-4aab-436b-9c81-4a324cad325a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes on the affected systems.",
+            "on_completion": "action--fbf7b1a0-d0af-45bb-b154-8c8e5040629f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d"
+        },
+        "action--fbf7b1a0-d0af-45bb-b154-8c8e5040629f": {
+            "name": "Isolate affected hosts",
+            "description": "Block affected hosts from the network to prevent further compromise.",
+            "on_completion": "action--4a7e1d2f-bba3-4a5b-a65e-1b907af1be6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ipblock host-10; ipblock host-12; ipblock host-15"
+                }
+            ],
+            "agent": "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d"
+        },
+        "action--4a7e1d2f-bba3-4a5b-a65e-1b907af1be6b": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a full system scan and loop until the system is clean.",
+            "on_completion": "if-condition--bbee293b-4714-42fb-b28f-b016166aac06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --full"
+                }
+            ],
+            "agent": "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d"
+        },
+        "if-condition--bbee293b-4714-42fb-b28f-b016166aac06": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--d2e540bc-f43a-4ba6-991c-2f1b5cf1e3b8",
+            "on_false": "action--4a7e1d2f-bba3-4a5b-a65e-1b907af1be6b"
+        },
+        "action--d2e540bc-f43a-4ba6-991c-2f1b5cf1e3b8": {
+            "name": "Restore systems from backup",
+            "description": "Restore affected systems from backups if available.",
+            "on_completion": "action--a7f9d4a8-8b3f-4879-be62-df77b5800865",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_backup --host host-10"
+                }
+            ],
+            "agent": "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d",
+            "conditions": [
+                {
+                    "condition": "backup_available",
+                    "true_case": "Proceed with restoration.",
+                    "false_case": "Skip restoration."
+                }
+            ]
+        },
+        "action--a7f9d4a8-8b3f-4879-be62-df77b5800865": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Update firewall rules to block IPs used by the attacker.",
+            "on_completion": "end--c19f66b5-2197-42dd-9033-91718da4276d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=\"ipv4\" source address=\"192.168.1.100\" reject'"
+                }
+            ],
+            "agent": "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d"
+        },
+        "end--c19f66b5-2197-42dd-9033-91718da4276d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b5580643-6b2a-4ee9-8aeb-eb697d1c889d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_definitions": {
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the system scan.",
+            "constant": false,
+            "external": true
+        },
+        "backup_available": {
+            "type": "boolean",
+            "description": "Flag to check if backup is available.",
+            "constant": false,
+            "external": true
+        }
+    }
+}

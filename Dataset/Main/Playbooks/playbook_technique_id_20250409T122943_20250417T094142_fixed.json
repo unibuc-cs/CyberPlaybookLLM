@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8ef82fa-5fd2-4bf7-ab5c-47a790228ab5",
+    "name": "Mitigation Playbook for Command Interpreter Exploit Incident",
+    "description": "This playbook mitigates an incident where an attacker exploited a vulnerability in the web application to execute arbitrary commands.",
+    "created_by": "identity--f3ab0d51-a0b2-4d69-ba4d-96c0bb233774",
+    "created": "2023-10-02T10:00:00.000Z",
+    "modified": "2023-10-02T10:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b93db6a9-febb-40fb-b9ab-987feb53a6cd",
+    "workflow": {
+        "action--0a1d5073-995f-4b58-ad59-4bc072c1de11": {
+            "name": "Kill malicious process",
+            "description": "Terminate the reverse shell script launched by the attacker.",
+            "on_completion": "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell_script.sh"
+                }
+            ],
+            "agent": "organization--3a8fc885-3bb8-4d15-b25c-cce7269c7e89"
+        },
+        "if-condition--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Check if dropped payload exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/suspicious_payload",
+            "on_true": "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b",
+            "on_false": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3"
+        },
+        "action--c45dc86e-4cd7-4ed0-b7ef-bd40988e1f4b": {
+            "name": "Remove dropped payload",
+            "description": "Delete the suspicious payload from the /tmp directory.",
+            "on_completion": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--3a8fc885-3bb8-4d15-b25c-cce7269c7e89"
+        },
+        "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3": {
+            "name": "Scan system for other anomalies",
+            "description": "Repeatedly run a security scan until the scan results are clean.",
+            "on_completion": "while-condition--612b5d46-d516-49f5-84ca-621f68ea87ce",
+            "type": "action",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the last scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "description": "Count of how many scans have been run",
+                    "value": 0,
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan"
+                }
+            ],
+            "agent": "organization--3a8fc885-3bb8-4d15-b25c-cce7269c7e89"
+        },
+        "start--b93db6a9-febb-40fb-b9ab-987feb53a6cd": {
+            "on_completion": "action--0a1d5073-995f-4b58-ad59-4bc072c1de11",
+            "type": "start"
+        },
+        "while-condition--612b5d46-d516-49f5-84ca-621f68ea87ce": {
+            "name": "Scan Until Clean",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f1a8dbf4-c35a-407e-956e-46c2a5a1e7a3",
+            "on_false": "end--3f51b631-198e-4df4-8db5-9cfa521895c7",
+            "loop": true
+        },
+        "end--3f51b631-198e-4df4-8db5-9cfa521895c7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3a8fc885-3bb8-4d15-b25c-cce7269c7e89": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

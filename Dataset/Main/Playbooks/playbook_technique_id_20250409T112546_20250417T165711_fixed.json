@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7e77e3b4-4a4a-4a2a-93b1-0f939ac69eb6",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker executed PowerShell scripts to exfiltrate sensitive data.",
+    "created_by": "identity--34567890-bc73-4b5d-b5c9-9463ae12bf13",
+    "created": "2023-10-15T08:50:00Z",
+    "modified": "2023-10-15T08:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--e3db1a2c-2b8b-4e8c-a460-2de1840f6a5c",
+    "workflow": {
+        "start--e3db1a2c-2b8b-4e8c-a460-2de1840f6a5c": {
+            "type": "start",
+            "on_completion": "if-condition--b41c4622-c22d-46ad-af15-9a1e7c92c5d0"
+        },
+        "if-condition--b41c4622-c22d-46ad-af15-9a1e7c92c5d0": {
+            "name": "Check if PowerShell is running",
+            "type": "if-condition",
+            "condition": "powershell_running == true",
+            "on_true": "action--b41fe7ad-f075-4c23-bc62-1aa7e65cb8aa",
+            "on_false": "action--c21df6b8-7926-4fa3-abc4-df88211a7f4e"
+        },
+        "action--b41fe7ad-f075-4c23-bc62-1aa7e65cb8aa": {
+            "name": "Terminate PowerShell processes",
+            "description": "Terminate any running PowerShell processes to stop further execution of malicious scripts.",
+            "type": "action",
+            "agent": "organization--9c2e1e13-5a21-4414-8951-113959691165",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "on_completion": "action--c21df6b8-7926-4fa3-abc4-df88211a7f4e"
+        },
+        "action--c21df6b8-7926-4fa3-abc4-df88211a7f4e": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-22 to prevent further data exfiltration.",
+            "type": "action",
+            "agent": "organization--9c2e1e13-5a21-4414-8951-113959691165",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "on_completion": "while-condition--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a"
+        },
+        "while-condition--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a": {
+            "name": "Perform Network Scan Loop",
+            "description": "Run network scans until no threats are identified in the network.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a",
+            "on_false": "end--f08c21c4-f5a1-4520-a325-e88abfbd7cf7"
+        },
+        "action--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a": {
+            "name": "Perform a network scan",
+            "description": "Scan the local network for any remaining threats.",
+            "type": "action",
+            "agent": "organization--9c2e1e13-5a21-4414-8951-113959691165",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "on_completion": "check_for_threats--065b51d6-0e00-4dc7-9596-408f79b08e9d"
+        },
+        "end--f08c21c4-f5a1-4520-a325-e88abfbd7cf7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9c2e1e13-5a21-4414-8951-113959691165": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "powershell_running": {
+            "type": "boolean",
+            "value": true,
+            "description": "Indicates if PowerShell processes are running."
+        },
+        "threats_found": {
+            "type": "boolean",
+            "value": true,
+            "description": "Indicates if any threats were found during network scanning."
+        }
+    }
+}

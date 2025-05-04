@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3f1f6d4-6fd3-4c87-9b9b-f7a5f1075ae7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a scripting interpreter to execute malicious commands on the compromised server.",
+    "created_by": "identity--4096c56c-9a35-491e-b869-741d871c3cbd",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f75d6a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f75d6a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--aaa27e2b-9fce-4e9c-a968-9e209c8a5cfa",
+            "type": "start"
+        },
+        "action--aaa27e2b-9fce-4e9c-a968-9e209c8a5cfa": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the suspicious script executing on the server.",
+            "on_completion": "if-condition--3cbd7e6e-3b8e-4a6a-bcda-c55cb0f66a89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--dd555b89-96ff-4bea-b517-5daa813e7c89"
+        },
+        "if-condition--3cbd7e6e-3b8e-4a6a-bcda-c55cb0f66a89": {
+            "name": "Check if suspicious activity is detected",
+            "type": "if-condition",
+            "condition": "suspicious_activity_found",
+            "on_true": "action--3cbd7e6e-3b8e-4a6a-bcda-c55cb0f66a89",
+            "on_false": "action--d1f0e758-54c1-4fb9-b5dc-9e50d9d67ebe"
+        },
+        "action--3cbd7e6e-3b8e-4a6a-bcda-c55cb0f66a89": {
+            "name": "Disconnect network connection",
+            "description": "Block outbound network connections from compromised server.",
+            "on_completion": "parallel--c3026308-dc5b-4c3b-8f9a-c8dda72343e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s external_ip -j DROP"
+                }
+            ],
+            "agent": "organization--dd555b89-96ff-4bea-b517-5daa813e7c89"
+        },
+        "action--d1f0e758-54c1-4fb9-b5dc-9e50d9d67ebe": {
+            "name": "Check logs for unusual activity",
+            "description": "Grep the syslog for any suspicious activity.",
+            "on_completion": "parallel--c3026308-dc5b-4c3b-8f9a-c8dda72343e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious_action' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--dd555b89-96ff-4bea-b517-5daa813e7c89"
+        },
+        "parallel--c3026308-dc5b-4c3b-8f9a-c8dda72343e2": {
+            "name": "Run clean-up actions",
+            "description": "Scanning and updating firewall rules to prevent future connections.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c3026308-dc5b-4c3b-8f9a-c8dda72343e2",
+                "action--f621b012-29be-4b79-a335-7ffc5fd013be"
+            ]
+        },
+        "action--c3026308-dc5b-4c3b-8f9a-c8dda72343e2": {
+            "name": "Scan the system",
+            "description": "Search for any remaining traces of the attack.",
+            "on_completion": "while-condition--84a2cab3-8e43-4912-b17a-b0227ce49695",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--dd555b89-96ff-4bea-b517-5daa813e7c89"
+        },
+        "action--f621b012-29be-4b79-a335-7ffc5fd013be": {
+            "name": "Update firewall rules",
+            "description": "Prevent future connections from the identified external IP.",
+            "on_completion": "end--b50f1a77-40f9-4de3-89ed-67ee0bbf85b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from external_ip"
+                }
+            ],
+            "agent": "organization--dd555b89-96ff-4bea-b517-5daa813e7c89"
+        },
+        "end--b50f1a77-40f9-4de3-89ed-67ee0bbf85b1": {
+            "type": "end"
+        },
+        "while-condition--84a2cab3-8e43-4912-b17a-b0227ce49695": {
+            "name": "Verify if scan is clean",
+            "description": "Repeat scanning until the system is clean.",
+            "on_true": "action--c3026308-dc5b-4c3b-8f9a-c8dda72343e2",
+            "on_false": "end--b50f1a77-40f9-4de3-89ed-67ee0bbf85b1",
+            "type": "while-condition",
+            "condition": "scan_results == clean"
+        }
+    },
+    "agent_definitions": {
+        "organization--dd555b89-96ff-4bea-b517-5daa813e7c89": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

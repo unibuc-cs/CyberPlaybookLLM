@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--667d3f82-f2c7-4671-93b3-89f10b0cdd9e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting interpreter to execute malicious commands on the target system, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--49e39a5e-2a77-41a0-bcb8-60cc32fa5a29",
+    "created": "2023-10-10T09:45:00Z",
+    "modified": "2023-10-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5c0c5e4d-63fb-41a8-a68b-e87021a6d98c",
+    "workflow": {
+        "start--5c0c5e4d-63fb-41a8-a68b-e87021a6d98c": {
+            "on_completion": "parallel--f0fd3f4b-19a9-4982-bda1-539e7aa48b99",
+            "type": "start"
+        },
+        "parallel--f0fd3f4b-19a9-4982-bda1-539e7aa48b99": {
+            "name": "Execute Mitigations",
+            "description": "Trigger parallel mitigations for the malicious activity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c1f6a94b-cae9-4ce7-9d1f-ff02e1a1718a",
+                "action--c14e1b6c-d3e4-4b36-adc5-0e4e2c0ef2f2"
+            ]
+        },
+        "action--c1f6a94b-cae9-4ce7-9d1f-ff02e1a1718a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script to halt unauthorized activity.",
+            "on_completion": "action--6a2a0c99-e26a-4f68-8c73-edf6588bdd83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--1182a7fb-6299-4c97-bc11-d4699289bfd5"
+        },
+        "action--c14e1b6c-d3e4-4b36-adc5-0e4e2c0ef2f2": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect the affected host to prevent further data exfiltration.",
+            "on_completion": "while-condition--b54019bf-9849-44e2-8f8a-8f302b44b8fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--1182a7fb-6299-4c97-bc11-d4699289bfd5"
+        },
+        "while-condition--b54019bf-9849-44e2-8f8a-8f302b44b8fb": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan on the isolated host.",
+            "on_completion": "decision--3e1aa631-7a43-467d-a756-0e45ee1fd597",
+            "type": "while-condition",
+            "condition": "scan_result == false",
+            "on_true": "action--d47c21be-23cc-42dc-b8ab-5b2aecb328cc",
+            "on_false": "end--879a42d0-1908-4d00-9010-da6b19befe3b"
+        },
+        "action--d47c21be-23cc-42dc-b8ab-5b2aecb328cc": {
+            "name": "Scan for malware",
+            "description": "Run malware scanning tool on the affected system.",
+            "on_completion": "while-condition--b54019bf-9849-44e2-8f8a-8f302b44b8fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--1182a7fb-6299-4c97-bc11-d4699289bfd5",
+            "step_variables": {
+                "scan_result": {
+                    "type": "boolean",
+                    "description": "Result of malware scan indicating if threats were detected.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "decision--3e1aa631-7a43-467d-a756-0e45ee1fd597": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result == true",
+            "on_true": "end--879a42d0-1908-4d00-9010-da6b19befe3b",
+            "on_false": "while-condition--b54019bf-9849-44e2-8f8a-8f302b44b8fb"
+        },
+        "end--879a42d0-1908-4d00-9010-da6b19befe3b": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1182a7fb-6299-4c97-bc11-d4699289bfd5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

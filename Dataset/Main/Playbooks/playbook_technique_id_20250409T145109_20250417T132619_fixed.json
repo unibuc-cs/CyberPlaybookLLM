@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c82b2ff4-9530-4d54-a070-c1aa706d12bc",
+    "name": "Mitigation Playbook for Remote Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute commands remotely and compromise sensitive data.",
+    "created_by": "identity--857c4f42-3b88-4f3b-bae5-ea5527866edd",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e812c102-1c48-4f51-9ab0-e13a5a1de35c",
+    "workflow": {
+        "start--e812c102-1c48-4f51-9ab0-e13a5a1de35c": {
+            "on_completion": "action--e3b56f95-b545-4721-8c95-e345443b535f",
+            "type": "start"
+        },
+        "action--e3b56f95-b545-4721-8c95-e345443b535f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the suspicious script to stop further execution.",
+            "on_completion": "decision--1e8c9f4f-8c3e-4451-a120-c038f1dd1ffa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--8913a2bc-cda0-4ab4-84aa-44316b2bc898"
+        },
+        "action--bb51d7c2-9eeb-4f20-8fd9-69ddde4b57d4": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious payload to prevent further compromise.",
+            "on_completion": "loop--58ea0d11-09bf-4af6-ad7c-a774cededcd2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--8913a2bc-cda0-4ab4-84aa-44316b2bc898"
+        },
+        "action--c26efbc2-6bf3-41a3-b7bc-c22e20f617f0": {
+            "name": "Initiate system scan",
+            "description": "Perform a comprehensive system scan for any malicious entities.",
+            "on_completion": "set-scan-status--ffa0472f-3efe-4c35-83d5-7435b80bfc3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--8913a2bc-cda0-4ab4-84aa-44316b2bc898"
+        },
+        "end--fa7c6c4b-66cd-4f51-b5b6-d853ab62909c": {
+            "type": "end"
+        },
+        "decision--1e8c9f4f-8c3e-4451-a120-c038f1dd1ffa": {
+            "name": "Check if malicious payload exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malicious_payload ]",
+            "on_true": "action--bb51d7c2-9eeb-4f20-8fd9-69ddde4b57d4",
+            "on_false": "loop--58ea0d11-09bf-4af6-ad7c-a774cededcd2"
+        },
+        "loop--58ea0d11-09bf-4af6-ad7c-a774cededcd2": {
+            "name": "Run full system scan",
+            "description": "Execute a system scan to ensure no other threats are present.",
+            "on_completion": "end--fa7c6c4b-66cd-4f51-b5b6-d853ab62909c",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c26efbc2-6bf3-41a3-b7bc-c22e20f617f0",
+            "on_false": "end--fa7c6c4b-66cd-4f51-b5b6-d853ab62909c"
+        },
+        "set-scan-status--ffa0472f-3efe-4c35-83d5-7435b80bfc3f": {
+            "name": "Update scan status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_status=$(clamscan --quiet --return-code=0 /tmp)"
+                }
+            ],
+            "agent": "organization--8913a2bc-cda0-4ab4-84aa-44316b2bc898",
+            "on_completion": "loop--58ea0d11-09bf-4af6-ad7c-a774cededcd2"
+        }
+    },
+    "agent_definitions": {
+        "organization--8913a2bc-cda0-4ab4-84aa-44316b2bc898": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

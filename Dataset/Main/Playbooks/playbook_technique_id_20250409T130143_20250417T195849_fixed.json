@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4e6c2c0-dbe4-4e02-85cf-e8b25e8e2f9e",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploit",
+    "description": "This playbook responds to an attack exploiting a vulnerability in a web application to exfiltrate data disguised as legitimate HTTP traffic.",
+    "created_by": "identity--df7ecd84-b3a5-4d83-9e5f-e71e49a5e463",
+    "created": "2023-10-15T11:00:00.000Z",
+    "modified": "2023-10-15T11:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9d94f3d4-9d45-4c54-ac58-ac36040bb805",
+    "workflow": {
+        "parallel--abcd1234-abcd-1234-abcd-abcdef123456": {
+            "name": "Response Actions",
+            "description": "Execute parallel actions to mitigate the attack.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c2b5e518-7169-42d0-8107-08d3b3332d72",
+                "action--4eafdc8e-5582-4fd9-93bb-441fa2f074eb",
+                "loop--eef30307-cd73-4f32-833f-cd55c7691953"
+            ]
+        },
+        "action--c2b5e518-7169-42d0-8107-08d3b3332d72": {
+            "name": "Block malicious outbound traffic",
+            "description": "Stop any unauthorized outbound network traffic to prevent data exfiltration.",
+            "on_completion": "end--0dead116-4f8d-48f0-a486-afdf0c4bd37f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--da3596df-1ada-46ad-bf73-2b2ae7db953f"
+        },
+        "action--4eafdc8e-5582-4fd9-93bb-441fa2f074eb": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that are potentially involved in the exfiltration.",
+            "on_completion": "end--0dead116-4f8d-48f0-a486-afdf0c4bd37f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--da3596df-1ada-46ad-bf73-2b2ae7db953f"
+        },
+        "loop--eef30307-cd73-4f32-833f-cd55c7691953": {
+            "name": "Scan for vulnerabilities",
+            "description": "Scan the system for other vulnerabilities repeatedly until the system is clean.",
+            "on_completion": "end--0dead116-4f8d-48f0-a486-afdf0c4bd37f",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--eef30307-cd73-4f32-833f-cd55c7691953"
+            ]
+        },
+        "action--eef30307-cd73-4f32-833f-cd55c7691953": {
+            "name": "Run vulnerability scanner",
+            "on_completion": "evaluate-scan--9a71cbfa-63b1-4d68-aa4e-e3b9efed5cd9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./vuln_scanner.sh"
+                }
+            ],
+            "agent": "organization--da3596df-1ada-46ad-bf73-2b2ae7db953f"
+        },
+        "start--9d94f3d4-9d45-4c54-ac58-ac36040bb805": {
+            "on_completion": "parallel--abcd1234-abcd-1234-abcd-abcdef123456",
+            "type": "start"
+        },
+        "evaluate-scan--9a71cbfa-63b1-4d68-aa4e-e3b9efed5cd9": {
+            "name": "Evaluate Scan Results",
+            "description": "Check the results of the vulnerability scan.",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--0dead116-4f8d-48f0-a486-afdf0c4bd37f",
+            "on_false": "loop--eef30307-cd73-4f32-833f-cd55c7691953"
+        },
+        "end--0dead116-4f8d-48f0-a486-afdf0c4bd37f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--da3596df-1ada-46ad-bf73-2b2ae7db953f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

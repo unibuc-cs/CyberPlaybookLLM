@@ -1,0 +1,141 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d6f87a0-e6b6-480f-8824-765e2e647b98",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to extract sensitive data using a known vulnerability.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2025-02-12T10:00:00.000Z",
+    "modified": "2025-02-12T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--6b399f5c-fbde-405e-b841-507e2b3df2e3",
+    "workflow": {
+        "start--6b399f5c-fbde-405e-b841-507e2b3df2e3": {
+            "on_completion": "parallel--a27d739e-d3ef-4f12-b2e3-c6c9b9d59b8b",
+            "type": "start"
+        },
+        "parallel--a27d739e-d3ef-4f12-b2e3-c6c9b9d59b8b": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Perform various mitigation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--9c5d9e54-cc5d-42cf-87aa-5cf5c04376f8",
+                "while-condition--d7ce8fef-cc2f-44ed-8d40-f3b313b58268",
+                "action--fd2be3e7-4b2d-4312-afec-0d8a67d22c4b",
+                "action--f0e28c54-8da4-4105-b4b2-037fec7b0a5b"
+            ]
+        },
+        "if-condition--9c5d9e54-cc5d-42cf-87aa-5cf5c04376f8": {
+            "name": "Check if Malicious Process is Found",
+            "type": "if-condition",
+            "condition": "process_found",
+            "on_true": "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58",
+            "on_false": "action--f0e28c54-8da4-4105-b4b2-037fec7b0a5b"
+        },
+        "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the detected malicious process.",
+            "on_completion": "end--be68734f-712a-4170-8c0b-769c251b3f9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--88c64eee-3e07-42d5-9509-dd3321139e51"
+        },
+        "while-condition--d7ce8fef-cc2f-44ed-8d40-f3b313b58268": {
+            "name": "Patch Vulnerabilities",
+            "description": "Apply patches until all vulnerabilities are resolved.",
+            "type": "while-condition",
+            "condition": "patch_count > 0",
+            "on_true": "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada",
+            "on_completion": "end--be68734f-712a-4170-8c0b-769c251b3f9e"
+        },
+        "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada": {
+            "name": "Patch System Vulnerability",
+            "description": "Apply security patches and reboot the system.",
+            "on_completion": "while-condition--d7ce8fef-cc2f-44ed-8d40-f3b313b58268",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y && reboot"
+                }
+            ],
+            "agent": "organization--71cf1c20-1c21-418b-bb6f-59163a3cc93d",
+            "step_variables": {
+                "patch_count": {
+                    "type": "integer",
+                    "description": "The number of remaining vulnerabilities to patch.",
+                    "value": 2,
+                    "constant": false
+                }
+            }
+        },
+        "action--fd2be3e7-4b2d-4312-afec-0d8a67d22c4b": {
+            "name": "Perform Full System Scan",
+            "description": "Initiate a full system scan for malware.",
+            "on_completion": "end--be68734f-712a-4170-8c0b-769c251b3f9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--3ec3168c-679d-494b-b531-b69f93c2fa1c"
+        },
+        "action--f0e28c54-8da4-4105-b4b2-037fec7b0a5b": {
+            "name": "Block Malicious IP",
+            "description": "Block network traffic from the malicious IP range.",
+            "on_completion": "end--be68734f-712a-4170-8c0b-769c251b3f9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 198.51.100.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--88c64eee-3e07-42d5-9509-dd3321139e51"
+        },
+        "if-condition--e6b12fd3-7ae8-4c63-925e-e9dad189a01b": {
+            "name": "Check System Compromise",
+            "type": "if-condition",
+            "condition": "system_compromise_confirmed",
+            "on_true": "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0",
+            "on_false": "end--be68734f-712a-4170-8c0b-769c251b3f9e"
+        },
+        "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0": {
+            "name": "Restore from Last Known Good Backup",
+            "description": "Restore the system from the last known good backup.",
+            "on_completion": "end--be68734f-712a-4170-8c0b-769c251b3f9e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore-backup.sh -n last_good_backup"
+                }
+            ],
+            "agent": "organization--71cf1c20-1c21-418b-bb6f-59163a3cc93d"
+        },
+        "end--be68734f-712a-4170-8c0b-769c251b3f9e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--88c64eee-3e07-42d5-9509-dd3321139e51": {
+            "type": "organization",
+            "name": "ClientOrganizationABC"
+        },
+        "organization--71cf1c20-1c21-418b-bb6f-59163a3cc93d": {
+            "type": "organization",
+            "name": "ClientOrganizationYZX"
+        },
+        "organization--3ec3168c-679d-494b-b531-b69f93c2fa1c": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1ef6305-d0c0-48b1-9d37-b3f8056d3b3a",
+    "name": "Mitigation Playbook for Exploitation of Remote Services",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in the company's remote desktop service, gaining unauthorized access to the internal network and exfiltrating sensitive data.",
+    "created_by": "identity--6a796d6e-208c-45c8-86ef-898b3db6f3e4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b613858d-74ca-4fe5-a5f3-2e26209b60e7",
+    "workflow": {
+        "start--b613858d-74ca-4fe5-a5f3-2e26209b60e7": {
+            "on_completion": "action--9527c991-60f0-47ab-8502-74163899afdd",
+            "type": "start"
+        },
+        "action--9527c991-60f0-47ab-8502-74163899afdd": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate host-42 to prevent further data exfiltration.",
+            "on_completion": "action--b884c9ab-cfdf-4a52-82ba-17a95eec3f9a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh root@host-42 'iptables -A OUTPUT -j DROP'"
+                }
+            ],
+            "agent": "organization--ca2ddb28-39ea-4e68-a1bb-cbb998f6a33b"
+        },
+        "action--b884c9ab-cfdf-4a52-82ba-17a95eec3f9a": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that appear to be malicious.",
+            "on_completion": "if-condition--f236283a-0b13-4ebf-8829-2d274a5479f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--ca2ddb28-39ea-4e68-a1bb-cbb998f6a33b"
+        },
+        "if-condition--f236283a-0b13-4ebf-8829-2d274a5479f4": {
+            "name": "Check if scan is needed",
+            "type": "if-condition",
+            "condition": "if scan_result == 'threats_found'",
+            "on_true": "loop--3a5da630-bdd2-4832-88dc-c9824523b3dd",
+            "on_false": "end--a74fea02-d1a0-4b83-a9b2-f7688274450a"
+        },
+        "loop--3a5da630-bdd2-4832-88dc-c9824523b3dd": {
+            "name": "Conduct full scan of network",
+            "description": "Run a full scan of the network until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clear'",
+            "on_true": "action--37889e43-d66e-4ad6-84a7-8e118b6276cc",
+            "on_false": "end--a74fea02-d1a0-4b83-a9b2-f7688274450a"
+        },
+        "action--37889e43-d66e-4ad6-84a7-8e118b6276cc": {
+            "name": "Run ClamAV Scan",
+            "description": "Execute ClamAV scan on the network.",
+            "on_completion": "set-scan-result--ddfbdf4d-1331-4043-a329-6c9cce7b0d00",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav_scan()"
+                }
+            ],
+            "agent": "organization--ca2ddb28-39ea-4e68-a1bb-cbb998f6a33b"
+        },
+        "set-scan-result--ddfbdf4d-1331-4043-a329-6c9cce7b0d00": {
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the network scan",
+                    "value": "result_of_scan",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--3a5da630-bdd2-4832-88dc-c9824523b3dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo :  "
+                }
+            ],
+            "agent": "organization--ca2ddb28-39ea-4e68-a1bb-cbb998f6a33b"
+        },
+        "end--a74fea02-d1a0-4b83-a9b2-f7688274450a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ca2ddb28-39ea-4e68-a1bb-cbb998f6a33b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

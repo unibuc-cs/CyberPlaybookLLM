@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a3b1d5e5-2f35-40e4-b2d7-45cf14776390",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized PowerShell commands to steal sensitive data.",
+    "created_by": "identity--d51c1720-ffa9-4b4e-b0cf-6171ab889255",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--305cbaff-f43c-4691-bdfd-c5e9c2c6508c",
+    "workflow": {
+        "start--305cbaff-f43c-4691-bdfd-c5e9c2c6508c": {
+            "on_completion": "action--e9f18bba-5e65-4ae3-8d88-17c7d9b58a85",
+            "type": "start"
+        },
+        "action--e9f18bba-5e65-4ae3-8d88-17c7d9b58a85": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running unauthorized PowerShell processes.",
+            "on_completion": "if-condition--a72eacb3-e4e4-4daa-83a4-1c2cd906ee4d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--987866df-2301-4508-ac20-ba15ae37965b"
+        },
+        "if-condition--a72eacb3-e4e4-4daa-83a4-1c2cd906ee4d": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "$(pgrep powershell) != ''",
+            "on_true": "action--a72eacb3-e4e4-4daa-83a4-1c2cd906ee4d",
+            "on_false": "action--a98f07d9-553e-4a36-b7cb-fbd88f5e34b8"
+        },
+        "action--a72eacb3-e4e4-4daa-83a4-1c2cd906ee4d": {
+            "name": "Isolate affected host",
+            "description": "Isolate the affected host from the network.",
+            "on_completion": "action--a98f07d9-553e-4a36-b7cb-fbd88f5e34b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-32 down"
+                }
+            ],
+            "agent": "organization--987866df-2301-4508-ac20-ba15ae37965b"
+        },
+        "action--a98f07d9-553e-4a36-b7cb-fbd88f5e34b8": {
+            "name": "Run antivirus scan on affected host",
+            "description": "Perform ongoing antivirus scans until no threats are detected.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan /home/user --recursive"
+                }
+            ],
+            "agent": "organization--987866df-2301-4508-ac20-ba15ae37965b",
+            "loop": {
+                "condition": "scan_status != 'clean'",
+                "on_completion": "action--1b293dcb-cf58-4aad-979b-f0acbb8c94d4"
+            }
+        },
+        "action--1b293dcb-cf58-4aad-979b-f0acbb8c94d4": {
+            "name": "Review and analyze logs",
+            "description": "Analyze logs for any suspicious activity related to the affected host.",
+            "on_completion": "end--f25ad5b5-eecf-45f8-b2e4-9633e9ba176d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'host-32'"
+                }
+            ],
+            "agent": "organization--987866df-2301-4508-ac20-ba15ae37965b",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The log file being analyzed",
+                    "value": "/var/log/syslog",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--f25ad5b5-eecf-45f8-b2e4-9633e9ba176d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--987866df-2301-4508-ac20-ba15ae37965b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

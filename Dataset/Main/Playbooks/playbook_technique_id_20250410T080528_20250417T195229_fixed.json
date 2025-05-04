@@ -1,0 +1,142 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--74cbc5f4-12e3-4d6f-b1ef-1b58a98d86f1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where a command-and-scripting interpreter was exploited by an attacker to execute unauthorized scripts.",
+    "created_by": "identity--b6f9dcba-f452-4b91-a85e-7f39422e341a",
+    "created": "2023-10-21T10:00:00.000Z",
+    "modified": "2023-10-21T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--01a53b45-f7e4-428d-80ab-8635dcae6a4f",
+    "workflow": {
+        "start--01a53b45-f7e4-428d-80ab-8635dcae6a4f": {
+            "on_completion": "action--f6a3c1d0-d0b8-4f1b-a195-53b0911aedf4",
+            "type": "start"
+        },
+        "action--f6a3c1d0-d0b8-4f1b-a195-53b0911aedf4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes deemed malicious.",
+            "on_completion": "parallel--c2437dc1-8456-4b14-afc1-b17aedb56013",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill suspicious-process"
+                }
+            ],
+            "agent": "organization--25d036aa-1ec8-467c-ad12-20f2ed5c71ec"
+        },
+        "parallel--c2437dc1-8456-4b14-afc1-b17aedb56013": {
+            "name": "Execute in parallel: Disable script execution via group policies and Revoke suspect user permissions",
+            "description": "Both steps are executed simultaneously to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b904f2b6-598b-4d2a-bb5e-7cee803fb1ef",
+                "action--73d23198-c709-4a5f-8f4f-6b5c43ed9f63"
+            ]
+        },
+        "action--b904f2b6-598b-4d2a-bb5e-7cee803fb1ef": {
+            "name": "Disable script execution via group policies",
+            "description": "Use group policies to prevent unauthorized script execution.",
+            "on_completion": "action--de636934-9ed3-4e86-a569-7297fec5b195",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--2aafdff5-6a00-4a65-b3a0-1a15634343b2"
+        },
+        "action--73d23198-c709-4a5f-8f4f-6b5c43ed9f63": {
+            "name": "Revoke suspect user permissions",
+            "description": "Disable the suspect user account to prevent further unauthorized access.",
+            "on_completion": "action--de636934-9ed3-4e86-a569-7297fec5b195",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user suspect_user /active:no"
+                }
+            ],
+            "agent": "organization--5d1936c3-0bca-4a1b-a97a-5477df51315b"
+        },
+        "action--de636934-9ed3-4e86-a569-7297fec5b195": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a comprehensive scan of the system to detect any remaining threats.",
+            "on_completion": "if-condition--bc0ad8d2-8141-4e7b-bad2-1b792f1dce73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--3843f619-86c5-49da-9a19-52f0aa15bd29"
+        },
+        "if-condition--bc0ad8d2-8141-4e7b-bad2-1b792f1dce73": {
+            "name": "Check if system is clean",
+            "description": "Evaluate scan results to determine if the system is free of infections.",
+            "type": "if-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--e07fdaea-7fd2-4f55-9bf1-96fa570f5f10",
+            "on_false": "action--fb2d1f63-25ff-49cd-9207-df1b51c21ee7"
+        },
+        "action--e07fdaea-7fd2-4f55-9bf1-96fa570f5f10": {
+            "name": "Update endpoint protection configurations",
+            "description": "Enhance security measures by updating endpoint protection settings.",
+            "on_completion": "end--9a31fbd8-ca0e-4fd4-a6ba-b38f16bc9b1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-protection-config"
+                }
+            ],
+            "agent": "organization--ae75d70b-2867-4eec-98c8-0897d18cb614"
+        },
+        "action--fb2d1f63-25ff-49cd-9207-df1b51c21ee7": {
+            "name": "Restore system from last known clean backup",
+            "description": "If the scan indicates infections persist, restore the system to its last clean state.",
+            "on_completion": "end--9a31fbd8-ca0e-4fd4-a6ba-b38f16bc9b1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore-backup --date=2023-10-19"
+                }
+            ],
+            "agent": "organization--89a227a5-0ee0-4932-aeee-a8c11052b37b"
+        },
+        "end--9a31fbd8-ca0e-4fd4-a6ba-b38f16bc9b1b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--25d036aa-1ec8-467c-ad12-20f2ed5c71ec": {
+            "type": "organization",
+            "name": "Org123"
+        },
+        "organization--2aafdff5-6a00-4a65-b3a0-1a15634343b2": {
+            "type": "organization",
+            "name": "OrgABC"
+        },
+        "organization--5d1936c3-0bca-4a1b-a97a-5477df51315b": {
+            "type": "organization",
+            "name": "OrgXYZ"
+        },
+        "organization--3843f619-86c5-49da-9a19-52f0aa15bd29": {
+            "type": "organization",
+            "name": "OrgDEF"
+        },
+        "organization--ae75d70b-2867-4eec-98c8-0897d18cb614": {
+            "type": "organization",
+            "name": "OrgGHI"
+        },
+        "organization--89a227a5-0ee0-4932-aeee-a8c11052b37b": {
+            "type": "organization",
+            "name": "OrgJKL"
+        }
+    }
+}

@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4c6dc38a-0954-44e6-830d-4b2310a57c42",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving unauthorized access and malicious script execution to gather sensitive information and perform unauthorized data exfiltration.",
+    "created_by": "identity--4cdccf07-48b9-4a73-94c1-64f42e86e637",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7d1b499e-a723-4d3e-be6f-087c065e8560",
+    "workflow": {
+        "action--e0f5a98c-dde4-48f2-bb28-a501536d1240": {
+            "name": "Kill malicious script processes",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--6df1311b-494d-44ac-8109-9583eef95036",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--72cee54a-b7ea-4d72-9211-3fa9f7cef632"
+        },
+        "action--ba1c5e87-ca58-44b0-abe1-0d87f0e9745f": {
+            "name": "Isolate affected hosts from the network",
+            "description": "Disconnect affected hosts to prevent further malicious actions.",
+            "on_completion": "action--3d6e8c4b-8b95-4c26-9c87-f8dbf2c16437",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down; ifconfig host-23 down"
+                }
+            ],
+            "agent": "organization--72cee54a-b7ea-4d72-9211-3fa9f7cef632"
+        },
+        "action--3d6e8c4b-8b95-4c26-9c87-f8dbf2c16437": {
+            "name": "Run full antivirus scan on affected systems",
+            "description": "Perform a comprehensive antivirus scan to ensure all threats are removed.",
+            "on_completion": "while-condition--cce75866-5e88-4874-b86f-1328996115f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--72cee54a-b7ea-4d72-9211-3fa9f7cef632"
+        },
+        "start--7d1b499e-a723-4d3e-be6f-087c065e8560": {
+            "on_completion": "action--e0f5a98c-dde4-48f2-bb28-a501536d1240",
+            "type": "start"
+        },
+        "if-condition--6df1311b-494d-44ac-8109-9583eef95036": {
+            "name": "Check if network breach detected",
+            "type": "if-condition",
+            "condition": "network_breach_detected == true",
+            "on_true": "action--ba1c5e87-ca58-44b0-abe1-0d87f0e9745f",
+            "on_false": "action--3d6e8c4b-8b95-4c26-9c87-f8dbf2c16437"
+        },
+        "while-condition--cce75866-5e88-4874-b86f-1328996115f9": {
+            "name": "Wait for Antivirus Scan to Complete",
+            "description": "Repeat the scan until the system is clean.",
+            "condition": "scan_clean == false",
+            "on_true": "action--3d6e8c4b-8b95-4c26-9c87-f8dbf2c16437",
+            "on_false": "end--8c1fdb1a-8043-4bfb-9a7c-98a6af94709a",
+            "type": "if-condition"
+        },
+        "end--8c1fdb1a-8043-4bfb-9a7c-98a6af94709a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--72cee54a-b7ea-4d72-9211-3fa9f7cef632": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "network_breach_detected": {
+            "type": "boolean",
+            "description": "Indicates if a network breach has been detected.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "scan_clean": {
+            "type": "boolean",
+            "description": "Indicates if the antivirus scan has completed successfully and the system is clean.",
+            "value": "false",
+            "constant": false,
+            "external": false
+        }
+    }
+}

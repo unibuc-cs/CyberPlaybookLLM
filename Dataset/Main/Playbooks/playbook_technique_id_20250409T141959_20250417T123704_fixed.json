@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0d34c1f-94b9-4f9b-919e-a620df74e75e",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker has executed malicious PowerShell scripts to extract sensitive data from the internal network.",
+    "created_by": "identity--c75dfe65-5f32-4dd0-8fe6-990cc6da2b4a",
+    "created": "2023-10-01T16:00:00Z",
+    "modified": "2023-10-01T16:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--d0d34c1f-94b9-4f9b-919e-a620df74e75e",
+    "workflow": {
+        "start--d0d34c1f-94b9-4f9b-919e-a620df74e75e": {
+            "on_completion": "if-condition--5c296861-127b-4dac-ae37-1c2105caaa44",
+            "type": "start"
+        },
+        "if-condition--5c296861-127b-4dac-ae37-1c2105caaa44": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_name == 'powershell.exe'",
+            "on_true": "action--911c9810-aad8-43d6-876f-876ce08cca78",
+            "on_false": "action--b778b094-bb0d-4f2c-b7cb-d90a3ad007cb"
+        },
+        "action--911c9810-aad8-43d6-876f-876ce08cca78": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell processes that are running.",
+            "on_completion": "action--35c55798-7be0-4f33-aaeb-84894d708087",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--45e32080-205a-46da-8841-f6a53cb754fc",
+            "step_variables": {
+                "process_name": {
+                    "type": "string",
+                    "description": "Name of the process to kill",
+                    "value": "powershell.exe",
+                    "constant": false
+                }
+            }
+        },
+        "action--35c55798-7be0-4f33-aaeb-84894d708087": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a comprehensive scan of the system for any remaining threats.",
+            "on_completion": "while-condition--ff1b755d-0512-44d0-903f-8f41c4ecd31a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh"
+                }
+            ],
+            "agent": "organization--45e32080-205a-46da-8841-f6a53cb754fc"
+        },
+        "while-condition--ff1b755d-0512-44d0-903f-8f41c4ecd31a": {
+            "name": "Check scan status loop",
+            "description": "Continue to conduct scans until the system is confirmed clean.",
+            "on_completion": "action--b778b094-bb0d-4f2c-b7cb-d90a3ad007cb",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--35c55798-7be0-4f33-aaeb-84894d708087"
+        },
+        "action--b778b094-bb0d-4f2c-b7cb-d90a3ad007cb": {
+            "name": "Change compromised user credentials",
+            "description": "Change the credentials for the user account that was compromised.",
+            "on_completion": "end--9c5d6ffe-5391-479a-a849-a564a6587c0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'password_change' | change_password.sh"
+                }
+            ],
+            "agent": "organization--45e32080-205a-46da-8841-f6a53cb754fc"
+        },
+        "end--9c5d6ffe-5391-479a-a849-a564a6587c0e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--45e32080-205a-46da-8841-f6a53cb754fc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

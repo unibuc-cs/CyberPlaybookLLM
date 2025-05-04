@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8b5e63f-d4a1-44f1-bb51-f2c91bfb4a18",
+    "name": "Mitigation Playbook for PowerShell Backdoor Incident",
+    "description": "This playbook addresses an incident where a PowerShell script was utilized to drop and execute a backdoor on a compromised host.",
+    "created_by": "identity--1f85ccc4-3aef-4a66-b0a6-a04617b6a45b",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e1c59f14-d3f2-4d75-8dc9-f489e256db34",
+    "workflow": {
+        "start--e1c59f14-d3f2-4d75-8dc9-f489e256db34": {
+            "on_completion": "parallel--a8e3f85e-e16f-4edf-a133-4f5e12d9738d",
+            "type": "start"
+        },
+        "action--d3e771fe-bb1d-4b24-bd76-19f0aa4b5e0c": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running PowerShell processes exploiting the system.",
+            "on_completion": "action--f2ceced0-026c-4bf5-9b20-2b1b996d1b89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--ce01a28f-e04d-4f96-8e06-d5ff68be4b39"
+        },
+        "action--f2ceced0-026c-4bf5-9b20-2b1b996d1b89": {
+            "name": "Remove dropped malicious files",
+            "description": "Remove the malicious backdoor file from the system.",
+            "on_completion": "while-condition--eb3e4a30-814b-4f58-8ac9-e62ce3e7286f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_backdoor.exe"
+                }
+            ],
+            "agent": "organization--ce01a28f-e04d-4f96-8e06-d5ff68be4b39"
+        },
+        "while-condition--eb3e4a30-814b-4f58-8ac9-e62ce3e7286f": {
+            "name": "Check scan status loop",
+            "on_completion": "action--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f"
+        },
+        "action--860676b0-9e3d-46bc-9aff-4c5c9a8bd19f": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to check for remaining threats.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the antivirus scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "if-condition--a9b5e5e8-e96e-4df8-b0b9-5b2ad63d90c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --full-system"
+                }
+            ],
+            "agent": "organization--ce01a28f-e04d-4f96-8e06-d5ff68be4b39"
+        },
+        "if-condition--a9b5e5e8-e96e-4df8-b0b9-5b2ad63d90c4": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_status is 'clean'",
+            "on_true": "end--f219bf1a-74b1-4c30-b7aa-cc2f55d8e5e6",
+            "on_false": "while-condition--eb3e4a30-814b-4f58-8ac9-e62ce3e7286f"
+        },
+        "parallel--a8e3f85e-e16f-4edf-a133-4f5e12d9738d": {
+            "name": "Execute Mitigations",
+            "description": "Perform mitigation actions in parallel for efficiency.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d3e771fe-bb1d-4b24-bd76-19f0aa4b5e0c",
+                "action--f2ceced0-026c-4bf5-9b20-2b1b996d1b89"
+            ]
+        },
+        "end--f219bf1a-74b1-4c30-b7aa-cc2f55d8e5e6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ce01a28f-e04d-4f96-8e06-d5ff68be4b39": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

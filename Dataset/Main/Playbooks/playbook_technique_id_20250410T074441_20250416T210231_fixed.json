@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f2d99e7-51b2-4e17-9ec8-f3a88b109bfa",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute shell commands remotely, create a new user, and initiate data exfiltration.",
+    "created_by": "identity--ced8f4ae-fae1-462f-a3ff-28a51dcfac05",
+    "created": "2025-04-10T10:00:00.000Z",
+    "modified": "2025-04-10T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b2d3bace-9c3a-4f2c-b16b-afca1b7c89c2",
+    "workflow": {
+        "start--b2d3bace-9c3a-4f2c-b16b-afca1b7c89c2": {
+            "on_completion": "parallel--a1c1f7dc-8450-4c03-9961-ac0b2a3f6e7f",
+            "type": "start"
+        },
+        "parallel--a1c1f7dc-8450-4c03-9961-ac0b2a3f6e7f": {
+            "name": "Simultaneous mitigation actions",
+            "description": "Perform parallel steps to mitigate the threat quickly.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c2e2e093-b744-4c20-8f4f-a0e8e8f1e1ec",
+                "if-condition--db44e6eb-a1c4-4477-b7ef-66e3a1657d95",
+                "action--a7d7e9c1-4b6f-4237-88b1-de8aa1fe3d1c"
+            ]
+        },
+        "action--c2e2e093-b744-4c20-8f4f-a0e8e8f1e1ec": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process running on the system.",
+            "on_completion": "action--d1e7c705-4d75-4ad4-84f7-44e788b9f0d1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f malicious_process)"
+                }
+            ],
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7"
+        },
+        "action--7cc2a728-f30d-4773-ac7b-3cc2c7d4e5b1": {
+            "name": "Remove unauthorized user",
+            "description": "Remove the unauthorized user account from the system.",
+            "on_completion": "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel backdoor_user"
+                }
+            ],
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7"
+        },
+        "action--d1e7c705-4d75-4ad4-84f7-44e788b9f0d1": {
+            "name": "Scan for malware",
+            "description": "Perform a malware scan on the system.",
+            "type": "loop",
+            "loop_condition": "scan_result == infected",
+            "loop_variable": {
+                "name": "scan_result",
+                "initial_value": "infected"
+            },
+            "iteration_action": "action--scan-step-afbf6fb0-e67f-47eb-8316-94f2c411c906",
+            "on_completion": "end--d4a3c4fa-9ed3-4aa8-b8e1-e1f154d6c5d8",
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7"
+        },
+        "action--a7d7e9c1-4b6f-4237-88b1-de8aa1fe3d1c": {
+            "name": "Block external IP addresses",
+            "description": "Block outgoing connections to known external IP addresses.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.45 -j DROP"
+                }
+            ],
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7",
+            "on_completion": "end--d4a3c4fa-9ed3-4aa8-b8e1-e1f154d6c5d8"
+        },
+        "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf": {
+            "name": "Review user activity logs",
+            "description": "Check the activity logs for any suspicious actions performed by 'backdoor_user'.",
+            "type": "action",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "The username to search in the logs.",
+                    "value": "backdoor_user"
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep '${username}' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7",
+            "on_completion": "end--d4a3c4fa-9ed3-4aa8-b8e1-e1f154d6c5d8"
+        },
+        "end--d4a3c4fa-9ed3-4aa8-b8e1-e1f154d6c5d8": {
+            "type": "end"
+        },
+        "if-condition--db44e6eb-a1c4-4477-b7ef-66e3a1657d95": {
+            "name": "Check and Remove Unauthorized User",
+            "type": "if-condition",
+            "condition": "getent passwd backdoor_user",
+            "on_true": "action--7cc2a728-f30d-4773-ac7b-3cc2c7d4e5b1",
+            "on_false": "action--f9f2b3a2-3e6d-45a4-bbda-ab0b5e7d5aaf"
+        },
+        "action--ec853745-7d10-4d62-b80e-39d00d9c4761": {
+            "name": "Execute malware scan",
+            "description": "Execute the clam scan on the home directory.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7"
+        }
+    },
+    "agent_definitions": {
+        "organization--f71b2b33-47cb-4e3c-a163-9b4474bae4d7": {
+            "type": "organization",
+            "name": "ABC Security Team"
+        }
+    }
+}

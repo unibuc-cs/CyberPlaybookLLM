@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b18b0cba-4de9-4299-9a70-ef35b12477c1",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook mitigates incidents involving unauthorized access and potential data exfiltration through the exploitation of Command and Scripting Interpreters.",
+    "created_by": "identity--d9c5c58c-bd43-4e25-b554-fbb7b1b69326",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e372c3ff-d465-413d-83b5-bd1947199497",
+    "workflow": {
+        "start--e372c3ff-d465-413d-83b5-bd1947199497": {
+            "on_completion": "action--c2d8c78a-301b-4beb-9b59-bcbef3a4d920",
+            "type": "start"
+        },
+        "action--c2d8c78a-301b-4beb-9b59-bcbef3a4d920": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes that have been spawned.",
+            "on_completion": "if-condition--8c4f2a9b-5e3a-45c9-8f47-99c7f7791b32",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--6eff2e56-140a-401e-bd6b-cda6b4aa1ef5"
+        },
+        "if-condition--8c4f2a9b-5e3a-45c9-8f47-99c7f7791b32": {
+            "name": "Check if malicious process killed",
+            "type": "if-condition",
+            "condition": "malicious_process_killed == true",
+            "on_true": "action--42dce75c-5e78-4c24-8c83-75c190dc2ff1",
+            "on_false": "action--a0e60d65-0d4c-4c66-9595-21f39b6c4e90"
+        },
+        "action--42dce75c-5e78-4c24-8c83-75c190dc2ff1": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a comprehensive scan of the system for any remaining threats.",
+            "on_completion": "action--a0e60d65-0d4c-4c66-9595-21f39b6c4e90",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--6eff2e56-140a-401e-bd6b-cda6b4aa1ef5"
+        },
+        "action--a0e60d65-0d4c-4c66-9595-21f39b6c4e90": {
+            "name": "Block outbound traffic to known bad IPs",
+            "description": "Drop all outbound traffic to the identified malicious IP address.",
+            "on_completion": "end--3c911898-fddf-487b-b555-4d72bed14f26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--6eff2e56-140a-401e-bd6b-cda6b4aa1ef5",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "value": "unknown_ip_address",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--3c911898-fddf-487b-b555-4d72bed14f26": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6eff2e56-140a-401e-bd6b-cda6b4aa1ef5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

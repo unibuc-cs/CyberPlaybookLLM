@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7c1e8a4-b28d-459f-8c4e-44df7be02f1f",
+    "name": "Spearphishing Attachment Incident Response",
+    "description": "This playbook addresses a spearphishing attack where an employee opened a malicious attachment, leading to a compromise of their workstation.",
+    "created_by": "identity--759c2563-069c-478a-992a-9fb6e4e28a65",
+    "created": "2025-10-01T10:15:30.000Z",
+    "modified": "2025-10-01T10:16:45.000Z",
+    "revoked": false,
+    "workflow_start": "start--34cecfe3-c7ae-4c77-91c1-050a88094400",
+    "workflow": {
+        "action--d31c729e-c63e-4739-bd94-c4e687fb3f15": {
+            "name": "Notify users of phishing attempt",
+            "description": "Notify all users about the phishing attempt to raise awareness.",
+            "on_completion": "parallel--e8b8d1d5-b0da-46f4-8d87-6615b7440dc1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email -to all_users -subject 'Phishing Alert' -message 'Beware of phishing emails with attachments.'"
+                }
+            ],
+            "agent": "organization--02950e9b-c2bf-4d18-a0a3-fa6590f36ea1"
+        },
+        "action--4f2c62c8-b0b5-437b-b04f-df9065f1d915": {
+            "name": "Remove malicious attachment",
+            "description": "Remove the malicious invoice attachment from all affected endpoints.",
+            "on_completion": "action--e7c1c2f4-1345-4631-a82e-e345ef5fec68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'invoice.exe' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--02950e9b-c2bf-4d18-a0a3-fa6590f36ea1"
+        },
+        "action--e7c1c2f4-1345-4631-a82e-e345ef5fec68": {
+            "name": "Run antivirus scan",
+            "description": "Perform an antivirus scan on affected systems.",
+            "on_completion": "decision--ab45bf49-cace-44c2-b133-7b35e5b9eaba",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the antivirus scan",
+                    "value": "result",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--02950e9b-c2bf-4d18-a0a3-fa6590f36ea1"
+        },
+        "decision--ab45bf49-cace-44c2-b133-7b35e5b9eaba": {
+            "name": "Check if infected",
+            "description": "Determine if the infected workstation needs isolation.",
+            "type": "if-condition",
+            "condition": "infected == true",
+            "on_true": "action--ab45bf49-cace-44c2-b133-7b35e5b9eaba",
+            "on_false": "end--70e2c31d-a7ee-41a3-bfd4-8b19a42a1444"
+        },
+        "action--ab45bf49-cace-44c2-b133-7b35e5b9eaba": {
+            "name": "Isolate affected workstation",
+            "description": "Disconnect the infected workstation from the network.",
+            "on_completion": "end--70e2c31d-a7ee-41a3-bfd4-8b19a42a1444",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--02950e9b-c2bf-4d18-a0a3-fa6590f36ea1"
+        },
+        "parallel--e8b8d1d5-b0da-46f4-8d87-6615b7440dc1": {
+            "name": "Parallel Mitigations",
+            "description": "Execute multiple actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4f2c62c8-b0b5-437b-b04f-df9065f1d915",
+                "action--e7c1c2f4-1345-4631-a82e-e345ef5fec68"
+            ]
+        },
+        "start--34cecfe3-c7ae-4c77-91c1-050a88094400": {
+            "on_completion": "action--d31c729e-c63e-4739-bd94-c4e687fb3f15",
+            "type": "start"
+        },
+        "end--70e2c31d-a7ee-41a3-bfd4-8b19a42a1444": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--02950e9b-c2bf-4d18-a0a3-fa6590f36ea1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

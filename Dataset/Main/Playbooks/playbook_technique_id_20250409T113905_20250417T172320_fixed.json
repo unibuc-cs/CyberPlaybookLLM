@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3b2a3c0-e98c-4f26-b5c1-61b7e9b62374",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script to exfiltrate sensitive data using a command and scripting interpreter.",
+    "created_by": "identity--32deade6-bfa6-46ff-84e3-c9dad466f374",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T13:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b4de1b38-47fe-4c0b-b3b5-0cdf3bc8d37a",
+            "type": "start"
+        },
+        "action--b4de1b38-47fe-4c0b-b3b5-0cdf3bc8d37a": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script currently executing on the server.",
+            "on_completion": "if-condition--196c381f-da77-423e-aa1b-e4e3e200d141",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--9e9485b3-d39a-4a8b-b15b-271ca5b1a539"
+        },
+        "if-condition--196c381f-da77-423e-aa1b-e4e3e200d141": {
+            "name": "Check if host is compromised",
+            "type": "if-condition",
+            "condition": "host_compromised == true",
+            "on_true": "action--196c381f-da77-423e-aa1b-e4e3e200d141",
+            "on_false": "action--d17b7230-5b3e-495d-9bee-6818e2369384"
+        },
+        "action--196c381f-da77-423e-aa1b-e4e3e200d141": {
+            "name": "Isolate affected host from network",
+            "description": "Block the compromised host from communicating with any external servers.",
+            "on_completion": "action--d17b7230-5b3e-495d-9bee-6818e2369384",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--9e9485b3-d39a-4a8b-b15b-271ca5b1a539"
+        },
+        "action--d17b7230-5b3e-495d-9bee-6818e2369384": {
+            "name": "Monitor for further changes",
+            "description": "Continuously monitor system logs for any further changes or signs of further compromise.",
+            "on_completion": "loop--f0b39b5d-3a57-46e6-a3bd-ead1dba5a66e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -F /var/log/syslog"
+                }
+            ],
+            "agent": "organization--9e9485b3-d39a-4a8b-b15b-271ca5b1a539"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "loop--f0b39b5d-3a57-46e6-a3bd-ead1dba5a66e": {
+            "name": "Syslog Monitoring Loop",
+            "description": "Repeat monitoring until the syslog is clear of any suspicious activity.",
+            "type": "while-condition",
+            "condition": "syslog_clean == false",
+            "on_true": "action--d17b7230-5b3e-495d-9bee-6818e2369384",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        }
+    },
+    "agent_definitions": {
+        "organization--9e9485b3-d39a-4a8b-b15b-271ca5b1a539": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "host_compromised": {
+            "type": "boolean",
+            "description": "Flag indicating whether the host is compromised.",
+            "value": true
+        },
+        "syslog_clean": {
+            "type": "boolean",
+            "description": "Flag indicating whether the syslog is clean from suspicious activity.",
+            "value": false
+        }
+    }
+}

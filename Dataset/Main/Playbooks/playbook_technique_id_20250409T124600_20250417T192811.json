@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8201c6c-6f65-4f56-93eb-1265cdbf1a2f",
+    "name": "Malicious PowerShell Execution Mitigation Playbook",
+    "description": "This playbook addresses the incident where an attacker used PowerShell to execute malicious scripts, leading to data exfiltration.",
+    "created_by": "identity--generated-uuid-01",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:55:35.498Z",
+    "revoked": false,
+    "workflow_start": "start--5d9a1dfb-a1b6-4d7f-9780-b4b80c665cd7",
+    "workflow": {
+        "start--5d9a1dfb-a1b6-4d7f-9780-b4b80c665cd7": {
+            "on_completion": "action--4b75e104-da1d-4778-8516-71964f222874",
+            "type": "start"
+        },
+        "action--4b75e104-da1d-4778-8516-71964f222874": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes associated with malicious activities.",
+            "on_completion": "action--b9af5eb1-5d25-4a35-bc80-70dc0bf70723",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b9af5eb1-5d25-4a35-bc80-70dc0bf70723": {
+            "name": "Isolate infected host from the network",
+            "description": "Drop all incoming packets from the identified infected host IP.",
+            "on_completion": "while-condition--cfa43b8f-88c0-4eaf-a5c2-bd386cf8cf21",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <infected-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--cfa43b8f-88c0-4eaf-a5c2-bd386cf8cf21": {
+            "name": "Perform full system scan until clean",
+            "description": "Repeat the system scan until it confirms no threats are found.",
+            "on_completion": "end--8b9ba55e-9a50-41b6-aaff-463953f7f48c",
+            "condition": "scan_status == 'initial'",
+            "on_true": "action--a998b200-21cc-4d7d-98d8-2bdbb4b1644c",
+            "on_false": "end--8b9ba55e-9a50-41b6-aaff-463953f7f48c"
+        },
+        "action--a998b200-21cc-4d7d-98d8-2bdbb4b1644c": {
+            "name": "Perform full system scan",
+            "description": "Conduct a thorough scan of the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the scan",
+                    "value": "complete",
+                    "constant": false
+                }
+            },
+            "on_completion": "conditional-check--b9bba95a-8230-45b4-9702-5eb0fea88c67"
+        },
+        "conditional-check--b9bba95a-8230-45b4-9702-5eb0fea88c67": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "while-condition--cfa43b8f-88c0-4eaf-a5c2-bd386cf8cf21",
+            "on_false": "end--8b9ba55e-9a50-41b6-aaff-463953f7f48c"
+        },
+        "end--8b9ba55e-9a50-41b6-aaff-463953f7f48c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

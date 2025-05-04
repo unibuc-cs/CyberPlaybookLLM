@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c5e1c3b1-5b57-4ecd-89c6-d32a7e6d8f5e",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook mitigates incidents where attackers executed malicious PowerShell scripts on the organization's network.",
+    "created_by": "identity--12345678-abcd-1234-abcd-123456abcdef",
+    "created": "2025-10-10T08:55:35.498Z",
+    "modified": "2025-10-10T09:00:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c1e4d20e-fd0e-4d92-b4ce-dd313c8f0724",
+    "workflow": {
+        "start--c1e4d20e-fd0e-4d92-b4ce-dd313c8f0724": {
+            "on_completion": "action--c3e4d630-92cd-4bfa-b1b1-bd6c4dea4caa",
+            "type": "start"
+        },
+        "action--c3e4d630-92cd-4bfa-b1b1-bd6c4dea4caa": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that could be executing malicious scripts.",
+            "on_completion": "if-condition--e8b6b1f1-4171-4f54-afa5-8389fcb6dd6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e8b6b1f1-4171-4f54-afa5-8389fcb6dd6b": {
+            "name": "Check if PowerShell process was killed",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--8f3ac83f-e6c5-4c5a-9567-dfbee11c8123",
+            "on_false": "action--c7c7f025-dc09-419e-a229-f954d9e21b06"
+        },
+        "action--8f3ac83f-e6c5-4c5a-9567-dfbee11c8123": {
+            "name": "Isolate affected hosts from network",
+            "description": "Isolate the hosts that are likely compromised from the network to prevent further data exfiltration.",
+            "on_completion": "while-condition--f9f7d148-eb98-4e20-bf88-f3c41c025b6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down; ifconfig host-21 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--f9f7d148-eb98-4e20-bf88-f3c41c025b6a": {
+            "name": "Repeat Isolation until all hosts are down",
+            "type": "while-condition",
+            "condition": "!process_exists('host-42') || !process_exists('host-21')",
+            "on_true": "action--8f3ac83f-e6c5-4c5a-9567-dfbee11c8123",
+            "on_false": "action--c7c7f025-dc09-419e-a229-f954d9e21b06"
+        },
+        "action--c7c7f025-dc09-419e-a229-f954d9e21b06": {
+            "name": "Initiate malware scan",
+            "description": "Run a malware scan on all hosts to check for any remaining threats.",
+            "on_completion": "end--e4c1cafa-dc91-4b74-a4ed-176d6f175f02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan --all"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The results of the malware scan",
+                    "value": "Pending",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e4c1cafa-dc91-4b74-a4ed-176d6f175f02": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

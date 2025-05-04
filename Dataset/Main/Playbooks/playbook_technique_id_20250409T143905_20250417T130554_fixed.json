@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a0c0a1d1-5ac3-41f8-b8e1-54555b89a793",
+    "name": "Mitigation Playbook for Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable application to execute arbitrary commands and escalate privileges.",
+    "created_by": "identity--5678d2f1-3112-4c16-8be1-38388c451bca",
+    "created": "2025-10-05T14:32:10Z",
+    "modified": "2025-10-05T14:32:15Z",
+    "revoked": false,
+    "workflow_start": "start--d5b16a6d-b9e4-4561-a22c-27cdfeb15e0e",
+    "workflow": {
+        "start--d5b16a6d-b9e4-4561-a22c-27cdfeb15e0e": {
+            "on_completion": "action--4f9c0e99-1b58-4f1b-af7c-8cbc6a201d70",
+            "type": "start"
+        },
+        "action--4f9c0e99-1b58-4f1b-af7c-8cbc6a201d70": {
+            "name": "Isolate the affected host from the network",
+            "description": "Isolate the server to prevent further actions by the attacker.",
+            "on_completion": "action--69388757-5a91-47fa-bf91-93016d56cfae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--03ea4fa0-6bac-4cc8-b9e2-e33c9d190453"
+        },
+        "action--69388757-5a91-47fa-bf91-93016d56cfae": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "loop--e0f0851b-c01b-4651-a633-d3ef95c1d2d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_script_name>"
+                }
+            ],
+            "agent": "organization--03ea4fa0-6bac-4cc8-b9e2-e33c9d190453"
+        },
+        "loop--e0f0851b-c01b-4651-a633-d3ef95c1d2d5": {
+            "name": "Run a security scan to check for persistence",
+            "description": "Perform a security scan to identify any lingering threats.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--e0f0851b-c01b-4651-a633-d3ef95c1d2d5",
+            "on_false": "end--af32d5e4-afc7-4230-bbf7-8e67a141394b"
+        },
+        "action--e0f0851b-c01b-4651-a633-d3ef95c1d2d5": {
+            "name": "Execute security scan",
+            "next_steps": "loop--e0f0851b-c01b-4651-a633-d3ef95c1d2d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--03ea4fa0-6bac-4cc8-b9e2-e33c9d190453"
+        },
+        "end--af32d5e4-afc7-4230-bbf7-8e67a141394b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--03ea4fa0-6bac-4cc8-b9e2-e33c9d190453": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ef5f803e-ddfb-4f88-9d3d-6e688889a0a2",
+    "name": "Mitigation Playbook for PowerShell Scripting Incident",
+    "description": "This playbook provides automated responses for a PowerShell scripting-based attack involving unauthorized data exfiltration to a remote C2 server.",
+    "created_by": "identity--864aeaa2-e1a3-454f-a2bd-a16d1218e121",
+    "created": "2023-10-18T00:00:00.000Z",
+    "modified": "2023-10-18T00:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--34c61309-5d24-4d87-ad77-25eecf3e1b2c",
+    "workflow": {
+        "start--34c61309-5d24-4d87-ad77-25eecf3e1b2c": {
+            "type": "start",
+            "on_completion": "parallel--e4c2d62a-d4c9-4bd4-8826-3cbde8b5828a"
+        },
+        "parallel--e4c2d62a-d4c9-4bd4-8826-3cbde8b5828a": {
+            "name": "Execute immediate mitigations",
+            "description": "Execute actions to kill processes, remove scripts, and block C2 server in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d",
+                "if-condition--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb",
+                "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73"
+            ]
+        },
+        "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script.js process.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo kill -9 $(pgrep -f script.js)"
+                }
+            ],
+            "agent": "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5",
+            "on_completion": "notify--75b10d86-60a3-4790-af24-053f1a7b3cc4"
+        },
+        "if-condition--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb": {
+            "name": "Check and remove unauthorized scripts",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/script.js')",
+            "on_true": "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb",
+            "on_false": "notify--75b10d86-60a3-4790-af24-053f1a7b3cc4"
+        },
+        "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb": {
+            "name": "Remove unauthorized scripts",
+            "description": "Remove suspicious script.js if it exists.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo rm /tmp/script.js"
+                }
+            ],
+            "agent": "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5",
+            "on_completion": "notify--75b10d86-60a3-4790-af24-053f1a7b3cc4"
+        },
+        "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73": {
+            "name": "Block IP of command and control server",
+            "description": "Add a firewall rule to block outgoing traffic to C2 server.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A OUTPUT -d 198.51.100.1 -j DROP"
+                }
+            ],
+            "agent": "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5",
+            "on_completion": "notify--75b10d86-60a3-4790-af24-053f1a7b3cc4"
+        },
+        "loop--82c9c176-60fe-4c0f-8f28-2f1275f9842d": {
+            "name": "Conduct system integrity check",
+            "description": "Iteratively conduct integrity checks until system is verified clean.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d",
+            "public_variable_updates": {
+                "scan_is_clean": "false"
+            }
+        },
+        "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d": {
+            "name": "Run chkrootkit for integrity check",
+            "description": "Use chkrootkit to perform a system integrity check.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo chkrootkit"
+                }
+            ],
+            "agent": "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5",
+            "on_completion": "loop--82c9c176-60fe-4c0f-8f28-2f1275f9842d",
+            "variables": {
+                "scan_is_clean": "true"
+            }
+        },
+        "notify--75b10d86-60a3-4790-af24-053f1a7b3cc4": {
+            "name": "Notify security team",
+            "description": "Notify the security team to review logs.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Review required: Check PowerShell activity logs' | mail -s 'Incident Response' sec-team@organization.com"
+                }
+            ],
+            "agent": "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5",
+            "on_completion": "end--7d5a6c62-ea45-4d8c-9891-2cbfde093def"
+        },
+        "end--7d5a6c62-ea45-4d8c-9891-2cbfde093def": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ca527e55-7a8d-4d10-afe4-d4c0df3b81a5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

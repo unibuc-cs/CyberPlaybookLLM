@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4ab4887e-4c24-463f-a021-6f6886d7efb5",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook responds to an incident where an attacker exploited a vulnerability in a web application to execute arbitrary commands.",
+    "created_by": "identity--a5c0d714-f934-4a69-9745-cd59fb5df497",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--7e912660-dbc8-48e0-b034-2aab8d910810",
+    "workflow": {
+        "action--8bcb6895-1a6d-4c31-8afa-f6f83b6a56e3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the suspicious script.",
+            "on_completion": "end--1e6b0874-38e9-4405-8223-156ff29292a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--ec7d5c4d-8cec-4808-8784-71aae00ea9c4"
+        },
+        "action--e040c24c-f004-4f62-9d7b-81c1c6ea8ab4": {
+            "name": "Remove dropped file",
+            "description": "Delete the suspicious script dropped in the /tmp directory.",
+            "on_completion": "end--1e6b0874-38e9-4405-8223-156ff29292a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--ec7d5c4d-8cec-4808-8784-71aae00ea9c4"
+        },
+        "loop--f9f79380-d787-4dbf-85c9-99bfd273aa58": {
+            "name": "Audit logs for suspicious activity",
+            "description": "Iterate over the logs to identify any further suspicious activities.",
+            "type": "loop",
+            "on_completion": "end--1e6b0874-38e9-4405-8223-156ff29292a6",
+            "iteration_condition": "status == 'in-progress'",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "Log file being processed for auditing.",
+                    "value": "/var/log/syslog",
+                    "constant": false
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Status of the log checking process.",
+                    "value": "in-progress",
+                    "constant": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspect' ${log_file}"
+                }
+            ],
+            "on_true": "loop--f9f79380-d787-4dbf-85c9-99bfd273aa58",
+            "on_false": "end--1e6b0874-38e9-4405-8223-156ff29292a6"
+        },
+        "start--7e912660-dbc8-48e0-b034-2aab8d910810": {
+            "on_completion": "parallel--0c7b9743-af4c-44da-9316-31216dc11adc",
+            "type": "start"
+        },
+        "parallel--0c7b9743-af4c-44da-9316-31216dc11adc": {
+            "name": "Execute Mitigations",
+            "description": "Run all mitigations in parallel to quickly respond to the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8bcb6895-1a6d-4c31-8afa-f6f83b6a56e3",
+                "action--e040c24c-f004-4f62-9d7b-81c1c6ea8ab4",
+                "loop--f9f79380-d787-4dbf-85c9-99bfd273aa58"
+            ]
+        },
+        "end--1e6b0874-38e9-4405-8223-156ff29292a6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ec7d5c4d-8cec-4808-8784-71aae00ea9c4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

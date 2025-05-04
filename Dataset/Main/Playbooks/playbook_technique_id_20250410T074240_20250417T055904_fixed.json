@@ -1,0 +1,137 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b9115e2-0feb-4f8b-beb1-2457ded356b1",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook handles mitigation of unauthorized script running on network hosts. It includes actions to terminate processes, block IPs, scan for anomalies, and monitor network traffic.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2023-10-15T16:00:00Z",
+    "modified": "2023-10-15T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "parallel--d81e8a5c-0f1f-40d2-9403-7812e529055b",
+            "type": "start"
+        },
+        "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59": {
+            "name": "Terminate Unauthorized PowerShell Process",
+            "description": "Terminate any unauthorized PowerShell processes running.",
+            "on_completion": "loop--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9"
+        },
+        "action--d8955b97-6ec8-4872-acb0-0f83765052d7": {
+            "name": "Block External Malicious IP",
+            "description": "Block the external IP address to prevent future communications.",
+            "on_completion": "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"malicious-external-ip\" reject'"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9"
+        },
+        "loop--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7": {
+            "name": "Remove and Scan Payload",
+            "description": "Remove the downloaded payload and scan host until clean",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--c29c9622-385b-4140-91aa-dac4919600cc",
+            "on_false": "action--af4f3653-3467-4c72-872f-e063cbda7d65"
+        },
+        "action--af4f3653-3467-4c72-872f-e063cbda7d65": {
+            "name": "Monitor Network Traffic",
+            "description": "Monitor the network traffic for additional anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9",
+            "on_completion": "if-condition--c434b1b6-ffc1-493c-bb1b-1377610d4b9d"
+        },
+        "action--f92f37ce-8506-4e22-8dee-8a6e14251e1e": {
+            "name": "Enable PowerShell Execution Logging",
+            "description": "Enable logging of command and script execution via PowerShell.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/powershell -p x -k powershell_exec"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9",
+            "on_completion": "end--551b680c-8af1-42be-a717-dc194b60b3c9"
+        },
+        "end--551b680c-8af1-42be-a717-dc194b60b3c9": {
+            "type": "end"
+        },
+        "parallel--d81e8a5c-0f1f-40d2-9403-7812e529055b": {
+            "name": "Execute Parallel Mitigation Actions",
+            "description": "Terminate unauthorized scripts and block malicious IP simultaneously",
+            "type": "parallel",
+            "next_steps": [
+                "action--3b9a4d29-fffc-49ca-8c8d-84d8d4ec9e59",
+                "action--d8955b97-6ec8-4872-acb0-0f83765052d7"
+            ]
+        },
+        "action--c29c9622-385b-4140-91aa-dac4919600cc": {
+            "name": "Remove Payload and Scan Host",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the host scan is clean",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/downloaded/payload && clamscan -r /"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9",
+            "on_completion": "loop--7f3f2875-483d-4b04-b6ee-04ac7f2eb5a7"
+        },
+        "if-condition--c434b1b6-ffc1-493c-bb1b-1377610d4b9d": {
+            "name": "Check for Anomalies",
+            "type": "if-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--7c8120b6-1ca0-4f03-b3f0-38f751c70bbc",
+            "on_false": "end--551b680c-8af1-42be-a717-dc194b60b3c9"
+        },
+        "action--7c8120b6-1ca0-4f03-b3f0-38f751c70bbc": {
+            "name": "Escalate to Security Team",
+            "description": "Escalate the issue to the security team due to detected anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Escalate to security team'"
+                }
+            ],
+            "agent": "organization--31569b4e-d07e-4ba3-bd38-822862314dd9",
+            "on_completion": "end--551b680c-8af1-42be-a717-dc194b60b3c9"
+        }
+    },
+    "agent_definitions": {
+        "organization--31569b4e-d07e-4ba3-bd38-822862314dd9": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

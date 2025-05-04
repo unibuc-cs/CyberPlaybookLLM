@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d14c1b67-6968-45a6-8e4a-eb50bb3324f4",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on the internal network, potentially compromising sensitive data.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1d74bdf1-3a21-4c1b-b94d-8f3bde5fb1d7",
+    "workflow": {
+        "start--1d74bdf1-3a21-4c1b-b94d-8f3bde5fb1d7": {
+            "on_completion": "action--bd1cc52b-5351-4c3e-8f21-7e5d240f469c",
+            "type": "start"
+        },
+        "action--bd1cc52b-5351-4c3e-8f21-7e5d240f469c": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes associated with the malicious script interpreter.",
+            "on_completion": "action--13c8c2e8-6c49-4cfa-9b8d-d0cff407e024",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c79fb298-7c44-47df-b020-02d77db5093f"
+        },
+        "action--13c8c2e8-6c49-4cfa-9b8d-d0cff407e024": {
+            "name": "Disconnect affected host",
+            "description": "Remove host from network to prevent further data exfiltration.",
+            "on_completion": "while-condition--c5ffc0b7-9e30-40f2-8c8b-f05fc0c5b047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c79fb298-7c44-47df-b020-02d77db5093f"
+        },
+        "while-condition--c5ffc0b7-9e30-40f2-8c8b-f05fc0c5b047": {
+            "name": "Endpoint detection and response scan",
+            "description": "Run the EDR scan and check for threats.",
+            "on_true": "action--c5ffc0b7-9e30-40f2-8c8b-f05fc0c5b047",
+            "on_false": "end--b3c96c47-c59b-4af7-a97b-ab514be4926b",
+            "type": "while-condition",
+            "condition": "threat_status == 'detected'"
+        },
+        "action--c5ffc0b7-9e30-40f2-8c8b-f05fc0c5b047": {
+            "name": "Run EDR scan",
+            "on_completion": "while-condition--c5ffc0b7-9e30-40f2-8c8b-f05fc0c5b047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan --host host-22"
+                }
+            ],
+            "agent": "organization--c79fb298-7c44-47df-b020-02d77db5093f",
+            "step_variables": {
+                "threat_status": {
+                    "type": "string",
+                    "description": "Status of the threat detected by EDR scan.",
+                    "value": "detected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b3c96c47-c59b-4af7-a97b-ab514be4926b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c79fb298-7c44-47df-b020-02d77db5093f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

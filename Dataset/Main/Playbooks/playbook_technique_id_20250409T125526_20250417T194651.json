@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--29b2d177-8ced-4d78-9d06-7aafe442e234",
+    "name": "Playbook for Responding to PowerShell Script Attack",
+    "description": "This playbook addresses incidents involving unauthorized access through PowerShell scripts, specifically terminating processes, deleting malicious files, and scanning for additional threats.",
+    "created_by": "identity--5c889b56-6454-4936-8969-609502683fe1",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--e1e94934-cf1e-473d-8698-b406d79bbf4d",
+    "workflow": {
+        "start--e1e94934-cf1e-473d-8698-b406d79bbf4d": {
+            "on_completion": "if-condition--b5ea57b2-7155-4a20-8c45-bf3a5c4dfbe6",
+            "type": "start"
+        },
+        "if-condition--b5ea57b2-7155-4a20-8c45-bf3a5c4dfbe6": {
+            "name": "Check for PowerShell Process",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--e4b4bccb-7eba-4320-99cc-7f080c8866bb",
+            "on_false": "action--acb08199-1d09-4c61-a895-c232a289672b"
+        },
+        "action--e4b4bccb-7eba-4320-99cc-7f080c8866bb": {
+            "name": "Terminate PowerShell Process",
+            "description": "Terminate any running PowerShell processes to stop further execution of malicious commands.",
+            "on_completion": "action--acb08199-1d09-4c61-a895-c232a289672b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "killall powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--acb08199-1d09-4c61-a895-c232a289672b": {
+            "name": "Delete Malicious Executable",
+            "description": "Delete the malicious executable dropped on the system.",
+            "on_completion": "while-condition--e3e7ef65-b1b8-4f59-b48d-f5e5ad304c95",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--e3e7ef65-b1b8-4f59-b48d-f5e5ad304c95": {
+            "name": "Check if Malicious File Deleted",
+            "description": "Loop until the malicious file is confirmed deleted.",
+            "on_true": "action--f7f32b35-da53-4145-b296-0abb14a6b354",
+            "type": "while-condition",
+            "condition": "file_exists('/tmp/malicious.exe')",
+            "on_false": "action--f7f32b35-da53-4145-b296-0abb14a6b354"
+        },
+        "action--f7f32b35-da53-4145-b296-0abb14a6b354": {
+            "name": "Scan for Remaining Threats",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "end--f6b8cde9-604f-40fd-bdd1-53e15e9d4cfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav --path /tmp --alert-threshold high"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--f6b8cde9-604f-40fd-bdd1-53e15e9d4cfc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

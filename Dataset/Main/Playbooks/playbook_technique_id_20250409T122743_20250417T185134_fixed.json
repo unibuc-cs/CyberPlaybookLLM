@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8a9d10b-6f2b-4f09-a61d-75e65336caca",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed suspicious scripts on a compromised server to access sensitive databases.",
+    "created_by": "identity--e8a9d10b-6f2b-4f09-a61d-75e65336caca",
+    "created": "2023-10-23T14:32:05Z",
+    "modified": "2023-10-23T14:36:45Z",
+    "revoked": false,
+    "workflow_start": "start--b1a2349f-ab24-4f10-9b8e-7e29b2661234",
+    "workflow": {
+        "start--b1a2349f-ab24-4f10-9b8e-7e29b2661234": {
+            "on_completion": "action--f4bc1f80-bf4d-43a5-bc66-6b72c2eee77e",
+            "type": "start"
+        },
+        "action--f4bc1f80-bf4d-43a5-bc66-6b72c2eee77e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious scripts.",
+            "on_completion": "action--a241535b-4f9e-4f6f-b5dd-c50a8a53edc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--fab19936-5072-402e-bb16-79ccc96933d0"
+        },
+        "action--a241535b-4f9e-4f6f-b5dd-c50a8a53edc4": {
+            "name": "Isolate affected host",
+            "description": "Isolate host to prevent further damage.",
+            "on_completion": "loop--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set dev eth0 down"
+                }
+            ],
+            "agent": "organization--fab19936-5072-402e-bb16-79ccc96933d0"
+        },
+        "loop--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5": {
+            "name": "Perform forensic analysis",
+            "description": "Continuously perform forensic analysis until the system is clean.",
+            "on_completion": "action--f298db1b-6e91-478d-ab8b-b19082e71915",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5",
+            "on_false": "action--bf8a0fa2-d8c1-42f6-a286-295f392411d5"
+        },
+        "action--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5": {
+            "name": "Run forensic scan",
+            "description": "Scan the affected host for any lingering threats.",
+            "on_completion": "loop--d6d8a97e-a9a2-487b-9f4b-fda6ec5a13d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "forensic_tool --scan /path/to/host-22 --output=results.log"
+                }
+            ],
+            "agent": "organization--fab19936-5072-402e-bb16-79ccc96933d0",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the forensic scan was clean.",
+                    "value": "false",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--f298db1b-6e91-478d-ab8b-b19082e71915": {
+            "name": "Update firewall rules",
+            "description": "Block unauthorized connections to potential external malicious services.",
+            "on_completion": "action--bf8a0fa2-d8c1-42f6-a286-295f392411d5",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--fab19936-5072-402e-bb16-79ccc96933d0",
+            "condition": "if connection to external IP found"
+        },
+        "action--bf8a0fa2-d8c1-42f6-a286-295f392411d5": {
+            "name": "Notify security team",
+            "description": "Inform the security team of the suspicious activity.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Suspicious activity detected on host-22' | mail -s 'Incident Alert' security@organization.com"
+                }
+            ],
+            "agent": "organization--fab19936-5072-402e-bb16-79ccc96933d0"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fab19936-5072-402e-bb16-79ccc96933d0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

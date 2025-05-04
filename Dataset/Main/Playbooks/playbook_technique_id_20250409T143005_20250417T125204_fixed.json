@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d002cb3e-73bf-4476-9130-bfcdc5e445eb",
+    "name": "Playbook for Application Layer Protocol Data Exfiltration Incident",
+    "description": "This playbook handles incidents of data exfiltration via application layer protocols, specifically focusing on blocking unauthorized IPs, securing logs, and monitoring for further anomalies.",
+    "created_by": "identity--a8cd728c-32bc-4c58-9b5e-e785e94ef38d",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--7f88cd1b-5621-433c-b7ab-98d740f45f54",
+    "workflow": {
+        "start--7f88cd1b-5621-433c-b7ab-98d740f45f54": {
+            "on_completion": "action--8ea84f5e-57c6-4137-8f3d-0604ab1a2578",
+            "type": "start"
+        },
+        "action--8ea84f5e-57c6-4137-8f3d-0604ab1a2578": {
+            "name": "Identify and block the external IP address",
+            "description": "Blocks outbound traffic to the unauthorized external IP address.",
+            "on_completion": "action--d6b0d6df-f77e-42c9-b112-4a1f1444c32f",
+            "type": "action",
+            "agent": "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external-ip> -j DROP"
+                }
+            ]
+        },
+        "action--d6b0d6df-f77e-42c9-b112-4a1f1444c32f": {
+            "name": "Secure logs and begin forensic analysis",
+            "description": "Creates a backup of the syslog for forensic analysis.",
+            "on_completion": "loop--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51",
+            "type": "action",
+            "agent": "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /var/log/syslog /var/log/syslog.backup"
+                }
+            ]
+        },
+        "loop--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51": {
+            "name": "Monitor for further anomalous activity",
+            "description": "Continuously monitor the auth log for any further suspicious activities.",
+            "type": "while-condition",
+            "condition": "keep_monitoring",
+            "on_true": "action--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51",
+            "next_steps": [
+                "action--1f04732b-b2ea-455f-b534-4d16264b2f94",
+                "action--4b7336ae-535e-4572-9c1c-5a1fe45d7c4c"
+            ]
+        },
+        "action--1f04732b-b2ea-455f-b534-4d16264b2f94": {
+            "name": "Run a full security scan across affected hosts",
+            "description": "Launch a security scan to detect any threats.",
+            "type": "action",
+            "agent": "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "on_completion": "if-condition--6cec05e9-a612-4db7-bbf2-0de72bb677fa"
+        },
+        "action--4b7336ae-535e-4572-9c1c-5a1fe45d7c4c": {
+            "name": "Review user permissions and access controls",
+            "description": "Check current user permissions to ensure proper access.",
+            "on_completion": "loop--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51",
+            "type": "action",
+            "agent": "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "getent passwd | grep -E ':(/home/|/var/log/)'"
+                }
+            ]
+        },
+        "if-condition--6cec05e9-a612-4db7-bbf2-0de72bb677fa": {
+            "name": "Check if threats were found during the scan",
+            "type": "if-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--8c9643bb-2e84-4e59-b8f9-63db770eaa90",
+            "on_false": "loop--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51"
+        },
+        "action--8c9643bb-2e84-4e59-b8f9-63db770eaa90": {
+            "name": "Take necessary action for detected threats",
+            "description": "Execute the response to the detected threats.",
+            "on_completion": "loop--3f58dd48-a9f5-4f4b-b2d0-b7a2c9b6ae51",
+            "type": "action",
+            "agent": "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Threats found, take immediate action!'"
+                }
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--79e3b2c2-c490-4a01-bf3b-6f1d0a6e604e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

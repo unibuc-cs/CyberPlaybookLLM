@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fa7e7730-05ab-4eeb-92ef-b62ad07f60cb",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed malicious scripts, resulting in privilege escalation and data exfiltration.",
+    "created_by": "identity--f9e9cdd5-ecb3-4b08-aa7b-4ff2c4ac66ae",
+    "created": "2025-04-10T12:00:00.000Z",
+    "modified": "2025-04-10T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a1f3fece-b9dc-41d4-b882-de46277870d3",
+    "workflow": {
+        "start--a1f3fece-b9dc-41d4-b882-de46277870d3": {
+            "on_completion": "action--e093e678-8761-4fc3-b2ab-13ded5661781",
+            "type": "start"
+        },
+        "action--e093e678-8761-4fc3-b2ab-13ded5661781": {
+            "name": "Identify and Kill Malicious PowerShell Process",
+            "description": "Stop any PowerShell processes that are running malicious scripts.",
+            "on_completion": "action--75bde99b-e64a-4b07-853e-ee30574fef8e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.Path -like 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe' -and $_.StartInfo.Arguments -like '*malicious*' } | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--386764e5-9a5d-4331-a247-46c64c97eb7c"
+        },
+        "action--75bde99b-e64a-4b07-853e-ee30574fef8e": {
+            "name": "Run Full System Scan",
+            "description": "Execute a full system scan to detect other potential threats.",
+            "on_completion": "decision--cec1fb02-bb76-426f-aa05-ff6b6e69065a",
+            "type": "action",
+            "loop": {
+                "condition": "scan_clean == false",
+                "on_true": "action--75bde99b-e64a-4b07-853e-ee30574fef8e"
+            },
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-Expression 'C:\\Program Files\\MyAntivirus\\scan.exe /full'"
+                }
+            ],
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan is clean (true if clean, false otherwise).",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--386764e5-9a5d-4331-a247-46c64c97eb7c"
+        },
+        "action--d9d59fc7-d77d-48b1-a4c7-59adea5f3aa0": {
+            "name": "Review Firewall Logs for Unusual Outbound Traffic",
+            "description": "Check firewall logs for any suspicious outbound connections that might indicate data exfiltration.",
+            "on_completion": "end--8cb99bc3-8e4e-4a58-9e04-faf1c9cffc6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-FirewallLog | Where-Object { $_.Direction -eq 'Outbound' -and $_.Blocked -eq $false }"
+                }
+            ],
+            "agent": "organization--386764e5-9a5d-4331-a247-46c64c97eb7c"
+        },
+        "end--8cb99bc3-8e4e-4a58-9e04-faf1c9cffc6a": {
+            "type": "end"
+        },
+        "decision--cec1fb02-bb76-426f-aa05-ff6b6e69065a": {
+            "name": "Check if the system scan is complete",
+            "type": "if-condition",
+            "on_true": "action--d9d59fc7-d77d-48b1-a4c7-59adea5f3aa0",
+            "on_false": "action--75bde99b-e64a-4b07-853e-ee30574fef8e",
+            "condition": "scan_clean == true"
+        }
+    },
+    "agent_definitions": {
+        "organization--386764e5-9a5d-4331-a247-46c64c97eb7c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

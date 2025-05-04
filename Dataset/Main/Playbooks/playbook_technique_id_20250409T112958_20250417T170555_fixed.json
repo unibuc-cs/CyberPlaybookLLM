@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b8c0e40a-d31e-4d5f-84c4-3f7952d290d2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker gained access to the network and executed commands to extract sensitive data, involving multiple hosts.",
+    "created_by": "identity--86f7f6b0-099d-426e-af04-7f39c10dfc83",
+    "created": "2023-10-12T14:30:00Z",
+    "modified": "2023-10-12T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b8c0e40a-d31e-4d5f-84c4-3f7952d290d3",
+    "workflow": {
+        "start--b8c0e40a-d31e-4d5f-84c4-3f7952d290d3": {
+            "on_completion": "action--cbf81b8e-4f60-4707-91ad-2dadc573b9e4",
+            "type": "start",
+            "name": "Initiate Mitigation Process",
+            "description": "Start the workflow for mitigating the incident."
+        },
+        "action--cbf81b8e-4f60-4707-91ad-2dadc573b9e4": {
+            "name": "Kill malicious process",
+            "description": "Terminate any suspicious processes that may be extracting sensitive data.",
+            "on_completion": "action--f9af5dbe-0b09-4a6f-ae48-d06ccc8264f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--77daaeac-7e1b-4c95-92e8-80be5927cc13"
+        },
+        "action--f9af5dbe-0b09-4a6f-ae48-d06ccc8264f0": {
+            "name": "Block malicious IP",
+            "description": "Block outgoing connections to known malicious IP addresses.",
+            "on_completion": "decision--f1eb88bc-5d2a-4f47-ac48-31def671c4a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip_address -j DROP"
+                }
+            ],
+            "agent": "organization--77daaeac-7e1b-4c95-92e8-80be5927cc13"
+        },
+        "action--ca1b7b34-ca17-4b2f-bddf-fd20958f9f29": {
+            "name": "Scan for malware",
+            "description": "Perform a thorough malware scan on the system.",
+            "on_completion": "loop--43928a27-bac6-422d-824f-ba2b1c830043",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--77daaeac-7e1b-4c95-92e8-80be5927cc13",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the malware scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--d9ee4ccc-038d-4f4a-86d3-f9ad27f9a426": {
+            "name": "Notify security team",
+            "description": "Inform the security team about the incident that was detected.",
+            "on_completion": "end--977bac9e-fa8d-4a4c-b126-341692040c4d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-22' | mail -s 'Incident Alert' security_team@example.com"
+                }
+            ],
+            "agent": "organization--77daaeac-7e1b-4c95-92e8-80be5927cc13"
+        },
+        "decision--f1eb88bc-5d2a-4f47-ac48-31def671c4a7": {
+            "name": "Check for Malware",
+            "type": "if-condition",
+            "condition": "found_malware == true",
+            "on_true": "loop--43928a27-bac6-422d-824f-ba2b1c830043",
+            "on_false": "action--d9ee4ccc-038d-4f4a-86d3-f9ad27f9a426"
+        },
+        "loop--43928a27-bac6-422d-824f-ba2b1c830043": {
+            "name": "Scan for Malware in Loop",
+            "description": "Continue scanning for malware until the system is clean.",
+            "on_completion": "decision--5b664253-3f9a-4428-88a2-95b20cc0a680",
+            "type": "while-condition",
+            "condition": "scan_status == \"in_progress\"",
+            "on_true": "action--ca1b7b34-ca17-4b2f-bddf-fd20958f9f29"
+        },
+        "decision--5b664253-3f9a-4428-88a2-95b20cc0a680": {
+            "name": "Update scan status",
+            "type": "if-condition",
+            "condition": "scan_clean == true",
+            "on_true": "action--d9ee4ccc-038d-4f4a-86d3-f9ad27f9a426",
+            "on_false": "loop--43928a27-bac6-422d-824f-ba2b1c830043"
+        },
+        "end--977bac9e-fa8d-4a4c-b126-341692040c4d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--77daaeac-7e1b-4c95-92e8-80be5927cc13": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

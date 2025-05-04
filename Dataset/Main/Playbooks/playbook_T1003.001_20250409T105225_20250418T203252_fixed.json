@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9e567c0-a497-4b0e-93dd-21ebebc0300d",
+    "name": "Credential Dump Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker executed a tool to dump credentials from the LSASS process, allowing extraction of sensitive information.",
+    "created_by": "identity--76c705b2-13f9-4828-bedd-48a266d34fd4",
+    "created": "2025-04-09T10:52:25Z",
+    "modified": "2025-04-09T10:55:25Z",
+    "revoked": false,
+    "workflow_start": "start--4d1f1aa4-902e-4607-82c5-aa41cf11208b",
+    "workflow": {
+        "action--cd1b4252-744c-4c57-836d-8c78a7cd4647": {
+            "name": "Kill malicious LSASS process access",
+            "description": "Terminate the lsass.exe process to prevent further credential dumping.",
+            "on_completion": "parallel--d1220e54-c691-4aa2-8e92-b12b07528019",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 lsass.exe"
+                }
+            ],
+            "agent": "organization--979b40a3-f713-48d1-b8dc-983056a47d53"
+        },
+        "action--ef1c5df0-9b69-4efb-a259-e6c8ad5c178b": {
+            "name": "Run antivirus scan on potentially affected host",
+            "description": "Scan the affected host for malware and other indicators of compromise.",
+            "on_completion": "loop--0791d74b-0a2d-4a13-8491-17d3c52a0e40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus scan --target host-22"
+                }
+            ],
+            "agent": "organization--979b40a3-f713-48d1-b8dc-983056a47d53"
+        },
+        "action--bcfe5a91-3de8-4f15-9d0a-6d4e700bb50f": {
+            "name": "Analyze logs for lateral movement",
+            "description": "Check for any suspicious activity related to the compromised host.",
+            "on_completion": "decision--d78095d5-0e74-4860-bde5-216b4017e926",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'host-22' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--979b40a3-f713-48d1-b8dc-983056a47d53"
+        },
+        "action--1dc2b3ee-1e34-49f2-8bc9-e1af7b58d3c4": {
+            "name": "Reset credentials of affected users",
+            "description": "Reset passwords for users that may have been compromised.",
+            "on_completion": "end--21c0e9dc-65a4-4f62-b0e8-d53ecc7e293b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "foreach user in affected_users; do reset_password $user; done"
+                }
+            ],
+            "agent": "organization--979b40a3-f713-48d1-b8dc-983056a47d53"
+        },
+        "start--4d1f1aa4-902e-4607-82c5-aa41cf11208b": {
+            "on_completion": "action--cd1b4252-744c-4c57-836d-8c78a7cd4647",
+            "type": "start"
+        },
+        "parallel--d1220e54-c691-4aa2-8e92-b12b07528019": {
+            "name": "Mitigation Steps",
+            "description": "Conduct multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ef1c5df0-9b69-4efb-a259-e6c8ad5c178b",
+                "action--bcfe5a91-3de8-4f15-9d0a-6d4e700bb50f"
+            ]
+        },
+        "loop--0791d74b-0a2d-4a13-8491-17d3c52a0e40": {
+            "name": "Antivirus Scan Loop",
+            "description": "Repeat the antivirus scan until the system is clean.",
+            "on_completion": "action--1dc2b3ee-1e34-49f2-8bc9-e1af7b58d3c4",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--ef1c5df0-9b69-4efb-a259-e6c8ad5c178b"
+        },
+        "decision--d78095d5-0e74-4860-bde5-216b4017e926": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_found",
+            "on_true": "action--1dc2b3ee-1e34-49f2-8bc9-e1af7b58d3c4",
+            "on_false": "end--21c0e9dc-65a4-4f62-b0e8-d53ecc7e293b"
+        },
+        "end--21c0e9dc-65a4-4f62-b0e8-d53ecc7e293b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--979b40a3-f713-48d1-b8dc-983056a47d53": {
+            "type": "organization",
+            "name": "XYZ Cybersecurity Inc."
+        }
+    }
+}

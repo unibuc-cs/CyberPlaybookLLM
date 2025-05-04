@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7826149-e4e0-4d6c-ba3f-50827688750d",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a command interpreter to execute malicious scripts on a server.",
+    "created_by": "identity--f5abf06e-361e-4d55-8f1b-6aef25352cda",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7436efb9-f0c9-4f21-b11e-48cfacccbfcb",
+    "workflow": {
+        "start--7436efb9-f0c9-4f21-b11e-48cfacccbfcb": {
+            "on_completion": "action--b5899f17-5a06-4c1a-9c20-ff055b278926",
+            "type": "start"
+        },
+        "action--b5899f17-5a06-4c1a-9c20-ff055b278926": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script execution.",
+            "on_completion": "if-condition--c8345bc3-b28d-41a8-986c-d9c190bc7c9c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f script_name.sh"
+                }
+            ],
+            "agent": "organization--90ba1a58-1c06-4278-8ddb-2302d48431e5"
+        },
+        "if-condition--c8345bc3-b28d-41a8-986c-d9c190bc7c9c": {
+            "name": "Check if malicious process is still running",
+            "type": "if-condition",
+            "condition": "process_is_running('script_name.sh')",
+            "on_true": "action--c8345bc3-b28d-41a8-986c-d9c190bc7c9c",
+            "on_false": "action--435cbe31-07fb-4709-82fa-e42ffb0df6b8"
+        },
+        "action--c8345bc3-b28d-41a8-986c-d9c190bc7c9c": {
+            "name": "Disconnect from the network",
+            "description": "Disable network interface to prevent further data exfiltration.",
+            "on_completion": "action--435cbe31-07fb-4709-82fa-e42ffb0df6b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--90ba1a58-1c06-4278-8ddb-2302d48431e5"
+        },
+        "action--435cbe31-07fb-4709-82fa-e42ffb0df6b8": {
+            "name": "Run malware scan",
+            "description": "Perform a complete scan of the system for malware.",
+            "on_completion": "while-condition--88ec4f2a-ef21-40d3-ad9d-85fd90916006",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--90ba1a58-1c06-4278-8ddb-2302d48431e5"
+        },
+        "end--2f6bdc36-d6d4-474b-ba9b-9c71c7a8f394": {
+            "type": "end"
+        },
+        "while-condition--88ec4f2a-ef21-40d3-ad9d-85fd90916006": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--435cbe31-07fb-4709-82fa-e42ffb0df6b8",
+            "on_false": "end--2f6bdc36-d6d4-474b-ba9b-9c71c7a8f394"
+        }
+    },
+    "agent_definitions": {
+        "organization--90ba1a58-1c06-4278-8ddb-2302d48431e5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

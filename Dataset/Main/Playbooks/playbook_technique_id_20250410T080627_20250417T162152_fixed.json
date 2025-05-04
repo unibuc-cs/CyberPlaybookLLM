@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f5c3a68-b5b3-4d12-bfa3-e38da57ea0d5",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses incidents where unauthorized scripts were executed on multiple hosts, exploiting a vulnerability in the remote command interpreter.",
+    "created_by": "identity--133254ce-af60-4568-bac6-aa4173a8d477",
+    "created": "2025-04-10T08:06:27Z",
+    "modified": "2025-04-10T08:06:27Z",
+    "workflow_start": "start--9782a012-bd68-46e5-9653-d924038b09f5",
+    "workflow": {
+        "start--9782a012-bd68-46e5-9653-d924038b09f5": {
+            "on_completion": "action--6ae304b7-8b72-4afa-bf09-5b35fd44b4ea",
+            "type": "start"
+        },
+        "action--6ae304b7-8b72-4afa-bf09-5b35fd44b4ea": {
+            "name": "Terminate unauthorized processes",
+            "description": "Terminate any processes executing the unauthorized script.",
+            "on_completion": "parallel--f2e3bcfa-e135-439d-b298-ce9d118baae2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script"
+                }
+            ],
+            "agent": "organization--fb7f4d33-c129-4466-ac67-cb77c5548a7b"
+        },
+        "parallel--f2e3bcfa-e135-439d-b298-ce9d118baae2": {
+            "name": "Isolate affected systems and scan",
+            "description": "Execute isolation and scanning processes in parallel for affected hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f389ec90-7d9b-42c5-8796-90e3f41d346b",
+                "action--b9083d4c-3de7-4ab0-b1f6-6401124f2340"
+            ]
+        },
+        "action--f389ec90-7d9b-42c5-8796-90e3f41d346b": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate affected hosts from the network if malicious processes are detected.",
+            "on_completion": "action--c70912a1-4c4e-4352-aa1f-237b23c5c234",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh interface set interface 'Network Adapter' admin=disabled"
+                }
+            ],
+            "agent": "organization--35276756-f345-4b31-83da-4b525bcb9e93",
+            "condition": "if [ $(lsof -i -n | grep -i 'malicious') ]"
+        },
+        "action--b9083d4c-3de7-4ab0-b1f6-6401124f2340": {
+            "name": "Scan and clean the systems",
+            "description": "Perform a recursive scan and clean for malware.",
+            "on_completion": "while-loop--ba83b8e3-a60c-4262-818e-399c6879b663",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--a27fa411-f6e5-4405-acd0-445ecc8763c4"
+        },
+        "action--c70912a1-4c4e-4352-aa1f-237b23c5c234": {
+            "name": "Reset user credentials",
+            "description": "Reset credentials for potentially compromised users.",
+            "on_completion": "action--49b7d22b-319c-40ac-9051-a3f9ed6dbf21",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd compromised_user"
+                }
+            ],
+            "agent": "organization--35276756-f345-4b31-83da-4b525bcb9e93",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "The user account that needs password resetting.",
+                    "value": "compromised_user",
+                    "constant": true
+                }
+            }
+        },
+        "action--49b7d22b-319c-40ac-9051-a3f9ed6dbf21": {
+            "name": "Enable enhanced logging",
+            "description": "Enhance logging for better detection of future incidents.",
+            "on_completion": "end--fa34823c-5b59-404c-a56d-39757faddf3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -e 1"
+                }
+            ],
+            "agent": "organization--fb7f4d33-c129-4466-ac67-cb77c5548a7b"
+        },
+        "end--fa34823c-5b59-404c-a56d-39757faddf3f": {
+            "type": "end"
+        },
+        "while-loop--ba83b8e3-a60c-4262-818e-399c6879b663": {
+            "name": "Check scan result",
+            "description": "Loop until the scan completes successfully.",
+            "on_completion": "action--c70912a1-4c4e-4352-aa1f-237b23c5c234",
+            "type": "while-condition",
+            "condition": "until [ $? -eq 0 ]",
+            "on_true": "action--b9083d4c-3de7-4ab0-b1f6-6401124f2340"
+        }
+    },
+    "agent_definitions": {
+        "organization--35276756-f345-4b31-83da-4b525bcb9e93": {
+            "type": "organization",
+            "name": "NetworkManagement"
+        },
+        "organization--fb7f4d33-c129-4466-ac67-cb77c5548a7b": {
+            "type": "organization",
+            "name": "ProcessManagement"
+        },
+        "organization--a27fa411-f6e5-4405-acd0-445ecc8763c4": {
+            "type": "organization",
+            "name": "SecuritySolutions"
+        }
+    }
+}

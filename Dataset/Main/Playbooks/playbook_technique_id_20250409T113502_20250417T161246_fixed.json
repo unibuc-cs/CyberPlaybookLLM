@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2d78c63-db79-4c75-8131-6004a3f1bc57",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious actor gained access through a phishing email containing a PowerShell script.",
+    "created_by": "identity--c5f0a6e8-9c5a-49f2-be67-5ea1a938e900",
+    "created": "2025-04-10T09:00:00Z",
+    "modified": "2025-04-10T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--a7fc2e6b-9042-44a6-ada8-190b5fb6fb22",
+    "workflow": {
+        "start--a7fc2e6b-9042-44a6-ada8-190b5fb6fb22": {
+            "on_completion": "parallel--43f25155-061f-4e3e-9bd8-cf5cee8fb5cf",
+            "type": "start"
+        },
+        "parallel--43f25155-061f-4e3e-9bd8-cf5cee8fb5cf": {
+            "name": "Mitigation Actions",
+            "description": "Perform multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8d04eebf-c1b4-4e95-b82d-b2e06ab4bea3",
+                "action--d58e430e-7b70-44e2-b450-f53c268d66fc",
+                "while-condition--673b635e-811c-4eeb-80c6-a9e4cf82f2b4"
+            ]
+        },
+        "action--8d04eebf-c1b4-4e95-b82d-b2e06ab4bea3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are part of the malicious activity.",
+            "on_completion": "parallel--43f25155-061f-4e3e-9bd8-cf5cee8fb5cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--e784b295-cbd8-47e8-abce-cbf68e25f5ee"
+        },
+        "action--d58e430e-7b70-44e2-b450-f53c268d66fc": {
+            "name": "Isolate affected host from the network",
+            "description": "Disable the network interface on the affected host.",
+            "on_completion": "parallel--43f25155-061f-4e3e-9bd8-cf5cee8fb5cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--e784b295-cbd8-47e8-abce-cbf68e25f5ee"
+        },
+        "while-condition--673b635e-811c-4eeb-80c6-a9e4cf82f2b4": {
+            "name": "Perform malware scan until clean",
+            "description": "Repeat the malware scan on the affected host until it is clear.",
+            "on_completion": "end--5d706b1b-3b49-4587-84e1-9d764bacd8ba",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--f6238e3a-030b-4043-9f07-0d366c15a6e4"
+        },
+        "action--f6238e3a-030b-4043-9f07-0d366c15a6e4": {
+            "name": "Perform malware scan on the affected host",
+            "description": "Scan the affected host for malware.",
+            "on_completion": "while-condition--673b635e-811c-4eeb-80c6-a9e4cf82f2b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--e784b295-cbd8-47e8-abce-cbf68e25f5ee",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Hold the status of the malware scan.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--5d706b1b-3b49-4587-84e1-9d764bacd8ba": {
+            "step_extensions": {},
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e784b295-cbd8-47e8-abce-cbf68e25f5ee": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

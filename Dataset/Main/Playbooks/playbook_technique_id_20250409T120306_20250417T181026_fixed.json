@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b327ba9d-bc55-4a05-a4be-8208e5820450",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application, allowing arbitrary command execution on the server.",
+    "created_by": "identity--1743eab7-dafa-4f34-be7a-eb9d12ef244a",
+    "created": "2025-04-09T12:00:00.000Z",
+    "modified": "2025-04-09T12:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--67faec3b-57a1-4f46-b15c-bc2f03494056",
+    "workflow": {
+        "start--67faec3b-57a1-4f46-b15c-bc2f03494056": {
+            "on_completion": "parallel--7c199c15-a2c1-4dd6-b3e3-23b99e3117b2",
+            "type": "start"
+        },
+        "parallel--7c199c15-a2c1-4dd6-b3e3-23b99e3117b2": {
+            "name": "Mitigation Actions",
+            "description": "Initiate mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--687f27e8-d92e-43d5-9d7b-bce5b9cd6745",
+                "if-condition--a88d8f16-01f0-4f47-a4e1-aba5b154abb0"
+            ]
+        },
+        "action--687f27e8-d92e-43d5-9d7b-bce5b9cd6745": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious commands.",
+            "on_completion": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--4c534669-231c-4744-a402-9bd1b146857d"
+        },
+        "if-condition--a88d8f16-01f0-4f47-a4e1-aba5b154abb0": {
+            "name": "Check for dropped web shell",
+            "type": "if-condition",
+            "condition": "[ -f /var/www/html/suspicious_shell.php ]",
+            "on_true": "action--e045da24-cb12-474f-9c6e-e06a6d088f37",
+            "on_false": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04"
+        },
+        "action--e045da24-cb12-474f-9c6e-e06a6d088f37": {
+            "name": "Delete dropped web shell",
+            "description": "Remove the suspicious web shell from the web directory.",
+            "on_completion": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/suspicious_shell.php"
+                }
+            ],
+            "agent": "organization--4c534669-231c-4744-a402-9bd1b146857d"
+        },
+        "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04": {
+            "name": "Conduct full system scan",
+            "description": "Run a full system scan until the system is clean.",
+            "on_completion": "end--f9a137be-e004-4cfd-b1de-dd144a35c80e",
+            "type": "while-condition",
+            "condition": "scan_status == \"not_clean\"",
+            "on_true": "action--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "on_false": "end--f9a137be-e004-4cfd-b1de-dd144a35c80e"
+        },
+        "action--3c9cc18a-0eaa-4783-bf43-963ef47bfb04": {
+            "name": "Run full system scan",
+            "description": "Execute the full system scan script.",
+            "on_completion": "update-scan-status--22fd9613-81bd-465a-998f-ea633e9b2d06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run_full_scan.sh"
+                }
+            ],
+            "agent": "organization--4c534669-231c-4744-a402-9bd1b146857d"
+        },
+        "end--f9a137be-e004-4cfd-b1de-dd144a35c80e": {
+            "type": "end"
+        },
+        "update-scan-status--22fd9613-81bd-465a-998f-ea633e9b2d06": {
+            "name": "Update scan status",
+            "description": "Check the result of the last scan and update the status.",
+            "on_completion": "loop--3c9cc18a-0eaa-4783-bf43-963ef47bfb04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_status"
+                }
+            ],
+            "agent": "organization--4c534669-231c-4744-a402-9bd1b146857d"
+        }
+    },
+    "agent_definitions": {
+        "organization--4c534669-231c-4744-a402-9bd1b146857d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

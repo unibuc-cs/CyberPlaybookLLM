@@ -1,0 +1,136 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d01bc4e5-1cd7-45ca-8ace-f7e01f92d1ba",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook deals with an incident where an unauthorized user executed malicious scripts, enabling lateral movement through the network.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d73c3388-b6d2-4c0e-8873-f3d87ed3f0c8",
+    "workflow": {
+        "start--d73c3388-b6d2-4c0e-8873-f3d87ed3f0c8": {
+            "on_completion": "action--1b671a64-40d5-491e-99b0-da01ff1f3341",
+            "type": "start"
+        },
+        "action--1b671a64-40d5-491e-99b0-da01ff1f3341": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized script process running on the host.",
+            "on_completion": "parallel--ec5c3420-8d6b-4b80-aa69-c1c03162c2b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--0f04feab-8edb-4846-9cec-31958a4f2317"
+        },
+        "parallel--ec5c3420-8d6b-4b80-aa69-c1c03162c2b6": {
+            "name": "Mitigation Actions",
+            "description": "Run multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9e107d9d-372d-4d2b-8811-0c2f0e6a5b7c",
+                "action--3c6e0b8a-444b-4a3a-875b-fe51abfa5f9d",
+                "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d",
+                "action--b9c711c3-2f29-476f-b397-eb6bb2855d63"
+            ]
+        },
+        "action--9e107d9d-372d-4d2b-8811-0c2f0e6a5b7c": {
+            "name": "Block suspicious IP addresses",
+            "description": "Block known malicious IP addresses identified in the attack logs.",
+            "on_completion": "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--0656d9ec-9c67-4cd3-97fc-87a99b591559",
+            "condition": "if ip_suspicious_list is not empty"
+        },
+        "action--3c6e0b8a-444b-4a3a-875b-fe51abfa5f9d": {
+            "name": "Revoke unauthorized user access",
+            "description": "Remove access for the unauthorized user from the system.",
+            "on_completion": "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r unauthorized_user"
+                }
+            ],
+            "agent": "organization--099a413d-856f-487b-b55f-c0494574e748"
+        },
+        "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d": {
+            "name": "Scan system for malware",
+            "description": "Conduct a comprehensive scan of the entire system for malware.",
+            "type": "action",
+            "loop": "repeat until scan is clean",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--4ca468b3-17fd-4c27-a686-c009444ae8c9"
+        },
+        "action--b9c711c3-2f29-476f-b397-eb6bb2855d63": {
+            "name": "Notify stakeholders",
+            "description": "Send an email notification to stakeholders regarding the incident.",
+            "on_completion": "if-condition--e4d909c2-218f-4c1b-b882-f1b8c28b00d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email --to stakeholders@example.com --subject 'Incident Report' --body 'A security incident has been handled.'"
+                }
+            ],
+            "agent": "organization--099a413d-856f-487b-b55f-c0494574e748"
+        },
+        "if-condition--e4d909c2-218f-4c1b-b882-f1b8c28b00d8": {
+            "name": "Check scan results for threats",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "action--e4d909c2-218f-4c1b-b882-f1b8c28b00d8",
+            "on_false": "end--c8a3301c-78e4-48ef-998e-d9c70e4ac6c7"
+        },
+        "action--e4d909c2-218f-4c1b-b882-f1b8c28b00d8": {
+            "name": "Restore from a clean backup",
+            "description": "Restore the system from a clean backup to ensure integrity.",
+            "on_completion": "end--c8a3301c-78e4-48ef-998e-d9c70e4ac6c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -avh backups/clean/ /"
+                }
+            ],
+            "agent": "organization--0f04feab-8edb-4846-9cec-31958a4f2317"
+        },
+        "end--c8a3301c-78e4-48ef-998e-d9c70e4ac6c7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0f04feab-8edb-4846-9cec-31958a4f2317": {
+            "type": "organization",
+            "name": "OrganizationABC"
+        },
+        "organization--0656d9ec-9c67-4cd3-97fc-87a99b591559": {
+            "type": "organization",
+            "name": "OrganizationDEF"
+        },
+        "organization--4ca468b3-17fd-4c27-a686-c009444ae8c9": {
+            "type": "organization",
+            "name": "OrganizationGHI"
+        },
+        "organization--099a413d-856f-487b-b55f-c0494574e748": {
+            "type": "organization",
+            "name": "OrganizationXYZ"
+        }
+    }
+}

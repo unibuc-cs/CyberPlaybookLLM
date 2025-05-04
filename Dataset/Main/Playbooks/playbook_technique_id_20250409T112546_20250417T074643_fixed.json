@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ceb09353-cbe4-4f90-8a2e-bc65c353bf03",
+    "name": "Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook outlines the steps to respond to an incident where PowerShell scripts were used to exfiltrate sensitive data.",
+    "created_by": "identity--9b787754-b2b0-4f6e-b45c-bdd3b4c144f1",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--5f9cb50d-7f6e-4c0d-8198-21deceba6701",
+    "workflow": {
+        "if-condition--abbc1a00-b3de-45fe-8c4f-8fda7905db88": {
+            "name": "Check for running PowerShell processes",
+            "type": "if-condition",
+            "condition": "powershell_running()",
+            "on_true": "action--b41fe7ad-f075-4c23-bc62-1aa7e65cb8aa",
+            "on_false": "action--c21df6b8-7926-4fa3-abc4-df88211a7f4e"
+        },
+        "action--b41fe7ad-f075-4c23-bc62-1aa7e65cb8aa": {
+            "name": "Terminate PowerShell processes",
+            "description": "This action terminates any running PowerShell processes.",
+            "on_completion": "parallel--d8b94f9a-cbc4-4d04-a2b2-32f882219bad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--c5526427-1022-47e3-92cd-73e5dbc1c1bb"
+        },
+        "action--c21df6b8-7926-4fa3-abc4-df88211a7f4e": {
+            "name": "Isolate affected host",
+            "description": "Shut down the network interface for the affected host to prevent further exfiltration.",
+            "on_completion": "parallel--d8b94f9a-cbc4-4d04-a2b2-32f882219bad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c5526427-1022-47e3-92cd-73e5dbc1c1bb"
+        },
+        "parallel--d8b94f9a-cbc4-4d04-a2b2-32f882219bad": {
+            "name": "Perform mitigation actions",
+            "description": "Initiate network scan after isolating the host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a"
+            ]
+        },
+        "action--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a": {
+            "name": "Perform a network scan",
+            "description": "Conduct a network scan to identify any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--c5526427-1022-47e3-92cd-73e5dbc1c1bb",
+            "on_completion": "if-condition--6991f75d-c91e-4b6a-8e75-a9436184b87f"
+        },
+        "start--5f9cb50d-7f6e-4c0d-8198-21deceba6701": {
+            "on_completion": "if-condition--abbc1a00-b3de-45fe-8c4f-8fda7905db88",
+            "type": "start"
+        },
+        "if-condition--6991f75d-c91e-4b6a-8e75-a9436184b87f": {
+            "name": "Check for threats after scan",
+            "type": "if-condition",
+            "condition": "threats_found()",
+            "on_true": "action--cf0983c3-0d1d-4fed-b147-5649b4eb8b4a",
+            "on_false": "end--74ef1e98-82e6-42e0-804d-6790cad88908"
+        },
+        "end--74ef1e98-82e6-42e0-804d-6790cad88908": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c5526427-1022-47e3-92cd-73e5dbc1c1bb": {
+            "type": "organization",
+            "name": "ClientXYZ"
+        }
+    }
+}

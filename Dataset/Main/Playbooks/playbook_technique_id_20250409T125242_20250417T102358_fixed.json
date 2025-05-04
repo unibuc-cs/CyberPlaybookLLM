@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--aeeb1cb3-5504-4e64-aa0f-f7e74c2cb50c",
+    "name": "Mitigation Playbook for Exploitation of Remote Services Incident",
+    "description": "This playbook addresses incidents where an attacker exploited a vulnerability in the web server, gaining unauthorized access and installing a backdoor.",
+    "created_by": "identity--921ea39e-fbba-42db-9da8-1bc657da3d5c",
+    "created": "2023-10-20T12:00:00Z",
+    "modification": "2023-10-20T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--fdaa1eeb-eb8a-403c-9f4f-665c9ed52ef0",
+    "workflow": {
+        "start--fdaa1eeb-eb8a-403c-9f4f-665c9ed52ef0": {
+            "on_completion": "action--c57d1bfa-5c8e-438d-8b06-8872504e9688",
+            "type": "start"
+        },
+        "action--c57d1bfa-5c8e-438d-8b06-8872504e9688": {
+            "name": "Patch the web server vulnerability",
+            "description": "Update and install the latest version of the web server to mitigate the vulnerability.",
+            "on_completion": "action--0bda9249-6063-4e6d-b58f-cf3e46058f46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install -y latest-web-server-version"
+                }
+            ],
+            "agent": "organization--83616be1-07ad-4592-9af7-139e7bac1244"
+        },
+        "action--0bda9249-6063-4e6d-b58f-cf3e46058f46": {
+            "name": "Kill unauthorized shell processes",
+            "description": "Terminate any unauthorized shell processes that may have been established by the attacker.",
+            "on_completion": "if-condition--ad3f3756-be1a-4e78-ad2f-8db655c1c1fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell"
+                }
+            ],
+            "agent": "organization--83616be1-07ad-4592-9af7-139e7bac1244"
+        },
+        "action--cf7e503f-3d8a-4cbb-9fbf-e40452958aad": {
+            "name": "Perform malware scan and quarantine findings",
+            "description": "Scan for malware within the /tmp directory and quarantine any malicious files.",
+            "on_completion": "while-condition--649e87db-6af1-4dd9-b752-959d242200a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /tmp --move=/tmp/quarantine"
+                }
+            ],
+            "agent": "organization--83616be1-07ad-4592-9af7-139e7bac1244"
+        },
+        "end--e62c5e40-bd52-4879-8127-ab6cc0e9156c": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        },
+        "if-condition--ad3f3756-be1a-4e78-ad2f-8db655c1c1fc": {
+            "name": "Check if unauthorized shell processes were found",
+            "type": "if-condition",
+            "condition": "shell_process_found",
+            "on_true": "action--cf7e503f-3d8a-4cbb-9fbf-e40452958aad",
+            "on_false": "end--e62c5e40-bd52-4879-8127-ab6cc0e9156c"
+        },
+        "while-condition--649e87db-6af1-4dd9-b752-959d242200a9": {
+            "name": "Check for remaining malware",
+            "description": "Continue scanning until no malware is found.",
+            "on_completion": "end--e62c5e40-bd52-4879-8127-ab6cc0e9156c",
+            "type": "while-condition",
+            "condition": "malware_found",
+            "on_true": "action--cf7e503f-3d8a-4cbb-9fbf-e40452958aad"
+        }
+    },
+    "agent_definitions": {
+        "organization--83616be1-07ad-4592-9af7-139e7bac1244": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

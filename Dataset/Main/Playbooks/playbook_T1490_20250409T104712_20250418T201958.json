@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d776f2d4-4c34-47d8-988a-e635ac1a054d",
+    "name": "Inhibit System Recovery Mitigation Playbook",
+    "description": "This playbook mitigates the T1490 incident where an attacker inhibited system recovery by deleting backup files and modifying recovery settings.",
+    "created_by": "identity--d2116a79-1415-4d28-8e64-19dcfc4a1766",
+    "created": "2025-04-09T10:47:12.497Z",
+    "modified": "2025-04-09T10:50:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1b2e0b1-5f3a-49a0-87c1-982c64f37167",
+    "workflow": {
+        "start--f1b2e0b1-5f3a-49a0-87c1-982c64f37167": {
+            "on_completion": "loop--c4b623f3-4ef1-417d-8e63-d8910f38a450",
+            "type": "start"
+        },
+        "loop--c4b623f3-4ef1-417d-8e63-d8910f38a450": {
+            "name": "Restore Backups",
+            "description": "Repeat until all backups are restored.",
+            "type": "loop",
+            "condition": "backup_restore_complete == false",
+            "on_true": "action--f253dadc-d14f-4f46-8f61-be5f648e8f5b",
+            "on_false": "decision--6a1379aa-5fe4-4b40-9153-e289820d7780"
+        },
+        "action--f253dadc-d14f-4f46-8f61-be5f648e8f5b": {
+            "name": "Restore backups from secure storage",
+            "description": "Copy backups to the current system directory.",
+            "on_completion": "loop--c4b623f3-4ef1-417d-8e63-d8910f38a450",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /secure/backup/* /current/system/"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "backup_restore_complete": {
+                    "type": "boolean",
+                    "value": "false",
+                    "constant": false,
+                    "description": "Indicates if all backups have been restored"
+                }
+            }
+        },
+        "decision--6a1379aa-5fe4-4b40-9153-e289820d7780": {
+            "name": "Check System Recovery Options",
+            "description": "Verify if recovery options need re-enabling.",
+            "type": "if-condition",
+            "condition": "recovery_disabled == true",
+            "on_true": "action--f97a2f1e-b8ed-4164-9ee6-9d10c97d9d9e",
+            "on_false": "action--50f63c50-6bcb-4c4b-b6c2-d99f422164ac"
+        },
+        "action--f97a2f1e-b8ed-4164-9ee6-9d10c97d9d9e": {
+            "name": "Re-enable system recovery options",
+            "description": "Add registry key to enable system recovery.",
+            "on_completion": "action--50f63c50-6bcb-4c4b-b6c2-d99f422164ac",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg add HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\SystemRestore /v DisableConfig /t REG_DWORD /d 0 /f"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--50f63c50-6bcb-4c4b-b6c2-d99f422164ac": {
+            "name": "Run antivirus scan to detect threats",
+            "description": "Perform an antivirus scan to identify potential threats.",
+            "on_completion": "end--a1f5895b-c8f3-45f6-b523-0ccd3b66b769",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan /scan /all"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "condition": "scan_status == 'dirty'",
+                "on_true": "action--50f63c50-6bcb-4c4b-b6c2-d99f422164ac"
+            }
+        },
+        "end--a1f5895b-c8f3-45f6-b523-0ccd3b66b769": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

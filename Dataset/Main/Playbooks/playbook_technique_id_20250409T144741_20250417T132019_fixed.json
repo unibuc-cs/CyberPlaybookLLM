@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7b897375-f56f-4eed-a434-bd1f68db372b",
+    "name": "Mitigation Playbook for Privilege Escalation via Malicious Scripts",
+    "description": "This playbook addresses an incident where an attacker gained access with stolen credentials and executed malicious scripts to escalate privileges and exfiltrate data.",
+    "created_by": "identity--1f87b90c-e406-4e5f-95ab-b07be3b77d64",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--7fbf65f8-89f7-4e14-ba5f-e0e333dfeed7",
+            "type": "start"
+        },
+        "action--c64b1cd7-99cd-4020-b135-c682e38ec7e1": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes associated with the suspicious script.",
+            "on_completion": "if-condition--b10c6165-ff85-482f-8f64-ee3e8b30b5bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script_name"
+                }
+            ],
+            "agent": "organization--5c407339-3603-42d3-bbfe-44604808b57f"
+        },
+        "action--695e5241-4627-420f-9819-6ffefb57b0a0": {
+            "name": "Isolate affected host",
+            "description": "Take down the affected host to prevent further damage.",
+            "on_completion": "action--e59fce80-6c2f-44e0-a3de-685f037e3c7f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--5c407339-3603-42d3-bbfe-44604808b57f"
+        },
+        "if-condition--b10c6165-ff85-482f-8f64-ee3e8b30b5bb": {
+            "name": "Check for ongoing threats",
+            "type": "if-condition",
+            "condition": "host-22 shows signs of compromise",
+            "on_true": "loop--f2e76a50-8b58-4e95-bd48-a8516c319e96",
+            "on_false": "end--e10e48a1-5426-4f11-a9cf-65ba31370f72"
+        },
+        "loop--f2e76a50-8b58-4e95-bd48-a8516c319e96": {
+            "name": "Run security scan",
+            "description": "Repeat security scan until successful.",
+            "on_completion": "if-condition--b10c6165-ff85-482f-8f64-ee3e8b30b5bb",
+            "type": "while-condition",
+            "condition": "successful_scan == false",
+            "on_true": "action--e59fce80-6c2f-44e0-a3de-685f037e3c7f",
+            "on_false": "end--e10e48a1-5426-4f11-a9cf-65ba31370f72"
+        },
+        "action--e59fce80-6c2f-44e0-a3de-685f037e3c7f": {
+            "name": "Run security scan on the network",
+            "on_completion": "set-variable--dce3715c-ba17-4b41-ac38-dcd8eb9294e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --target all_hosts"
+                }
+            ],
+            "agent": "organization--5c407339-3603-42d3-bbfe-44604808b57f"
+        },
+        "set-variable--dce3715c-ba17-4b41-ac38-dcd8eb9294e4": {
+            "name": "Check scan result",
+            "type": "action",
+            "step_variables": {
+                "successful_scan": {
+                    "type": "boolean",
+                    "description": "Indicates if the security scan was successful and no threats were detected",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--f2e76a50-8b58-4e95-bd48-a8516c319e96",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Check scan result:  "
+                }
+            ],
+            "agent": "organization--5c407339-3603-42d3-bbfe-44604808b57f"
+        },
+        "end--e10e48a1-5426-4f11-a9cf-65ba31370f72": {
+            "type": "end"
+        },
+        "parallel--7fbf65f8-89f7-4e14-ba5f-e0e333dfeed7": {
+            "name": "Mitigation Actions",
+            "description": "Executing multiple actions in parallel to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c64b1cd7-99cd-4020-b135-c682e38ec7e1",
+                "action--695e5241-4627-420f-9819-6ffefb57b0a0"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--5c407339-3603-42d3-bbfe-44604808b57f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

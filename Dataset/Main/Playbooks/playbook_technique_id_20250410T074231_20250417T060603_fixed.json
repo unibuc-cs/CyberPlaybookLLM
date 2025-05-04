@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d0e231b-6ea4-4292-941f-e7c93c872195",
+    "name": "Mitigation Playbook for PowerShell Script Abuse Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a PowerShell script to gain unauthorized access, leading to sensitive data exfiltration.",
+    "created_by": "identity--b92e70a5-5960-4be0-bfb4-41b560d97582",
+    "created": "2023-10-26T12:00:00Z",
+    "modified": "2023-10-26T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--82592fb0-1524-4d34-93bb-9d3d552dec6c",
+    "workflow": {
+        "start--82592fb0-1524-4d34-93bb-9d3d552dec6c": {
+            "on_completion": "action--abd578e7-41d5-40c3-85aa-71afb5b3eff6",
+            "type": "start"
+        },
+        "action--abd578e7-41d5-40c3-85aa-71afb5b3eff6": {
+            "name": "Disconnect the compromised host from the network",
+            "description": "Terminate network access to prevent further data exfiltration.",
+            "on_completion": "parallel--1d32cf64-619a-4079-b51b-dd17e19f9a07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d"
+        },
+        "parallel--1d32cf64-619a-4079-b51b-dd17e19f9a07": {
+            "name": "Execute Mitigations Concurrently",
+            "description": "Execute critical mitigations in parallel for efficiency.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab24be29-e756-48a6-b753-27b12976fd7c",
+                "action--8d1ef0fc-9431-4b6d-bd14-62f06b7cd5ee",
+                "action--257c9e28-b99f-4bcf-ab18-c5abda747227"
+            ]
+        },
+        "action--ab24be29-e756-48a6-b753-27b12976fd7c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the running malicious PowerShell process.",
+            "on_completion": "action--8d1ef0fc-9431-4b6d-bd14-62f06b7cd5ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object {$_.Name -eq 'powershell'} | Stop-Process"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d"
+        },
+        "action--8d1ef0fc-9431-4b6d-bd14-62f06b7cd5ee": {
+            "name": "Check for remaining malicious files and remove",
+            "description": "Loop until no remaining malicious files are found.",
+            "on_completion": "action--257c9e28-b99f-4bcf-ab18-c5abda747227",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo rm -rf /var/tmp/malicious_files"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d"
+        },
+        "action--257c9e28-b99f-4bcf-ab18-c5abda747227": {
+            "name": "Initiate a full antivirus scan",
+            "description": "Scan the host for any remaining threats only if the host is accessible.",
+            "condition": "host_accessible",
+            "on_completion": "action--bba17d66-ae01-4b82-a958-0a791e1b4bbc",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full /"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d"
+        },
+        "action--bba17d66-ae01-4b82-a958-0a791e1b4bbc": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Start monitoring the network traffic for any unusual activities.",
+            "on_completion": "action--5f1c34cf-7729-4ed5-bfce-4cec03b2274b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "wireshark --monitor"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d",
+            "step_variables": {
+                "monitor_duration": {
+                    "type": "string",
+                    "value": "24h"
+                }
+            }
+        },
+        "action--5f1c34cf-7729-4ed5-bfce-4cec03b2274b": {
+            "name": "Purge exfiltrated data from the external server",
+            "description": "Delete any data that has been exfiltrated to external servers if control over the server is verified.",
+            "condition": "external_server_accessible",
+            "on_completion": "end--2f2b020f-4a94-49c0-a4df-3c9f67a0d8db",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh admin@192.168.1.200 'rm -rf /data/exfiltrated'"
+                }
+            ],
+            "agent": "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d"
+        },
+        "end--2f2b020f-4a94-49c0-a4df-3c9f67a0d8db": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fa7ba445-ba0a-4e63-b1ad-f0523531227d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

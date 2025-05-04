@@ -1,0 +1,127 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c77f1ab4-0b64-4e6f-aa91-68a3e0a3c9f8",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a PowerShell script to disable security tools on host-22 and download unauthorized files.",
+    "created_by": "identity--41fefe19-9a76-4b2e-a833-382bc5718383",
+    "created": "2023-10-12T16:00:00Z",
+    "modified": "2023-10-12T16:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--3555d559-f67e-4f64-b2fb-5cb1ea770da3",
+    "workflow": {
+        "loop--7bc6dbe0-5376-4bee-aec3-adc8b44ca9b1": {
+            "name": "Restore security tool functionality",
+            "description": "Ensure security tools are running.",
+            "type": "while-condition",
+            "condition": "service_status != 'running'",
+            "on_true": "action--632bf9b7-5353-40a4-a990-bc46db308964",
+            "on_completion": "end--4a4d23bf-a354-41db-bb7a-bea7acd22e61"
+        },
+        "start--3555d559-f67e-4f64-b2fb-5cb1ea770da3": {
+            "on_completion": "decision--87af2826-1366-47a0-84df-a920b7e28648",
+            "type": "start"
+        },
+        "end--4a4d23bf-a354-41db-bb7a-bea7acd22e61": {
+            "type": "end"
+        },
+        "decision--87af2826-1366-47a0-84df-a920b7e28648": {
+            "name": "Check if malicious process detected",
+            "description": "Decide if process kill is necessary.",
+            "type": "if-condition",
+            "condition": "process_detected == true",
+            "on_true": "action--690871ed-2fe0-4188-bd04-09906c159630",
+            "on_false": "parallel--9f19da76-7a06-4c98-a4c3-84fac909745b"
+        },
+        "action--690871ed-2fe0-4188-bd04-09906c159630": {
+            "name": "Kill malicious processes using PowerShell",
+            "description": "Terminate detected malicious processes.",
+            "on_completion": "parallel--9f19da76-7a06-4c98-a4c3-84fac909745b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name badprocess -Force"
+                }
+            ],
+            "agent": "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763"
+        },
+        "parallel--9f19da76-7a06-4c98-a4c3-84fac909745b": {
+            "name": "Execute parallel cleanup actions",
+            "description": "Conduct file deletion, security restoration, network reset, and system scan in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9ec500cc-652b-4567-a977-049b7a44c85d",
+                "loop--7bc6dbe0-5376-4bee-aec3-adc8b44ca9b1",
+                "action--7b5cab78-941e-44c5-9ec1-96e5e5c9bd81",
+                "loop--707866ec-291f-4c09-bc40-e9bd75f08e2c"
+            ]
+        },
+        "action--9ec500cc-652b-4567-a977-049b7a44c85d": {
+            "name": "Delete unauthorized files",
+            "description": "Remove suspicious files from the system.",
+            "on_completion": "end--4a4d23bf-a354-41db-bb7a-bea7acd22e61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Remove-Item C:\\Temp\\badfile.exe -Force"
+                }
+            ],
+            "agent": "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763"
+        },
+        "action--632bf9b7-5353-40a4-a990-bc46db308964": {
+            "name": "Restart Security Tools",
+            "description": "Restart security tools to ensure proper function.",
+            "on_completion": "loop--7bc6dbe0-5376-4bee-aec3-adc8b44ca9b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Restart-Service -Name SecurityTool"
+                }
+            ],
+            "agent": "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763"
+        },
+        "action--7b5cab78-941e-44c5-9ec1-96e5e5c9bd81": {
+            "name": "Reset network configurations to default",
+            "description": "Restore default network settings.",
+            "on_completion": "end--4a4d23bf-a354-41db-bb7a-bea7acd22e61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "netsh int ip reset"
+                }
+            ],
+            "agent": "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763"
+        },
+        "loop--707866ec-291f-4c09-bc40-e9bd75f08e2c": {
+            "name": "Scan system for malware",
+            "description": "Ensure the system is free of malware.",
+            "type": "while-condition",
+            "condition": "scan_report != 'clean'",
+            "on_true": "action--e2ff72b7-77d8-4eed-8d6a-2100361e6f79",
+            "on_completion": "end--4a4d23bf-a354-41db-bb7a-bea7acd22e61"
+        },
+        "action--e2ff72b7-77d8-4eed-8d6a-2100361e6f79": {
+            "name": "Perform Full System Scan",
+            "description": "Execute full system scan for malware detection.",
+            "on_completion": "loop--707866ec-291f-4c09-bc40-e9bd75f08e2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType FullScan"
+                }
+            ],
+            "agent": "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763"
+        }
+    },
+    "agent_definitions": {
+        "organization--0cd860f0-8254-4324-b227-a7a2fcdfc763": {
+            "type": "organization",
+            "name": "SecurityOrganization"
+        }
+    }
+}

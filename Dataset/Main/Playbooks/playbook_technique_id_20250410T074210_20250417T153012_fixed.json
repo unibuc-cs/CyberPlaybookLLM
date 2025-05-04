@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3d114efb-50b4-4c5f-b4d5-a3a52e21b50a",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where a malicious script was executed to gain control over multiple endpoints in the network.",
+    "created_by": "identity--1f84f3e3-93cc-4d21-b14c-8af8b3cca888",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7f6906b1-0f97-4f1f-921d-b8edc438d6f1",
+    "workflow": {
+        "start--7f6906b1-0f97-4f1f-921d-b8edc438d6f1": {
+            "on_completion": "if-condition--8262e080-4cbe-4ec3-87b6-be13b2f37554",
+            "type": "start"
+        },
+        "if-condition--8262e080-4cbe-4ec3-87b6-be13b2f37554": {
+            "name": "Check for running processes",
+            "type": "if-condition",
+            "condition": "process_running == true",
+            "on_true": "action--c29159f0-b4fc-422b-bd8b-6ad362dc6412",
+            "on_false": "action--9a865cbd-c19f-46a2-944a-dc934baff183"
+        },
+        "action--c29159f0-b4fc-422b-bd8b-6ad362dc6412": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the malicious script.",
+            "on_completion": "parallel--b2a45d99-5b1d-46e3-af93-346fdcd99047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 bad_script"
+                }
+            ],
+            "agent": "organization--28cc8cba-bca1-46f4-b515-201764a4ff6d"
+        },
+        "action--9a865cbd-c19f-46a2-944a-dc934baff183": {
+            "name": "Revoke unauthorized access",
+            "description": "Revoke unauthorized access for compromised users.",
+            "on_completion": "parallel--b2a45d99-5b1d-46e3-af93-346fdcd99047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--bea0fb8d-73d8-4bdc-977b-889ae89c11b1",
+            "step_variables": {
+                "user": {
+                    "type": "string",
+                    "value": "compromised_user"
+                }
+            }
+        },
+        "parallel--b2a45d99-5b1d-46e3-af93-346fdcd99047": {
+            "name": "Conduct System Remediation",
+            "description": "Perform system checks and remediation on affected hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d8e6254d-d9d8-4a30-a4b8-82c3f48fe5c8",
+                "action--c4c3b0e9-a23e-4163-a59b-7b629e4895a2",
+                "action--a1f956c5-256e-4fcb-9cd4-2d0c568768e0"
+            ]
+        },
+        "action--d8e6254d-d9d8-4a30-a4b8-82c3f48fe5c8": {
+            "name": "Scan and clean infected systems",
+            "description": "Perform a scan on systems until no viruses are found.",
+            "on_completion": "end--c12e4b2b-67c9-4b3d-9ef3-1e60da645976",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--28cc8cba-bca1-46f4-b515-201764a4ff6d",
+            "step_variables": {
+                "scan_result": {
+                    "type": "boolean",
+                    "value": "virus_found"
+                }
+            },
+            "loop": "repeat until scan_result == false"
+        },
+        "action--c4c3b0e9-a23e-4163-a59b-7b629e4895a2": {
+            "name": "Deploy updated endpoint protection",
+            "description": "Ensure endpoint protection is current across critical hosts.",
+            "on_completion": "end--c12e4b2b-67c9-4b3d-9ef3-1e60da645976",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update-endpoint-protection.sh"
+                }
+            ],
+            "agent": "organization--bea0fb8d-73d8-4bdc-977b-889ae89c11b1",
+            "step_variables": {
+                "host_list": {
+                    "type": "string",
+                    "value": "host-22,host-37"
+                }
+            }
+        },
+        "action--a1f956c5-256e-4fcb-9cd4-2d0c568768e0": {
+            "name": "Reset compromised accounts",
+            "description": "Expire passwords for potentially compromised user accounts.",
+            "on_completion": "end--c12e4b2b-67c9-4b3d-9ef3-1e60da645976",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd --expire compromised_user"
+                }
+            ],
+            "agent": "organization--28cc8cba-bca1-46f4-b515-201764a4ff6d"
+        },
+        "end--c12e4b2b-67c9-4b3d-9ef3-1e60da645976": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--28cc8cba-bca1-46f4-b515-201764a4ff6d": {
+            "type": "organization",
+            "name": "OrgABC"
+        },
+        "organization--bea0fb8d-73d8-4bdc-977b-889ae89c11b1": {
+            "type": "organization",
+            "name": "OrgXYZ"
+        }
+    }
+}

@@ -1,0 +1,118 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3afba34c-d869-4ff6-b0c9-3c7ea615611f",
+    "name": "Playbook for Mitigating Credential Exploitation via Email Services",
+    "description": "Response workflow for attackers exfiltrating data through legitimate application protocols.",
+    "created_by": "identity--2544c5f9-f6fe-4e36-9423-0c00e7ee1d3d",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1d7e4b1e-efbb-4121-a1aa-5bcec2eef213",
+    "workflow": {
+        "start--1d7e4b1e-efbb-4121-a1aa-5bcec2eef213": {
+            "on_completion": "action--bb165eb9-32cf-4ae1-9b3e-b79eafde22b7",
+            "type": "start"
+        },
+        "action--bb165eb9-32cf-4ae1-9b3e-b79eafde22b7": {
+            "name": "Block outgoing SMTP connections",
+            "description": "Prevent further data exfiltration by blocking SMTP connections.",
+            "on_completion": "parallel--47f6b74f-823b-4524-90f1-9c3c1836b055",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 25 -j DROP"
+                }
+            ],
+            "agent": "organization--396cbf2e-7f49-410e-961b-dc28ab412123"
+        },
+        "parallel--47f6b74f-823b-4524-90f1-9c3c1836b055": {
+            "name": "Assess and Mitigate Affected Accounts",
+            "description": "Scan and manage affected accounts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--214656e6-8642-4a17-a928-00f22d9bd4b4",
+                "action--f47b9a0f-bb30-4bb6-b526-512caddf5fb6"
+            ]
+        },
+        "action--214656e6-8642-4a17-a928-00f22d9bd4b4": {
+            "name": "Scan systems for unauthorized accounts",
+            "description": "Check all affected hosts for unauthorized access.",
+            "on_completion": "action--9374f720-7221-42c7-978b-aa21fecde81c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p 25 host-14 host-7 host-23"
+                }
+            ],
+            "agent": "organization--396cbf2e-7f49-410e-961b-dc28ab412123"
+        },
+        "action--9374f720-7221-42c7-978b-aa21fecde81c": {
+            "name": "Disable compromised accounts",
+            "description": "Lock user accounts identified in the unauthorized access scan.",
+            "on_completion": "end--3b7d11ab-3af0-41f5-9354-3e178f1512a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L [USERNAME]"
+                }
+            ],
+            "agent": "organization--396cbf2e-7f49-410e-961b-dc28ab412123",
+            "step_variables": {
+                "USERNAME": {
+                    "type": "string",
+                    "description": "User accounts identified in scan",
+                    "value": "user_accounts_from_scan",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--f47b9a0f-bb30-4bb6-b526-512caddf5fb6": {
+            "name": "Enhance monitoring on email services",
+            "description": "Set up auditing on email logs for future alerts.",
+            "on_completion": "while-condition--834d3d34-4e84-4b56-bace-f6bf8f4101ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /var/log/maillog -p rwax -k mail_watch"
+                }
+            ],
+            "agent": "organization--396cbf2e-7f49-410e-961b-dc28ab412123"
+        },
+        "while-condition--834d3d34-4e84-4b56-bace-f6bf8f4101ea": {
+            "name": "Repeat scan and block cycle",
+            "description": "Iterate scanning for protocol anomalies until none are detected.",
+            "on_completion": "end--3b7d11ab-3af0-41f5-9354-3e178f1512a4",
+            "type": "while-condition",
+            "condition": "anomalies_detected",
+            "on_true": "action--774e2e91-5f0e-4f7c-911d-c9d937d438b8"
+        },
+        "action--774e2e91-5f0e-4f7c-911d-c9d937d438b8": {
+            "name": "Re-scan for protocol anomaly",
+            "description": "Perform a scan and block if new anomalies detected.",
+            "on_completion": "while-condition--834d3d34-4e84-4b56-bace-f6bf8f4101ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "re-scan protocol and block if anomaly detected"
+                }
+            ],
+            "agent": "organization--396cbf2e-7f49-410e-961b-dc28ab412123"
+        },
+        "end--3b7d11ab-3af0-41f5-9354-3e178f1512a4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--396cbf2e-7f49-410e-961b-dc28ab412123": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

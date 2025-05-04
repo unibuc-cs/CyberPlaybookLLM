@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2c2e69f-2f19-464d-8fcc-b7170de13e5f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution, privilege escalation, and data exfiltration attempts. The workflow includes steps to terminate malicious scripts, identify affected systems, and mitigate the issue.",
+    "created_by": "identity--b3e12b88-5ede-4a12-b89b-e8bb70c768e0",
+    "created": "2023-10-10T11:00:00Z",
+    "modified": "2023-10-10T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--3e1a8a55-090e-4acc-8cf2-cfbc1c7723c4",
+    "workflow": {
+        "start--3e1a8a55-090e-4acc-8cf2-cfbc1c7723c4": {
+            "on_completion": "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8",
+            "type": "start"
+        },
+        "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8": {
+            "name": "Terminate all suspicious script processes",
+            "description": "Terminate any processes that are executing suspicious scripts.",
+            "on_completion": "action--5e2f6875-139f-4d9a-909b-994ff48be6bf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--13c77191-9af2-422a-acf3-715c7747d8c0"
+        },
+        "action--5e2f6875-139f-4d9a-909b-994ff48be6bf": {
+            "name": "Identify affected systems",
+            "description": "Scan the network to identify systems impacted by the malicious activities.",
+            "on_completion": "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "infected_hosts=$(network_scan_tool --infected)"
+                }
+            ],
+            "agent": "organization--13c77191-9af2-422a-acf3-715c7747d8c0",
+            "step_variables": {
+                "infected_hosts": {
+                    "type": "string",
+                    "description": "List of infected hosts detected in the network."
+                }
+            }
+        },
+        "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55": {
+            "name": "Revoke escalated privileges",
+            "description": "Revoke any escalated privileges if detected.",
+            "on_completion": "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [[ escalated_privileges_detected ]]; then revoke_permissions --user compromised_user; fi"
+                }
+            ],
+            "agent": "organization--13c77191-9af2-422a-acf3-715c7747d8c0"
+        },
+        "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb": {
+            "name": "Scan and remove all malicious files",
+            "description": "Find and remove all malicious files from the system.",
+            "on_completion": "loop-condition--f4b7bdb4-55d4-4741-82b5-78a7469aad5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*malicious*' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--13c77191-9af2-422a-acf3-715c7747d8c0"
+        },
+        "loop-condition--f4b7bdb4-55d4-4741-82b5-78a7469aad5b": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Loop to check the system for malicious files until no more are found.",
+            "on_true": "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb",
+            "on_false": "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb",
+            "type": "while-condition",
+            "condition": "malicious_files_exist == true"
+        },
+        "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb": {
+            "name": "Deploy patch to all discovered hosts",
+            "description": "Deploy patches to all hosts identified as compromised.",
+            "on_completion": "end--c1c6b508-b81e-44d1-aeae-7f82cb2d74c1",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deploy_patch_tool --hosts ${infected_hosts}"
+                }
+            ],
+            "agent": "organization--13c77191-9af2-422a-acf3-715c7747d8c0",
+            "condition": "if [ -n \"${infected_hosts}\" ]"
+        },
+        "end--c1c6b508-b81e-44d1-aeae-7f82cb2d74c1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--13c77191-9af2-422a-acf3-715c7747d8c0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f45f5a12-c9cb-42c0-90b1-6dc4e279ed3d",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook addresses an incident involving an attacker who executed PowerShell scripts to exfiltrate sensitive data from the corporate network.",
+    "created_by": "identity--d8e3b1cf-9a3b-4b71-b667-943d50a3e1f3",
+    "created": "2023-10-24T15:00:00Z",
+    "modified": "2023-10-24T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2fa5c7a-92de-438e-ae61-3d6d9b4f239a",
+    "workflow": {
+        "start--b2fa5c7a-92de-438e-ae61-3d6d9b4f239a": {
+            "on_completion": "action--f9741e66-5aba-4db1-9456-8a6c64aa1234",
+            "type": "start"
+        },
+        "action--f9741e66-5aba-4db1-9456-8a6c64aa1234": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate all PowerShell processes related to the detected scripts.",
+            "on_completion": "parallel--b68a6a15-f2e0-4050-8416-1a4c6a45e977",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--f0e57af4-d1a9-4e38-a330-777bd96f677a"
+        },
+        "parallel--b68a6a15-f2e0-4050-8416-1a4c6a45e977": {
+            "name": "Execute Mitigations",
+            "description": "Run scan and notify team in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--3c62ec4a-3e08-4d25-8d54-95768d115c34",
+                "if-condition--e5c289f9-e109-4a45-b21b-bfe41f002926"
+            ]
+        },
+        "action--3c62ec4a-3e08-4d25-8d54-95768d115c34": {
+            "name": "Run automated malware scan",
+            "description": "Initiate a malware scan to detect additional threats.",
+            "on_completion": "while-condition--8c8d550b-f557-4753-94b1-cf69db87f9e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh"
+                }
+            ],
+            "agent": "organization--f0e57af4-d1a9-4e38-a330-777bd96f677a"
+        },
+        "if-condition--e5c289f9-e109-4a45-b21b-bfe41f002926": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity == true",
+            "on_true": "action--f6b64e82-cc65-44e2-91a4-173cb114f567",
+            "on_false": "end--d7a152e3-81c6-4c71-bcc6-bc3d2e586027"
+        },
+        "action--f6b64e82-cc65-44e2-91a4-173cb114f567": {
+            "name": "Notify security team of potential breach",
+            "on_completion": "end--d7a152e3-81c6-4c71-bcc6-bc3d2e586027",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert.py --type breach --details 'PowerShell execution detected'"
+                }
+            ],
+            "agent": "organization--f0e57af4-d1a9-4e38-a330-777bd96f677a"
+        },
+        "while-condition--8c8d550b-f557-4753-94b1-cf69db87f9e5": {
+            "name": "Verify scan results",
+            "description": "Check if the scan is clean; repeat until clean.",
+            "on_true": "end--d7a152e3-81c6-4c71-bcc6-bc3d2e586027",
+            "on_false": "action--3c62ec4a-3e08-4d25-8d54-95768d115c34",
+            "condition": "scan_is_clean == false",
+            "type": "while-condition"
+        },
+        "end--d7a152e3-81c6-4c71-bcc6-bc3d2e586027": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f0e57af4-d1a9-4e38-a330-777bd96f677a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

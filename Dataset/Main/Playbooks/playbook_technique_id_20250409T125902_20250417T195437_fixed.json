@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--523a85d3-d23a-4057-b1a6-fc9e1dfd259c",
+    "name": "Playbook for Remote Services Exploitation Incident",
+    "description": "This playbook addresses an incident involving exploitation of remote desktop services resulting in unauthorized access and data exfiltration.",
+    "created_by": "identity--05191d6d-89d5-41d3-9262-0620ddb22c50",
+    "created": "2023-10-12T12:00:00Z",
+    "modified": "2023-10-12T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--3d5e2f06-364f-4f4c-85f4-5b0f9e059e3e",
+    "workflow": {
+        "start--3d5e2f06-364f-4f4c-85f4-5b0f9e059e3e": {
+            "on_completion": "action--a235eaf0-05ea-4b6d-8386-3d12b52f80e4",
+            "type": "start"
+        },
+        "if-condition--cc9aabb2-d21b-4dcf-a93e-c2241b631ab8": {
+            "name": "Check if attacker is still active",
+            "type": "if-condition",
+            "condition": "attacker_active == true",
+            "on_true": "action--4db105f8-d9d0-4576-89ea-cab529068134",
+            "on_false": "loop--14e1f02b-bb90-40c8-82ac-a9e295239a6a"
+        },
+        "action--a235eaf0-05ea-4b6d-8386-3d12b52f80e4": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any suspicious processes running on the affected host.",
+            "on_completion": "if-condition--cc9aabb2-d21b-4dcf-a93e-c2241b631ab8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--9467ed4e-fed5-4582-bb5f-cda28b96e952"
+        },
+        "action--4db105f8-d9d0-4576-89ea-cab529068134": {
+            "name": "Isolate affected host from the network",
+            "description": "Block all outgoing traffic from the compromised host.",
+            "on_completion": "loop--14e1f02b-bb90-40c8-82ac-a9e295239a6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh root@host-42 'iptables -A OUTPUT -j DROP'"
+                }
+            ],
+            "agent": "organization--9467ed4e-fed5-4582-bb5f-cda28b96e952"
+        },
+        "loop--14e1f02b-bb90-40c8-82ac-a9e295239a6a": {
+            "name": "Conduct full scan of network",
+            "description": "Repeat the scan until the system is clean.",
+            "on_completion": "end--ad98317e-3790-46d4-8d3f-344997708da0",
+            "type": "while-condition",
+            "condition": "scan_result != 'clear'",
+            "on_true": "action--d5e52df9-962e-4560-8147-9e0811cbd9c2",
+            "on_false": "end--ad98317e-3790-46d4-8d3f-344997708da0"
+        },
+        "action--d5e52df9-962e-4560-8147-9e0811cbd9c2": {
+            "name": "Run network scan",
+            "description": "Perform a full network scan to identify possible threats.",
+            "on_completion": "loop--14e1f02b-bb90-40c8-82ac-a9e295239a6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_clamav_scan()"
+                }
+            ],
+            "agent": "organization--9467ed4e-fed5-4582-bb5f-cda28b96e952"
+        },
+        "end--ad98317e-3790-46d4-8d3f-344997708da0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9467ed4e-fed5-4582-bb5f-cda28b96e952": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

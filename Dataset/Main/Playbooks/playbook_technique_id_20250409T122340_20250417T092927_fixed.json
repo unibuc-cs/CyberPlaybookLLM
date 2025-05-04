@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1434e0a-3a7c-42c5-bbbf-f4e30d9f4ecb",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving malicious script execution, backdoor establishment, and attempted data exfiltration.",
+    "created_by": "identity--a6710ebd-b596-43ef-b287-df4c485757be",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bc2be6c1-76c1-4de7-8aed-c9e5d87cbb68",
+    "workflow": {
+        "start--bc2be6c1-76c1-4de7-8aed-c9e5d87cbb68": {
+            "on_completion": "parallel--0e3c1c4c-7528-4c82-bc66-d29c6cfda131",
+            "type": "start"
+        },
+        "parallel--0e3c1c4c-7528-4c82-bc66-d29c6cfda131": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d72c1b9e-1647-488f-bd8e-5f0b4c8b5eec",
+                "action--4b7f90f2-03d7-4d1e-be46-81bee9e7ddc1",
+                "while-condition--e6b607af-f8b6-4a1e-8161-06705b6e64f6"
+            ]
+        },
+        "action--d72c1b9e-1647-488f-bd8e-5f0b4c8b5eec": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "end--a5c08f07-d07d-4d0b-aca3-5e7bf2b71b08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--856a13f9-ecd3-4e4f-bb35-d695497524b1"
+        },
+        "action--4b7f90f2-03d7-4d1e-be46-81bee9e7ddc1": {
+            "name": "Isolate affected host",
+            "description": "Isolate host-22 by bringing down the interface.",
+            "on_completion": "end--a5c08f07-d07d-4d0b-aca3-5e7bf2b71b08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then ifconfig eth0 down; fi"
+                }
+            ],
+            "agent": "organization--856a13f9-ecd3-4e4f-bb35-d695497524b1"
+        },
+        "while-condition--e6b607af-f8b6-4a1e-8161-06705b6e64f6": {
+            "name": "Initiate full system scan loop",
+            "description": "Perform a full system scan until the status is clean.",
+            "on_true": "action--d1f10d4e-74e7-4725-9c81-b52ebcd57680",
+            "condition": "scan_status != 'clean'",
+            "type": "while-condition",
+            "next_steps": "action--d1f10d4e-74e7-4725-9c81-b52ebcd57680"
+        },
+        "action--d1f10d4e-74e7-4725-9c81-b52ebcd57680": {
+            "name": "Run full system scan",
+            "description": "Execute a full system scan to find any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--856a13f9-ecd3-4e4f-bb35-d695497524b1",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The variable to hold the scan result status",
+                    "value": "scan_in_progress",
+                    "constant": false
+                }
+            }
+        },
+        "end--a5c08f07-d07d-4d0b-aca3-5e7bf2b71b08": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--856a13f9-ecd3-4e4f-bb35-d695497524b1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

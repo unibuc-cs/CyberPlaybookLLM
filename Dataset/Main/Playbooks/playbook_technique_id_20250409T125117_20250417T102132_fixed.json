@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c2b0f0d0-12e6-4d9b-b462-09d64b3a814e",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell commands to exfiltrate sensitive data, performing multiple mitigation actions.",
+    "created_by": "identity--93584de1-1488-4047-bcfb-834d161b6c89",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--50cf23b3-919d-4f79-9fbf-b205020b0a2a",
+    "workflow": {
+        "parallel--74b1dcca-5a31-4f0e-8a67-f39e892fcdfd": {
+            "name": "Mitigate PowerShell Incident",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f2bcbdd8-bc86-4c1b-8e2e-af50c18e4767",
+                "action--1c250528-ef56-4cf4-a738-f4f29219e5ae",
+                "action--cc9981c7-fd9c-441b-9198-f75f4f0ca280",
+                "action--e8971ff2-3ae8-4ea6-9fc4-f5e3ced161eb"
+            ]
+        },
+        "action--f2bcbdd8-bc86-4c1b-8e2e-af50c18e4767": {
+            "name": "Monitor PowerShell execution",
+            "description": "Monitor PowerShell process execution.",
+            "on_completion": "action--e8971ff2-3ae8-4ea6-9fc4-f5e3ced161eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Parse-Log -Command 'powershell' -Action 'monitor'"
+                }
+            ],
+            "agent": "organization--a254e984-4487-45fd-b490-f78491173491"
+        },
+        "action--1c250528-ef56-4cf4-a738-f4f29219e5ae": {
+            "name": "Terminate suspicious PowerShell process",
+            "description": "Terminate the suspicious PowerShell process.",
+            "on_completion": "action--cc9981c7-fd9c-441b-9198-f75f4f0ca280",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a254e984-4487-45fd-b490-f78491173491"
+        },
+        "action--cc9981c7-fd9c-441b-9198-f75f4f0ca280": {
+            "name": "Isolate affected host from the network",
+            "description": "Isolate the compromised host to prevent further exploitation.",
+            "on_completion": "action--b5fa1509-67af-4ecb-938e-1abd3e06d388",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--a254e984-4487-45fd-b490-f78491173491",
+            "conditional": "if host-01 compromised"
+        },
+        "action--e8971ff2-3ae8-4ea6-9fc4-f5e3ced161eb": {
+            "name": "Review logs for previous suspicious activities",
+            "description": "Review logs to identify any suspicious activities from PowerShell.",
+            "on_completion": "action--b5fa1509-67af-4ecb-938e-1abd3e06d388",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'PowerShell'"
+                }
+            ],
+            "agent": "organization--a254e984-4487-45fd-b490-f78491173491",
+            "variables": {
+                "log_file": "/var/log/syslog"
+            }
+        },
+        "action--b5fa1509-67af-4ecb-938e-1abd3e06d388": {
+            "name": "Conduct a full system scan after mitigation",
+            "description": "Run a full system scan to ensure no further threats exist.",
+            "on_completion": "end--882c4393-5a45-4006-98cd-1a6e342e49c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh"
+                }
+            ],
+            "agent": "organization--a254e984-4487-45fd-b490-f78491173491",
+            "loop": "repeat until scan is clean"
+        },
+        "start--50cf23b3-919d-4f79-9fbf-b205020b0a2a": {
+            "on_completion": "parallel--74b1dcca-5a31-4f0e-8a67-f39e892fcdfd",
+            "type": "start"
+        },
+        "end--882c4393-5a45-4006-98cd-1a6e342e49c6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a254e984-4487-45fd-b490-f78491173491": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

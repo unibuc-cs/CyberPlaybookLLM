@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a9c1b40a-0eeb-493e-8f83-24c2c7327d56",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker utilized PowerShell to exfiltrate sensitive data from the corporate network.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T13:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1f1e68e-e687-4f21-ae6b-f51ef3f45ebb",
+    "workflow": {
+        "start--c1f1e68e-e687-4f21-ae6b-f51ef3f45ebb": {
+            "on_completion": "action--c458dcb2-2488-45f6-8c4a-535171c09d16",
+            "type": "start",
+            "name": "Start Mitigation Process",
+            "description": "Initiates the mitigation process for the detected PowerShell script incident."
+        },
+        "action--c458dcb2-2488-45f6-8c4a-535171c09d16": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes suspected of being malicious.",
+            "on_completion": "if-condition--d5afa11a-220b-4b1e-a861-2e4f61df8f4c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d5afa11a-220b-4b1e-a861-2e4f61df8f4c": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--d5fafcaa-5fb5-4ddd-8c82-d4e1dd5f1b66",
+            "on_false": "action--b4241f09-f9b5-4de8-9155-0fc4d65043ea"
+        },
+        "action--d5fafcaa-5fb5-4ddd-8c82-d4e1dd5f1b66": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming connections to isolate the affected host.",
+            "on_completion": "action--b4241f09-f9b5-4de8-9155-0fc4d65043ea",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='Isolate Host' dir=in action=block"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b4241f09-f9b5-4de8-9155-0fc4d65043ea": {
+            "name": "Run security scan",
+            "description": "Perform a security scan until the system is clean.",
+            "on_completion": "while-condition--scan-continue",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-continue": {
+            "name": "Scan Until Clean",
+            "description": "Repeat the scan until the system is clean.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b4241f09-f9b5-4de8-9155-0fc4d65043ea",
+            "on_false": "end--f38b4bd1-cf88-4f89-9b3f-79a6f571fbc5",
+            "type": "while-condition"
+        },
+        "end--f38b4bd1-cf88-4f89-9b3f-79a6f571fbc5": {
+            "type": "end",
+            "name": "End of Mitigation Process"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

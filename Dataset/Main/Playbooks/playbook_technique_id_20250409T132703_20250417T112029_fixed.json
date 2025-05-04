@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5eeb4feb-cf67-4c27-8cd0-7a3008c3e1d5",
+    "name": "Mitigation Playbook for Data Exfiltration via Application Layer Protocol",
+    "description": "This playbook addresses an incident where an attacker used legitimate application layer protocols to exfiltrate sensitive data.",
+    "created_by": "identity--b451d317-64ea-4b7e-8c27-2e4c97c379b9",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b24a6d32-e8b1-4ac6-90ef-ea4d9b33ac17",
+    "workflow": {
+        "start--b24a6d32-e8b1-4ac6-90ef-ea4d9b33ac17": {
+            "on_completion": "action--ec3e37fb-b6f6-435f-a632-28705655f575",
+            "type": "start"
+        },
+        "action--ec3e37fb-b6f6-435f-a632-28705655f575": {
+            "name": "Isolate affected host",
+            "description": "Prevent further data exfiltration by isolating the host.",
+            "on_completion": "action--d69d6c4d-3b70-4900-a7de-5107f56f9155",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--ea3dfce2-d47e-4151-ad3f-a136274c78fe"
+        },
+        "action--d69d6c4d-3b70-4900-a7de-5107f56f9155": {
+            "name": "Identify and terminate suspicious processes",
+            "description": "Terminate processes suspected of being involved in exfiltration.",
+            "on_completion": "while-condition--c65cfed7-0911-4fb2-b8e3-fb99b5a89c5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--ea3dfce2-d47e-4151-ad3f-a136274c78fe"
+        },
+        "while-condition--c65cfed7-0911-4fb2-b8e3-fb99b5a89c5c": {
+            "name": "Monitor Network Traffic for Data Exfiltration Patterns",
+            "description": "Continuously monitor network traffic and log the data.",
+            "type": "while-condition",
+            "condition": "traffic_logged < traffic_threshold",
+            "on_true": "action--b0934be0-a2b8-4634-bd19-8d66ba48b814",
+            "on_false": "end--b8c90583-e8eb-4ddc-abe5-e844375c5e95",
+            "variables": {
+                "traffic_logged": {
+                    "type": "integer",
+                    "description": "Holds the amount of logged traffic",
+                    "value": 0,
+                    "constant": false
+                },
+                "traffic_threshold": {
+                    "type": "integer",
+                    "description": "Threshold for logging data",
+                    "value": 10,
+                    "constant": true
+                }
+            }
+        },
+        "action--b0934be0-a2b8-4634-bd19-8d66ba48b814": {
+            "name": "Capture network traffic",
+            "description": "Log network traffic to identify patterns of data exfiltration.",
+            "on_completion": "increment-traffic-logged--47253b5e-4891-4317-918e-e79c25abad60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w /var/log/exfil_alerts.log"
+                }
+            ],
+            "agent": "organization--ea3dfce2-d47e-4151-ad3f-a136274c78fe"
+        },
+        "end--b8c90583-e8eb-4ddc-abe5-e844375c5e95": {
+            "type": "end"
+        },
+        "increment-traffic-logged--47253b5e-4891-4317-918e-e79c25abad60": {
+            "name": "Increment Traffic Logged",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "let traffic_logged+=1"
+                }
+            ],
+            "agent": "organization--ea3dfce2-d47e-4151-ad3f-a136274c78fe",
+            "on_completion": "while-condition--c65cfed7-0911-4fb2-b8e3-fb99b5a89c5c"
+        }
+    },
+    "agent_definitions": {
+        "organization--ea3dfce2-d47e-4151-ad3f-a136274c78fe": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

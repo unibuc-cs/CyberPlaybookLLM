@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--493baf35-2aa4-4f40-a909-dc524e138e6d",
+    "name": "Playbook for Malicious Command and Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts resulting in data exfiltration and system manipulation.",
+    "created_by": "identity--f8c0c037-58fa-4d2d-a05b-b525d718f914",
+    "created": "2025-04-10T09:00:00Z",
+    "modified": "2025-04-10T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--13197958-ba2a-40cf-b2e0-7689f22ab139",
+    "workflow": {
+        "parallel--4d5c6420-d431-4f3a-a766-67bf41824dee": {
+            "name": "Execute Initial Mitigations",
+            "description": "Initiate mitigations for the ongoing incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--094f7bc5-73b4-4037-8ab8-c6c51916d575",
+                "action--22cdf39e-5375-4c12-b65e-b4372f6e3e24",
+                "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6"
+            ]
+        },
+        "action--094f7bc5-73b4-4037-8ab8-c6c51916d575": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any executing processes associated with suspicious scripts.",
+            "on_completion": "action--22cdf39e-5375-4c12-b65e-b4372f6e3e24",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--8f8a9e02-e0dc-4310-a92f-a663b9c06a42"
+        },
+        "action--22cdf39e-5375-4c12-b65e-b4372f6e3e24": {
+            "name": "Restrict external communications",
+            "description": "Block external communications to prevent further exfiltration.",
+            "on_completion": "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 21 -j REJECT"
+                }
+            ],
+            "agent": "organization--8f8a9e02-e0dc-4310-a92f-a663b9c06a42"
+        },
+        "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6": {
+            "name": "Scan for other scripts",
+            "description": "Scan the system for other potentially malicious scripts and repeat until clean.",
+            "on_completion": "end--273f98f1-b86d-49c3-9dad-c071e15d20c6",
+            "type": "while-condition",
+            "condition": "clean_scan == false",
+            "on_true": "action-scan--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6",
+            "on_false": "end--273f98f1-b86d-49c3-9dad-c071e15d20c6"
+        },
+        "action-scan--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6": {
+            "name": "Find malicious scripts",
+            "description": "Find all PowerShell scripts in the system.",
+            "on_completion": "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1'"
+                }
+            ],
+            "agent": "organization--8f8a9e02-e0dc-4310-a92f-a663b9c06a42"
+        },
+        "end--273f98f1-b86d-49c3-9dad-c071e15d20c6": {
+            "type": "end"
+        },
+        "start--13197958-ba2a-40cf-b2e0-7689f22ab139": {
+            "on_completion": "parallel--4d5c6420-d431-4f3a-a766-67bf41824dee",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--8f8a9e02-e0dc-4310-a92f-a663b9c06a42": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

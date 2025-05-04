@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c5f9a8dc-4f4e-4bbe-bf77-23af717dab94",
+    "name": "Playbook for Mitigating Malicious Scripting Attack",
+    "description": "This playbook addresses an incident where a threat actor deployed malicious scripts across several compromised hosts to disrupt services and exfiltrate sensitive data.",
+    "created_by": "identity--5d4308b7-8196-45f5-9d80-a84568fb7388",
+    "created": "2025-04-10T08:55:35.498Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1abfa1e-3ebd-4e45-bb03-bd7b4f7e6072",
+    "workflow": {
+        "start--b1abfa1e-3ebd-4e45-bb03-bd7b4f7e6072": {
+            "on_completion": "if-condition--c0b26aa4-d667-4cb5-a902-b6a98de66d1a",
+            "type": "start"
+        },
+        "if-condition--c0b26aa4-d667-4cb5-a902-b6a98de66d1a": {
+            "name": "Check for Running Scripts",
+            "type": "if-condition",
+            "condition": "script_detected",
+            "on_true": "action--4a39b9ab-c9e8-4d2b-aa56-0989485dfa2e",
+            "on_false": "action--ab43fdb7-3b98-4213-92e2-e03d276c09a6"
+        },
+        "action--4a39b9ab-c9e8-4d2b-aa56-0989485dfa2e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious script that is currently running.",
+            "on_completion": "action--cf0b8f0f-16d8-4db8-ad27-f6a27b35c5e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a"
+        },
+        "action--cf0b8f0f-16d8-4db8-ad27-f6a27b35c5e1": {
+            "name": "Remove dropped files",
+            "description": "Delete any malicious files that may have been created.",
+            "on_completion": "action--52f76219-065c-4c4e-b3e7-6f3dcb0a9421",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a",
+            "loop": {
+                "condition": "files_exist",
+                "repeat_until": "no_files_found"
+            }
+        },
+        "action--52f76219-065c-4c4e-b3e7-6f3dcb0a9421": {
+            "name": "Block malicious IP",
+            "description": "Block outbound connections to the malicious IP identified.",
+            "on_completion": "action--ab43fdb7-3b98-4213-92e2-e03d276c09a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.25 -j DROP"
+                }
+            ],
+            "agent": "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a"
+        },
+        "action--ab43fdb7-3b98-4213-92e2-e03d276c09a6": {
+            "name": "Investigate and quarantine affected hosts",
+            "description": "Isolate the affected hosts to prevent further spread.",
+            "on_completion": "action--f4dbe9ad-c3a1-40a4-9816-4f31c3586e73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "isolate --host $HOST"
+                }
+            ],
+            "agent": "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a",
+            "targets": [
+                "host-77",
+                "host-34",
+                "host-22"
+            ]
+        },
+        "action--f4dbe9ad-c3a1-40a4-9816-4f31c3586e73": {
+            "name": "Scan network for further intrusions",
+            "description": "Perform a network scan to identify further potential intrusions.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -oA /logs/scan_results $NETWORK"
+                }
+            ],
+            "agent": "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a",
+            "loop": {
+                "condition": "network_clean",
+                "repeat_until": "clean",
+                "interval": "6 hours"
+            },
+            "variables": {
+                "NETWORK": "192.168.0.0/24"
+            }
+        },
+        "end--20805763-2a40-4bf8-ad19-bf5b832c1b24": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--533960f9-5a7b-4960-a41e-18a0f703ac1a": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

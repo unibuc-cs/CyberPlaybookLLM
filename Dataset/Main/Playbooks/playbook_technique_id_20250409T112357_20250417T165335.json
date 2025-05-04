@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3b9c1f0-5304-4bb1-9de6-4349e977c8ee",
+    "name": "Mitigation Playbook for Backdoor Shell Incident",
+    "description": "This playbook initiates actions to mitigate an incident where an attacker gained access via a phishing email and executed a malicious script creating a backdoor.",
+    "created_by": "identity--1ab8dc06-4b2e-4616-bd88-178427611e06",
+    "created": "2025-04-10T08:30:00.000Z",
+    "modified": "2025-04-10T08:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--abe46d7d-89e9-4a75-b53a-b7042b893899",
+    "workflow": {
+        "start--abe46d7d-89e9-4a75-b53a-b7042b893899": {
+            "on_completion": "action--8d6fcb4b-b6a5-46b3-b6ee-1b61b64259a1",
+            "type": "start",
+            "name": "Start Playbook",
+            "description": "Initiate the mitigation actions for the backdoor incident."
+        },
+        "action--8d6fcb4b-b6a5-46b3-b6ee-1b61b64259a1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "if-condition--process-found-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--process-found-check": {
+            "name": "Check if malicious process was found",
+            "type": "if-condition",
+            "condition": "malicious process found",
+            "on_true": "action--66e02474-758b-46a0-958f-d6887a2aadc7",
+            "on_false": "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "description": "Determine if the malicious process was successfully terminated."
+        },
+        "action--66e02474-758b-46a0-958f-d6887a2aadc7": {
+            "name": "Block outbound network connection",
+            "description": "Prevent any further outbound connections to the unknown IP address.",
+            "on_completion": "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d unknown_ip -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a comprehensive scan on the system to find and eliminate any remaining threats.",
+            "on_completion": "while-condition--repeat-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--repeat-until-clean": {
+            "name": "Repeat scan until system is clean",
+            "description": "Keep scanning the system while threats are detected.",
+            "condition": "threats_present",
+            "on_true": "action--bd87ff0b-9d6f-42e0-a0c1-ff1ba1a4c5e7",
+            "on_false": "end--f8b4ab7b-f999-444c-925e-d609a6d47466",
+            "type": "while-condition"
+        },
+        "end--f8b4ab7b-f999-444c-925e-d609a6d47466": {
+            "type": "end",
+            "name": "End Playbook",
+            "description": "Concludes the mitigation process."
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2fc940d-6805-48d3-8a79-7b69ac32db8c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via command line, exfiltrated data, and established persistence.",
+    "created_by": "identity--840ad114-5519-4edb-b740-14910bd5b48a",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c1e7391b-93e9-4097-b8f8-f8ed347761b4",
+    "workflow": {
+        "start--c1e7391b-93e9-4097-b8f8-f8ed347761b4": {
+            "on_completion": "parallel--d7f20c0c-e5d1-4b60-b09a-dea0938c75f1",
+            "type": "start"
+        },
+        "parallel--d7f20c0c-e5d1-4b60-b09a-dea0938c75f1": {
+            "name": "Execute Mitigations",
+            "description": "Perform multiple mitigations concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d1e8b5fb-81b3-4cf1-8121-3ff228f05e6b",
+                "action--d7c65413-7eb5-4aeb-9142-e55bef43f8c8",
+                "loop--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7"
+            ]
+        },
+        "action--d1e8b5fb-81b3-4cf1-8121-3ff228f05e6b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "action--d7c65413-7eb5-4aeb-9142-e55bef43f8c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--3e4e8f2d-d272-4167-aef7-2013db427eb8"
+        },
+        "action--d7c65413-7eb5-4aeb-9142-e55bef43f8c8": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Block any outbound connections to known malicious IPs.",
+            "on_completion": "loop--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--3e4e8f2d-d272-4167-aef7-2013db427eb8"
+        },
+        "loop--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7": {
+            "name": "Scan System for Malicious Files",
+            "description": "Repeatedly scan the system until no threats are found.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7",
+            "next_steps": [
+                "action--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7"
+            ]
+        },
+        "action--1b5c85f7-4c41-46ef-bd17-6cc1bac456d7": {
+            "name": "Scan for Threats",
+            "on_completion": "end--b2ab871b-4ea9-4a2f-81dc-aceb53820eb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --bell -i /path/to/scan"
+                }
+            ],
+            "agent": "organization--3e4e8f2d-d272-4167-aef7-2013db427eb8",
+            "step_variables": {
+                "threats_found": {
+                    "type": "boolean",
+                    "description": "Track if any threats were found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--b2ab871b-4ea9-4a2f-81dc-aceb53820eb5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3e4e8f2d-d272-4167-aef7-2013db427eb8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

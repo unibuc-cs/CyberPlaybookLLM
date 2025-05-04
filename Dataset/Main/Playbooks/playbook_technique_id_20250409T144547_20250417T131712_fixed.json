@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7f8c1d2-3290-4962-b8ca-56d050f43c5b",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook mitigates the effects of an attacker executing malicious scripts designed to exfiltrate sensitive data.",
+    "created_by": "identity--b0add1fc-01c4-43a2-bf3c-54894f1c9d91",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a89684f8-7f1b-405d-b26c-5b9c8bfea822",
+    "workflow": {
+        "start--a89684f8-7f1b-405d-b26c-5b9c8bfea822": {
+            "on_completion": "action--d0f20fcb-bb98-4f01-b017-efb6fe215b39",
+            "type": "start"
+        },
+        "action--d0f20fcb-bb98-4f01-b017-efb6fe215b39": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the suspicious script.",
+            "on_completion": "action--b1f049a4-1d51-4cb0-bb65-2221e6f939d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--f994bf5f-4153-4fc8-8ea2-9bba5f7dcf1a"
+        },
+        "action--b1f049a4-1d51-4cb0-bb65-2221e6f939d8": {
+            "name": "Remove dropped files from user directory",
+            "description": "Delete files dropped by the attacker from the user directory.",
+            "on_completion": "while-condition--aa1c0e80-5d26-4cc1-b3ad-cbf3f8c4c4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /home/user/suspicious_file.txt"
+                }
+            ],
+            "agent": "organization--f994bf5f-4153-4fc8-8ea2-9bba5f7dcf1a"
+        },
+        "while-condition--aa1c0e80-5d26-4cc1-b3ad-cbf3f8c4c4d2": {
+            "name": "Scan for remaining threats",
+            "description": "Continually scan for threats until none are detected.",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--aa1c0e80-5d26-4cc1-b3ad-cbf3f8c4c4d2",
+            "on_false": "end--7c6f5c0e-f3b2-4aa3-a93a-7693daa5469d"
+        },
+        "action--aa1c0e80-5d26-4cc1-b3ad-cbf3f8c4c4d2": {
+            "name": "Perform threat scan",
+            "description": "Run a scan of the user directory to find any remaining threats.",
+            "on_completion": "condition-check--e1d5bd38-bc72-4e45-aa78-f2d688bbdcf0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --bell -i"
+                }
+            ],
+            "agent": "organization--f994bf5f-4153-4fc8-8ea2-9bba5f7dcf1a"
+        },
+        "condition-check--e1d5bd38-bc72-4e45-aa78-f2d688bbdcf0": {
+            "name": "Check for additional threats",
+            "description": "Determine if any threats were found during the scan.",
+            "type": "if-condition",
+            "condition": "threat_detected == false",
+            "on_true": "while-condition--aa1c0e80-5d26-4cc1-b3ad-cbf3f8c4c4d2",
+            "on_false": "end--7c6f5c0e-f3b2-4aa3-a93a-7693daa5469d"
+        },
+        "end--7c6f5c0e-f3b2-4aa3-a93a-7693daa5469d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f994bf5f-4153-4fc8-8ea2-9bba5f7dcf1a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

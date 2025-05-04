@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a9b0c0e2-23a5-407b-9dc6-0e5391358bc3",
+    "name": "Mitigation Playbook for Application Layer Protocol Data Exfiltration",
+    "description": "This playbook addresses an incident where an attacker used an application layer protocol to exfiltrate sensitive data from the network. The playbook initiates with termination of unauthorized connections, analyzes outbound traffic, and deploys EDR solutions.",
+    "created_by": "identity--abc12345-6789-0123-4567-890abcdef123",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--eaa82f40-d0c4-4e09-bb2e-eaf43962f50c",
+    "workflow": {
+        "start--eaa82f40-d0c4-4e09-bb2e-eaf43962f50c": {
+            "on_completion": "parallel--1f444b27-6911-403e-b4ba-4d6744401660",
+            "type": "start"
+        },
+        "parallel--1f444b27-6911-403e-b4ba-4d6744401660": {
+            "name": "Mitigation Actions",
+            "description": "Terminate connections, analyze traffic, and deploy EDR solutions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b525b0f2-d173-44cf-a464-2b2bcdc41684",
+                "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db",
+                "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be"
+            ]
+        },
+        "action--b525b0f2-d173-44cf-a464-2b2bcdc41684": {
+            "name": "Terminate unauthorized network connections",
+            "description": "Block suspicious outbound traffic to prevent further data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "if-condition--40df4578-0f56-4c01-9355-f5018d8a44ce"
+        },
+        "if-condition--40df4578-0f56-4c01-9355-f5018d8a44ce": {
+            "name": "Check if connections terminated",
+            "type": "if-condition",
+            "condition": "check_connections_terminated() == True",
+            "on_true": "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db",
+            "on_false": "end--a8b4e211-168d-42ed-825f-76434ad20462"
+        },
+        "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db": {
+            "name": "Analyze outbound traffic for potential data exfiltration",
+            "description": "Capture traffic on specific ports to check for anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n 'tcp and (dst port 80 or dst port 443)'"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "loop--5f251eb3-4217-47b3-8624-010f8e853b16"
+        },
+        "loop--5f251eb3-4217-47b3-8624-010f8e853b16": {
+            "name": "Monitor Traffic",
+            "type": "loop",
+            "condition": "traffic_volume > threshold",
+            "on_true": "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db",
+            "on_false": "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be"
+        },
+        "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be": {
+            "name": "Deploy Endpoint Detection and Response (EDR) solution",
+            "description": "Deploy EDR solution to the affected host for further analysis.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "edr-deploy --host host-22"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "host": {
+                    "type": "string",
+                    "description": "The host that needs the EDR deployment",
+                    "value": "host-22"
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Deployment status of EDR",
+                    "value": "pending"
+                }
+            },
+            "on_completion": "end--a8b4e211-168d-42ed-825f-76434ad20462"
+        },
+        "end--a8b4e211-168d-42ed-825f-76434ad20462": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

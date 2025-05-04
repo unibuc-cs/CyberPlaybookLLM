@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--34c06507-6535-4c3e-9ab1-dcec1f752f19",
+    "name": "Response Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate the impact of an attacker who executed malicious PowerShell scripts to gather sensitive information.",
+    "created_by": "identity--44c27c64-665c-4eaf-9358-2452d0521fe3",
+    "created": "2023-10-02T08:00:00Z",
+    "modified": "2023-10-02T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--7a0f5dbb-d71b-4d5e-b1dc-31c089b7b877",
+    "workflow": {
+        "start--7a0f5dbb-d71b-4d5e-b1dc-31c089b7b877": {
+            "on_completion": "action--6db71c4c-bb89-4921-82d5-559f08012e38",
+            "type": "start"
+        },
+        "action--6db71c4c-bb89-4921-82d5-559f08012e38": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that was executed.",
+            "on_completion": "action--429dfd3c-0aef-461c-afed-ad0988f76d25",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--e974295e-a6c4-4a50-8663-b70cd5878525"
+        },
+        "action--429dfd3c-0aef-461c-afed-ad0988f76d25": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the affected host from the network to prevent further damage.",
+            "on_completion": "loop--d590b071-8e62-4da2-9b54-5b79d2b360bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-12' ]; then netsh interface set interface 'Ethernet' admin=disabled; fi"
+                }
+            ],
+            "agent": "organization--e974295e-a6c4-4a50-8663-b70cd5878525"
+        },
+        "loop--d590b071-8e62-4da2-9b54-5b79d2b360bd": {
+            "name": "Conduct malware scan until clean",
+            "description": "Perform repeated malware scans until the system is confirmed clean.",
+            "on_true": "action--d590b071-8e62-4da2-9b54-5b79d2b360bd",
+            "on_completion": "end--c3d0e2bf-6b48-4068-aa41-cb98025a840e",
+            "condition": "scan_status == 'in_progress'",
+            "type": "while-condition",
+            "next_steps": [
+                "action--d590b071-8e62-4da2-9b54-5b79d2b360bd"
+            ]
+        },
+        "action--d590b071-8e62-4da2-9b54-5b79d2b360bd": {
+            "name": "Conduct malware scan",
+            "description": "Run a malware scan on the affected host.",
+            "on_completion": "action--b1c3acea-cd61-4c08-b381-07fa2d72b90f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "agent": "organization--e974295e-a6c4-4a50-8663-b70cd5878525"
+        },
+        "end--c3d0e2bf-6b48-4068-aa41-cb98025a840e": {
+            "type": "end"
+        },
+        "action--b1c3acea-cd61-4c08-b381-07fa2d72b90f": {
+            "name": "Update scan status",
+            "description": "Check the result of the malware scan and update scan_status accordingly.",
+            "on_completion": "loop--d590b071-8e62-4da2-9b54-5b79d2b360bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(check_scan_result) == 'clean' ]; then scan_status='clean'; else scan_status='in_progress'; fi"
+                }
+            ],
+            "agent": "organization--e974295e-a6c4-4a50-8663-b70cd5878525"
+        }
+    },
+    "agent_definitions": {
+        "organization--e974295e-a6c4-4a50-8663-b70cd5878525": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

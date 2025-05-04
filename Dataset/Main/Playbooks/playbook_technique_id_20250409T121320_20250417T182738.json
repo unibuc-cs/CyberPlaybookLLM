@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bfc04c8f-41a9-40aa-94f5-84bacae480ban",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution Incident",
+    "description": "This playbook outlines the steps to mitigate an incident involving unauthorized PowerShell script execution, data access, and potential data exfiltration.",
+    "created_by": "identity--ac70c020-244c-4ca0-a28b-ddea6cb47c83",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--dbbe1040-a1c0-4a7b-b45b-3d95a605c4cc",
+    "workflow": {
+        "start--dbbe1040-a1c0-4a7b-b45b-3d95a605c4cc": {
+            "on_completion": "action--ecf6cfe9-84fd-4556-85f9-93bae8274e1d",
+            "type": "start"
+        },
+        "action--ecf6cfe9-84fd-4556-85f9-93bae8274e1d": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell instances executing malicious scripts.",
+            "on_completion": "action--e1d874f7-7311-4b8a-94a4-01c171d92c7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e1d874f7-7311-4b8a-94a4-01c171d92c7a": {
+            "name": "Isolate affected host",
+            "description": "Disable network interfaces on the affected host to prevent further data exfiltration.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "System scan loop",
+            "description": "Perform a full system scan until no threats are detected.",
+            "on_completion": "end--caff76de-6598-4f9b-b578-e7424c6cfc2b",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75",
+            "on_false": "end--caff76de-6598-4f9b-b578-e7424c6cfc2b"
+        },
+        "action--6c49b7fd-f3d5-4c66-aa6e-cf0e7bd2bc75": {
+            "name": "Perform full system scan",
+            "description": "Run an extensive security scan to detect remaining threats.",
+            "on_completion": "action--update-scan-status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run-scan.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--update-scan-status": {
+            "name": "Update scan status",
+            "description": "Check the scan result to see if the system is clean.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the scan which indicates if the system is clean or not.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_status.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--caff76de-6598-4f9b-b578-e7424c6cfc2b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

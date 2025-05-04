@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c0c0f943-dc6b-4fe1-8d8a-433af6c29c6e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a script to execute commands on a targeted server, leading to unauthorized data access.",
+    "created_by": "identity--bc1e4fed-8b8e-4e91-91ec-5324fffc7ab9",
+    "created": "2023-10-15T12:45:00Z",
+    "modified": "2023-10-15T12:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--f4e1a67f-b31c-4cf4-b14d-a1d1930a1848",
+    "workflow": {
+        "start--f4e1a67f-b31c-4cf4-b14d-a1d1930a1848": {
+            "on_completion": "action--f1e7d78e-e2b1-42c4-bd30-1549424af60c",
+            "type": "start"
+        },
+        "action--f1e7d78e-e2b1-42c4-bd30-1549424af60c": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--40905938-8f51-4b36-b7d9-d583b1c1eb2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--40905938-8f51-4b36-b7d9-d583b1c1eb2a": {
+            "name": "Check if network is compromised",
+            "type": "if-condition",
+            "condition": "network_is_compromised",
+            "on_true": "action--40905938-8f51-4b36-b7d9-d583b1c1eb2a",
+            "on_false": "action--c97a44af-69cb-4566-848b-9dcbe263b1f8"
+        },
+        "action--40905938-8f51-4b36-b7d9-d583b1c1eb2a": {
+            "name": "Isolation of compromised host",
+            "description": "Isolate the compromised host to prevent further data exfiltration.",
+            "on_completion": "action--c97a44af-69cb-4566-848b-9dcbe263b1f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c97a44af-69cb-4566-848b-9dcbe263b1f8": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the system to find any remaining threats.",
+            "on_completion": "if-condition--scan-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan / --recursive"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_output": {
+                    "type": "string",
+                    "description": "Stores the result of the malware scan.",
+                    "value": "scan_results",
+                    "constant": false,
+                    "external": true
+                },
+                "clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the system is clean from malware.",
+                    "value": "false",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--scan-check": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "clean == false",
+            "on_true": "action--c97a44af-69cb-4566-848b-9dcbe263b1f8",
+            "on_false": "end--d2fe919a-e101-4a56-b2d0-79d4f6a0db1b"
+        },
+        "end--d2fe919a-e101-4a56-b2d0-79d4f6a0db1b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

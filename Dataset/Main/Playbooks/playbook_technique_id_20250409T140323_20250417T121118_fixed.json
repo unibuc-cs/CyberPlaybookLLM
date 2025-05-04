@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f7b982cd-c8cd-4f99-a83e-5bb7710c00ef",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script through a spear-phishing email, allowing unauthorized access and further escalation.",
+    "created_by": "identity--d52ee282-ac8d-4e2b-934c-6d6cb7d5336a",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "workflow_start": "start--a3e54ecb-c238-493b-b862-8c9092e6f195",
+    "workflow": {
+        "start--a3e54ecb-c238-493b-b862-8c9092e6f195": {
+            "on_completion": "action--b29c4874-8598-42bc-b56a-2c2e5d1cd087",
+            "type": "start"
+        },
+        "action--b29c4874-8598-42bc-b56a-2c2e5d1cd087": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "if-condition--fa8b3826-3d91-4c73-8b67-1d4bfc2b591e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--256a5aba-06b0-4e69-a24c-e543728335ca"
+        },
+        "if-condition--fa8b3826-3d91-4c73-8b67-1d4bfc2b591e": {
+            "name": "Check if the process is still running",
+            "type": "if-condition",
+            "condition": "pgrep -f malicious_script.sh",
+            "on_true": "action--fa8b3826-3d91-4c73-8b67-1d4bfc2b591e",
+            "on_false": "action--d81c5a2c-f885-489e-97f6-78f1ba8ebc62"
+        },
+        "action--fa8b3826-3d91-4c73-8b67-1d4bfc2b591e": {
+            "name": "Isolate affected host",
+            "description": "Block the network interface of the affected machine to prevent further access.",
+            "on_completion": "action--d81c5a2c-f885-489e-97f6-78f1ba8ebc62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--256a5aba-06b0-4e69-a24c-e543728335ca"
+        },
+        "action--d81c5a2c-f885-489e-97f6-78f1ba8ebc62": {
+            "name": "Analyze network logs",
+            "description": "Analyze the network logs related to the compromised host.",
+            "on_completion": "while-condition--78b441f7-0ebf-47d4-bbce-fc3fa41add1b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'host-01' /var/logs/network.log"
+                }
+            ],
+            "agent": "organization--256a5aba-06b0-4e69-a24c-e543728335ca"
+        },
+        "while-condition--78b441f7-0ebf-47d4-bbce-fc3fa41add1b": {
+            "name": "Check if analysis is complete",
+            "description": "Repeat log analysis until complete.",
+            "on_true": "action--d81c5a2c-f885-489e-97f6-78f1ba8ebc62",
+            "condition": "analysis_not_complete",
+            "on_false": "end--fd087ae0-2026-4cd1-b62c-962b9b03a346",
+            "type": "if-condition"
+        },
+        "end--fd087ae0-2026-4cd1-b62c-962b9b03a346": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--256a5aba-06b0-4e69-a24c-e543728335ca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

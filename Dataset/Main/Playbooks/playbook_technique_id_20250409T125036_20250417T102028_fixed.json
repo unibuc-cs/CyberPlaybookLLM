@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5b92a1f6-5c0a-495f-9a83-3e2996ef812b",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution",
+    "description": "This playbook addresses an incident involving the execution of a malicious PowerShell script that exfiltrated sensitive data and created a new user for persistence.",
+    "created_by": "identity--f70a7691-1f2b-4c02-8c23-e8ea58fe9b97",
+    "created": "2023-10-01T13:00:00Z",
+    "modified": "2023-10-01T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0dc0c512-d821-4e63-a648-dfa4519f67ec",
+    "workflow": {
+        "start--0dc0c512-d821-4e63-a648-dfa4519f67ec": {
+            "on_completion": "if-condition--b141b01b-8b8d-45d2-8543-30b74f864560",
+            "type": "start"
+        },
+        "if-condition--b141b01b-8b8d-45d2-8543-30b74f864560": {
+            "name": "Check for malicious processes",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--2063d5eb-3a2a-48dc-8725-e9d470c595de",
+            "on_false": "if-condition--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14"
+        },
+        "if-condition--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14": {
+            "name": "Check for unauthorized users",
+            "type": "if-condition",
+            "condition": "new_user_exists == true",
+            "on_true": "action--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14",
+            "on_false": "action--905e100e-3d9c-4acb-94fb-39c20c894f94"
+        },
+        "action--2063d5eb-3a2a-48dc-8725-e9d470c595de": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process found on the system.",
+            "on_completion": "if-condition--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--3fb5a987-20d0-4e89-b67a-6b6bd73bead6"
+        },
+        "action--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete the unauthorized user account created by the attacker.",
+            "on_completion": "action--905e100e-3d9c-4acb-94fb-39c20c894f94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r new_user"
+                }
+            ],
+            "agent": "organization--3fb5a987-20d0-4e89-b67a-6b6bd73bead6"
+        },
+        "action--905e100e-3d9c-4acb-94fb-39c20c894f94": {
+            "name": "Scan the host for additional threats",
+            "description": "Continuously scan the host for any additional threats until the scan is clean.",
+            "on_completion": "end--1957f19f-293b-4c32-8c9d-f191a4a1b0b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--3fb5a987-20d0-4e89-b67a-6b6bd73bead6",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Holds the result of the latest scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "loop": "while scan_result != 'clean'"
+        },
+        "end--1957f19f-293b-4c32-8c9d-f191a4a1b0b9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3fb5a987-20d0-4e89-b67a-6b6bd73bead6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

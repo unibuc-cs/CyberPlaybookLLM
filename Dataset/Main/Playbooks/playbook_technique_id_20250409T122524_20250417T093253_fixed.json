@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4c5b45d7-73f6-4ec1-a14a-e1e12e4bff75",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute unauthorized scripts and exfiltrate sensitive data.",
+    "created_by": "identity--1e2f315c-71bc-4d05-a770-9a03dce5c1ec",
+    "created": "2023-10-25T15:00:00Z",
+    "modified": "2023-10-25T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c9f7aeff-f7a4-4f3e-ba45-a1b0d0fc5a30",
+    "workflow": {
+        "start--c9f7aeff-f7a4-4f3e-ba45-a1b0d0fc5a30": {
+            "on_completion": "parallel--4c23bd8a-fd93-4f58-b4aa-2458d49c3676",
+            "type": "start"
+        },
+        "parallel--4c23bd8a-fd93-4f58-b4aa-2458d49c3676": {
+            "name": "Immediate Mitigation Actions",
+            "description": "Execute immediate actions to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c53b2804-1034-4a9e-8536-9a9b69c564c0",
+                "action--2e4b568d-0955-4ee7-b8b1-edf02bd3ad9a"
+            ]
+        },
+        "action--c53b2804-1034-4a9e-8536-9a9b69c564c0": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the unauthorized script.",
+            "on_completion": "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--67ef8138-4675-4506-9cec-feabd7445601"
+        },
+        "action--2e4b568d-0955-4ee7-b8b1-edf02bd3ad9a": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent further data exfiltration.",
+            "on_completion": "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-45 -j DROP"
+                }
+            ],
+            "agent": "organization--67ef8138-4675-4506-9cec-feabd7445601"
+        },
+        "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4": {
+            "name": "Scan network for other instances",
+            "description": "Perform a network scan to identify any other potentially compromised hosts.",
+            "on_completion": "loop--58f31054-3da3-4941-9ffa-0d03451d55f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--67ef8138-4675-4506-9cec-feabd7445601"
+        },
+        "loop--58f31054-3da3-4941-9ffa-0d03451d55f2": {
+            "name": "Network Scan Loop",
+            "description": "Repeat network scan until no more suspicious hosts are found.",
+            "on_completion": "end--8fd44932-27c3-4660-b0b2-7343edfa7ff8",
+            "type": "while-condition",
+            "condition": "suspicious_hosts_found == true",
+            "on_true": "action--a6673ec9-5cd4-4393-8d56-9a6de265abb4"
+        },
+        "end--8fd44932-27c3-4660-b0b2-7343edfa7ff8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--67ef8138-4675-4506-9cec-feabd7445601": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

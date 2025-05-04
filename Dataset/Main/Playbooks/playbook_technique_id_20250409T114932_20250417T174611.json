@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a0072c2c-b4b9-4316-9602-6535f276be12",
+    "name": "Mitigation Playbook for Unauthorized Application Protocol Communication",
+    "description": "This playbook is designed to address incidents involving unauthorized communications established through a legitimate web application leading to potential data exfiltration.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1c8a2f1-c62f-4328-9b30-5eeb0e5d4db5",
+    "workflow": {
+        "start--b1c8a2f1-c62f-4328-9b30-5eeb0e5d4db5": {
+            "on_completion": "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530",
+            "type": "start"
+        },
+        "parallel--0ac3b32a-6fef-4664-ad85-4f0c1e7c9530": {
+            "name": "Execute Mitigations",
+            "description": "Execute actions to mitigate unauthorized communications.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b8e3c3de-b6c6-4c45-95b7-edce420d03f3",
+                "if-condition--8f9b65c5-57dd-444d-8c08-446bcfb3e6e3",
+                "while-condition--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6"
+            ]
+        },
+        "action--b8e3c3de-b6c6-4c45-95b7-edce420d03f3": {
+            "name": "Block outgoing traffic to suspicious IP",
+            "description": "Block all outgoing traffic to the identified suspicious IP address.",
+            "on_completion": "end--e5b142fc-6473-4c64-b14a-0fa3eb69c63a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--8f9b65c5-57dd-444d-8c08-446bcfb3e6e3": {
+            "name": "Check for malicious processes",
+            "type": "if-condition",
+            "condition": "$(pgrep suspicious_process_name) > 0",
+            "on_true": "action--8f9b65c5-57dd-444d-8c08-446bcfb3e6e3",
+            "on_false": "while-condition--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6"
+        },
+        "action--8f9b65c5-57dd-444d-8c08-446bcfb3e6e3": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any identified malicious processes leading to unauthorized communications.",
+            "on_completion": "while-condition--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6": {
+            "name": "Run network scan for other compromised endpoints",
+            "description": "Repeat scanning for compromised endpoints until a clean scan is achieved.",
+            "type": "while-condition",
+            "condition": "nmap_scan_result == 'clean'",
+            "on_true": "end--e5b142fc-6473-4c64-b14a-0fa3eb69c63a",
+            "on_false": "action--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6"
+        },
+        "action--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6": {
+            "name": "Perform network scan",
+            "description": "Conduct a network scan to identify any other compromised endpoints.",
+            "on_completion": "while-condition--1fe474a2-0f6f-4bfa-a6f2-c61c4fd3afe6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p 1-65535 -sV 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "nmap_scan_result": {
+                    "type": "string",
+                    "description": "Result of the nmap scan; determines next action.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e5b142fc-6473-4c64-b14a-0fa3eb69c63a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

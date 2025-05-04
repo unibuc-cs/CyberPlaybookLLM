@@ -1,0 +1,134 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1ad9f38-32e0-4ef1-8f06-d2e07de56b23",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting interpreter to execute unauthorized commands on a compromised server.",
+    "created_by": "identity--a47da70e-3eee-4b64-b990-764fdc2d2273",
+    "created": "2023-09-22T14:30:00Z",
+    "modified": "2023-09-22T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--35405b92-be9c-426c-97ae-5fe3c1e35c06",
+    "workflow": {
+        "start--35405b92-be9c-426c-97ae-5fe3c1e35c06": {
+            "on_completion": "parallel--118d7dab-625b-474a-941b-c0d4ab0890d8",
+            "type": "start"
+        },
+        "parallel--118d7dab-625b-474a-941b-c0d4ab0890d8": {
+            "name": "Execute Parallel Mitigations",
+            "description": "Terminate malicious processes and start scanning concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--44be6c70-7424-4eff-a458-41e6884cd544",
+                "action--d2d8e101-b91f-4e9a-b172-3ed8b2f03401",
+                "action--3250b680-73ff-42ee-b0e6-68e6af5d3ac8",
+                "while-condition--1c6d8424-8f4a-40f0-88d5-327def9d33cb"
+            ]
+        },
+        "action--44be6c70-7424-4eff-a458-41e6884cd544": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Stop any running malicious PowerShell processes.",
+            "on_completion": "action--e3d3c418-a40b-45c2-8806-a397b10e6a3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process powershell | Stop-Process"
+                }
+            ],
+            "agent": "organization--e16dc1c1-ad53-4407-9d1e-94ad18f2cc45"
+        },
+        "action--d2d8e101-b91f-4e9a-b172-3ed8b2f03401": {
+            "name": "Quarantine Suspicious Files",
+            "description": "Move suspicious files to a quarantine location.",
+            "on_completion": "action--e3d3c418-a40b-45c2-8806-a397b10e6a3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /path/to/suspicious/file ]; then mv /path/to/suspicious/file /quarantine/location; fi"
+                }
+            ],
+            "agent": "organization--2aea0d28-6d20-4679-b7e5-8f0aff3ef79b"
+        },
+        "action--3250b680-73ff-42ee-b0e6-68e6af5d3ac8": {
+            "name": "Block Malicious IP Address",
+            "description": "Block incoming connections from a known malicious IP address.",
+            "on_completion": "action--e3d3c418-a40b-45c2-8806-a397b10e6a3d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip_address -j DROP"
+                }
+            ],
+            "agent": "organization--70e3060f-f828-41e7-b2a0-bd1cf304e790"
+        },
+        "while-condition--1c6d8424-8f4a-40f0-88d5-327def9d33cb": {
+            "name": "Scan System for Additional Threats",
+            "description": "Continuously scan the system for threats until no more threats are detected.",
+            "type": "while-condition",
+            "condition": "threat_detected == true",
+            "on_true": "action--69efce13-a238-455e-99e0-23b696cfa952",
+            "on_completion": "action--e3d3c418-a40b-45c2-8806-a397b10e6a3d",
+            "variables": {
+                "threat_detected": {
+                    "type": "boolean",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "action--e3d3c418-a40b-45c2-8806-a397b10e6a3d": {
+            "name": "Review System Logs",
+            "description": "Examine system logs for additional anomalies.",
+            "on_completion": "end--c56e210f-1df0-4341-8998-9842d99e1c6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'suspicious' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--f861dbcd-3b78-402c-8a72-c15ceaa5887e"
+        },
+        "end--c56e210f-1df0-4341-8998-9842d99e1c6f": {
+            "type": "end"
+        },
+        "action--69efce13-a238-455e-99e0-23b696cfa952": {
+            "name": "Perform System Scan",
+            "description": "Run clamdscan to detect and remove threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --infected --remove | grep FOUND && threat_detected=true || threat_detected=false"
+                }
+            ],
+            "agent": "organization--bfee8bcc-b72e-48d7-bdb3-6c7c1ac01dc0",
+            "on_completion": "while-condition--1c6d8424-8f4a-40f0-88d5-327def9d33cb"
+        }
+    },
+    "agent_definitions": {
+        "organization--e16dc1c1-ad53-4407-9d1e-94ad18f2cc45": {
+            "type": "organization",
+            "name": "Security Team A"
+        },
+        "organization--2aea0d28-6d20-4679-b7e5-8f0aff3ef79b": {
+            "type": "organization",
+            "name": "Security Team B"
+        },
+        "organization--70e3060f-f828-41e7-b2a0-bd1cf304e790": {
+            "type": "organization",
+            "name": "Security Team C"
+        },
+        "organization--bfee8bcc-b72e-48d7-bdb3-6c7c1ac01dc0": {
+            "type": "organization",
+            "name": "Security Team D"
+        },
+        "organization--f861dbcd-3b78-402c-8a72-c15ceaa5887e": {
+            "type": "organization",
+            "name": "Log Analysis Team"
+        }
+    }
+}

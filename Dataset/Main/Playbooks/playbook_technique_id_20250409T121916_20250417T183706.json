@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d44c3e0b-8dc8-4d4e-be6e-b7c2d5fefc71",
+    "name": "Mitigation Playbook for Web Service API Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker exfiltrated sensitive data using a web service API. It includes blocking outbound traffic, scanning for threats, and investigating logs for suspicious activities.",
+    "created_by": "identity--df61b8c9-cd5d-4783-8d5b-f11ef1d14b71",
+    "created": "2023-10-06T10:00:00Z",
+    "modified": "2023-10-06T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1b5a1a65-e6ba-4cc0-8947-a6cb23c9b83f",
+    "workflow": {
+        "start--1b5a1a65-e6ba-4cc0-8947-a6cb23c9b83f": {
+            "on_completion": "action--5d80a704-29db-49fd-9ded-e0fdd72fce9e",
+            "type": "start"
+        },
+        "action--5d80a704-29db-49fd-9ded-e0fdd72fce9e": {
+            "name": "Block Outbound Traffic to Suspicious IP",
+            "description": "Block all outbound traffic to the identified suspicious IP address to prevent further data exfiltration.",
+            "on_completion": "parallel--ef3dc45e-ac56-4538-ace4-f1f5732992f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--79b83d70-04e5-4c07-b683-01d25163b3aa": {
+            "name": "Repeat EDR Scan Until Clean",
+            "description": "Continue running endpoint detection and response scans until no threats are detected.",
+            "on_completion": "action--abe8cd36-f12f-4a30-b3fb-5c6c2b884aa6",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--abe8cd36-f12f-4a30-b3fb-5c6c2b884aa6"
+        },
+        "parallel--ef3dc45e-ac56-4538-ace4-f1f5732992f1": {
+            "name": "Concurrent Mitigations",
+            "description": "Run EDR scan and investigate logs simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--abe8cd36-f12f-4a30-b3fb-5c6c2b884aa6",
+                "action--e4b08cc1-4f7a-4934-bbfd-30700cfc15b3"
+            ]
+        },
+        "action--abe8cd36-f12f-4a30-b3fb-5c6c2b884aa6": {
+            "name": "Run Endpoint Detection and Response Scan",
+            "description": "Trigger an endpoint detection and response scan to identify and mitigate threats on the system.",
+            "on_completion": "while-condition--79b83d70-04e5-4c07-b683-01d25163b3aa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./run-EDR-scan.sh"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the EDR scan",
+                    "value": "pending",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--e4b08cc1-4f7a-4934-bbfd-30700cfc15b3": {
+            "name": "Investigate Logs for Additional Suspicious Activities",
+            "description": "Check logs to find any further suspicious activities related to the data exfiltration incident.",
+            "on_completion": "end--2d244d81-b4b2-4772-a60d-9a407f891896",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/logs/syslog"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "suspicious_activity": {
+                    "type": "boolean",
+                    "description": "Indicator if suspicious activity was detected",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--2d244d81-b4b2-4772-a60d-9a407f891896": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

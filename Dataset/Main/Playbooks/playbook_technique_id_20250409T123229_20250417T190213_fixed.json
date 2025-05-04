@@ -1,0 +1,72 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9e6f672-2491-4d12-9bfa-44c3bbc3439a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "Addressing an incident where an attacker executed unauthorized scripts and accessed sensitive data on multiple hosts.",
+    "created_by": "identity--16bb0503-d3e0-41b1-b1e7-5cff75b15817",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f0b24f7d-8976-4d9a-a032-f52d7eff285f",
+    "workflow": {
+        "action--d55a3c4b-5eb5-4d5a-9db6-e9b364b74f4e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing suspicious scripts.",
+            "on_completion": "action--e16a5c3d-f02b-42a0-9b83-b399ccd415d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--4a713333-4e24-400a-949b-f7c16853c475"
+        },
+        "action--e16a5c3d-f02b-42a0-9b83-b399ccd415d2": {
+            "name": "Isolate Affected Hosts",
+            "description": "Take affected host offline to prevent further access.",
+            "on_completion": "loop--ffd34c01-d98b-4865-a8e6-35a06c476b85",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--4a713333-4e24-400a-949b-f7c16853c475"
+        },
+        "loop--ffd34c01-d98b-4865-a8e6-35a06c476b85": {
+            "name": "Scan for Backdoors",
+            "description": "Search for and remove any backdoor scripts in a loop.",
+            "on_completion": "end--21a6af2c-fd22-4af8-87b5-0e45ee01271c",
+            "type": "while-condition",
+            "condition": "[[ $(find / -name backdoor* | wc -l) -ne 0 ]]",
+            "on_true": "loop--ffd34c01-d98b-4865-a8e6-35a06c476b85",
+            "on_false": "action--e16a5c3d-f02b-42a0-9b83-b399ccd415d2"
+        },
+        "start--f0b24f7d-8976-4d9a-a032-f52d7eff285f": {
+            "on_completion": "parallel--b2689ba9-9c42-4658-8b3c-dd5484a55427",
+            "type": "start"
+        },
+        "parallel--b2689ba9-9c42-4658-8b3c-dd5484a55427": {
+            "name": "Mitigate Incident",
+            "description": "Execute mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d55a3c4b-5eb5-4d5a-9db6-e9b364b74f4e",
+                "action--e16a5c3d-f02b-42a0-9b83-b399ccd415d2",
+                "loop--ffd34c01-d98b-4865-a8e6-35a06c476b85"
+            ]
+        },
+        "end--21a6af2c-fd22-4af8-87b5-0e45ee01271c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4a713333-4e24-400a-949b-f7c16853c475": {
+            "type": "organization",
+            "name": "SecurityTeam"
+        }
+    }
+}

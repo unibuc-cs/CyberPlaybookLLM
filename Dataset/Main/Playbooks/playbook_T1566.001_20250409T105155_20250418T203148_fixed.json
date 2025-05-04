@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1f82b82-bee6-4c30-b2fa-ef239635e00c",
+    "name": "mitigation-playbook-spearphishing-attachment",
+    "description": "Playbook to mitigate an incident where a spearphishing email attachment caused a reverse shell.",
+    "created_by": "identity--9463618e-f5d7-494e-a4b1-8af739f3901d",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--eaa1b39d-1234-5678-9abc-def012345678",
+    "workflow": {
+        "start--eaa1b39d-1234-5678-9abc-def012345678": {
+            "on_completion": "parallel--3367cf3f-c2a1-4e73-84c4-df9151363b9b",
+            "type": "start"
+        },
+        "action--eab6f10e-92cf-45b2-9c83-ef1a7b8abe29": {
+            "name": "Isolate affected host from network",
+            "on_completion": "if-condition--90a2cdd7-123e-4567-8e90-789abcdef123",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--58d48b7c-0b60-4fb2-b463-9ad695313775"
+        },
+        "action--22b0c97c-e23f-46b5-abc5-e30aa1017225": {
+            "name": "Kill malicious process",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--58d48b7c-0b60-4fb2-b463-9ad695313775",
+            "on_completion": "action--0987c6b7-b88e-4feb-bac3-c8727bdf6cd5"
+        },
+        "if-condition--90a2cdd7-123e-4567-8e90-789abcdef123": {
+            "name": "Check if malicious process was terminated",
+            "type": "if-condition",
+            "condition": "process exists",
+            "on_true": "action--0987c6b7-b88e-4feb-bac3-c8727bdf6cd5",
+            "on_false": "action--0987c6b7-b88e-4feb-bac3-c8727bdf6cd5"
+        },
+        "action--0987c6b7-b88e-4feb-bac3-c8727bdf6cd5": {
+            "name": "Scan system for further threats",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--58d48b7c-0b60-4fb2-b463-9ad695313775",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Variable to track scan status.",
+                    "value": "unclean",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--f2c7f830-1234-5678-9abc-def012345678"
+        },
+        "while-condition--f2c7f830-1234-5678-9abc-def012345678": {
+            "name": "Repeat scan until clean",
+            "description": "Loosely repeat scan actions until scan is clean.",
+            "on_true": "action--0987c6b7-b88e-4feb-bac3-c8727bdf6cd5",
+            "condition": "scan_status == 'unclean'",
+            "type": "while-condition",
+            "on_false": "end--6e6454fc-e877-48ee-9e2f-d8f29d1a0e7a"
+        },
+        "parallel--3367cf3f-c2a1-4e73-84c4-df9151363b9b": {
+            "name": "Mitigation Steps",
+            "description": "Isolate affected host and kill malicious processes simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--eab6f10e-92cf-45b2-9c83-ef1a7b8abe29",
+                "action--22b0c97c-e23f-46b5-abc5-e30aa1017225"
+            ]
+        },
+        "end--6e6454fc-e877-48ee-9e2f-d8f29d1a0e7a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--58d48b7c-0b60-4fb2-b463-9ad695313775": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

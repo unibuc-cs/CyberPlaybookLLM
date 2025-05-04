@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3f81b21-4891-4cab-8f5e-81dc98cd6691",
+    "name": "Mitigation Playbook for PowerShell Script Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker used a PowerShell script to compromise corporate network security, leading to unauthorized data access.",
+    "created_by": "identity--e29a9acf-3643-4cc9-937d-c3b6d2491193",
+    "created": "2025-04-10T07:55:15Z",
+    "modified": "2025-04-10T08:10:45Z",
+    "revoked": false,
+    "workflow_start": "start--5b5d8b42-f8b3-4bfa-bbb6-9ed4da21d1cd",
+    "workflow": {
+        "start--5b5d8b42-f8b3-4bfa-bbb6-9ed4da21d1cd": {
+            "on_completion": "parallel--0a1b1c8d-9ceb-4593-a2ee-fad017e3a77b",
+            "type": "start"
+        },
+        "end--2f4e2e91-907e-4a9b-9b0f-033f282b8bda": {
+            "type": "end"
+        },
+        "parallel--0a1b1c8d-9ceb-4593-a2ee-fad017e3a77b": {
+            "name": "Initial Parallel Actions",
+            "description": "Execute initial mitigations simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9f48a2b2-7627-47ef-bc02-a49fb659704d",
+                "action--8e632a5b-c6ce-472a-8e4e-9e22335fc6d9"
+            ]
+        },
+        "action--9f48a2b2-7627-47ef-bc02-a49fb659704d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process running on the system.",
+            "on_completion": "action--0fda8c49-236d-4cff-af96-e94a05e9f4dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo kill -9 $(ps aux | grep malicious_script | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--c7d55afc-e3e0-473f-be02-4f90545790c5"
+        },
+        "action--0fda8c49-236d-4cff-af96-e94a05e9f4dd": {
+            "name": "Remove malicious script",
+            "description": "Remove the detected malicious script from the system.",
+            "on_completion": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+            "type": "if-condition",
+            "condition": "if [ -f /tmp/malicious_payload ]",
+            "on_true": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--55956aeb-3df2-4a51-86f2-fe528a895e44"
+        },
+        "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d": {
+            "name": "Scan all hosts for malicious indicators",
+            "description": "Perform a recursive scan on all hosts for malicious indicators.",
+            "type": "while-condition",
+            "condition": "scan_clean == false",
+            "on_true": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r /"
+                }
+            ],
+            "agent": "organization--37c76daf-e7c0-4854-9543-c8db52ffd526",
+            "step_variables": {
+                "scan_clean": {
+                    "type": "boolean",
+                    "description": "True if scan finds no threats",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "end--2f4e2e91-907e-4a9b-9b0f-033f282b8bda"
+        },
+        "action--8e632a5b-c6ce-472a-8e4e-9e22335fc6d9": {
+            "name": "Disable remote script execution",
+            "description": "Configure system to restrict execution of remote scripts.",
+            "type": "action",
+            "on_completion": "action--3b20669d-4017-4bab-9429-673b93a6b2ea",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--c7d55afc-e3e0-473f-be02-4f90545790c5"
+        },
+        "action--3b20669d-4017-4bab-9429-673b93a6b2ea": {
+            "name": "Log review for unauthorized access attempts",
+            "description": "Analyze logs for unauthorized access attempts.",
+            "on_completion": "action--578e4fdb-8857-4f58-9028-7e3b1befbd5d",
+            "type": "action",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "description": "The path to the authentication log file",
+                    "value": "/var/log/auth.log",
+                    "constant": true,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'unauthorized'"
+                }
+            ],
+            "agent": "organization--55956aeb-3df2-4a51-86f2-fe528a895e44"
+        }
+    },
+    "agent_definitions": {
+        "organization--c7d55afc-e3e0-473f-be02-4f90545790c5": {
+            "type": "organization",
+            "name": "Security Team A"
+        },
+        "organization--55956aeb-3df2-4a51-86f2-fe528a895e44": {
+            "type": "organization",
+            "name": "Security Team B"
+        },
+        "organization--37c76daf-e7c0-4854-9543-c8db52ffd526": {
+            "type": "organization",
+            "name": "Security Team C"
+        }
+    }
+}

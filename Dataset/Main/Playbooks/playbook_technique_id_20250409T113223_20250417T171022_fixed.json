@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8e552c7f-3a85-4fbc-b3f4-b5eae5d5d9bf",
+    "name": "Mitigation Playbook for Log Tampering Incident",
+    "description": "This playbook addresses an incident where malware was deployed to delete logs and hide traces of unauthorized access.",
+    "created_by": "identity--b132b108-9744-4fc1-934c-47a206bfe246",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:06:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e5de54ee-510a-4e0f-9386-c85e30267e06",
+    "workflow": {
+        "start--e5de54ee-510a-4e0f-9386-c85e30267e06": {
+            "on_completion": "action--fca49758-55a2-4d74-8fa8-b996afe2c131",
+            "type": "start"
+        },
+        "action--fca49758-55a2-4d74-8fa8-b996afe2c131": {
+            "name": "Monitor file integrity for critical logs",
+            "description": "Set up file integrity monitoring on log files to catch further malicious modifications.",
+            "on_completion": "action--2b5f6464-f65b-4935-afb2-4bb6540f234e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /var/log -p wa -k log_monitor"
+                }
+            ],
+            "agent": "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8"
+        },
+        "action--2b5f6464-f65b-4935-afb2-4bb6540f234e": {
+            "name": "Kill malicious processes running",
+            "description": "Terminate any suspicious processes that may be causing log tampering.",
+            "on_completion": "if-condition--4d8d2e35-3ff2-4ef3-8e47-66ef169e07de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8"
+        },
+        "if-condition--4d8d2e35-3ff2-4ef3-8e47-66ef169e07de": {
+            "name": "Check for missing logs",
+            "type": "if-condition",
+            "condition": "logs_missing == true",
+            "on_true": "action--4d8d2e35-3ff2-4ef3-8e47-66ef169e07de",
+            "on_false": "action--c115cd88-b09f-4a25-b7b6-9b2b9ee456a6"
+        },
+        "action--4d8d2e35-3ff2-4ef3-8e47-66ef169e07de": {
+            "name": "Restore logs from a backup",
+            "description": "Restore missing log files from a secure backup.",
+            "on_completion": "loop--38d30faf-6cc2-4fa5-b687-77b327e2a2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tar -xf /backup/log_backup.tar.gz -C /var/log"
+                }
+            ],
+            "agent": "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8"
+        },
+        "action--c115cd88-b09f-4a25-b7b6-9b2b9ee456a6": {
+            "name": "Run a security scan for malware",
+            "description": "Conduct a security scan to detect any malware present on the system.",
+            "on_completion": "loop--38d30faf-6cc2-4fa5-b687-77b327e2a2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8"
+        },
+        "loop--38d30faf-6cc2-4fa5-b687-77b327e2a2d0": {
+            "name": "Notify Security Team",
+            "description": "Notify the security team about the incident and wait for their acknowledgment.",
+            "type": "while-condition",
+            "condition": "acknowledgement_received == false",
+            "on_true": "action--c0489372-611f-406e-bfcc-1e5da79587d5",
+            "next_steps": []
+        },
+        "end--fba57d8f-4b65-43c4-bef3-5621d85ae13c": {
+            "type": "end"
+        },
+        "action--c0489372-611f-406e-bfcc-1e5da79587d5": {
+            "name": "Notify Security Team",
+            "description": "Send notification about the incident to the security team.",
+            "on_completion": "loop--38d30faf-6cc2-4fa5-b687-77b327e2a2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-45' | mail -s 'Security Alert' security@xyz.org"
+                }
+            ],
+            "agent": "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8"
+        }
+    },
+    "agent_definitions": {
+        "organization--60f09c8f-3b81-4d7b-a834-b13ff20781a8": {
+            "type": "organization",
+            "name": "XYZ Security Organization"
+        }
+    }
+}

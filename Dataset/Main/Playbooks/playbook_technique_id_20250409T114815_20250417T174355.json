@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1a2b3c4d-5e6f-7890-abcd-ef0987654321",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook automates the response to an incident where unauthorized PowerShell scripts were executed to exfiltrate sensitive data.",
+    "created_by": "identity--12345678-1234-1234-1234-123456789abc",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a1f2a3b4-c5d6-7e8f-9a0b-cd1ef2345678",
+    "workflow": {
+        "start--a1f2a3b4-c5d6-7e8f-9a0b-cd1ef2345678": {
+            "on_completion": "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56",
+            "type": "start"
+        },
+        "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be exfiltrating data.",
+            "on_completion": "if-condition--check-process",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--check-process": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--b012e682-db71-41c9-9b8c-f0bc93cbd013",
+            "on_false": "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7"
+        },
+        "action--b012e682-db71-41c9-9b8c-f0bc93cbd013": {
+            "name": "Scan system for malware",
+            "description": "Perform a scan of the system to find and remove any malware.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav-scan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan-loop": {
+            "name": "Scan until clean",
+            "on_completion": "action--f7c31ace-34e8-4f79-99b6-af39621e6134",
+            "type": "while-condition",
+            "condition": "is_scan_clean()",
+            "on_true": "end--finish-playbook",
+            "on_false": "action--b012e682-db71-41c9-9b8c-f0bc93cbd013"
+        },
+        "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7": {
+            "name": "Block external IP address",
+            "description": "Prevent further connections from the identified malicious external IP.",
+            "on_completion": "end--finish-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <external-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--finish-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

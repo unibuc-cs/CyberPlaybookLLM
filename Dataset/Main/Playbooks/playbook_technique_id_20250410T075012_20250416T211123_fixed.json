@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1c8f65c-4d61-4c9c-9177-d9e6bcba23f9",
+    "name": "Mitigation of Application Layer Protocol Exploitation",
+    "description": "Mitigation playbook for incidents involving exploitation of legitimate application layer protocols to exfiltrate data.",
+    "created_by": "identity--6c9861fc-0dba-4982-9389-b014bd3a84cf",
+    "created": "2023-10-03T10:00:00Z",
+    "modified": "2023-10-03T10:00:00Z",
+    "workflow_start": "start--f20c6a0e-a5c6-4e5c-bfb6-92a1c5d7d866",
+    "workflow": {
+        "start--f20c6a0e-a5c6-4e5c-bfb6-92a1c5d7d866": {
+            "on_completion": "parallel--6b8df7e4-839a-4f13-8fdb-6783ac33dfbc",
+            "type": "start"
+        },
+        "parallel--6b8df7e4-839a-4f13-8fdb-6783ac33dfbc": {
+            "name": "Mitigation Steps in Parallel",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bb165eb9-32cf-4ae1-9b3e-b79eafde22b7",
+                "action--f47b9a0f-bb30-4bb6-b526-512caddf5fb6"
+            ]
+        },
+        "action--bb165eb9-32cf-4ae1-9b3e-b79eafde22b7": {
+            "name": "Block Outgoing SMTP Connections",
+            "description": "Block outgoing SMTP connections to prevent data exfiltration.",
+            "on_completion": "while-condition--5956ae3b-6593-471d-a611-cfbb6affe1de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 25 -j DROP"
+                }
+            ],
+            "agent": "organization--fae1403c-7522-45fa-a869-a96a5bc345c3"
+        },
+        "while-condition--5956ae3b-6593-471d-a611-cfbb6affe1de": {
+            "name": "Repeat Scan and Block Cycle",
+            "description": "Repeat scan and block cycle until no anomalies detected.",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--774e2e91-5f0e-4f7c-911d-c9d937d438b8",
+            "on_false": "decision--9ec11039-6e90-4ab4-a6f6-c50f84d3f258"
+        },
+        "action--774e2e91-5f0e-4f7c-911d-c9d937d438b8": {
+            "name": "Re-scan Protocol and Block Anomalies",
+            "description": "Re-scan protocol and block if anomaly detected.",
+            "on_completion": "while-condition--5956ae3b-6593-471d-a611-cfbb6affe1de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -p 25 host-14 host-7 host-23"
+                }
+            ],
+            "agent": "organization--fae1403c-7522-45fa-a869-a96a5bc345c3"
+        },
+        "decision--9ec11039-6e90-4ab4-a6f6-c50f84d3f258": {
+            "name": "Determine if User Accounts Compromised",
+            "description": "Check if any user accounts are found to be compromised.",
+            "type": "if-condition",
+            "condition": "compromised_users_found == true",
+            "on_true": "action--9374f720-7221-42c7-978b-aa21fecde81c",
+            "on_false": "end--c531c7ea-5d1b-4f7c-b5a4-a128b6d8df55"
+        },
+        "action--9374f720-7221-42c7-978b-aa21fecde81c": {
+            "name": "Disable Compromised Accounts",
+            "description": "Disable user accounts identified as compromised.",
+            "on_completion": "end--c531c7ea-5d1b-4f7c-b5a4-a128b6d8df55",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L [USERNAME]"
+                }
+            ],
+            "agent": "organization--fae1403c-7522-45fa-a869-a96a5bc345c3",
+            "variables": {
+                "USERNAME": "user accounts identified in scan"
+            }
+        },
+        "action--f47b9a0f-bb30-4bb6-b526-512caddf5fb6": {
+            "name": "Enhance Monitoring on Email Services",
+            "description": "Increase monitoring on email logs to alert suspicious activity.",
+            "on_completion": "end--c531c7ea-5d1b-4f7c-b5a4-a128b6d8df55",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /var/log/maillog -p rwax -k mail_watch"
+                }
+            ],
+            "agent": "organization--fae1403c-7522-45fa-a869-a96a5bc345c3"
+        },
+        "end--c531c7ea-5d1b-4f7c-b5a4-a128b6d8df55": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fae1403c-7522-45fa-a869-a96a5bc345c3": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

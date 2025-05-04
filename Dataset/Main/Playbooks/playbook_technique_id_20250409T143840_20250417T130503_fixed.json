@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4f2c4a2e-5e43-4c6a-975c-9e3b7efdd5d2",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts via command-line interface that modified critical system configurations.",
+    "created_by": "identity--3e1f83bd-b453-4d76-977b-c9b24d9f1485",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--2c8b41e1-3c77-4e87-bd1f-153c3b91e8b3",
+    "workflow": {
+        "start--2c8b41e1-3c77-4e87-bd1f-153c3b91e8b3": {
+            "on_completion": "action--00c2a90a-1696-464d-ab52-6e801bd3cf0a",
+            "type": "start"
+        },
+        "end--df3f92c2-6d29-48b5-bc10-7b02c8872c65": {
+            "type": "end"
+        },
+        "action--00c2a90a-1696-464d-ab52-6e801bd3cf0a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script execution.",
+            "on_completion": "if-condition--bdcbef3b-8035-4446-9dd1-ee86be0c1988",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--5c9f173e-2535-419f-afb7-e039cdf65ef9"
+        },
+        "if-condition--bdcbef3b-8035-4446-9dd1-ee86be0c1988": {
+            "name": "Check if configuration needs to be restored",
+            "type": "if-condition",
+            "condition": "configuration_is_not_clean",
+            "on_true": "action--d667570f-e126-4e8c-8e40-9ebcdbbf030d",
+            "on_false": "action--1b65b74c-a2b0-4b4f-927f-ea98c4ab9a29"
+        },
+        "action--d667570f-e126-4e8c-8e40-9ebcdbbf030d": {
+            "name": "Restore modified configuration file",
+            "description": "Restore the critical system configuration file from backup.",
+            "on_completion": "action--1b65b74c-a2b0-4b4f-927f-ea98c4ab9a29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config.bak /etc/config.conf"
+                }
+            ],
+            "agent": "organization--5c9f173e-2535-419f-afb7-e039cdf65ef9"
+        },
+        "action--1b65b74c-a2b0-4b4f-927f-ea98c4ab9a29": {
+            "name": "Run security scan",
+            "description": "Conduct a full security scan to detect any remaining threats.",
+            "on_completion": "while-condition--c4184e2b-aa25-461c-a98c-075112efe1c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --full"
+                }
+            ],
+            "agent": "organization--5c9f173e-2535-419f-afb7-e039cdf65ef9"
+        },
+        "while-condition--c4184e2b-aa25-461c-a98c-075112efe1c0": {
+            "name": "Scan result loop",
+            "description": "Repeat the scan until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--1b65b74c-a2b0-4b4f-927f-ea98c4ab9a29",
+            "on_completion": "end--df3f92c2-6d29-48b5-bc10-7b02c8872c65"
+        }
+    },
+    "agent_definitions": {
+        "organization--5c9f173e-2535-419f-afb7-e039cdf65ef9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

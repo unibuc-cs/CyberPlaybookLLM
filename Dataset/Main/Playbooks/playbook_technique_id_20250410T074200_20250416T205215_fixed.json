@@ -1,0 +1,144 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4d2071fe-099d-42e4-9a5f-ef0a5bef3b77",
+    "name": "Mitigation Playbook for PowerShell-based Malicious Activity",
+    "description": "Playbook to address the incident involving PowerShell executed base64-encoded commands, downloading and executing remote payloads.",
+    "created_by": "identity--9ec65750-a5e8-40c6-b14c-64332a44c4b3",
+    "created": "2023-10-10T12:00:00.000Z",
+    "modified": "2023-10-10T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bea89e7d-5ecf-4e2f-bf1b-f831c7bed7c9",
+    "workflow": {
+        "start--bea89e7d-5ecf-4e2f-bf1b-f831c7bed7c9": {
+            "on_completion": "parallel--ca624bac-9ff7-4d31-8046-4f6f539dbaf9",
+            "type": "start"
+        },
+        "end--a7d118eb-3d1a-4758-b23b-0bcbdc225c60": {
+            "type": "end"
+        },
+        "parallel--ca624bac-9ff7-4d31-8046-4f6f539dbaf9": {
+            "name": "Execute Mitigation Steps in Parallel",
+            "description": "Terminate PowerShell process and quarantine files simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842",
+                "if-condition--c97d5976-b3f4-4a89-bd13-d47fa2bfea94"
+            ]
+        },
+        "action--b9c56f47-08d6-4e59-a2d5-912c34b8f842": {
+            "name": "Terminate Suspicious PowerShell Process",
+            "description": "Terminate any active PowerShell process executing suspicious commands.",
+            "on_completion": "loop-condition--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--0e3c679b-3bbf-4794-8316-0ded51e33e85"
+        },
+        "if-condition--c97d5976-b3f4-4a89-bd13-d47fa2bfea94": {
+            "name": "Check and Quarantine Impacted Files",
+            "type": "if-condition",
+            "condition": "if [ -f /path/to/suspicious/file ]",
+            "on_true": "action--5d995339-65b7-4ab9-a89c-e2258f6f3def",
+            "on_false": "loop-condition--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a"
+        },
+        "action--5d995339-65b7-4ab9-a89c-e2258f6f3def": {
+            "name": "Quarantine Impacted Files",
+            "description": "Move suspicious files to quarantine for further analysis.",
+            "on_completion": "loop-condition--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/suspicious/file /quarantine/"
+                }
+            ],
+            "agent": "organization--0e3c679b-3bbf-4794-8316-0ded51e33e85"
+        },
+        "loop-condition--5229b4a1-7619-426e-a1b5-c0f3e6fcdf8a": {
+            "name": "Run Antivirus Scan Until Clean",
+            "description": "Perform antivirus scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "antivirus-scan --check-clean",
+            "on_true": "action--d61b93f0-7b60-482f-a9d9-0f7510a4387d",
+            "on_false": "action--f429d671-c80d-439f-938e-09d7d2ffd108"
+        },
+        "action--d61b93f0-7b60-482f-a9d9-0f7510a4387d": {
+            "name": "Execute Antivirus Scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --auto-clean"
+                }
+            ],
+            "agent": "organization--4475b6b5-83eb-4e7b-8375-8a128e66d2f1"
+        },
+        "action--f429d671-c80d-439f-938e-09d7d2ffd108": {
+            "name": "Update PowerShell Execution Policies",
+            "description": "Update PowerShell execution policies to restrict unauthorized scripts.",
+            "on_completion": "parallel--5ef9cda0-cd62-41d4-bb61-416e1f71c7f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--0e3c679b-3bbf-4794-8316-0ded51e33e85"
+        },
+        "parallel--5ef9cda0-cd62-41d4-bb61-416e1f71c7f7": {
+            "name": "Execute Network and Firewall Adjustments in Parallel",
+            "description": "Enhance firewall rules and monitor network traffic.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587",
+                "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806"
+            ]
+        },
+        "action--8e6de4f0-4127-4c8e-b155-b34d82c4f587": {
+            "name": "Review and Enhance Firewall Rules",
+            "description": "Add firewall rules to block IP addresses associated with malicious activity.",
+            "on_completion": "end--a7d118eb-3d1a-4758-b23b-0bcbdc225c60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule='rule family=ipv4 source address=malicious-ip reject'"
+                }
+            ],
+            "agent": "organization--dd765542-7a4c-4b0c-bf05-3e32a1912c41"
+        },
+        "action--d72a37cc-b8ed-47cc-8393-e3177c2f5806": {
+            "name": "Monitor Network Traffic for Anomalous Activity",
+            "description": "Continuously monitor network traffic for signs of ongoing or new threats.",
+            "on_completion": "end--a7d118eb-3d1a-4758-b23b-0bcbdc225c60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --interface eth0 --alert"
+                }
+            ],
+            "agent": "organization--dd765542-7a4c-4b0c-bf05-3e32a1912c41"
+        }
+    },
+    "agent_definitions": {
+        "organization--0e3c679b-3bbf-4794-8316-0ded51e33e85": {
+            "type": "organization",
+            "name": "Organization DEF"
+        },
+        "organization--4475b6b5-83eb-4e7b-8375-8a128e66d2f1": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--dd765542-7a4c-4b0c-bf05-3e32a1912c41": {
+            "type": "organization",
+            "name": "Organization GHI"
+        }
+    }
+}

@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3f94841-3b53-4b86-b36f-fbad0f39464c",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker used a malicious PowerShell script triggered by a phishing email attachment.",
+    "created_by": "identity--d6d4a175-09a8-4efd-851f-cee50edeff00",
+    "created": "2023-10-26T15:00:00Z",
+    "modified": "2023-10-26T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c85e418e-1af5-4ff5-bdfb-ba5f19f8207e",
+    "workflow": {
+        "action--8a907c24-cd69-4c3a-be9d-cd00e1c4b5a4": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes running the malicious script.",
+            "on_completion": "action--d1c151e9-1d5f-4c95-afbb-be3d9cda6f70",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--acbc5a90-3304-4085-9e8a-fb3fdc23c23b"
+        },
+        "action--d1c151e9-1d5f-4c95-afbb-be3d9cda6f70": {
+            "name": "Isolate affected host from the network",
+            "description": "Disconnect the affected host to prevent further malicious activity.",
+            "on_completion": "while-condition--b1da055b-7b00-47a5-818d-606fa5e8d9bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--acbc5a90-3304-4085-9e8a-fb3fdc23c23b"
+        },
+        "action--cc995c69-f3f9-4f4c-bcc2-e75233f45545": {
+            "name": "Run scan for remaining threats",
+            "description": "Perform a recursive scan of the system to find any remaining threats.",
+            "on_completion": "while-condition--b1da055b-7b00-47a5-818d-606fa5e8d9bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--acbc5a90-3304-4085-9e8a-fb3fdc23c23b",
+            "step_variables": {
+                "scan_outcomes": {
+                    "type": "string",
+                    "description": "The result of the scan process",
+                    "value": "not_checked",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--c85e418e-1af5-4ff5-bdfb-ba5f19f8207e": {
+            "on_completion": "action--8a907c24-cd69-4c3a-be9d-cd00e1c4b5a4",
+            "type": "start"
+        },
+        "while-condition--b1da055b-7b00-47a5-818d-606fa5e8d9bb": {
+            "name": "Scan system for remaining threats",
+            "description": "Loop until the system scan is confirmed clean.",
+            "condition": "scan_outcomes != 'clean'",
+            "on_true": "action--cc995c69-f3f9-4f4c-bcc2-e75233f45545",
+            "on_false": "end--f4388d21-f2b8-4292-b072-18268e0258fd",
+            "type": "if-condition"
+        },
+        "end--f4388d21-f2b8-4292-b072-18268e0258fd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--acbc5a90-3304-4085-9e8a-fb3fdc23c23b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

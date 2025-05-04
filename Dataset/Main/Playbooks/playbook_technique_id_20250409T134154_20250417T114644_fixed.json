@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8861c95-7367-4e7b-8ed0-02e23c6c400b",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "A playbook to respond to incidents involving unauthorized script execution and data exfiltration.",
+    "created_by": "identity--6fe86cc1-d634-417a-b5a9-403318535359",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--8cfb0ec2-6adf-4ed1-9f8b-d528ff68ee38",
+    "workflow": {
+        "start--8cfb0ec2-6adf-4ed1-9f8b-d528ff68ee38": {
+            "on_completion": "action--71f000f6-fa52-4d89-9a5b-f6c22a663e47",
+            "type": "start"
+        },
+        "action--71f000f6-fa52-4d89-9a5b-f6c22a663e47": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running instances of the suspicious script.",
+            "on_completion": "action--e6d0ee9d-d645-4777-9281-b3ac0d99835e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--dc96e7be-21fc-4a3c-9c32-c37fa3697021"
+        },
+        "action--e6d0ee9d-d645-4777-9281-b3ac0d99835e": {
+            "name": "Revoke user access",
+            "description": "Lock the user account associated with the suspicious activity.",
+            "on_completion": "while-condition--d77d2072-e028-4b15-b275-fb35338d4c5d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L suspicious_user"
+                }
+            ],
+            "agent": "organization--dc96e7be-21fc-4a3c-9c32-c37fa3697021"
+        },
+        "while-condition--d77d2072-e028-4b15-b275-fb35338d4c5d": {
+            "name": "Scan for malware until clean",
+            "description": "Continually scan the host for malware until no threats are found.",
+            "type": "while-condition",
+            "on_true": "action--a3de2afe-34af-4390-9d79-1c991d099eac",
+            "condition": "scan_status != 'clean'"
+        },
+        "action--a3de2afe-34af-4390-9d79-1c991d099eac": {
+            "name": "Scan host for malware",
+            "description": "Perform a scan on the suspected host for any malicious files and move them to quarantine.",
+            "on_completion": "while-condition--d77d2072-e028-4b15-b275-fb35338d4c5d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/suspicious_user --move=/quarantine"
+                }
+            ],
+            "agent": "organization--dc96e7be-21fc-4a3c-9c32-c37fa3697021",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan indicating if clean or not",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--dc96e7be-21fc-4a3c-9c32-c37fa3697021": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

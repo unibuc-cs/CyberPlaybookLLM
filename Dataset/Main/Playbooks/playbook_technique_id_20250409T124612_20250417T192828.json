@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8d9837a-0802-4b1e-b054-cb9fcbdeec07",
+    "name": "Mitigation Playbook for Unauthorized Process Creation Incident",
+    "description": "This playbook addresses incidents where an unauthorized user has created a new process and escalated privileges, compromising the security of the system.",
+    "created_by": "identity--81b3d9f4-30f0-4f21-bad7-2dec06e61419",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--c5dc4579-36d5-4c6b-94b4-fcbc2dc0b946",
+    "workflow": {
+        "start--c5dc4579-36d5-4c6b-94b4-fcbc2dc0b946": {
+            "on_completion": "action--5f8f8cfa-2f71-44d6-adff-e891c8e66d93",
+            "type": "start"
+        },
+        "action--5f8f8cfa-2f71-44d6-adff-e891c8e66d93": {
+            "name": "Kill malicious process",
+            "description": "Terminate any instances of the unauthorized process 'malicious.exe'.",
+            "on_completion": "if-condition--a8c5f9ea-558a-4b12-b3f1-420c19cf1118",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep malicious.exe)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a8c5f9ea-558a-4b12-b3f1-420c19cf1118": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == false",
+            "on_true": "action--61d1e6f4-f4b5-453b-94e1-321c871a5942",
+            "on_false": "action--c9d3e555-b2f1-4cdb-bc9c-0f9fe834824b"
+        },
+        "action--61d1e6f4-f4b5-453b-94e1-321c871a5942": {
+            "name": "Revert configuration changes",
+            "description": "Restore system configuration to a clean state using backup.",
+            "on_completion": "action--c9d3e555-b2f1-4cdb-bc9c-0f9fe834824b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp ${backup_config} /etc/system/config"
+                }
+            ],
+            "step_variables": {
+                "backup_config": {
+                    "type": "string",
+                    "description": "Backup configuration file path",
+                    "value": "/etc/system/config_backup",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "agent": "organization--abc"
+        },
+        "action--c9d3e555-b2f1-4cdb-bc9c-0f9fe834824b": {
+            "name": "Run malware scan",
+            "description": "Perform a scan to detect any residual malware.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! $(./malware-scan.sh | grep 'Scan is clean'); do sleep 5; done"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "end--7e73d23b-4b10-44b2-a4fa-0f5e531d92b3"
+        },
+        "end--7e73d23b-4b10-44b2-a4fa-0f5e531d92b3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

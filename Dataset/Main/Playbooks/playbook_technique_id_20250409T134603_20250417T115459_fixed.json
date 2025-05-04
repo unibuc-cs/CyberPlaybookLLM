@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7a83d904-b863-42f0-b1a8-7c3584919b25",
+    "name": "Playbook for Exploited Command and Scripting Interpreter",
+    "description": "This playbook mitigates the effects of a vulnerability exploited in a web application, where the attacker executed arbitrary commands, exfiltrated sensitive data, and deployed additional payloads.",
+    "created_by": "identity--d2b26ef6-1587-49e3-bc6f-8c7c832e6cc7",
+    "created": "2023-10-01T14:40:00Z",
+    "modified": "2023-10-01T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--c490aeb4-ef29-4b4c-9e75-8979bbba12ef",
+    "workflow": {
+        "start--c490aeb4-ef29-4b4c-9e75-8979bbba12ef": {
+            "on_completion": "action--b89f7884-7eb6-4a97-8879-30850f040e30",
+            "type": "start"
+        },
+        "action--b89f7884-7eb6-4a97-8879-30850f040e30": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes identified after the compromise.",
+            "on_completion": "if-condition--bdd8f392-de8d-4a4a-b5a8-5ac1f015e0e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--f102b8d4-4e7e-4c21-9cc5-2ced4c979e15"
+        },
+        "if-condition--bdd8f392-de8d-4a4a-b5a8-5ac1f015e0e1": {
+            "name": "Check if compromised host needs isolation",
+            "type": "if-condition",
+            "condition": "compromised == true",
+            "on_true": "action--bdd8f392-de8d-4a4a-b5a8-5ac1f015e0e1",
+            "on_false": "action--b7e237d1-c2bf-42ce-8979-d55ea9a1387c"
+        },
+        "action--bdd8f392-de8d-4a4a-b5a8-5ac1f015e0e1": {
+            "name": "Isolate affected host from network",
+            "description": "Block access to and from the compromised host to prevent further damage.",
+            "on_completion": "action--b7e237d1-c2bf-42ce-8979-d55ea9a1387c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-34 -j DROP"
+                }
+            ],
+            "agent": "organization--f102b8d4-4e7e-4c21-9cc5-2ced4c979e15"
+        },
+        "action--b7e237d1-c2bf-42ce-8979-d55ea9a1387c": {
+            "name": "Run antivirus scan",
+            "description": "Perform a thorough scan on the system to detect and remove malicious files.",
+            "on_completion": "while-condition--d28148d4-8137-46cc-8600-44e0f7d0ebd4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove --recursive /home"
+                }
+            ],
+            "agent": "organization--f102b8d4-4e7e-4c21-9cc5-2ced4c979e15"
+        },
+        "while-condition--d28148d4-8137-46cc-8600-44e0f7d0ebd4": {
+            "name": "Repeat until scan is clean",
+            "description": "Repeat the antivirus scan until no threats are found.",
+            "on_true": "action--b7e237d1-c2bf-42ce-8979-d55ea9a1387c",
+            "condition": "scan_status == 'dirty'",
+            "type": "while-condition",
+            "on_false": "end--4fcf6012-2f90-46b3-bb8f-376aded151a5"
+        },
+        "end--4fcf6012-2f90-46b3-bb8f-376aded151a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f102b8d4-4e7e-4c21-9cc5-2ced4c979e15": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

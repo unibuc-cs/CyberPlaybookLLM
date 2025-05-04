@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b22f294e-f3e5-4840-8d8a-e8f02b8df452",
+    "name": "Mitigation Playbook for Data Exfiltration Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution and data exfiltration through a command interpreter.",
+    "created_by": "identity--a8e6c4c2-268c-4411-9681-242ab1bd9767",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--ee9942ad-d999-4549-a72a-71b2c65f0c06",
+    "workflow": {
+        "action--4e5e305d-1eeb-469e-bf3a-d4c8c0c3be52": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--73ad0b45-ae47-49b7-9c71-d7ed7b1fbbc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--974fe6d5-101f-41ad-b4c7-b862e6b19323"
+        },
+        "action--fbc7fae7-2e5b-4dc0-a54e-f3d125e5bf61": {
+            "name": "Isolate compromised host",
+            "description": "Disable the network interface of the compromised host.",
+            "on_completion": "action--73ad0b45-ae47-49b7-9c71-d7ed7b1fbbc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-34 down"
+                }
+            ],
+            "agent": "organization--974fe6d5-101f-41ad-b4c7-b862e6b19323"
+        },
+        "action--73ad0b45-ae47-49b7-9c71-d7ed7b1fbbc4": {
+            "name": "Run full network scan",
+            "description": "Conduct a full network scan to identify other potential threats.",
+            "on_completion": "if-condition--4b2bab9d-8486-4dee-8c1f-f00850b8de97",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--974fe6d5-101f-41ad-b4c7-b862e6b19323"
+        },
+        "start--ee9942ad-d999-4549-a72a-71b2c65f0c06": {
+            "on_completion": "parallel--3ae28ec2-890f-44a5-9071-f1ddddee3381",
+            "type": "start"
+        },
+        "parallel--3ae28ec2-890f-44a5-9071-f1ddddee3381": {
+            "name": "Execute Mitigation Steps",
+            "description": "Parallel execution of actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4e5e305d-1eeb-469e-bf3a-d4c8c0c3be52",
+                "action--fbc7fae7-2e5b-4dc0-a54e-f3d125e5bf61"
+            ]
+        },
+        "if-condition--4b2bab9d-8486-4dee-8c1f-f00850b8de97": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results == clean",
+            "on_true": "end--064fbb04-cc2f-4399-892d-bf2d36057c05",
+            "on_false": "action--73ad0b45-ae47-49b7-9c71-d7ed7b1fbbc4"
+        },
+        "end--064fbb04-cc2f-4399-892d-bf2d36057c05": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--974fe6d5-101f-41ad-b4c7-b862e6b19323": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

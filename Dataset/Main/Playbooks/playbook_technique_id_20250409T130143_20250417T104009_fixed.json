@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4e6c2c0-dbe4-4e02-85cf-e8b25e8e2f9e",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploit",
+    "description": "This playbook addresses an incident involving data exfiltration through HTTP requests. It includes steps to block outbound traffic, kill malicious processes, and scan the system for further vulnerabilities.",
+    "created_by": "identity--df2c377f-3d76-40f2-9876-d15e99f77809",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--ddcfdc0f-583b-460a-8f0a-9278e5444829",
+    "workflow": {
+        "action--c2b5e518-7169-42d0-8107-08d3b3332d72": {
+            "name": "Block malicious outbound traffic",
+            "description": "Block all outbound HTTP traffic to prevent data exfiltration.",
+            "on_completion": "action--4eafdc8e-5582-4fd9-93bb-441fa2f074eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--7744329d-8d63-43d2-9e00-64566b20435d"
+        },
+        "action--4eafdc8e-5582-4fd9-93bb-441fa2f074eb": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes related to the data exfiltration.",
+            "on_completion": "while-condition--eef30307-cd73-4f32-833f-cd55c7691953",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process_name'"
+                }
+            ],
+            "agent": "organization--7744329d-8d63-43d2-9e00-64566b20435d"
+        },
+        "while-condition--eef30307-cd73-4f32-833f-cd55c7691953": {
+            "name": "Scan System for Other Vulnerabilities",
+            "description": "Repeat until the system scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--eef30307-cd73-4f32-833f-cd55c7691953",
+            "next_steps": "action--eef30307-cd73-4f32-833f-cd55c7691953",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--eef30307-cd73-4f32-833f-cd55c7691953": {
+            "name": "Scan the system for other vulnerabilities",
+            "description": "Run a vulnerability scanner to identify additional vulnerabilities.",
+            "on_completion": "if-condition--a794cd48-510c-4b60-8e98-2f7b713b5250",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./vuln_scanner.sh"
+                }
+            ],
+            "agent": "organization--7744329d-8d63-43d2-9e00-64566b20435d",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan indicating whether it is clean or has vulnerabilities.",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "start--ddcfdc0f-583b-460a-8f0a-9278e5444829": {
+            "on_completion": "action--c2b5e518-7169-42d0-8107-08d3b3332d72",
+            "type": "start"
+        },
+        "if-condition--a794cd48-510c-4b60-8e98-2f7b713b5250": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "on_false": "while-condition--eef30307-cd73-4f32-833f-cd55c7691953"
+        }
+    },
+    "agent_definitions": {
+        "organization--7744329d-8d63-43d2-9e00-64566b20435d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d731a0f3-8616-4cf0-bc88-07438fb81af6",
+    "name": "Response Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute commands for privilege escalation and data exfiltration.",
+    "created_by": "identity--02ead4fb-61fe-4d02-9821-f8ee3d290d27",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ff1134bc-de43-4c3e-8407-bd307e65c953",
+    "workflow": {
+        "start--ff1134bc-de43-4c3e-8407-bd307e65c953": {
+            "on_completion": "if-condition--d9b92c63-ed39-4d86-8852-7ee0641acee7",
+            "type": "start"
+        },
+        "if-condition--d9b92c63-ed39-4d86-8852-7ee0641acee7": {
+            "name": "Check for PowerShell process",
+            "type": "if-condition",
+            "condition": "powershell_process_exists == true",
+            "on_true": "action--1f30b21e-ef03-43e2-bf59-df5e49ac4e93",
+            "on_false": "action--20859af0-c0ea-4f67-8486-d652fb4c951a"
+        },
+        "action--1f30b21e-ef03-43e2-bf59-df5e49ac4e93": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes.",
+            "on_completion": "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a626eb64-01a6-479c-b77e-2e8a1fc347a3": {
+            "name": "Run endpoint detection and response (EDR) scan",
+            "description": "Perform an EDR scan to ensure no residual threats remain.",
+            "on_completion": "while-condition--d4859ac9-dc7c-4e3e-a544-4c74923d740b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./edr-scan.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--d4859ac9-dc7c-4e3e-a544-4c74923d740b": {
+            "name": "EDR Scan Loop",
+            "description": "Repeat the EDR scan until the system is confirmed clean.",
+            "on True": "action--20859af0-c0ea-4f67-8486-d652fb4c951a",
+            "on_false": "end--3b7eaede-6931-49b5-a90c-e4b5550662b4",
+            "condition": "edr_scan_result == 'clean'",
+            "type": "while-condition"
+        },
+        "action--20859af0-c0ea-4f67-8486-d652fb4c951a": {
+            "name": "Block outbound connections to suspicious IPs",
+            "description": "Prevent any outbound connections to known malicious IP addresses.",
+            "on_completion": "end--3b7eaede-6931-49b5-a90c-e4b5550662b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--3b7eaede-6931-49b5-a90c-e4b5550662b4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

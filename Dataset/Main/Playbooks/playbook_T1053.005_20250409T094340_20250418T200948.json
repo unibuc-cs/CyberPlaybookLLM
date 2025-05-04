@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6c1c7d5a-63c5-42f3-9a70-dfa4975c6bad",
+    "name": "Playbook for Mitigating Malicious Scheduled Task Execution",
+    "description": "This playbook addresses an incident involving a malicious scheduled task that executes a keylogger every hour. It includes steps to delete the task, kill processes, and scan for malware.",
+    "created_by": "identity--abcdefg-hijklmnop-qrstuv-wxyz123456",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--abcde123-4567-89ab-cdef-123456789abc",
+    "workflow": {
+        "start--abcde123-4567-89ab-cdef-123456789abc": {
+            "on_completion": "action--fa8c2c01-6c74-424e-853b-ba8eb2a1b58e",
+            "type": "start"
+        },
+        "action--fa8c2c01-6c74-424e-853b-ba8eb2a1b58e": {
+            "name": "Delete malicious scheduled task",
+            "description": "Remove the scheduled task created by the attacker.",
+            "on_completion": "if-condition--c5a4b1f4-588f-4fbd-bedb-e4f0f2a948fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /delete /TN \"MaliciousTask\" /F"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c5a4b1f4-588f-4fbd-bedb-e4f0f2a948fb": {
+            "name": "Check if keylogger is running",
+            "type": "if-condition",
+            "condition": "keylogger_running",
+            "on_true": "action--c5a4b1f4-588f-4fbd-bedb-e4f0f2a948fb",
+            "on_false": "action--22a4bfc6-e5db-428e-a354-12d3443f2a73"
+        },
+        "action--c5a4b1f4-588f-4fbd-bedb-e4f0f2a948fb": {
+            "name": "Kill suspicious processes",
+            "description": "Terminate any running keylogger processes.",
+            "on_completion": "action--22a4bfc6-e5db-428e-a354-12d3443f2a73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f keylogger"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--22a4bfc6-e5db-428e-a354-12d3443f2a73": {
+            "name": "Scan system for malware",
+            "description": "Perform a comprehensive scan of the system for malware and suspicious files.",
+            "on_completion": "while-condition--scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-loop": {
+            "name": "Repeat scan until the system is clean",
+            "description": "Continue scanning until no malware is detected.",
+            "on_completion": "end--finish-scan",
+            "type": "while-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "end--finish-scan",
+            "on_false": "action--22a4bfc6-e5db-428e-a354-12d3443f2a73"
+        },
+        "end--finish-scan": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--226c8f7c-b6f3-4f3c-8e0a-d4bd23640843",
+    "name": "Mitigation Playbook for PowerShell Malware Deployment Incident",
+    "description": "This playbook mitigates the impacts of a PowerShell malware deployment incident initiated via phishing.",
+    "created_by": "identity--2bc6027e-4bf7-4866-be64-988c38056646",
+    "created": "2023-10-05T14:00:00Z",
+    "modified": "2023-10-05T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--837c9911-dc92-4b41-9de3-0f8c75215485",
+    "workflow": {
+        "start--837c9911-dc92-4b41-9de3-0f8c75215485": {
+            "on_completion": "action--49b69084-0444-42f8-b7d1-f514a87e4fa7",
+            "type": "start"
+        },
+        "action--49b69084-0444-42f8-b7d1-f514a87e4fa7": {
+            "name": "Terminate Malicious PowerShell Processes",
+            "description": "Terminate all malicious PowerShell processes to stop ongoing scripts.",
+            "on_completion": "parallel--e3d5e5a8-8dd5-434f-82f1-5cf7967afbc3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process PowerShell | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b"
+        },
+        "parallel--e3d5e5a8-8dd5-434f-82f1-5cf7967afbc3": {
+            "name": "Mitigation Actions",
+            "description": "Isolate infected machines and perform necessary scans and updates.",
+            "type": "parallel",
+            "next_steps": [
+                "action--457f29e5-fd2f-4c86-867b-b5f41aa82ac7",
+                "action--599c5153-b79b-41c5-b7a2-dcd20cd8db86",
+                "action--03de50b7-407f-45db-a73d-09fcb53adb46",
+                "action--dc7defb4-0c6e-4050-ba08-f07bf1653bda"
+            ]
+        },
+        "action--457f29e5-fd2f-4c86-867b-b5f41aa82ac7": {
+            "name": "Isolate Infected Machines",
+            "description": "Isolate infected machines from the network.",
+            "on_completion": "action--599c5153-b79b-41c5-b7a2-dcd20cd8db86",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-IsolateMachine -HostName host-05"
+                },
+                {
+                    "type": "powershell",
+                    "command": "Invoke-IsolateMachine -HostName host-12"
+                },
+                {
+                    "type": "powershell",
+                    "command": "Invoke-IsolateMachine -HostName host-09"
+                }
+            ],
+            "agent": "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b"
+        },
+        "action--599c5153-b79b-41c5-b7a2-dcd20cd8db86": {
+            "name": "Perform Full Antivirus Scan",
+            "description": "Launch a full antivirus scan on all hosts to detect and remove threats.",
+            "on_completion": "action--03de50b7-407f-45db-a73d-09fcb53adb46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-ScheduledTask -TaskName 'Full AV Scan'"
+                }
+            ],
+            "agent": "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "value": "false"
+                }
+            }
+        },
+        "action--03de50b7-407f-45db-a73d-09fcb53adb46": {
+            "name": "Check Antivirus Scan Results",
+            "description": "Check if the antivirus scan is complete and does not return threats.",
+            "type": "if-condition",
+            "condition": "scan_complete == false",
+            "on_true": "action--599c5153-b79b-41c5-b7a2-dcd20cd8db86",
+            "on_false": "action--dc7defb4-0c6e-4050-ba08-f07bf1653bda"
+        },
+        "action--dc7defb4-0c6e-4050-ba08-f07bf1653bda": {
+            "name": "Revoke Unauthorized External Connections",
+            "description": "Revoke any unauthorized network connections to the external IP address.",
+            "on_completion": "action--3d499630-8ed7-49a9-977d-5e0c9258d057",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-RevokeConnection -IPAddress attacker.ip.address"
+                }
+            ],
+            "agent": "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b"
+        },
+        "action--3d499630-8ed7-49a9-977d-5e0c9258d057": {
+            "name": "Update Firewall Rules",
+            "description": "Update firewall rules to prevent further script execution.",
+            "on_completion": "end--a1af1283-f7a2-4694-9335-515148e9bc69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-UpdateFirewallRule -RuleName 'Block Script Execution'"
+                }
+            ],
+            "agent": "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b"
+        },
+        "end--a1af1283-f7a2-4694-9335-515148e9bc69": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3c9e7965-cf89-4885-a8ed-87d7181bd80b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

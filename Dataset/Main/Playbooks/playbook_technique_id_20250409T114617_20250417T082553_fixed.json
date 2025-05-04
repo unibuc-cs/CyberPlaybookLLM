@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a12f0618-4e6f-4c67-9eca-1f9b5e4dc123",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Incident",
+    "description": "This playbook addresses incidents where an attacker executed a malicious PowerShell script that launched additional payloads, extracted sensitive data, and established persistence.",
+    "created_by": "identity--e5b15b8f-f071-4f71-9aa2-68c30abbc44d",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b0f3e482-67b5-442a-8521-9d9b52f23ee8",
+    "workflow": {
+        "start--b0f3e482-67b5-442a-8521-9d9b52f23ee8": {
+            "on_completion": "action--5b49e8c6-299b-4d78-bdc3-1675e6a4e7fc",
+            "type": "start"
+        },
+        "action--5b49e8c6-299b-4d78-bdc3-1675e6a4e7fc": {
+            "name": "Kill malicious PowerShell processes",
+            "description": "Terminate any malicious PowerShell processes running on affected hosts.",
+            "on_completion": "if-condition--d9d839b2-4c31-4e92-bc65-d0f5c8469053",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'PowerShell'"
+                }
+            ],
+            "agent": "organization--a97925c9-75a4-450d-85a2-9e1d88de99ab"
+        },
+        "if-condition--d9d839b2-4c31-4e92-bc65-d0f5c8469053": {
+            "name": "Check if any malicious processes exist",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "parallel--ffec5a29-2b77-475e-8d0e-044dbd20606c",
+            "on_false": "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf"
+        },
+        "parallel--ffec5a29-2b77-475e-8d0e-044dbd20606c": {
+            "name": "Isolate affected hosts and run virus scan",
+            "description": "Isolate affected hosts and prepare to run a virus scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece",
+                "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf"
+            ]
+        },
+        "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece": {
+            "name": "Isolate affected hosts",
+            "description": "Disable network connectivity for affected hosts to prevent further data exfiltration.",
+            "on_completion": "loop--db8a9d32-93b4-48c8-8c1a-4ee75c98f99a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--a97925c9-75a4-450d-85a2-9e1d88de99ab"
+        },
+        "loop--db8a9d32-93b4-48c8-8c1a-4ee75c98f99a": {
+            "name": "Wait until all hosts are isolated",
+            "on_completion": "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf",
+            "type": "while-condition",
+            "condition": "not all_hosts_isolated()",
+            "on_true": "action--1a3c8d2e-9f4e-48d0-8d8f-2fb09d276ece"
+        },
+        "action--ae1f6875-618a-4910-b9fa-0e65f2c371bf": {
+            "name": "Run virus scan",
+            "description": "Perform a virus scan on the affected hosts to detect any additional threats.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5c-2b818d64f824",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/suspected/files"
+                }
+            ],
+            "agent": "organization--a97925c9-75a4-450d-85a2-9e1d88de99ab",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scan.",
+                    "value": "scan_output",
+                    "constant": false,
+                    "external": true
+                },
+                "alert": {
+                    "type": "string",
+                    "description": "Alert based on scan result.",
+                    "value": "scan_alert",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f824": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a97925c9-75a4-450d-85a2-9e1d88de99ab": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

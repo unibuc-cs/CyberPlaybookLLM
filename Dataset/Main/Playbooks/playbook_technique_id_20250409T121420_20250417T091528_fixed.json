@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ab8b3e8f-4ed2-4000-b844-0e1be584325c",
+    "name": "Malicious Script Execution Incident Response",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts for data exfiltration across multiple hosts.",
+    "created_by": "identity--5275b6a2-8f2d-4b69-a844-98f34c6f921e",
+    "created": "2023-10-10T14:45:00.000Z",
+    "modified": "2023-10-10T14:50:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--e50f5401-a1e3-4b61-936e-5675a1e7d2a3",
+    "workflow": {
+        "start--e50f5401-a1e3-4b61-936e-5675a1e7d2a3": {
+            "on_completion": "parallel--3d9d65bb-fc32-4e7f-bd51-edb90ed4e02d",
+            "type": "start",
+            "name": "Start Incident Response",
+            "description": "Initialize the response to the malicious script execution incident."
+        },
+        "parallel--3d9d65bb-fc32-4e7f-bd51-edb90ed4e02d": {
+            "name": "Execute Mitigations",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8b3df2c9-0e09-4f74-b8c4-18a5fc9cda37",
+                "if-condition--c5f6a1bc-0f8b-4a3b-bbdb-507f8ab964de",
+                "loop--c2f72d09-4d61-4dc1-9771-34cf70e6e041"
+            ]
+        },
+        "action--8b3df2c9-0e09-4f74-b8c4-18a5fc9cda37": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any running instances of the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--6b9c45eb-e61a-4e82-911b-e5ab594822a5",
+            "on_completion": "if-condition--c5f6a1bc-0f8b-4a3b-bbdb-507f8ab964de"
+        },
+        "if-condition--c5f6a1bc-0f8b-4a3b-bbdb-507f8ab964de": {
+            "name": "Check Connection to Malicious IP",
+            "type": "if-condition",
+            "condition": "connected_to_malicious_IP()",
+            "on_true": "action--a27b9bcc-b2f1-4e57-b177-9d1ebe44024b",
+            "on_false": "loop--c2f72d09-4d61-4dc1-9771-34cf70e6e041"
+        },
+        "action--a27b9bcc-b2f1-4e57-b177-9d1ebe44024b": {
+            "name": "Block External IP Address",
+            "description": "Block outbound traffic to the known malicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--6b9c45eb-e61a-4e82-911b-e5ab594822a5",
+            "on_completion": "loop--c2f72d09-4d61-4dc1-9771-34cf70e6e041"
+        },
+        "loop--c2f72d09-4d61-4dc1-9771-34cf70e6e041": {
+            "name": "Run Malware Scan",
+            "description": "Perform a malware scan and loop until no threats are found.",
+            "on_completion": "end--b1c1182a-2e75-4e50-9f18-a672c7ec473c",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--c9f272f3-2dbf-4b12-9f57-f0497698f313"
+        },
+        "action--c9f272f3-2dbf-4b12-9f57-f0497698f313": {
+            "name": "Execute Malware Scanner",
+            "description": "Run a malware scan on the specified directory.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner --scan /path/to/directory"
+                }
+            ],
+            "agent": "organization--6b9c45eb-e61a-4e82-911b-e5ab594822a5",
+            "on_completion": "loop--c2f72d09-4d61-4dc1-9771-34cf70e6e041"
+        },
+        "end--b1c1182a-2e75-4e50-9f18-a672c7ec473c": {
+            "type": "end",
+            "name": "End Incident Response",
+            "description": "All actions have been completed."
+        }
+    },
+    "agent_definitions": {
+        "organization--6b9c45eb-e61a-4e82-911b-e5ab594822a5": {
+            "type": "organization",
+            "name": "Security Response Team"
+        }
+    }
+}

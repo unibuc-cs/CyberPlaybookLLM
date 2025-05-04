@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f9df452-b850-4bd8-b9bb-f0d7dac263f8",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where a threat actor exploited a vulnerable web application to execute malicious scripts.",
+    "created_by": "identity--7b9e3c53-5b3d-4c7f-a8f4-2d3e9b58ae93",
+    "created": "2023-10-23T14:30:00Z",
+    "modified": "2023-10-23T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--598f6c75-4a6d-4d7a-a891-c1b7243f9944",
+    "workflow": {
+        "start--598f6c75-4a6d-4d7a-a891-c1b7243f9944": {
+            "type": "start",
+            "on_completion": "parallel--d73081c4-f3a1-4dd2-b100-b3af7922e5b1"
+        },
+        "parallel--d73081c4-f3a1-4dd2-b100-b3af7922e5b1": {
+            "name": "Initial response actions",
+            "description": "Terminate suspicious scripts and start scanning for remaining threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a6f52f71-2124-4b6c-bbda-65467b9a8cd2",
+                "action--c4892bcc-b99e-46e4-a5d9-73a6e6dd052f"
+            ]
+        },
+        "action--a6f52f71-2124-4b6c-bbda-65467b9a8cd2": {
+            "name": "Terminate the malicious command",
+            "description": "Stop the execution of the suspicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--70ffc562-6f7d-4151-aab8-bdb795a7c6ed",
+            "on_completion": "decision--f85e6ea7-7b57-44d4-82ec-f9b3de7e1bc9"
+        },
+        "action--c4892bcc-b99e-46e4-a5d9-73a6e6dd052f": {
+            "name": "Scan the system for remaining malicious scripts",
+            "description": "Find any remaining malicious scripts using the pattern.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'suspicious pattern' {} +"
+                }
+            ],
+            "agent": "organization--c7f14f57-06cd-44d7-b60e-968a899f6266",
+            "on_completion": "action--dc13aa63-87c9-42f7-bf44-0951ae5cdf10"
+        },
+        "action--dc13aa63-87c9-42f7-bf44-0951ae5cdf10": {
+            "name": "Block external IP used for data exfiltration",
+            "description": "Prevent further data exfiltration by blocking the external IP.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to 192.168.1.100"
+                }
+            ],
+            "agent": "organization--e3b979d8-cb9d-4921-a26d-29b17cbc4ae5",
+            "on_completion": "end--bc62ad3a-ea9b-4271-89d9-d1b39350d27f"
+        },
+        "decision--f85e6ea7-7b57-44d4-82ec-f9b3de7e1bc9": {
+            "name": "Identify user responsible for script execution",
+            "description": "Determine which user executed the suspicious script.",
+            "type": "if-condition",
+            "condition": "user_identified != None",
+            "on_true": "action--bfb1d02e-534b-4100-8a68-6f0b5b6d0d9a",
+            "on_false": "end--bc62ad3a-ea9b-4271-89d9-d1b39350d27f",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps -aux | grep suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--1801ad47-e911-4889-8e3b-f1012723feef"
+        },
+        "action--bfb1d02e-534b-4100-8a68-6f0b5b6d0d9a": {
+            "name": "Reset compromised user credentials",
+            "description": "Reset credentials of the compromised user.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'new_password' | passwd user_identified --stdin"
+                }
+            ],
+            "agent": "organization--1801ad47-e911-4889-8e3b-f1012723feef",
+            "on_completion": "end--bc62ad3a-ea9b-4271-89d9-d1b39350d27f"
+        },
+        "end--bc62ad3a-ea9b-4271-89d9-d1b39350d27f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--70ffc562-6f7d-4151-aab8-bdb795a7c6ed": {
+            "type": "organization",
+            "name": "Organization ABC"
+        },
+        "organization--c7f14f57-06cd-44d7-b60e-968a899f6266": {
+            "type": "organization",
+            "name": "Organization XYZ"
+        },
+        "organization--e3b979d8-cb9d-4921-a26d-29b17cbc4ae5": {
+            "type": "organization",
+            "name": "Organization DEF"
+        },
+        "organization--1801ad47-e911-4889-8e3b-f1012723feef": {
+            "type": "organization",
+            "name": "Organization GHI"
+        }
+    }
+}

@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--87f3f597-7dda-47a3-be92-f9496f1dfd8a",
+    "name": "Mitigation Playbook for Server Scripting Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute malicious scripts on a server, attempting to capture and exfiltrate sensitive data.",
+    "created_by": "identity--19992a52-9a69-4c08-a747-5fc6f9f0568d",
+    "created": "2025-04-09T10:15:00.000Z",
+    "modified": "2025-04-09T10:20:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--62407a26-1759-4a33-9ec2-148d62408d2d",
+    "workflow": {
+        "action--c220b5a6-bbfb-4f30-848f-9e9141c858cc": {
+            "name": "Kill malicious process",
+            "on_completion": "loop--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--29175361-bcc9-4834-bf78-b952cb44f676"
+        },
+        "action--5e4e26c2-4f82-4221-b107-b3446d6408e7": {
+            "name": "Isolate affected host",
+            "on_completion": "loop--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--29175361-bcc9-4834-bf78-b952cb44f676"
+        },
+        "loop--1f62c563-f863-4a4f-9b96-75d41063c4d2": {
+            "name": "Run antivirus scan",
+            "description": "Performing antivirus scan on the system to detect threats.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "on_false": "end--2b5d1bbc-2ec1-4464-a892-dd04666372d9"
+        },
+        "action--1f62c563-f863-4a4f-9b96-75d41063c4d2": {
+            "name": "Scan for threats",
+            "on_completion": "loop--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--29175361-bcc9-4834-bf78-b952cb44f676"
+        },
+        "start--62407a26-1759-4a33-9ec2-148d62408d2d": {
+            "on_completion": "parallel--14dfc8da-97b8-4dd5-81b5-d3afc6b1a4df",
+            "type": "start"
+        },
+        "parallel--14dfc8da-97b8-4dd5-81b5-d3afc6b1a4df": {
+            "name": "Initiate Responses",
+            "description": "Execute mitigation steps in parallel to address the server scripting incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c220b5a6-bbfb-4f30-848f-9e9141c858cc",
+                "action--5e4e26c2-4f82-4221-b107-b3446d6408e7"
+            ]
+        },
+        "end--2b5d1bbc-2ec1-4464-a892-dd04666372d9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--29175361-bcc9-4834-bf78-b952cb44f676": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

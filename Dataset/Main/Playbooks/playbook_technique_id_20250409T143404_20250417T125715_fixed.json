@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bdb612a0-27fd-4e45-9335-00547a2323cc",
+    "name": "Mitigation for Malicious Script Execution Incident",
+    "description": "Responds to an incident of unauthorized script execution for data exfiltration within the network.",
+    "created_by": "identity--67c3c7f7-d2f6-4b8e-bae1-8ab769bbf834",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "derived_from": [],
+    "workflow_start": "start--4d1996a1-bdaf-4e49-86ee-a292e8ecf8d0",
+    "workflow": {
+        "action--b0c9d8e7-f6a5-4b0c-93d8-fcb0a7fbc1df": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "if-condition--f1c8d5b3-b4a1-4ea6-a9b3-43c6f3e839e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script'"
+                }
+            ],
+            "agent": "organization--f6877f59-2079-4c1a-845f-a2607a5ea0d9"
+        },
+        "if-condition--f1c8d5b3-b4a1-4ea6-a9b3-43c6f3e839e4": {
+            "name": "Check if process is still running",
+            "type": "if-condition",
+            "condition": "$(pgrep -f 'suspicious_script')",
+            "on_true": "action--bddb6a59-1de3-4489-9a69-978e9a1276c2",
+            "on_false": "action--be63a9b4-8dd8-4999-b7e3-5ad9bb84cc9c"
+        },
+        "start--4d1996a1-bdaf-4e49-86ee-a292e8ecf8d0": {
+            "on_completion": "action--b0c9d8e7-f6a5-4b0c-93d8-fcb0a7fbc1df",
+            "type": "start"
+        },
+        "action--bddb6a59-1de3-4489-9a69-978e9a1276c2": {
+            "name": "Block network traffic",
+            "description": "Prevent outbound connections to the suspicious IP address.",
+            "on_completion": "loop--8405924a-00f8-47b5-a587-5d085ed887bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--f6877f59-2079-4c1a-845f-a2607a5ea0d9"
+        },
+        "loop--8405924a-00f8-47b5-a587-5d085ed887bb": {
+            "name": "Repeat until network scan is clear",
+            "on_completion": "end--5f890806-ef09-46cf-821e-7f05a5585cb5",
+            "type": "while-condition",
+            "condition": "network_scan_is_clear == false",
+            "on_true": "action--bddb6a59-1de3-4489-9a69-978e9a1276c2",
+            "on_false": "action--be63a9b4-8dd8-4999-b7e3-5ad9bb84cc9c"
+        },
+        "action--be63a9b4-8dd8-4999-b7e3-5ad9bb84cc9c": {
+            "name": "Remove the executed script",
+            "description": "Delete the suspicious PowerShell script from the system.",
+            "on_completion": "end--5f890806-ef09-46cf-821e-7f05a5585cb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--f6877f59-2079-4c1a-845f-a2607a5ea0d9",
+            "step_variables": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The path to the suspicious script",
+                    "value": "/path/to/suspicious_script.ps1",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--5f890806-ef09-46cf-821e-7f05a5585cb5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f6877f59-2079-4c1a-845f-a2607a5ea0d9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "name": "Mitigation Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident where an attacker exploited a web application to execute unauthorized scripts, exfiltrate data, and disrupt services.",
+    "created_by": "identity--c5c7dc3a-8096-4000-b82f-d5255d371297",
+    "created": "2023-10-11T14:40:00Z",
+    "modified": "2023-10-11T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--d609efeb-84c1-439e-9d64-512df2d8aabc",
+    "workflow": {
+        "start--d609efeb-84c1-439e-9d64-512df2d8aabc": {
+            "type": "start",
+            "on_completion": "parallel--558ad3cf-3f32-4e5b-9957-2b4d731b2740"
+        },
+        "parallel--558ad3cf-3f32-4e5b-9957-2b4d731b2740": {
+            "name": "Execute Parallel Mitigations",
+            "description": "Perform parallel mitigations to address script execution, data exfiltration, and service disruption.",
+            "type": "parallel",
+            "next_steps": [
+                "decision--33c1f677-41ef-40de-9124-e80be7fb0ef1",
+                "action--c3f49025-3d02-4f9c-8c10-e7b3d5f2e9ed",
+                "loop--e5ad1f57-a08c-4ff6-b23c-b329f8dfcfab"
+            ]
+        },
+        "decision--33c1f677-41ef-40de-9124-e80be7fb0ef1": {
+            "name": "Check for Unauthorized Scripts",
+            "description": "Determine if unauthorized scripts are present.",
+            "type": "if-condition",
+            "condition": "script_detected == true",
+            "on_true": "action--b2e5ad44-d178-42e5-8fbf-8c1cf2d9f860",
+            "on_false": "end--ac634a02-6676-4a3e-bc2e-6d015f857001"
+        },
+        "action--b2e5ad44-d178-42e5-8fbf-8c1cf2d9f860": {
+            "name": "Disable Script Execution",
+            "description": "Disable script execution permissions on the affected server.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -x /path/to/scripts"
+                }
+            ],
+            "agent": "organization--b7be6f99-4e6d-4322-a8f9-7cd9c7c65e6a",
+            "on_completion": "end--ac634a02-6676-4a3e-bc2e-6d015f857001"
+        },
+        "action--c3f49025-3d02-4f9c-8c10-e7b3d5f2e9ed": {
+            "name": "Block Data Exfiltration IP",
+            "description": "Block outbound traffic to prevent data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.0 -j DROP"
+                }
+            ],
+            "agent": "organization--b7be6f99-4e6d-4322-a8f9-7cd9c7c65e6a",
+            "on_completion": "end--ac634a02-6676-4a3e-bc2e-6d015f857001"
+        },
+        "loop--e5ad1f57-a08c-4ff6-b23c-b329f8dfcfab": {
+            "name": "Restart Disrupted Services",
+            "description": "Restart all critical services that were disrupted during the attack.",
+            "type": "foreach",
+            "collection": "disrupted_services",
+            "variables": {
+                "disrupted_services": {
+                    "type": "list",
+                    "description": "List of services to be restarted",
+                    "value": [
+                        "service1",
+                        "service2",
+                        "service3"
+                    ]
+                }
+            },
+            "on_each": "action--restart--service"
+        },
+        "loop--f37bf2c0-924f-45df-aa47-b8914de6d1eb": {
+            "name": "System Scan Loop",
+            "description": "Repeat system scan until clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f37bf2c0-924f-45df-aa47-b8914de6d1eb",
+            "on_false": "end--ac634a02-6676-4a3e-bc2e-6d015f857001"
+        },
+        "action--f37bf2c0-924f-45df-aa47-b8914de6d1eb": {
+            "name": "Full System Scan",
+            "description": "Scan the entire system to identify malicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--b7be6f99-4e6d-4322-a8f9-7cd9c7c65e6a",
+            "on_completion": "loop--f37bf2c0-924f-45df-aa47-b8914de6d1eb"
+        },
+        "end--ac634a02-6676-4a3e-bc2e-6d015f857001": {
+            "type": "end"
+        },
+        "action--15cbad74-d05d-4815-befd-7238c1300692": {
+            "name": "Restart Service",
+            "description": "Restart a specific disrupted service.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart $(service)"
+                }
+            ],
+            "agent": "organization--b7be6f99-4e6d-4322-a8f9-7cd9c7c65e6a",
+            "on_completion": "end--ac634a02-6676-4a3e-bc2e-6d015f857001"
+        }
+    },
+    "agent_definitions": {
+        "organization--b7be6f99-4e6d-4322-a8f9-7cd9c7c65e6a": {
+            "type": "organization",
+            "name": "Affected Organization"
+        }
+    }
+}

@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b06b4cf3-2325-4f3c-acec-3de409ad4227",
+    "name": "Playbook for Mitigating Arbitrary Command Execution via Malicious Script",
+    "description": "This playbook addresses an incident where an attacker leveraged a command and scripting interpreter to execute arbitrary commands on the target host following a phishing email.",
+    "created_by": "identity--5651b7c7-dde0-4ff7-85a3-e879b99f600b",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--d4b57954-aa9e-4e3b-ab34-3734293747f5",
+    "workflow": {
+        "start--d4b57954-aa9e-4e3b-ab34-3734293747f5": {
+            "on_completion": "action--a8c2fb37-fdd5-4e8d-b360-b5c8c5d84ac2",
+            "type": "start"
+        },
+        "action--a8c2fb37-fdd5-4e8d-b360-b5c8c5d84ac2": {
+            "name": "Kill malicious process 'script.sh'",
+            "description": "Terminate the malicious process that has been initiated.",
+            "on_completion": "if-condition--b6df8e20-bf51-4419-bf1f-76340bc18207",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--b6df8e20-bf51-4419-bf1f-76340bc18207": {
+            "name": "Check if the system requires scanning",
+            "type": "if-condition",
+            "condition": "is_process_killed == true",
+            "on_true": "action--b6df8e20-bf51-4419-bf1f-76340bc18207",
+            "on_false": "end--b0d4c6a6-1719-4691-822e-33b4044170c0"
+        },
+        "action--b6df8e20-bf51-4419-bf1f-76340bc18207": {
+            "name": "Scan system for malware",
+            "description": "Perform a thorough scan of the system to find any remaining threats.",
+            "on_completion": "while-condition--5d1e3796-dade-4a8c-be14-c2ba799249a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /tmp"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--5d1e3796-dade-4a8c-be14-c2ba799249a3": {
+            "name": "Repeat scanning until clean",
+            "on_completion": "if-condition--58dbeeb2-9e91-4b82-99e1-b46ddb14c09f",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--b6df8e20-bf51-4419-bf1f-76340bc18207"
+        },
+        "if-condition--58dbeeb2-9e91-4b82-99e1-b46ddb14c09f": {
+            "name": "Check for downloaded malicious files",
+            "type": "if-condition",
+            "condition": "file_exists('/tmp/payload.sh')",
+            "on_true": "action--58dbeeb2-9e91-4b82-99e1-b46ddb14c09f",
+            "on_false": "end--b0d4c6a6-1719-4691-822e-33b4044170c0"
+        },
+        "action--58dbeeb2-9e91-4b82-99e1-b46ddb14c09f": {
+            "name": "Remove any downloaded files related to the incident",
+            "description": "Delete the malicious script to mitigate further risk.",
+            "on_completion": "end--b0d4c6a6-1719-4691-822e-33b4044170c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/payload.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b0d4c6a6-1719-4691-822e-33b4044170c0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

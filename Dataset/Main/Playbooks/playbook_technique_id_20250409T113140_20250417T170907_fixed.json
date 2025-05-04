@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8c7f4bf-6d82-40ff-b5eb-de60bb06cfc4",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident involving malicious script execution, data exfiltration, and compromised system integrity.",
+    "created_by": "identity--31415c92-7db1-4c2f-8e99-e1b1491679ad",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--8d72b4e7-9d36-4b54-a4ae-cbdb289f5f23",
+    "workflow": {
+        "start--8d72b4e7-9d36-4b54-a4ae-cbdb289f5f23": {
+            "on_completion": "parallel--e5cb58f1-bc5a-43cc-8eb7-e9eeb7fe0ede",
+            "type": "start"
+        },
+        "parallel--e5cb58f1-bc5a-43cc-8eb7-e9eeb7fe0ede": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation actions for the incident simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--93a92977-85c5-4f1a-870c-ef7cf0f5f44e",
+                "action--dc419f77-a3f6-4e65-8aa1-cd597152d91f"
+            ]
+        },
+        "action--93a92977-85c5-4f1a-870c-ef7cf0f5f44e": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--32fcdcd0-6d17-45bf-b3d5-5afbbeb7fc59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--6515a3d7-584a-4af1-8823-d538a471a68e"
+        },
+        "action--dc419f77-a3f6-4e65-8aa1-cd597152d91f": {
+            "name": "Isolate the Affected Host",
+            "description": "Disable the network interface to prevent further malicious activities.",
+            "on_completion": "action--32fcdcd0-6d17-45bf-b3d5-5afbbeb7fc59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--6515a3d7-584a-4af1-8823-d538a471a68e"
+        },
+        "loop--600ab0f3-4b7d-41b7-be93-7928ce434231": {
+            "name": "Re-mediate using updated antivirus",
+            "description": "Iteratively scan and remediate the system until it is clean.",
+            "on_completion": "end--4b77d4a5-5f0e-45f3-b0f5-3b908dad7c26",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "on_false": "end--4b77d4a5-5f0e-45f3-b0f5-3b908dad7c26"
+        },
+        "action--600ab0f3-4b7d-41b7-be93-7928ce434231": {
+            "name": "Run Antivirus Scan",
+            "description": "Use updated antivirus definitions for scanning.",
+            "on_completion": "set-scan-status--890f8e83-3b1b-47f9-a1f8-502166116763",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --scan --quarantine"
+                }
+            ],
+            "agent": "organization--6515a3d7-584a-4af1-8823-d538a471a68e"
+        },
+        "end--4b77d4a5-5f0e-45f3-b0f5-3b908dad7c26": {
+            "type": "end"
+        },
+        "action--32fcdcd0-6d17-45bf-b3d5-5afbbeb7fc59": {
+            "name": "Conduct Forensic Analysis",
+            "description": "Create a forensic backup of the compromised data.",
+            "on_completion": "loop--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mkdir forensic_backup && cp -r /compromised/path forensic_backup/"
+                }
+            ],
+            "agent": "organization--6515a3d7-584a-4af1-8823-d538a471a68e"
+        },
+        "set-scan-status--890f8e83-3b1b-47f9-a1f8-502166116763": {
+            "type": "action",
+            "on_completion": "loop--600ab0f3-4b7d-41b7-be93-7928ce434231",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_status=$(check_scan_status)"
+                }
+            ],
+            "agent": "organization--6515a3d7-584a-4af1-8823-d538a471a68e"
+        }
+    },
+    "agent_definitions": {
+        "organization--6515a3d7-584a-4af1-8823-d538a471a68e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

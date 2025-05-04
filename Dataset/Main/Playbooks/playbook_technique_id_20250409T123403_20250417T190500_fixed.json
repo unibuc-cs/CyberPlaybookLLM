@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f36c1b2e-09fe-464f-b395-1c8f10d8eda6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts that exfiltrated sensitive data via command-line tools.",
+    "created_by": "identity--e2f3b9db-d22c-485a-bd3c-381b147f9571",
+    "created": "2023-10-20T11:00:00Z",
+    "modified": "2023-10-20T11:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--b5a60f4c-8c94-4c47-b300-e5c2816a08d2",
+    "workflow": {
+        "start--b5a60f4c-8c94-4c47-b300-e5c2816a08d2": {
+            "on_completion": "action--094f7bc5-73b4-4037-8ab8-c6c51916d575",
+            "type": "start"
+        },
+        "action--094f7bc5-73b4-4037-8ab8-c6c51916d575": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes running the suspicious PowerShell script.",
+            "on_completion": "action--22cdf39e-5375-4c12-b65e-b4372f6e3e24",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--89c005a2-47cc-4069-aff6-1612c6c774e8"
+        },
+        "action--22cdf39e-5375-4c12-b65e-b4372f6e3e24": {
+            "name": "Restrict external communications",
+            "description": "Block outbound communications to prevent data exfiltration.",
+            "on_completion": "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 21 -j REJECT"
+                }
+            ],
+            "agent": "organization--89c005a2-47cc-4069-aff6-1612c6c774e8"
+        },
+        "loop--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6": {
+            "name": "Scan for scripts",
+            "description": "Search the entire system for any suspicious PowerShell scripts.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--99198fb8-e29d-44c6-a5ea-ffe764dddf24"
+            ],
+            "on_true": "action--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6"
+        },
+        "action--a4573c3b-dad3-4eb5-b15c-8cedb0b301b6": {
+            "name": "Scan for other scripts in the system",
+            "description": "Identify any existing PowerShell scripts on the system to mitigate further threats.",
+            "on_completion": "action--2a50afca-9a74-415c-a21b-294654f6cb65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1'"
+                }
+            ],
+            "agent": "organization--89c005a2-47cc-4069-aff6-1612c6c774e8"
+        },
+        "end--d5e42e47-79b5-481b-9181-6cc44f2e3fbb": {
+            "type": "end"
+        },
+        "action--2a50afca-9a74-415c-a21b-294654f6cb65": {
+            "name": "Check scan status",
+            "description": "Determine if the scan is clean after searching scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_scan_output"
+                }
+            ],
+            "agent": "organization--89c005a2-47cc-4069-aff6-1612c6c774e8",
+            "on_completion": "end--d5e42e47-79b5-481b-9181-6cc44f2e3fbb"
+        }
+    },
+    "agent_definitions": {
+        "organization--89c005a2-47cc-4069-aff6-1612c6c774e8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

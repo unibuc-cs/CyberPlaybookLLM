@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1e52614-d6ac-4267-a77f-e7338c650ca6",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook automates the response to an incident where an attacker executed malicious PowerShell scripts leading to data exfiltration.",
+    "created_by": "identity--e82e8c3a-88d2-4d01-81ab-dcd63d8516e9",
+    "created": "2023-10-12T12:00:00Z",
+    "modified": "2023-10-12T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b3e70114-5994-4771-9e8a-150680c91f49",
+    "workflow": {
+        "start--b3e70114-5994-4771-9e8a-150680c91f49": {
+            "on_completion": "action--2b08dc30-8a5d-4425-b5b8-378c5ba69afe",
+            "type": "start"
+        },
+        "action--2b08dc30-8a5d-4425-b5b8-378c5ba69afe": {
+            "name": "Identify and kill the malicious PowerShell process",
+            "description": "Terminate any PowerShell processes associated with the malicious script.",
+            "on_completion": "parallel--ee589f88-6aaf-4fa0-adf7-73a983ee8ef6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process -Name 'powershell' | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--ee589f88-6aaf-4fa0-adf7-73a983ee8ef6": {
+            "name": "Threat Clean Up",
+            "description": "Running parallel actions to scan for threats and remove malicious files.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9",
+                "action--f0454492-af2f-43da-bc7c-a5e74e5031d7"
+            ]
+        },
+        "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9": {
+            "name": "Scan for other potential threats",
+            "description": "Scan the entire system for any remaining threats.",
+            "on_completion": "if-condition--c79ea750-bb2b-4c88-b469-4e244f3699f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Sleep -s 5; Invoke-Scan -Path C:\\ -ThreatLevel High"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--c79ea750-bb2b-4c88-b469-4e244f3699f9": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--5f61946c-a8f2-4ae8-8a9e-10d3b28566f9",
+            "on_false": "end--b5fc0b5f-2f8c-4e6e-9bdf-61cdad5b6594"
+        },
+        "action--f0454492-af2f-43da-bc7c-a5e74e5031d7": {
+            "name": "Remove files associated with the malicious activity",
+            "description": "Delete any malicious files that were created.",
+            "on_completion": "end--b5fc0b5f-2f8c-4e6e-9bdf-61cdad5b6594",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "if (Test-Path 'C:\\temp\\malicious_payload.exe') { Remove-Item -Path 'C:\\temp\\malicious_payload.exe' -Force }"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b5fc0b5f-2f8c-4e6e-9bdf-61cdad5b6594": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7f3be2b-b62c-4674-875d-fdd0ae3b1932",
+    "name": "Response Playbook for Malicious Script Execution on Server",
+    "description": "This playbook outlines steps to mitigate an incident involving execution of a malicious script that led to unauthorized access and data exfiltration.",
+    "created_by": "identity--d76c3f0f-8e55-485e-ae08-1eb44c0631a2",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b76c3ed8-f50a-4d67-a7ef-c95f4578121d",
+    "workflow": {
+        "start--b76c3ed8-f50a-4d67-a7ef-c95f4578121d": {
+            "on_completion": "action--31e28321-c958-4119-b697-fe4d83ecf96b",
+            "type": "start"
+        },
+        "if-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691": {
+            "name": "Check if malicious payload exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malicious_payload ]",
+            "on_true": "action--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15",
+            "on_false": "action--84d51187-97cb-4361-8f81-3186963bbb26",
+            "description": "Determine whether to delete the dropped payload."
+        },
+        "action--b0c2ee1b-32b3-4fe6-b4b2-d6a5d235aa15": {
+            "name": "Delete dropped payload",
+            "description": "Remove any malicious payload that might have been dropped.",
+            "on_completion": "action--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--09086fc2-9fee-4e15-a309-b0a56b858817"
+        },
+        "action--d9f70b62-0edf-4879-a80f-7ed8f5c45691": {
+            "name": "Run network scan",
+            "description": "Perform a network scan to detect any suspicious devices and connections.",
+            "on_completion": "while-condition--e4a54b6e-c35e-42ff-ac38-0d2ecfd0aa01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--09086fc2-9fee-4e15-a309-b0a56b858817"
+        },
+        "while-condition--e4a54b6e-c35e-42ff-ac38-0d2ecfd0aa01": {
+            "name": "Repeat Network Scan",
+            "description": "Continue to scan until the network is found clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "on_false": "end--1b759cbe-234a-4751-8d46-2ac0640c8038"
+        },
+        "end--1b759cbe-234a-4751-8d46-2ac0640c8038": {
+            "type": "end"
+        },
+        "action--31e28321-c958-4119-b697-fe4d83ecf96b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "if-condition--d9f70b62-0edf-4879-a80f-7ed8f5c45691",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--09086fc2-9fee-4e15-a309-b0a56b858817"
+        }
+    },
+    "agent_definitions": {
+        "organization--09086fc2-9fee-4e15-a309-b0a56b858817": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

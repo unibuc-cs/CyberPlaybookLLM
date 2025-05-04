@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2b3856c-e62c-45e9-b727-c1567f19fcd7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of harmful scripts leading to unauthorized data exfiltration.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T14:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--6d2b3822-50e7-45f1-88df-2bc52de1b2c2",
+    "workflow": {
+        "start--6d2b3822-50e7-45f1-88df-2bc52de1b2c2": {
+            "on_completion": "if-condition--b91de4c3-c5ef-4dec-82ae-f8b151a061b6",
+            "type": "start"
+        },
+        "if-condition--b91de4c3-c5ef-4dec-82ae-f8b151a061b6": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists",
+            "on_true": "action--2a73397b-f8da-4d80-bb0c-f1702b105f54",
+            "on_false": "if-condition--9120f5f3-e4bc-4c35-8b2d-c0b3821599d0"
+        },
+        "if-condition--9120f5f3-e4bc-4c35-8b2d-c0b3821599d0": {
+            "name": "Check for outbound traffic",
+            "type": "if-condition",
+            "condition": "outbound_traffic_detected",
+            "on_true": "action--48d396c8-4ca1-4c31-829f-b31e818389e4",
+            "on_false": "loop--fc5cdde4-c00c-4e50-9be2-3557da4eda95"
+        },
+        "action--2a73397b-f8da-4d80-bb0c-f1702b105f54": {
+            "name": "Kill Malicious Processes",
+            "description": "Terminate any processes executing harmful scripts.",
+            "on_completion": "if-condition--9120f5f3-e4bc-4c35-8b2d-c0b3821599d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--807f96fa-a14e-4d4d-89f2-3b4a88f93044"
+        },
+        "action--48d396c8-4ca1-4c31-829f-b31e818389e4": {
+            "name": "Block Outbound Traffic",
+            "description": "Block outbound connections to known malicious IPs.",
+            "on_completion": "loop--fc5cdde4-c00c-4e50-9be2-3557da4eda95",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <bad_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--807f96fa-a14e-4d4d-89f2-3b4a88f93044"
+        },
+        "loop--fc5cdde4-c00c-4e50-9be2-3557da4eda95": {
+            "name": "Antivirus Scan Loop",
+            "description": "Run antivirus scan repeatedly until no threats are found.",
+            "on_completion": "end--38f756d9-e702-491c-ae3b-1d8b1a0f5e0b",
+            "type": "while-condition",
+            "condition": "threats_found",
+            "on_true": "action--eedbff35-deca-43a7-94ac-bf00f1b44f88",
+            "on_false": "end--38f756d9-e702-491c-ae3b-1d8b1a0f5e0b"
+        },
+        "action--eedbff35-deca-43a7-94ac-bf00f1b44f88": {
+            "name": "Run Antivirus Scan",
+            "description": "Perform a scan on the affected host to find threats.",
+            "on_completion": "loop--fc5cdde4-c00c-4e50-9be2-3557da4eda95",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--807f96fa-a14e-4d4d-89f2-3b4a88f93044"
+        },
+        "end--38f756d9-e702-491c-ae3b-1d8b1a0f5e0b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--807f96fa-a14e-4d4d-89f2-3b4a88f93044": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

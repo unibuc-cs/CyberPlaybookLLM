@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1f56a98-7345-4651-820a-e6f25bee2e88",
+    "name": "Mitigation Playbook for PowerShell Lateral Movement Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious PowerShell scripts to move laterally within the environment.",
+    "created_by": "identity--aa3a9f6f-978b-4ac7-a7ac-347714109d9c",
+    "created": "2023-10-10T14:45:12Z",
+    "modified": "2023-10-10T14:50:12Z",
+    "revoked": false,
+    "workflow_start": "start--d5f7bf4d-a98a-4c82-8691-b88521d3cc86",
+    "workflow": {
+        "action--e4eeb29e-97a7-4c2e-b1b7-2ad5f5b64e5b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "action--fce3099b-59c4-44f1-9024-0ed689b9d777",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--35f93485-d70a-45b4-9cbe-f15710858f84"
+        },
+        "action--fce3099b-59c4-44f1-9024-0ed689b9d777": {
+            "name": "Disable PowerShell scripting",
+            "description": "Restrict PowerShell scripting execution capabilities.",
+            "on_completion": "action--7f12c79e-1294-473e-afc0-b2fc3058d970",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "powershell -Command Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--35f93485-d70a-45b4-9cbe-f15710858f84"
+        },
+        "action--7f12c79e-1294-473e-afc0-b2fc3058d970": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Conduct a thorough scan of the impacted hosts for any additional threats.",
+            "on_completion": "if-condition--40338a47-3bc4-4070-aa5b-4a462f57bdfb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "invoke-scan -targets 'host-33, host-40, host-27'"
+                }
+            ],
+            "agent": "organization--35f93485-d70a-45b4-9cbe-f15710858f84",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the scan to determine if there are any further compromises.",
+                    "value": "empty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "start--d5f7bf4d-a98a-4c82-8691-b88521d3cc86": {
+            "on_completion": "parallel--70192afe-6708-43d1-96d0-06306fadb819",
+            "type": "start"
+        },
+        "parallel--70192afe-6708-43d1-96d0-06306fadb819": {
+            "name": "Handle Malicious Activity",
+            "description": "Kill malicious processes and disable PowerShell scripting while preparing to scan for additional indicators of compromise.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e4eeb29e-97a7-4c2e-b1b7-2ad5f5b64e5b",
+                "action--fce3099b-59c4-44f1-9024-0ed689b9d777",
+                "action--7f12c79e-1294-473e-afc0-b2fc3058d970"
+            ]
+        },
+        "if-condition--40338a47-3bc4-4070-aa5b-4a462f57bdfb": {
+            "name": "Check scan results",
+            "description": "Evaluate if the scan results indicate that any additional indicators of compromise were found.",
+            "type": "if-condition",
+            "condition": "scan_results == 'empty'",
+            "on_true": "end--9b3e4fa0-1aff-4dc0-a94d-c69f80a137cf",
+            "on_false": "action--7f12c79e-1294-473e-afc0-b2fc3058d970"
+        },
+        "end--9b3e4fa0-1aff-4dc0-a94d-c69f80a137cf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--35f93485-d70a-45b4-9cbe-f15710858f84": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

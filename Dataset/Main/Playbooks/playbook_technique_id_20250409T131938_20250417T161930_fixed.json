@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9975e88-9f6a-4c5b-b772-71d46c4e3cc1",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability for unauthorized PowerShell command execution leading to data exfiltration.",
+    "created_by": "identity--f6eae670-b468-4035-afb3-1b2915a2fddf",
+    "created": "2023-10-01T09:00:00Z",
+    "modified": "2023-10-01T09:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--b7d64a51-07bb-4490-841f-b7ddbfa0b5d1",
+    "workflow": {
+        "start--b7d64a51-07bb-4490-841f-b7ddbfa0b5d1": {
+            "on_completion": "action--8f155da6-3d77-4f99-8a61-bf688276c17e",
+            "type": "start"
+        },
+        "action--8f155da6-3d77-4f99-8a61-bf688276c17e": {
+            "name": "Identify and terminate malicious PowerShell execution",
+            "description": "Terminate processes identified as malicious PowerShell scripts.",
+            "on_completion": "parallel--2fca06ed-3d72-43a2-bd4d-51c2ba1bce7f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.Name -like '*powershell*' } | Stop-Process -Force"
+                }
+            ],
+            "agent": "organization--85fb889e-211e-4cb6-a114-92479c22d718"
+        },
+        "parallel--2fca06ed-3d72-43a2-bd4d-51c2ba1bce7f": {
+            "name": "Post-Termination Mitigation Tasks",
+            "description": "Execute scan and deploy updates in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bf5ae190-12b5-4ac8-bc8b-d4e8f6c1708e",
+                "action--e13e3dc5-8435-47fa-b9de-81c27d480900"
+            ]
+        },
+        "action--bf5ae190-12b5-4ac8-bc8b-d4e8f6c1708e": {
+            "name": "Scan the host for remaining malicious scripts",
+            "description": "Perform a scan on the host for any lingering malicious scripts.",
+            "on_completion": "if-condition--e933a146-c272-4dca-986b-370ab26a1ade",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Sleep -Seconds 5; Invoke-Expression 'C:\\Path\\To\\MalwareScanner.ps1'"
+                }
+            ],
+            "agent": "organization--85fb889e-211e-4cb6-a114-92479c22d718"
+        },
+        "action--e13e3dc5-8435-47fa-b9de-81c27d480900": {
+            "name": "Deploy an updated antivirus definition across the network",
+            "description": "Update antivirus definitions across all target hosts.",
+            "on_completion": "end--a4b6299b-0e9c-4946-8cbe-ac09b41e4a7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Invoke-Command -ComputerName (Get-Content -Path 'C:\\Path\\To\\TargetHosts.txt') -ScriptBlock { Start-Service -Name 'AntivirusService'; Update-Definitions }"
+                }
+            ],
+            "agent": "organization--85fb889e-211e-4cb6-a114-92479c22d718"
+        },
+        "end--a4b6299b-0e9c-4946-8cbe-ac09b41e4a7a": {
+            "type": "end"
+        },
+        "if-condition--e933a146-c272-4dca-986b-370ab26a1ade": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_is_clean == False",
+            "on_true": "action--bf5ae190-12b5-4ac8-bc8b-d4e8f6c1708e",
+            "on_false": "end--a4b6299b-0e9c-4946-8cbe-ac09b41e4a7a"
+        }
+    },
+    "agent_definitions": {
+        "organization--85fb889e-211e-4cb6-a114-92479c22d718": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

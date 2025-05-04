@@ -1,0 +1,74 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8d9f6c2e-fbda-4c7f-b759-b69afd5591de",
+    "name": "Playbook for Mitigating Malicious Script Execution Incident",
+    "description": "This playbook mitigates a Command and Scripting Interpreter incident where an attacker executed malicious scripts leading to unauthorized actions.",
+    "created_by": "identity--7f3e6480-e89c-4b21-b063-d10b232b2e42",
+    "created": "2025-10-10T08:00:00Z",
+    "modified": "2025-10-10T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-5678-90ab-cdef-1234567890ab",
+    "workflow": {
+        "start--1a2b3c4d-5678-90ab-cdef-1234567890ab": {
+            "on_completion": "action--9dc624c8-eb7d-4a04-8c5c-3c1b98aa4b1b",
+            "type": "start"
+        },
+        "action--9dc624c8-eb7d-4a04-8c5c-3c1b98aa4b1b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script that was executed by the attacker.",
+            "on_completion": "action--1efc60b5-a115-4534-ae29-dc3603b00985",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--1efc60b5-a115-4534-ae29-dc3603b00985": {
+            "name": "Isolate affected host",
+            "description": "Take the affected host offline to stop further exfiltration.",
+            "on_completion": "while-condition--c4e56a9b-25ed-4e58-8d83-5f3c8762d851",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--c4e56a9b-25ed-4e58-8d83-5f3c8762d851": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Continue scanning for malicious indicators until none are found.",
+            "on_true": "action--c4e56a9b-25ed-4e58-8d83-5f3c8762d851",
+            "on_false": "end--b987f6c9-8eb5-493c-bf35-b38107e9bcde",
+            "type": "while-condition",
+            "condition": "while [ \"$(scan --all | grep -c 'malicious')\" -gt 0 ]"
+        },
+        "action--c4e56a9b-25ed-4e58-8d83-5f3c8762d851": {
+            "name": "Run additional scan",
+            "description": "Perform a scan to find any additional malicious indicators.",
+            "on_completion": "while-condition--c4e56a9b-25ed-4e58-8d83-5f3c8762d851",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --all"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--b987f6c9-8eb5-493c-bf35-b38107e9bcde": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

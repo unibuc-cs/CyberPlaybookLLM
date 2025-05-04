@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ae4b9a04-9d3e-49e5-9f2f-57e88f109e8b",
+    "name": "Mitigation Playbook for Web Service Exploitation Incident",
+    "description": "This playbook outlines the steps necessary to mitigate an incident involving data exfiltration via a vulnerability in a web service.",
+    "created_by": "identity--7409d8ff-52fb-4b8c-a133-9d7bac4b8762",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1f4b3ef-2dcd-4e25-b4cd-9e8c37ab7f01",
+    "workflow": {
+        "start--b1f4b3ef-2dcd-4e25-b4cd-9e8c37ab7f01": {
+            "on_completion": "action--1d2a7b4f-32eb-4def-9cab-bf7712b3a446",
+            "type": "start"
+        },
+        "action--1d2a7b4f-32eb-4def-9cab-bf7712b3a446": {
+            "name": "Block outbound traffic to known malicious IPs",
+            "description": "Immediately block outbound traffic to known malicious IP addresses.",
+            "on_completion": "parallel--e3bc7ad2-bbcd-4f9e-8c76-2d83e689ef0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--f33d43c8-454b-46ec-8018-999df3e48895"
+        },
+        "parallel--e3bc7ad2-bbcd-4f9e-8c76-2d83e689ef0f": {
+            "name": "Traffic Analysis and Endpoint Scan",
+            "description": "Simultaneously analyze the traffic and scan the endpoint for threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2eebdcb3-5f5c-4f93-8c7e-1ee5edbfe34f",
+                "action--7fa2d6ad-6a35-49e4-8018-65ae4f63b8c9"
+            ]
+        },
+        "action--2eebdcb3-5f5c-4f93-8c7e-1ee5edbfe34f": {
+            "name": "Analyze traffic patterns",
+            "description": "Capture and analyze network traffic patterns to identify anomalies.",
+            "on_completion": "if-condition--f5d50fd4-02c1-44f7-af3f-e4bf1234ef69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--f33d43c8-454b-46ec-8018-999df3e48895"
+        },
+        "if-condition--f5d50fd4-02c1-44f7-af3f-e4bf1234ef69": {
+            "name": "Check if traffic analysis completed",
+            "type": "if-condition",
+            "condition": "traffic_analysis_complete",
+            "on_true": "end--b21e7d6c-2275-411c-bf1e-642928889ea3",
+            "on_false": "action--2eebdcb3-5f5c-4f93-8c7e-1ee5edbfe34f"
+        },
+        "action--7fa2d6ad-6a35-49e4-8018-65ae4f63b8c9": {
+            "name": "Run endpoint security scan",
+            "description": "Conduct a quick security scan on the endpoint to detect any threats.",
+            "on_completion": "if-condition--0b9e42d7-a887-459f-ae22-6b1b79c5a5a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "av_scan --quick"
+                }
+            ],
+            "agent": "organization--f33d43c8-454b-46ec-8018-999df3e48895",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The variable captures the result of the scan.",
+                    "value": "scan_output",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--0b9e42d7-a887-459f-ae22-6b1b79c5a5a4": {
+            "name": "Check for threats in scan result",
+            "type": "if-condition",
+            "condition": "scan_result indicates a threat",
+            "on_true": "action--7fa2d6ad-6a35-49e4-8018-65ae4f63b8c9",
+            "on_false": "end--b21e7d6c-2275-411c-bf1e-642928889ea3"
+        },
+        "end--b21e7d6c-2275-411c-bf1e-642928889ea3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f33d43c8-454b-46ec-8018-999df3e48895": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

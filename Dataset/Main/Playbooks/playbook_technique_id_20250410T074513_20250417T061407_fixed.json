@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8bdf8e72-3aa2-42fd-a388-f9e2ba100a97",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where a malicious script was executed after gaining unauthorized access to the network.",
+    "created_by": "identity--c7ba6170-8d05-4d83-9d93-10c2ab02e427",
+    "created": "2025-04-10T08:45:00Z",
+    "modified": "2025-04-10T08:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--ead2ed11-3472-4c58-9528-6540c56f8262",
+    "workflow": {
+        "start--ead2ed11-3472-4c58-9528-6540c56f8262": {
+            "on_completion": "action--3221cf6a-b67e-4f98-8bee-469f5d564dda",
+            "type": "start"
+        },
+        "action--3221cf6a-b67e-4f98-8bee-469f5d564dda": {
+            "name": "Remove malicious script",
+            "description": "Delete the malicious script from the system.",
+            "on_completion": "action--3c94abf8-2b32-4da6-a140-d2a56b84df1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--8666a2ca-ccfc-4d97-9a69-b96b5128e40d"
+        },
+        "action--3c94abf8-2b32-4da6-a140-d2a56b84df1d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "if-condition--2a5b7c1f-639e-4a80-97b6-74c68e7da1fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--86672574-eb92-4c57-b248-41a9473395dc"
+        },
+        "if-condition--2a5b7c1f-639e-4a80-97b6-74c68e7da1fc": {
+            "name": "Check if alert triggered",
+            "type": "if-condition",
+            "condition": "alert_triggered",
+            "on_true": "action--2a5b7c1f-639e-4a80-97b6-74c68e7da1fc",
+            "on_false": "action--cb902a92-c902-4734-b3d9-0c1c6c8d532d"
+        },
+        "action--2a5b7c1f-639e-4a80-97b6-74c68e7da1fc": {
+            "name": "Isolate host from network",
+            "description": "Block the affected host's network access.",
+            "on_completion": "action--cb902a92-c902-4734-b3d9-0c1c6c8d532d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--10c252d9-5aa6-46c3-bb20-df2335159cf8"
+        },
+        "action--cb902a92-c902-4734-b3d9-0c1c6c8d532d": {
+            "name": "Reset compromised user credentials",
+            "description": "Change the password for the compromised user account.",
+            "on_completion": "action--ae282830-f0f1-45ba-9f8c-74a780a84134",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd compromised_user"
+                }
+            ],
+            "agent": "organization--86672574-eb92-4c57-b248-41a9473395dc"
+        },
+        "action--ae282830-f0f1-45ba-9f8c-74a780a84134": {
+            "name": "Conduct a full system scan",
+            "description": "Run a full system scan to detect any remaining threats.",
+            "on_completion": "loop--76b30954-723f-49be-9f4d-53420aeb4221",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--10c252d9-5aa6-46c3-bb20-df2335159cf8",
+            "loop": "until no_virus_detected"
+        },
+        "end--f9e2c3d9-8199-47b2-bc17-70fa013d80ca": {
+            "type": "end"
+        },
+        "loop--76b30954-723f-49be-9f4d-53420aeb4221": {
+            "name": "Review and update firewall rules",
+            "description": "Update firewall rules if necessary.",
+            "on_completion": "end--f9e2c3d9-8199-47b2-bc17-70fa013d80ca",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --reload"
+                }
+            ],
+            "agent": "organization--8666a2ca-ccfc-4d97-9a69-b96b5128e40d",
+            "condition": "firewall_update_needed"
+        }
+    },
+    "agent_definitions": {
+        "organization--8666a2ca-ccfc-4d97-9a69-b96b5128e40d": {
+            "type": "organization",
+            "name": "SecurityOrganizationABC"
+        },
+        "organization--86672574-eb92-4c57-b248-41a9473395dc": {
+            "type": "organization",
+            "name": "SecurityOrganizationDEF"
+        },
+        "organization--10c252d9-5aa6-46c3-bb20-df2335159cf8": {
+            "type": "organization",
+            "name": "SecurityOrganizationXYZ"
+        }
+    }
+}

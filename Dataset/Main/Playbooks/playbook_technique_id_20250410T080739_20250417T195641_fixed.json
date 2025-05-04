@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2d7c8b4-ea4d-4e2f-a827-91f9601e7e94",
+    "name": "Mitigation Playbook for Unauthorized Access via Valid Accounts",
+    "description": "This playbook outlines steps to mitigate the incident where an attacker gained unauthorized access using valid credentials.",
+    "created_by": "identity--f4430e7c-023f-4da5-b73b-5bb8957d7f74",
+    "created": "2023-10-15T16:00:00Z",
+    "modified": "2023-10-15T16:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--03b97759-e76c-4350-a7af-16ab25c7ef41",
+    "workflow": {
+        "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b": {
+            "name": "Revoke Compromised Credentials",
+            "description": "Lock user account with compromised credentials.",
+            "on_completion": "loop--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L suspicious_user"
+                }
+            ],
+            "agent": "organization--8380a89a-3e9c-4c70-885d-2720b44535fe"
+        },
+        "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129": {
+            "name": "Update Firewall Rules",
+            "description": "Block suspicious IP address.",
+            "on_completion": "end--08491120-4477-4887-9877-bb77cc88ddee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 203.0.113.1 -j DROP"
+                }
+            ],
+            "agent": "organization--b02d4718-a990-4cab-96a0-ff77d2ee7483"
+        },
+        "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2": {
+            "name": "Check All Servers for Backdoors",
+            "description": "Run rootkit hunter to check for potential backdoors.",
+            "on_completion": "end--08491120-4477-4887-9877-bb77cc88ddee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --checkall"
+                }
+            ],
+            "agent": "organization--b02d4718-a990-4cab-96a0-ff77d2ee7483"
+        },
+        "loop--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb": {
+            "name": "Conduct Network-Wide Scan for Unauthorized Access",
+            "description": "Iteratively scan the network until no unauthorized access is detected.",
+            "type": "while-condition",
+            "condition": "scan_results != 'clean'",
+            "on_true": "action--3ad25287-9884-46c2-b449-291178372dc5",
+            "on_completion": "decision--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1"
+        },
+        "decision--3c4ed567-49a1-4dcd-9fcb-5d77a26c89e1": {
+            "name": "Monitor Network for Irregular Activity",
+            "description": "Monitor network connections for irregular activities and alert if necessary.",
+            "type": "if-condition",
+            "condition": "total_connections > threshold",
+            "on_true": "action--472da702-23f2-4768-923b-e67f25210ee8",
+            "on_false": "end--08491120-4477-4887-9877-bb77cc88ddee"
+        },
+        "end--08491120-4477-4887-9877-bb77cc88ddee": {
+            "type": "end"
+        },
+        "start--03b97759-e76c-4350-a7af-16ab25c7ef41": {
+            "on_completion": "parallel--c66137b0-525d-4fb3-b594-5e2a06507549",
+            "type": "start"
+        },
+        "parallel--c66137b0-525d-4fb3-b594-5e2a06507549": {
+            "name": "Execute Parallel Mitigations",
+            "description": "Perform multiple mitigation steps simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6c4f1201-c7d2-45f6-802f-3f58f0f9796b",
+                "action--d1f6a2e5-3544-4a5a-893b-72e8b67b0129",
+                "action--9194f6b4-e5f8-4105-a1a3-d8c8c3fbeef2"
+            ]
+        },
+        "action--3ad25287-9884-46c2-b449-291178372dc5": {
+            "name": "Network-Wide Scan",
+            "description": "Scan the network to identify unauthorized access points.",
+            "on_completion": "loop--7b924274-bf9c-4a3c-bb88-3548cf9b3fcb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -Pn 192.168.0.0/24"
+                }
+            ],
+            "agent": "organization--8380a89a-3e9c-4c70-885d-2720b44535fe"
+        },
+        "action--472da702-23f2-4768-923b-e67f25210ee8": {
+            "name": "Alert Administrator",
+            "description": "Alert the admin about irregular network activity.",
+            "on_completion": "end--08491120-4477-4887-9877-bb77cc88ddee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Irregular network activity detected' | mail -s 'Alert' admin@example.com"
+                }
+            ],
+            "agent": "organization--8380a89a-3e9c-4c70-885d-2720b44535fe"
+        }
+    },
+    "agent_definitions": {
+        "organization--8380a89a-3e9c-4c70-885d-2720b44535fe": {
+            "type": "organization",
+            "name": "PrimaryOrganization"
+        },
+        "organization--b02d4718-a990-4cab-96a0-ff77d2ee7483": {
+            "type": "organization",
+            "name": "SecondaryOrganization"
+        }
+    }
+}

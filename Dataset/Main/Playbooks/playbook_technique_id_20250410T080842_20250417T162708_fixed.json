@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a78b2198-7f8d-4bda-b93d-704c7d15f0d5",
+    "name": "Response Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident involving malicious PowerShell scripts, targeted towards isolating affected systems and remediating any compromise.",
+    "created_by": "identity--070fc999-6310-4bc9-8e0b-98357a42f28a",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--c8083789-68e5-4d18-8976-806d99f36a92",
+    "workflow": {
+        "start--c8083789-68e5-4d18-8976-806d99f36a92": {
+            "on_completion": "action--fe2f7044-8a9d-4711-bd2b-c84748141867",
+            "type": "start"
+        },
+        "action--e123fffe-3b8a-4d66-ab96-728f5f612c2e": {
+            "name": "Isolate affected machines from the network",
+            "description": "Isolate affected machines to prevent further unauthorized access.",
+            "on_completion": "while-condition--8d134395-4bc0-4b69-89c5-17a62acdff0a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "networkctl isolate host-45 host-12"
+                }
+            ],
+            "agent": "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a"
+        },
+        "while-condition--8d134395-4bc0-4b69-89c5-17a62acdff0a": {
+            "name": "Loop through affected hosts",
+            "description": "Continue the remediation process for every isolated host.",
+            "on_completion": "if-condition--123452ee-47e0-4da0-8c13-fd873e407e36",
+            "type": "while-condition",
+            "condition": "Has more affected hosts to process",
+            "on_true": "action--4af3c0b8-a9f4-45be-8eb9-d083aabcdb93",
+            "on_false": "action--67fa286e-3c8c-4dd6-90e2-ea7ae9e5e919"
+        },
+        "action--4af3c0b8-a9f4-45be-8eb9-d083aabcdb93": {
+            "name": "Revoke elevated privileges",
+            "description": "Revoke all elevated privileges granted during the incident.",
+            "on_completion": "action--c84f116e-c24a-432a-9eae-4fcefca41990",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L attackeruser"
+                }
+            ],
+            "agent": "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a",
+            "step_variables": {
+                "attackeruser": {
+                    "type": "string",
+                    "description": "The username of the compromised account",
+                    "value": "username of compromised account",
+                    "constant": false
+                }
+            }
+        },
+        "action--67fa286e-3c8c-4dd6-90e2-ea7ae9e5e919": {
+            "name": "Conduct a full malware scan",
+            "description": "Perform a full malware scan on isolated hosts to identify malicious software.",
+            "on_completion": "action--3b5f1624-7e60-42bd-8b7f-239c6f30f64e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malwarescan --full /"
+                }
+            ],
+            "agent": "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a"
+        },
+        "action--3b5f1624-7e60-42bd-8b7f-239c6f30f64e": {
+            "name": "Patch vulnerable systems",
+            "description": "Update and patch vulnerable systems to prevent future incidents.",
+            "on_completion": "end--fa53b2c0-0c80-4c5f-b99f-2c06b626d4e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a",
+            "loop": "Repeat for each affected system"
+        },
+        "end--fa53b2c0-0c80-4c5f-b99f-2c06b626d4e1": {
+            "type": "end"
+        },
+        "action--fe2f7044-8a9d-4711-bd2b-c84748141867": {
+            "name": "Kill all running PowerShell processes",
+            "description": "Terminate any running PowerShell processes to prevent further execution.",
+            "on_completion": "action--e123fffe-3b8a-4d66-ab96-728f5f612c2e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a"
+        }
+    },
+    "agent_definitions": {
+        "organization--5f0ceb8c-6deb-4742-a049-3f75e65d787a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

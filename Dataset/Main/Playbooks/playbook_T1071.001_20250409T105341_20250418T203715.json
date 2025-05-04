@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2c1d14b-dae9-4c0b-9c6f-e1c8f4a461f7",
+    "name": "Mitigation Playbook for Web Protocol Exploitation and Data Exfiltration",
+    "description": "This playbook addresses an incident where an attacker exploited web protocols to communicate with a command and control server, leading to data exfiltration.",
+    "created_by": "identity--XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d3e62c65-4c8f-4bde-9a78-e1040f0a30f9",
+    "workflow": {
+        "start--d3e62c65-4c8f-4bde-9a78-e1040f0a30f9": {
+            "on_completion": "decision--b9e62a6f-8e87-4c35-9bcf-d8c8b68deb1b",
+            "type": "start"
+        },
+        "decision--b9e62a6f-8e87-4c35-9bcf-d8c8b68deb1b": {
+            "name": "Check for suspicious IP",
+            "type": "if-condition",
+            "condition": "suspicious_ip_detected == true",
+            "on_true": "action--f897c7e9-ee1e-49d4-a70e-63e65c856178",
+            "on_false": "action--2b3b8d9b-6e3b-49de-aebc-f1cdd513c450"
+        },
+        "action--f897c7e9-ee1e-49d4-a70e-63e65c856178": {
+            "name": "Block outgoing traffic to suspicious external IPs",
+            "on_completion": "action--2b3b8d9b-6e3b-49de-aebc-f1cdd513c450",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--2b3b8d9b-6e3b-49de-aebc-f1cdd513c450": {
+            "name": "Kill malicious process if data exfiltration is detected",
+            "on_completion": "loop--e46976bc-aa21-4fc0-a5cb-417a040f0f40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--e46976bc-aa21-4fc0-a5cb-417a040f0f40": {
+            "name": "Scan affected host for malware",
+            "description": "Perform a malware scan on the affected host until clean.",
+            "on_true": "action--e46976bc-aa21-4fc0-a5cb-417a040f0f40",
+            "condition": "scan_result != 'clean'",
+            "type": "while-condition",
+            "next_steps": [
+                "action--e46976bc-aa21-4fc0-a5cb-417a040f0f40"
+            ]
+        },
+        "action--e46976bc-aa21-4fc0-a5cb-417a040f0f40": {
+            "name": "Scan for Malware",
+            "on_completion": "loop--e46976bc-aa21-4fc0-a5cb-417a040f0f40",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan host-34"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan.",
+                    "value": "not_scanned",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e169762d-5cf6-404a-a1bc-c7cabecee508": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

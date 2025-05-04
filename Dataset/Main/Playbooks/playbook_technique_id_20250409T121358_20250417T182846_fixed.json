@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f68417fe-5152-4c66-9d69-ddbe57bafc76",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed suspicious scripts and deployed malware across multiple hosts using command interpreters.",
+    "created_by": "identity--858594c5-4e4f-4b3d-85d4-9b41d6ca4043",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--4f98cad4-2a32-4f12-a475-2e5b32b10cc4",
+    "workflow": {
+        "start--4f98cad4-2a32-4f12-a475-2e5b32b10cc4": {
+            "on_completion": "parallel--f8231b5f-e263-4a57-b8ca-60d1e0f92b58",
+            "type": "start"
+        },
+        "parallel--f8231b5f-e263-4a57-b8ca-60d1e0f92b58": {
+            "name": "Initiate Mitigation Steps",
+            "description": "Execute mitigation steps parallelly.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b6e043e5-14f2-403d-92bf-75a6f984a1b3",
+                "action--3c54f4c9-9ddb-4b14-9fe3-5dbac4f97e6b",
+                "action--c0f9fb49-d7f3-4943-932c-3d514c337b78",
+                "loop--5e8c98c2-e5af-4c7e-b814-f2e03b418cd2"
+            ]
+        },
+        "action--b6e043e5-14f2-403d-92bf-75a6f984a1b3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes running.",
+            "on_completion": "action--3c54f4c9-9ddb-4b14-9fe3-5dbac4f97e6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--027cebd2-a961-4bdb-a17e-df174def08a9"
+        },
+        "action--3c54f4c9-9ddb-4b14-9fe3-5dbac4f97e6b": {
+            "name": "Remove dropped files",
+            "description": "Delete any malicious files dropped by the attacker.",
+            "on_completion": "action--c0f9fb49-d7f3-4943-932c-3d514c337b78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_file.*' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--027cebd2-a961-4bdb-a17e-df174def08a9"
+        },
+        "action--c0f9fb49-d7f3-4943-932c-3d514c337b78": {
+            "name": "Block malicious IP address",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "loop--5e8c98c2-e5af-4c7e-b814-f2e03b418cd2",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--027cebd2-a961-4bdb-a17e-df174def08a9",
+            "condition": "if outbound connection detected"
+        },
+        "loop--5e8c98c2-e5af-4c7e-b814-f2e03b418cd2": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate each affected host to prevent further spread of malware.",
+            "type": "while-condition",
+            "condition": "hosts_left > 0",
+            "on_true": "action--f51c1ebb-2e7a-41d5-b86c-eb4539c248a1",
+            "on_false": "end--c3f123fb-1234-5678-90ab-cdef12345678"
+        },
+        "end--c3f123fb-1234-5678-90ab-cdef12345678": {
+            "type": "end"
+        },
+        "action--f51c1ebb-2e7a-41d5-b86c-eb4539c248a1": {
+            "name": "Isolate Host",
+            "description": "Take down the specified host.",
+            "on_completion": "loop--5e8c98c2-e5af-4c7e-b814-f2e03b418cd2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig ${host} down"
+                }
+            ],
+            "agent": "organization--027cebd2-a961-4bdb-a17e-df174def08a9",
+            "variables": {
+                "host": "host-01, host-02, host-03",
+                "hosts_left": "3"
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--027cebd2-a961-4bdb-a17e-df174def08a9": {
+            "type": "organization",
+            "name": "XYZ Corp"
+        }
+    }
+}

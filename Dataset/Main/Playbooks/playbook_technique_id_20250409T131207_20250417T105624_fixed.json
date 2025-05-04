@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f36c6421-0a78-4db7-84eb-5e7465bc8b40",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed commands through a compromised host to gain unauthorized access to sensitive files and to escalate privileges.",
+    "created_by": "identity--f33bb314-3bdf-48f5-bb06-c4b6efbb6684",
+    "created": "2025-04-12T08:30:00.000Z",
+    "modified": "2025-04-12T08:45:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c7df0c27-af7f-4aad-bb74-69c1d28ab524",
+    "workflow": {
+        "start--c7df0c27-af7f-4aad-bb74-69c1d28ab524": {
+            "on_completion": "action--4ab1f507-1f58-43f2-a586-48c96f062317",
+            "type": "start"
+        },
+        "action--4ab1f507-1f58-43f2-a586-48c96f062317": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes running on the compromised host.",
+            "on_completion": "parallel--734f0e16-a2b3-41f8-aa24-7b367d376272",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--f5eb3007-3273-4ae5-b4c4-f73cb498b546"
+        },
+        "action--d7e74a57-5f6b-49b5-a222-b510f19aa7f7": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to detect and remove malware.",
+            "on_completion": "end--e3c2e0a7-9fe0-4ae5-8d40-54e3a043093b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--f5eb3007-3273-4ae5-b4c4-f73cb498b546"
+        },
+        "while-condition--af0e4e8e-0e8b-4187-a55a-518ab7c4e378": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Loop to monitor network traffic until no anomalies are detected.",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--457c76d4-963e-4f76-a6b1-d6dd6c5891be",
+            "on_false": "end--e3c2e0a7-9fe0-4ae5-8d40-54e3a043093b"
+        },
+        "action--457c76d4-963e-4f76-a6b1-d6dd6c5891be": {
+            "name": "Monitor network traffic",
+            "description": "Capture network traffic to identify suspicious patterns.",
+            "on_completion": "if-condition--af0e4e8e-0e8b-4187-a55a-518ab7c4e378",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'tcp port 80 or tcp port 443'"
+                }
+            ],
+            "agent": "organization--f5eb3007-3273-4ae5-b4c4-f73cb498b546"
+        },
+        "if-condition--af0e4e8e-0e8b-4187-a55a-518ab7c4e378": {
+            "name": "Check for anomalies",
+            "type": "if-condition",
+            "condition": "check_for_anomalies()",
+            "on_true": "while-condition--af0e4e8e-0e8b-4187-a55a-518ab7c4e378",
+            "on_false": "end--e3c2e0a7-9fe0-4ae5-8d40-54e3a043093b"
+        },
+        "parallel--734f0e16-a2b3-41f8-aa24-7b367d376272": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Run the full system scan and monitor network traffic simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d7e74a57-5f6b-49b5-a222-b510f19aa7f7",
+                "while-condition--af0e4e8e-0e8b-4187-a55a-518ab7c4e378"
+            ]
+        },
+        "end--e3c2e0a7-9fe0-4ae5-8d40-54e3a043093b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f5eb3007-3273-4ae5-b4c4-f73cb498b546": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

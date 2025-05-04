@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3e1d4e8b-0621-4567-9f8b-2443a5e79d8f",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Abuse",
+    "description": "This playbook addresses incidents where an attacker exploited a scripting interpreter to execute malicious code leading to data exfiltration.",
+    "created_by": "identity--abc12345-6789-def0-1234-56789abcdef0",
+    "created": "2023-10-12T14:30:00Z",
+    "modified": "2023-10-12T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-1234-5678-1234-567812345678",
+    "workflow": {
+        "start--12345678-1234-5678-1234-567812345678": {
+            "on_completion": "action--d4c63f8c-b48c-4c92-8237-36c2b0fbe3a1",
+            "type": "start"
+        },
+        "action--d4c63f8c-b48c-4c92-8237-36c2b0fbe3a1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious scripts that are currently running.",
+            "on_completion": "action--fbd5e231-7c06-4388-a4bb-3b426a169a29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--fbd5e231-7c06-4388-a4bb-3b426a169a29": {
+            "name": "Isolate infected host",
+            "description": "Block all incoming connections to the infected host.",
+            "on_completion": "parallel--2a3d3628-6bf5-4c2d-87b4-0ddc6c3f9abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = host-22 ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--2a3d3628-6bf5-4c2d-87b4-0ddc6c3f9abc": {
+            "name": "Mitigation actions",
+            "description": "Run multiple mitigation actions simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885",
+                "action--752e5f0d-e1da-4ca2-8985-4cde2f993846",
+                "action--2450aec6-dfd5-4825-af60-708e2852da57"
+            ]
+        },
+        "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885": {
+            "name": "Conduct system scan",
+            "description": "Perform a comprehensive scan of the system for threats.",
+            "on_completion": "loop--e5c106a1-dfa1-4ca0-ae05-e0fa3693e809",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e5c106a1-dfa1-4ca0-ae05-e0fa3693e809": {
+            "name": "Repeat system scan until clean",
+            "description": "Continue scanning the system until it is clean.",
+            "on_true": "action--a7da4d7e-7267-4deb-a8cb-b3c21b1dc885",
+            "on_false": "end--a4f15d7a-2b61-4fd4-8c28-b0c6836e6789",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'"
+        },
+        "action--752e5f0d-e1da-4ca2-8985-4cde2f993846": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete any unauthorized shell scripts found on the system.",
+            "on_completion": "end--a4f15d7a-2b61-4fd4-8c28-b0c6836e6789",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /path/to/scripts -name '*.sh' -delete"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--2450aec6-dfd5-4825-af60-708e2852da57": {
+            "name": "Update firewall rules",
+            "description": "Block outgoing connections on HTTP port to prevent data exfiltration.",
+            "on_completion": "end--a4f15d7a-2b61-4fd4-8c28-b0c6836e6789",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4f15d7a-2b61-4fd4-8c28-b0c6836e6789": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

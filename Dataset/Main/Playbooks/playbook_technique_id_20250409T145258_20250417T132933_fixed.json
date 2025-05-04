@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e09e9755-3e93-4d97-a234-949cd1e8e90d",
+    "name": "Application Layer Protocol Exploit Mitigation Playbook",
+    "description": "This playbook outlines the steps to mitigate an incident where an attacker exploited an application layer protocol to exfiltrate sensitive data from the corporate network.",
+    "created_by": "identity--c89ef04c-62d6-4013-9af4-b8b8efce49b0",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d1e87e5b-3c71-4d0b-b700-e05f82e78548",
+    "workflow": {
+        "start--d1e87e5b-3c71-4d0b-b700-e05f82e78548": {
+            "on_completion": "action--5e89f8d6-e0d1-4e8a-b2e8-a3f0b5df845c",
+            "type": "start"
+        },
+        "action--5e89f8d6-e0d1-4e8a-b2e8-a3f0b5df845c": {
+            "name": "Block malicious outbound traffic",
+            "description": "Block traffic to the identified malicious external IP address.",
+            "on_completion": "parallel--0c3ed3bb-7336-4c7a-8730-dc5f6d26c9be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--e670053f-7c66-48a1-b0b2-2106a6865062"
+        },
+        "action--4cad5c51-e4fc-403f-bbaf-7e94cc51b09e": {
+            "name": "Set up alerting for abnormal outbound traffic patterns",
+            "description": "Configure alerts for when outbound traffic exceeds specified thresholds.",
+            "on_completion": "action--f21e8746-05f5-4328-b0b2-726fb8f99641",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "configure-alerts.py --traffic --threshold 100MB"
+                }
+            ],
+            "agent": "organization--e670053f-7c66-48a1-b0b2-2106a6865062"
+        },
+        "action--f21e8746-05f5-4328-b0b2-726fb8f99641": {
+            "name": "Run detailed network scan",
+            "description": "Conduct a network scan to identify any remaining vulnerabilities or threats.",
+            "on_completion": "while-condition--8c315de5-4d90-41db-8f67-c2d12c3f2321",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP <network_range>"
+                }
+            ],
+            "agent": "organization--e670053f-7c66-48a1-b0b2-2106a6865062"
+        },
+        "while-condition--8c315de5-4d90-41db-8f67-c2d12c3f2321": {
+            "name": "Scan Loop Condition",
+            "description": "Repeat the network scan until no threats are detected.",
+            "condition": "scan_is_clean == False",
+            "on_true": "action--f21e8746-05f5-4328-b0b2-726fb8f99641",
+            "on_false": "end--eacdaec1-cb07-4b3d-bb80-e7fcf45472e7",
+            "type": "if-condition"
+        },
+        "parallel--0c3ed3bb-7336-4c7a-8730-dc5f6d26c9be": {
+            "name": "Post-Mitigation Tasks",
+            "description": "Execute follow-up actions in parallel after blocking malicious traffic.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4cad5c51-e4fc-403f-bbaf-7e94cc51b09e",
+                "action--f21e8746-05f5-4328-b0b2-726fb8f99641"
+            ]
+        },
+        "end--eacdaec1-cb07-4b3d-bb80-e7fcf45472e7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e670053f-7c66-48a1-b0b2-2106a6865062": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

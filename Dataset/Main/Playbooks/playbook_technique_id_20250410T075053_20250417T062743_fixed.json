@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e85f0d12-9a1e-4c7c-b89c-bb65a5ee79c1",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker used a PowerShell script to execute unauthorized commands. Immediate mitigation steps are launched to stop the attack and prevent further exploitation.",
+    "created_by": "identity--cd20feba-71e9-4c87-a232-9194c9d1dd62",
+    "created": "2023-10-25T14:21:00Z",
+    "modified": "2023-10-25T14:21:00Z",
+    "revoked": false,
+    "workflow_start": "start--f5c21c68-ca9e-4ccc-8549-b793616a2f31",
+    "workflow": {
+        "start--f5c21c68-ca9e-4ccc-8549-b793616a2f31": {
+            "on_completion": "if-condition--e6b2b3e7-70c5-4eed-bf20-ab4d977e8ac9",
+            "type": "start"
+        },
+        "if-condition--e6b2b3e7-70c5-4eed-bf20-ab4d977e8ac9": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell.exe')",
+            "on_true": "action--760bef7f-ec11-4121-9ea6-982fe0650fd3",
+            "on_false": "action--b2d5b64d-3053-48f7-9009-f5eeb4d662be"
+        },
+        "action--760bef7f-ec11-4121-9ea6-982fe0650fd3": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate the ongoing PowerShell script to stop further actions by the attacker.",
+            "on_completion": "action--b2d5b64d-3053-48f7-9009-f5eeb4d662be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--83313e27-0449-499c-9e3a-8ac5c0dc57ce"
+        },
+        "action--b2d5b64d-3053-48f7-9009-f5eeb4d662be": {
+            "name": "Delete the suspicious file from temp directory",
+            "description": "Remove the suspicious executable dropped by the script to prevent potential harm.",
+            "on_completion": "loop--f1e09a84-0e1f-42a5-bf59-7f7e7305b3ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del C:\\Temp\\suspicious.exe"
+                }
+            ],
+            "agent": "organization--83313e27-0449-499c-9e3a-8ac5c0dc57ce"
+        },
+        "loop--f1e09a84-0e1f-42a5-bf59-7f7e7305b3ef": {
+            "name": "Block outbound connections to malicious IPs",
+            "description": "Block all outbound connections to the identified malicious IPs.",
+            "type": "while-condition",
+            "looping_variable": "ip",
+            "condition": "remaining_malicious_ips",
+            "on_continue": "action--f1e09a84-0e1f-42a5-bf59-7f7e7305b3ef",
+            "next_steps": []
+        },
+        "action--890ecbc9-c568-4b3e-9c3a-028b1313e460": {
+            "name": "Scan the system for additional threats",
+            "description": "Perform a full scan of the system for potential threats left undetected.",
+            "on_completion": "action--b10b77d7-2d87-46d5-b6ea-bbb66599a77f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--83313e27-0449-499c-9e3a-8ac5c0dc57ce"
+        },
+        "action--b10b77d7-2d87-46d5-b6ea-bbb66599a77f": {
+            "name": "Monitor for re-execution attempts",
+            "description": "Set up monitoring for any further attempts to execute commands",
+            "on_completion": "end--52c1d539-a41c-4836-8237-7179e4049d04",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "setup-intrusion-detection --monitor-command-execution"
+                }
+            ],
+            "agent": "organization--83313e27-0449-499c-9e3a-8ac5c0dc57ce"
+        },
+        "end--52c1d539-a41c-4836-8237-7179e4049d04": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--83313e27-0449-499c-9e3a-8ac5c0dc57ce": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

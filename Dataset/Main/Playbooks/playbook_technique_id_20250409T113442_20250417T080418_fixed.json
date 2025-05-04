@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c42db394-e75a-4e62-bc6d-97a7f023a6a2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed commands remotely using a legitimate user account, leading to unauthorized access and execution of suspicious scripts.",
+    "created_by": "identity--3b4cd829-f20c-42c8-a4c1-e068ab94f8a5",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d9f08b63-69b0-4973-a9be-ecb62cf02bcc",
+    "workflow": {
+        "start--d9f08b63-69b0-4973-a9be-ecb62cf02bcc": {
+            "on_completion": "action--10067c5a-9538-4294-9585-97f27709731a",
+            "type": "start"
+        },
+        "end--d1e0d03b-30f2-48af-af53-b902a1edbcef": {
+            "type": "end"
+        },
+        "action--10067c5a-9538-4294-9585-97f27709731a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the suspicious script.",
+            "on_completion": "if-condition--53da862a-fbc0-4d90-baff-3d552bc77fa0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f suspicious_script.sh)"
+                }
+            ],
+            "agent": "organization--d1008c0d-593c-4448-8ce6-54b022ac58d5"
+        },
+        "if-condition--53da862a-fbc0-4d90-baff-3d552bc77fa0": {
+            "name": "Check if dropped files exist",
+            "type": "if-condition",
+            "condition": "if [ -f /tmp/suspicious_payload ]; then",
+            "on_true": "action--96d29546-8c64-467c-8dcb-33a0cf9c5ec8",
+            "on_false": "action--c457e2e0-3c8e-4e53-9dfe-07099f5af7ae"
+        },
+        "action--96d29546-8c64-467c-8dcb-33a0cf9c5ec8": {
+            "name": "Delete dropped files",
+            "description": "Remove the dropped malicious payload from the temp directory.",
+            "on_completion": "action--c457e2e0-3c8e-4e53-9dfe-07099f5af7ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious_payload"
+                }
+            ],
+            "agent": "organization--d1008c0d-593c-4448-8ce6-54b022ac58d5"
+        },
+        "action--c457e2e0-3c8e-4e53-9dfe-07099f5af7ae": {
+            "name": "Run system scan",
+            "description": "Perform a recursive virus scan on the user's home directory.",
+            "on_completion": "while-condition--5a365e3f-4d16-4209-8b46-4acddd3bc88c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user/"
+                }
+            ],
+            "agent": "organization--d1008c0d-593c-4448-8ce6-54b022ac58d5"
+        },
+        "while-condition--5a365e3f-4d16-4209-8b46-4acddd3bc88c": {
+            "name": "Check for infected files",
+            "description": "Repeat scanning while infected files are found.",
+            "on_true": "action--c457e2e0-3c8e-4e53-9dfe-07099f5af7ae",
+            "type": "while-condition",
+            "condition": "while [[ $(clamscan -r /home/user/ | grep 'Infected files') ]]; do"
+        }
+    },
+    "agent_definitions": {
+        "organization--d1008c0d-593c-4448-8ce6-54b022ac58d5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,138 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e2f3a4-b5c6-4d7e-a8d9-b70e8f6a7b8c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to harvest sensitive data, move laterally, and escalate privileges within the compromised environment.",
+    "created_by": "identity--45a1c2e0-ff99-473d-93f4-2fed9c961b3a",
+    "created": "2023-10-11T11:30:00Z",
+    "modified": "2023-10-11T11:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--942657b2-bdce-4dad-ba4b-df3e71e90fdb",
+    "workflow": {
+        "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8": {
+            "name": "Terminate Suspicious Script Processes",
+            "description": "Terminate all running processes that match suspicious script patterns.",
+            "on_completion": "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0"
+        },
+        "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb": {
+            "name": "Scan and Remove Malicious Files",
+            "description": "Scan the system for malicious files and remove them.",
+            "on_completion": "end--a5e01ec5-ac18-4bed-8274-5984127e4e8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*malicious*' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0"
+        },
+        "action--5e2f6875-139f-4d9a-909b-994ff48be6bf": {
+            "name": "Identify Affected Systems",
+            "description": "Perform a network scan to identify affected systems.",
+            "on_completion": "if-condition--3efbb62b-e532-49f1-b86f-10ad6367873f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network_scan_tool --infected"
+                }
+            ],
+            "agent": "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0",
+            "step_variables": {
+                "infected_hosts": {
+                    "type": "array",
+                    "description": "List of infected hosts identified by the scan.",
+                    "value": [],
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55": {
+            "name": "Revoke Escalated Privileges",
+            "description": "Revoke any escalated privileges detected during the attack.",
+            "on_completion": "loop--10361b1f-b16b-4730-a420-c29fd8dae7a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "revoke_permissions --user compromised_user"
+                }
+            ],
+            "agent": "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0"
+        },
+        "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb": {
+            "name": "Deploy Patch to Affected Hosts",
+            "description": "Deploy security patches to all infected systems.",
+            "on_completion": "end--a5e01ec5-ac18-4bed-8274-5984127e4e8f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "deploy_patch_tool --hosts ${infected_hosts}"
+                }
+            ],
+            "agent": "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0"
+        },
+        "start--942657b2-bdce-4dad-ba4b-df3e71e90fdb": {
+            "on_completion": "parallel--1e513c7f-a8c0-481f-b666-c18bba99ce57",
+            "type": "start",
+            "name": "Start",
+            "description": "Initiate the playbook workflow"
+        },
+        "parallel--1e513c7f-a8c0-481f-b666-c18bba99ce57": {
+            "name": "Execute Parallel Actions",
+            "description": "Terminate script processes and identify affected systems concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8",
+                "action--5e2f6875-139f-4d9a-909b-994ff48be6bf"
+            ]
+        },
+        "if-condition--3efbb62b-e532-49f1-b86f-10ad6367873f": {
+            "name": "Check Escalated Privileges",
+            "description": "Decide whether to revoke escalated privileges.",
+            "type": "if-condition",
+            "condition": "escalated_privileges_detected",
+            "on_true": "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55",
+            "on_false": "loop--10361b1f-b16b-4730-a420-c29fd8dae7a3"
+        },
+        "loop--10361b1f-b16b-4730-a420-c29fd8dae7a3": {
+            "name": "Repeat Scan Until Clean",
+            "description": "Continue scanning and cleaning the system until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_not_clean",
+            "on_true": "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb",
+            "on_completion": "if-condition--5d378f69-d937-4d36-97fb-f4a78e05b98c"
+        },
+        "if-condition--5d378f69-d937-4d36-97fb-f4a78e05b98c": {
+            "name": "Check for Infected Hosts",
+            "description": "Determine whether there are infected hosts to deploy a patch.",
+            "type": "if-condition",
+            "condition": "infected_hosts not empty",
+            "on_true": "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb",
+            "on_false": "end--a5e01ec5-ac18-4bed-8274-5984127e4e8f"
+        },
+        "end--a5e01ec5-ac18-4bed-8274-5984127e4e8f": {
+            "type": "end",
+            "name": "End",
+            "description": "Conclude the playbook execution."
+        }
+    },
+    "agent_definitions": {
+        "organization--f788cb75-3f1f-45db-a7a8-9dc714c164e0": {
+            "type": "organization",
+            "name": "CyberSecurityTeam"
+        }
+    }
+}

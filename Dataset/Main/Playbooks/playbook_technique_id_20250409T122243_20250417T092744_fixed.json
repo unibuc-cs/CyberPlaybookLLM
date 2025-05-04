@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1f2d8c8-08d1-4c83-b5c1-ca0b2a236b94",
+    "name": "Playbook for Mitigating Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used command-line tools and scripts to gain unauthorized access and install a backdoor on the system.",
+    "created_by": "identity--ca7bec77-17f5-4e44-ae09-22f10975c778",
+    "created": "2023-10-23T12:00:00Z",
+    "modified": "2023-10-23T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--20f1bbdd-e4ab-444a-941e-4056563f3982",
+    "workflow": {
+        "action--e3c85e72-7e7c-4c6c-9d63-96a0e3cfa18f": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminating any running PowerShell processes that are suspected malicious.",
+            "on_completion": "action--735365dd-77b9-4d92-92ce-e82331ad0d53",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--ef2e5c96-b076-4c98-ba63-73c2f02abfdb"
+        },
+        "action--735365dd-77b9-4d92-92ce-e82331ad0d53": {
+            "name": "Remove dropped files from temp directory",
+            "description": "Cleaning up any leftover malicious files in the temp directory.",
+            "on_completion": "loop--b9f5edc4-952b-45c9-8b61-371891b626fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/*malicious*"
+                }
+            ],
+            "agent": "organization--ef2e5c96-b076-4c98-ba63-73c2f02abfdb"
+        },
+        "loop--b9f5edc4-952b-45c9-8b61-371891b626fa": {
+            "name": "Run antivirus scan on compromised host",
+            "description": "Performing a full antivirus scan to detect and remove any remaining threats.",
+            "on_completion": "end--cd3f9d95-b67e-4c2e-a67d-2c8a417285f5",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--b9f5edc4-952b-45c9-8b61-371891b626fa",
+            "on_false": "end--cd3f9d95-b67e-4c2e-a67d-2c8a417285f5"
+        },
+        "action--b9f5edc4-952b-45c9-8b61-371891b626fa": {
+            "name": "Execute Antivirus Scan",
+            "description": "Running the antivirus scan to identify any remaining threats.",
+            "on_completion": "if-condition--4265fa53-0b3e-43ef-9501-eec89463955e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan /path/to/scan --recursive"
+                }
+            ],
+            "agent": "organization--ef2e5c96-b076-4c98-ba63-73c2f02abfdb"
+        },
+        "end--cd3f9d95-b67e-4c2e-a67d-2c8a417285f5": {
+            "type": "end"
+        },
+        "start--20f1bbdd-e4ab-444a-941e-4056563f3982": {
+            "on_completion": "if-condition--25d12760-817a-4945-a1e7-c8004d08cf69",
+            "type": "start"
+        },
+        "if-condition--25d12760-817a-4945-a1e7-c8004d08cf69": {
+            "name": "Check for Malicious PowerShell Process",
+            "type": "if-condition",
+            "condition": "malicious_process_running == true",
+            "on_true": "action--e3c85e72-7e7c-4c6c-9d63-96a0e3cfa18f",
+            "on_false": "action--735365dd-77b9-4d92-92ce-e82331ad0d53"
+        },
+        "if-condition--4265fa53-0b3e-43ef-9501-eec89463955e": {
+            "name": "Check if threats are found",
+            "type": "if-condition",
+            "condition": "threats_found == false",
+            "on_true": "end--cd3f9d95-b67e-4c2e-a67d-2c8a417285f5",
+            "on_false": "loop--b9f5edc4-952b-45c9-8b61-371891b626fa"
+        }
+    },
+    "agent_definitions": {
+        "organization--ef2e5c96-b076-4c98-ba63-73c2f02abfdb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_running": {
+            "type": "boolean",
+            "description": "Indicates if a malicious PowerShell process is running",
+            "value": true,
+            "constant": false
+        },
+        "threats_found": {
+            "type": "boolean",
+            "description": "Indicates if threats have been found during the antivirus scan",
+            "value": true,
+            "constant": false
+        }
+    }
+}

@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9e32b3e7-e2cb-4041-900d-bab87c5d8859",
+    "name": "Playbook for Command and Scripting Interpreter Incident Mitigation",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute a script and create a backdoor for data exfiltration.",
+    "created_by": "identity--15ddd857-4dad-4017-908e-ebd5eb2ce3b0",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--546a3ed7-482e-486b-af45-6298bb67d1e8",
+    "workflow": {
+        "start--546a3ed7-482e-486b-af45-6298bb67d1e8": {
+            "on_completion": "action--aa7622c1-4c3e-40ae-8274-9c814450d2f2",
+            "type": "start"
+        },
+        "action--aa7622c1-4c3e-40ae-8274-9c814450d2f2": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious backdoor process.",
+            "on_completion": "action--e4b0c8d0-e6c4-48ab-a0fd-4b2e6042e2e6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--458c1d78-090c-4aea-989d-a95477deaf1c"
+        },
+        "action--e4b0c8d0-e6c4-48ab-a0fd-4b2e6042e2e6": {
+            "name": "Delete dropped backdoor file",
+            "description": "Remove the backdoor file created by the attacker.",
+            "on_completion": "while-condition--d8b07aa4-7eb1-4721-bc80-3a5ee7ace676",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--458c1d78-090c-4aea-989d-a95477deaf1c"
+        },
+        "while-condition--d8b07aa4-7eb1-4721-bc80-3a5ee7ace676": {
+            "name": "Run full system scan",
+            "description": "Run a full system scan to check for any residual threats.",
+            "on_completion": "if-condition--be2caa08-1c10-4b48-aef6-74fb7059479a",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--d8b07aa4-7eb1-4721-bc80-3a5ee7ace676",
+            "on_false": "action--c09b102e-9dc8-4433-a67d-9111c15af316"
+        },
+        "if-condition--be2caa08-1c10-4b48-aef6-74fb7059479a": {
+            "name": "Monitor network traffic",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--86a9207e-2e53-4a99-864c-dc8b29a06c56",
+            "on_false": "action--c09b102e-9dc8-4433-a67d-9111c15af316"
+        },
+        "action--c09b102e-9dc8-4433-a67d-9111c15af316": {
+            "name": "Notify incident response team",
+            "description": "Inform the incident response team about the attack.",
+            "on_completion": "end--1a82c3b8-5fb0-4d14-bfb5-e80f4c561c1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident reported: Command execution attack detected.' | mail -s 'Incident Alert' ir-team@example.com"
+                }
+            ],
+            "agent": "organization--458c1d78-090c-4aea-989d-a95477deaf1c"
+        },
+        "end--1a82c3b8-5fb0-4d14-bfb5-e80f4c561c1c": {
+            "type": "end"
+        },
+        "action--86a9207e-2e53-4a99-864c-dc8b29a06c56": {
+            "name": "Monitor Network Traffic",
+            "description": "Capture network traffic for analysis.",
+            "on_completion": "action--c09b102e-9dc8-4433-a67d-9111c15af316",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--458c1d78-090c-4aea-989d-a95477deaf1c"
+        }
+    },
+    "agent_definitions": {
+        "organization--458c1d78-090c-4aea-989d-a95477deaf1c": {
+            "type": "organization",
+            "name": "XYZ Incident Response Team"
+        }
+    }
+}

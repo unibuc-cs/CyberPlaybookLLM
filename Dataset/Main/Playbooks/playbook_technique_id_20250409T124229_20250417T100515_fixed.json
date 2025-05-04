@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b5c73329-7ef3-4c20-9c9b-0c6e5f79d5cd",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the organization's system through a malicious script, leading to unauthorized command execution and data exfiltration.",
+    "created_by": "identity--bb8131f0-3249-4479-8412-bc9dfd61db46",
+    "created": "2025-10-01T12:00:00Z",
+    "modified": "2025-10-01T12:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--3a05ee8b-3555-40f0-96bd-2717afe7534f",
+    "workflow": {
+        "action--b56c897d-6b64-487d-8c7c-3afab5ff150b": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the specific malicious PowerShell script process running on the system.",
+            "on_completion": "if-condition--cd09d22c-6abc-4c01-bb9f-d508a1e88c76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--40257184-06f3-49b3-970b-a26b64bf6f22"
+        },
+        "if-condition--cd09d22c-6abc-4c01-bb9f-d508a1e88c76": {
+            "name": "Check for Backdoor File Existence",
+            "type": "if-condition",
+            "condition": "[ -f /path/to/backdoor ]",
+            "on_true": "action--cd09d22c-6abc-4c01-bb9f-d508a1e88c76",
+            "on_false": "loop--fa8b68f5-9244-4a37-a76b-5c704e666f54"
+        },
+        "action--cd09d22c-6abc-4c01-bb9f-d508a1e88c76": {
+            "name": "Remove Backdoor File",
+            "description": "Delete the backdoor file created by the malicious script.",
+            "on_completion": "loop--fa8b68f5-9244-4a37-a76b-5c704e666f54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/backdoor"
+                }
+            ],
+            "agent": "organization--40257184-06f3-49b3-970b-a26b64bf6f22"
+        },
+        "loop--fa8b68f5-9244-4a37-a76b-5c704e666f54": {
+            "name": "Threat Scan Loop",
+            "description": "Continue scanning the system for additional threats until the scan status is clean.",
+            "on_completion": "if-condition--a80e58b4-28fd-4510-8d8c-e1d3b71358cc",
+            "type": "while-condition",
+            "condition": "${scan_status} != 'clean'",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the threat scan",
+                    "value": "initial",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_true": "action--fa8b68f5-9244-4a37-a76b-5c704e666f54",
+            "on_false": "end--0f1550d7-b1d4-4afa-a248-9e1ac5e2705f"
+        },
+        "action--fa8b68f5-9244-4a37-a76b-5c704e666f54": {
+            "name": "Run Threat Scanner",
+            "description": "Execute the threat scanner to detect any additional threats in the system.",
+            "on_completion": "loop--fa8b68f5-9244-4a37-a76b-5c704e666f54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_threat_scanner.sh"
+                }
+            ],
+            "agent": "organization--40257184-06f3-49b3-970b-a26b64bf6f22"
+        },
+        "start--3a05ee8b-3555-40f0-96bd-2717afe7534f": {
+            "on_completion": "action--b56c897d-6b64-487d-8c7c-3afab5ff150b",
+            "type": "start",
+            "name": "Initiate Mitigation Workflow",
+            "description": "Start the playbook workflow to mitigate the malicious script execution incident."
+        },
+        "end--0f1550d7-b1d4-4afa-a248-9e1ac5e2705f": {
+            "name": "Complete Mitigation Playbook",
+            "description": "The mitigation playbook has been completed.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--40257184-06f3-49b3-970b-a26b64bf6f22": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

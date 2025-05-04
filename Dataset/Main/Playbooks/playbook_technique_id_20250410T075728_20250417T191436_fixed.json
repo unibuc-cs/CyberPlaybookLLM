@@ -1,0 +1,123 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--06491c2a-99ef-499c-827b-dd8b9ce6321f",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident involving malicious PowerShell script execution for unauthorized access and lateral movement.",
+    "created_by": "identity--8ec28ef3-5790-47fd-ba38-2f6da824cbda",
+    "created": "2023-11-01T15:00:00Z",
+    "modified": "2023-11-01T15:00:00Z",
+    "workflow_start": "start--c57e12e9-4f1b-478f-9e33-2f7a4b9458a6",
+    "workflow": {
+        "start--c57e12e9-4f1b-478f-9e33-2f7a4b9458a6": {
+            "on_completion": "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b",
+            "type": "start"
+        },
+        "action--b4c0b7bc-9f20-414e-9ab0-e9b7e5849d7b": {
+            "name": "Terminate malicious PowerShell processes",
+            "description": "Terminate any running PowerShell processes.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process -Name 'powershell' | Stop-Process"
+                }
+            ],
+            "agent": "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed",
+            "on_completion": "parallel--348cfb42-27cf-4e4b-8b0a-d61a78b74d79"
+        },
+        "parallel--348cfb42-27cf-4e4b-8b0a-d61a78b74d79": {
+            "name": "Execute Network Mitigation and Credential Revocation Simultaneously",
+            "description": "Block network connections and revoke compromised credentials in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9",
+                "loop--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd"
+            ]
+        },
+        "action--2ae08a38-43d6-4f0f-854e-68f6d30ec2c9": {
+            "name": "Block network connections from host-34",
+            "description": "Block incoming connections from host-34 to prevent further data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.34 -j DROP"
+                }
+            ],
+            "agent": "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed",
+            "on_completion": "action--544e6ca1-fd90-4cd1-8e92-c17934c53392"
+        },
+        "loop--b627a8a9-5d35-4066-af3b-0b8bfa1bc6cd": {
+            "name": "Identify and revoke compromised credentials",
+            "description": "Loop through each user with unauthorized access and revoke their credentials.",
+            "type": "while-condition",
+            "condition": "compromised_user != ''",
+            "on_true": "action--25671ee5-72cf-49ff-b29c-22caf1770565",
+            "step_variables": {
+                "compromised_user": {
+                    "type": "string",
+                    "description": "The user with compromised credentials.",
+                    "value": "",
+                    "constant": false
+                }
+            }
+        },
+        "action--544e6ca1-fd90-4cd1-8e92-c17934c53392": {
+            "name": "Patch all systems with the latest security updates",
+            "description": "Update all systems to the latest security patches to prevent exploitation.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo yum update -y"
+                }
+            ],
+            "agent": "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed",
+            "on_completion": "decision--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77"
+        },
+        "decision--3fbbe128-b5bd-4e69-96ea-0076c7ab8c77": {
+            "name": "Assess Network Scan Results",
+            "description": "Determine if any residual threats remain after the network scan.",
+            "type": "if-condition",
+            "condition": "threat_indicators_found == true",
+            "on_true": "action--421e8941-a2ce-4c4f-b7ed-1e10563d873e",
+            "on_false": "end--0000e237-441e-4ebd-b236-78fcb77e6e68"
+        },
+        "end--0000e237-441e-4ebd-b236-78fcb77e6e68": {
+            "type": "end"
+        },
+        "action--25671ee5-72cf-49ff-b29c-22caf1770565": {
+            "name": "Revoke Compromised User",
+            "description": "Delete the compromised user to prevent further unauthorized access.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user /del"
+                }
+            ],
+            "agent": "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed",
+            "on_completion": "end--0000e237-441e-4ebd-b236-78fcb77e6e68"
+        },
+        "action--421e8941-a2ce-4c4f-b7ed-1e10563d873e": {
+            "name": "Conduct Full Network Scan for Residual Threats",
+            "description": "Perform a thorough network scan to detect any remaining threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -T4 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed",
+            "on_completion": "end--0000e237-441e-4ebd-b236-78fcb77e6e68"
+        }
+    },
+    "agent_definitions": {
+        "organization--62e4fef2-6342-4f59-bb10-a1b03f799bed": {
+            "type": "organization",
+            "name": "OrganizationXYZ"
+        }
+    }
+}

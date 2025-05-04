@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e06a4f56-b0f5-4aee-a2a9-8f2c7eaf89b1",
+    "name": "Mitigation Playbook for Web Server Script Execution Incident",
+    "description": "This playbook outlines the response actions for an incident involving unauthorized script execution on a web server.",
+    "created_by": "identity--f1f2b6ea-9ae7-4e34-9f11-d26a621f5bf8",
+    "created": "2025-04-10T08:05:19.000Z",
+    "modified": "2025-04-10T08:05:19.000Z",
+    "revoked": false,
+    "workflow_start": "start--c2d0f9db-3c42-42df-954f-15b8fdfd2d17",
+    "workflow": {
+        "start--c2d0f9db-3c42-42df-954f-15b8fdfd2d17": {
+            "on_completion": "action--43b988a3-9e55-4c01-9277-65c8d472950e",
+            "type": "start"
+        },
+        "action--43b988a3-9e55-4c01-9277-65c8d472950e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process that is running on the system.",
+            "on_completion": "action--b24f1bcb-b6c6-42d1-8931-73b69cd041e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[s]uspicious_binary' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--38f8dc79-04cc-4c52-bf83-58354c28eccc"
+        },
+        "action--b24f1bcb-b6c6-42d1-8931-73b69cd041e9": {
+            "name": "Scan system for additional malware",
+            "description": "Execute a scan on the system to identify other hidden malware.",
+            "on_completion": "while-condition--ec2d3e37-f036-4c66-8c0f-1c474df13eaf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /"
+                }
+            ],
+            "agent": "organization--38f8dc79-04cc-4c52-bf83-58354c28eccc"
+        },
+        "action--9f3ee9b2-47d3-4b98-a804-48c9e765d622": {
+            "name": "Change credentials for impacted accounts",
+            "description": "Update passwords for all identified compromised user accounts.",
+            "on_completion": "end--c7dc0927-7a68-4e8d-b197-f7930ae75ede",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--38f8dc79-04cc-4c52-bf83-58354c28eccc",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "All identified users whose credentials were compromised",
+                    "value": "username_list",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "while-condition--ec2d3e37-f036-4c66-8c0f-1c474df13eaf": {
+            "name": "Scan until clean",
+            "description": "Continue to scan the system until no malicious files are found.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--b24f1bcb-b6c6-42d1-8931-73b69cd041e9",
+            "on_false": "action--6238976b-318c-4cfa-9636-1b3f5ff99ba0"
+        },
+        "action--6238976b-318c-4cfa-9636-1b3f5ff99ba0": {
+            "name": "Perform forensic analysis on the infected host",
+            "description": "Capture outgoing traffic to analyze and verify the source of the attack.",
+            "on_completion": "action--9f3ee9b2-47d3-4b98-a804-48c9e765d622",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--38f8dc79-04cc-4c52-bf83-58354c28eccc"
+        },
+        "end--c7dc0927-7a68-4e8d-b197-f7930ae75ede": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--38f8dc79-04cc-4c52-bf83-58354c28eccc": {
+            "type": "organization",
+            "name": "ClientOrganization XYZ"
+        }
+    }
+}

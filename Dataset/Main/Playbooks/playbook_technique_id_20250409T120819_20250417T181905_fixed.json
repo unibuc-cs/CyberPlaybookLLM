@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3456f0b5-1234-4a5f-b8d6-9c2e30f4c456",
+    "name": "Playbook for Mitigating RDP Exploitation Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability in the RDP to gain unauthorized access and perform privilege escalations.",
+    "created_by": "identity--bcf123e7-315f-4bde-af28-8261ed4f0b9c",
+    "created": "2025-10-06T12:00:00Z",
+    "modified": "2025-10-06T12:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--94d2f46d-3bd1-460b-b557-08bcb17c6127",
+    "workflow": {
+        "parallel--7c9e6b49-bd6e-42bc-96aa-2e8eed5c8eb5": {
+            "name": "Mitigation Steps",
+            "description": "Start mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--33f6a229-e274-4c34-b3f9-f4d6d1ac1b9c",
+                "action--8c624f3b-480b-42e0-a0f4-656e52dfcb6d"
+            ]
+        },
+        "if-condition--33f6a229-e274-4c34-b3f9-f4d6d1ac1b9c": {
+            "name": "Restrict RDP Access Check",
+            "type": "if-condition",
+            "condition": "access_attempt_outside_allowed_range == true",
+            "on_true": "action--3b0f57e7-6705-4f9e-9d3c-bc4ebd7c1083",
+            "on_false": "action--8c624f3b-480b-42e0-a0f4-656e52dfcb6d"
+        },
+        "action--3b0f57e7-6705-4f9e-9d3c-bc4ebd7c1083": {
+            "name": "Restrict RDP access to specific IP addresses",
+            "description": "Add a firewall rule to restrict RDP access.",
+            "on_completion": "action--8c624f3b-480b-42e0-a0f4-656e52dfcb6d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='RDP Restriction' dir=in action=allow protocol=TCP localport=3389 remoteip='192.168.1.0/24'"
+                }
+            ],
+            "agent": "organization--82a1dd53-f6a1-4af5-8730-caa4bf2d23af"
+        },
+        "action--8c624f3b-480b-42e0-a0f4-656e52dfcb6d": {
+            "name": "Terminate unauthorized RDP sessions",
+            "description": "Terminate all unauthorized RDP sessions.",
+            "on_completion": "while-condition--e9b1c4d5-4faa-4c19-947d-f0f3c82ef9f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "query user | findstr /C:'*logged on*' | for /f 'tokens=2' %a in ('findstr *logged on*') do logoff %a"
+                }
+            ],
+            "agent": "organization--82a1dd53-f6a1-4af5-8730-caa4bf2d23af"
+        },
+        "while-condition--e9b1c4d5-4faa-4c19-947d-f0f3c82ef9f3": {
+            "name": "Check for Unauthorized RDP Sessions",
+            "description": "Repeat until no unauthorized sessions remain.",
+            "type": "while-condition",
+            "condition": "check_unauthorized_sessions_remaining() == true",
+            "on_true": "action--8c624f3b-480b-42e0-a0f4-656e52dfcb6d",
+            "on_false": "action--ed9f27b5-fc47-4536-93bb-2b63e7f08f11"
+        },
+        "action--ed9f27b5-fc47-4536-93bb-2b63e7f08f11": {
+            "name": "Perform vulnerability scan on affected host",
+            "description": "Scan the affected host for vulnerabilities.",
+            "on_completion": "end--d1a1e1b1-56b0-4c2e-abc2-f5e4a6c02b6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sV -p 3389 host-32"
+                }
+            ],
+            "agent": "organization--82a1dd53-f6a1-4af5-8730-caa4bf2d23af"
+        },
+        "end--d1a1e1b1-56b0-4c2e-abc2-f5e4a6c02b6f": {
+            "type": "end"
+        },
+        "start--94d2f46d-3bd1-460b-b557-08bcb17c6127": {
+            "on_completion": "parallel--7c9e6b49-bd6e-42bc-96aa-2e8eed5c8eb5",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--82a1dd53-f6a1-4af5-8730-caa4bf2d23af": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

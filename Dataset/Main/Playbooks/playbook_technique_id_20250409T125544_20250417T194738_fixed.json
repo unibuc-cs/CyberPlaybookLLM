@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2f89f974-645f-44ec-a1c7-f4fe0c9c43c3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability through a script to execute commands that exfiltrated sensitive data.",
+    "created_by": "identity--1d7057b7-c9a8-4e77-9b64-1af76bc86593",
+    "created": "2025-04-09T12:54:44.000Z",
+    "modified": "2025-04-09T12:54:44.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1c83945-f92f-4879-b8bc-d1153f9f358e",
+    "workflow": {
+        "start--b1c83945-f92f-4879-b8bc-d1153f9f358e": {
+            "on_completion": "action--b609b041-5c45-49ab-9a4c-bac5b058c603",
+            "type": "start"
+        },
+        "action--b609b041-5c45-49ab-9a4c-bac5b058c603": {
+            "name": "Kill malicious process",
+            "description": "Kill any running processes associated with the malicious payload.",
+            "on_completion": "if-condition--ee7342fc-0bbc-4689-bde7-1efaea6e36a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_payload'"
+                }
+            ],
+            "agent": "organization--0390267d-6276-412e-9fed-94660843f441"
+        },
+        "action--f7a63fe1-2c3f-44a8-9ae9-50090c1f1c2b": {
+            "name": "Remove malicious files",
+            "description": "Remove any remaining malicious files from the system.",
+            "on_completion": "while-condition--d9c1d2c8-c398-4718-b221-333f474169b4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--0390267d-6276-412e-9fed-94660843f441"
+        },
+        "action--1d329646-bd14-4f0b-bdf2-7af0cb2e0a2a": {
+            "name": "Run integrity check",
+            "description": "Execute an integrity check on the system.",
+            "on_completion": "end--e8747cfa-bf4e-45d6-bcf5-07960d536716",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./integrity_check.sh"
+                }
+            ],
+            "agent": "organization--0390267d-6276-412e-9fed-94660843f441",
+            "step_variables": {
+                "check_result": {
+                    "type": "string",
+                    "description": "Result of the integrity check command output.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--e8747cfa-bf4e-45d6-bcf5-07960d536716": {
+            "type": "end"
+        },
+        "if-condition--ee7342fc-0bbc-4689-bde7-1efaea6e36a3": {
+            "name": "Check if the malicious process exists",
+            "type": "if-condition",
+            "condition": "pgrep -f 'malicious_payload' > /dev/null",
+            "on_true": "action--f7a63fe1-2c3f-44a8-9ae9-50090c1f1c2b",
+            "on_false": "action--1d329646-bd14-4f0b-bdf2-7af0cb2e0a2a"
+        },
+        "while-condition--d9c1d2c8-c398-4718-b221-333f474169b4": {
+            "name": "Check for remaining malicious files",
+            "description": "Repeat until no malicious files remain.",
+            "on_true": "action--f7a63fe1-2c3f-44a8-9ae9-50090c1f1c2b",
+            "condition": "ls /tmp/malicious_payload > /dev/null",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--0390267d-6276-412e-9fed-94660843f441": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

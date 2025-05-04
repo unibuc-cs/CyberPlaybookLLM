@@ -1,0 +1,157 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "name": "Incident Response for Command and Scripting Interpreter Abuse",
+    "description": "This playbook addresses the detected execution of unauthorized scripts on a network.",
+    "created_by": "identity--example-identity",
+    "created": "2023-11-16T08:00:00Z",
+    "modified": "2023-11-16T08:00:00Z",
+    "workflow_start": "start--123e4567-e89b-12d3-a456-426614174000",
+    "workflow": {
+        "start--123e4567-e89b-12d3-a456-426614174000": {
+            "on_completion": "parallel--123e4567-e89b-12d3-a456-426614174001",
+            "type": "start"
+        },
+        "end--123e4567-e89b-12d3-a456-426614174006": {
+            "type": "end"
+        },
+        "parallel--123e4567-e89b-12d3-a456-426614174001": {
+            "name": "Kill Process and Revoke Access",
+            "description": "Simultaneously kill the malicious process and revoke access from unauthorized users.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1b671a64-40d5-491e-99b0-da01ff1f3341",
+                "action--3c6e0b8a-444b-4a3a-875b-fe51abfa5f9d"
+            ]
+        },
+        "action--1b671a64-40d5-491e-99b0-da01ff1f3341": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "if-condition--123e4567-e89b-12d3-a456-426614174002",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -9 -f malicious_script.py"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3c6e0b8a-444b-4a3a-875b-fe51abfa5f9d": {
+            "name": "Revoke Unauthorized User Access",
+            "description": "Remove all access of unauthorized user accounts.",
+            "on_completion": "end--123e4567-e89b-12d3-a456-426614174006",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r unauthorized_user"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--123e4567-e89b-12d3-a456-426614174002": {
+            "name": "Check for Suspicious IPs",
+            "description": "Determine if there are any suspicious IP addresses to block.",
+            "type": "if-condition",
+            "condition": "ip_suspicious_list.length > 0",
+            "on_true": "action--9e107d9d-372d-4d2b-8811-0c2f0e6a5b7c",
+            "on_false": "loop-while--123e4567-e89b-12d3-a456-426614174003"
+        },
+        "action--9e107d9d-372d-4d2b-8811-0c2f0e6a5b7c": {
+            "name": "Block Suspicious IP Addresses",
+            "description": "Block any IP addresses that are deemed suspicious.",
+            "on_completion": "loop-while--123e4567-e89b-12d3-a456-426614174003",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "loop-while--123e4567-e89b-12d3-a456-426614174003": {
+            "name": "Repeat System Scan",
+            "description": "Continuously scan the system for malware until clean.",
+            "type": "while-condition",
+            "condition": "scan_success == False",
+            "on_true": "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d",
+            "on_false": "if-condition--123e4567-e89b-12d3-a456-426614174004"
+        },
+        "action--2c7eea5a-9c93-4e5e-91f0-5c1d5f5e292d": {
+            "name": "Scan System for Malware",
+            "description": "Run a full system scan to detect and remove malware.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--ghi",
+            "step_variables": {
+                "scan_success": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan has not found any threats.",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--123e4567-e89b-12d3-a456-426614174004": {
+            "name": "Evaluate Scan Results",
+            "description": "Determine actions based on the scan outcome.",
+            "type": "if-condition",
+            "condition": "scan_success == True",
+            "on_true": "action--e4d909c2-218f-4c1b-b882-f1b8c28b00d8",
+            "on_false": "end--123e4567-e89b-12d3-a456-426614174006"
+        },
+        "action--e4d909c2-218f-4c1b-b882-f1b8c28b00d8": {
+            "name": "Restore from Clean Backup",
+            "description": "Perform a system restore from a clean backup if scan was clear.",
+            "on_completion": "action--b9c711c3-2f29-476f-b397-eb6bb2855d63",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -avh backups/clean/ /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b9c711c3-2f29-476f-b397-eb6bb2855d63": {
+            "name": "Notify Stakeholders",
+            "description": "Inform stakeholders that the security incident has been handled.",
+            "on_completion": "end--123e4567-e89b-12d3-a456-426614174006",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-email --to stakeholders@example.com --subject 'Incident Report' --body 'A security incident has been handled.'"
+                }
+            ],
+            "agent": "organization--xyz"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Agent ABC"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "Agent DEF"
+        },
+        "organization--ghi": {
+            "type": "organization",
+            "name": "Agent GHI"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "Agent XYZ"
+        }
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3a470c92-bcf2-4daa-b8b7-009d163d3fbd",
+    "name": "Automated Mitigation for Malicious Script Execution",
+    "description": "This playbook handles the incident where an attacker executed malicious scripts on the internal network. It includes steps to kill the malicious process, remove the script, and run a malware scan.",
+    "created_by": "identity--e1a2b0f9-b3c3-4e8f-b4cf-5ffb9b0c72e9",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2c101cc-b5e2-4bba-b7d5-aaeaf34a0308",
+    "workflow": {
+        "start--b2c101cc-b5e2-4bba-b7d5-aaeaf34a0308": {
+            "on_completion": "action--fbf37c28-b7cc-4a92-8a36-34c69e030b0f",
+            "type": "start"
+        },
+        "action--fbf37c28-b7cc-4a92-8a36-34c69e030b0f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process executing the script.",
+            "on_completion": "if-condition--1b0ae2fd-8e84-4db3-bfec-4e148d3f2c1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--1b0ae2fd-8e84-4db3-bfec-4e148d3f2c1c": {
+            "name": "Check if process was killed",
+            "type": "if-condition",
+            "condition": "process_killed == true",
+            "on_true": "action--f285e0df-e5cf-4788-8223-205d3a745965",
+            "on_false": "end--c0a9db6b-c03f-40e3-82e4-099c0d724a79"
+        },
+        "action--f285e0df-e5cf-4788-8223-205d3a745965": {
+            "name": "Remove downloaded malicious script",
+            "description": "Delete the downloaded malware script from the /tmp directory.",
+            "on_completion": "loop--cf82d76e-f84e-44e0-bec7-fa245f897f15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--cf82d76e-f84e-44e0-bec7-fa245f897f15": {
+            "name": "Run malware scan on affected host",
+            "description": "Perform a malware scan to ensure no threats remain.",
+            "on_completion": "if-condition--2cbe08a1-46bc-4968-b295-df7110cd7ff6",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--cf82d76e-f84e-44e0-bec7-fa245f897f15",
+            "on_false": "end--c0a9db6b-c03f-40e3-82e4-099c0d724a79"
+        },
+        "action--cf82d76e-f84e-44e0-bec7-fa245f897f15": {
+            "name": "Run malware scan",
+            "description": "Execute a scan of the /tmp directory to find remaining threats.",
+            "on_completion": "loop--cf82d76e-f84e-44e0-bec7-fa245f897f15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /tmp/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--c0a9db6b-c03f-40e3-82e4-099c0d724a79": {
+            "step_extensions": {
+                "": "extension-definition--d3f25f03-69c1-4b83-b220-eaf1cddf1e47"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

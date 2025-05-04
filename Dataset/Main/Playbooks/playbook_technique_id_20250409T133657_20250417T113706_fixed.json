@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c73e4b2a-b521-4bb8-8d65-feb51a059c71",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited vulnerabilities in the web server to execute malicious scripts, leading to unauthorized data access and potential data exfiltration.",
+    "created_by": "identity--f543c36d-b285-441c-9a96-347e14f20fbb",
+    "created": "2023-10-10T14:50:00Z",
+    "modified": "2023-10-10T14:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--abcdbf33-fc33-48c1-bb7d-905b3bbec5a8",
+    "workflow": {
+        "start--abcdbf33-fc33-48c1-bb7d-905b3bbec5a8": {
+            "on_completion": "action--75bc7d8a-98a9-44d3-8b0a-04e6e8e8fde5",
+            "type": "start"
+        },
+        "action--75bc7d8a-98a9-44d3-8b0a-04e6e8e8fde5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script executing on the server.",
+            "on_completion": "if-condition--ef6547d2-69e8-46b4-baa4-983bc152b924",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.php'"
+                }
+            ],
+            "agent": "organization--1a4b5c29-b651-4074-a841-c2806ed23b71"
+        },
+        "if-condition--ef6547d2-69e8-46b4-baa4-983bc152b924": {
+            "name": "Check for outgoing connections",
+            "condition": "outbound_connection_detected",
+            "on_true": "action--02f94725-bf74-4c0e-bf2d-d13c447f6a6b",
+            "on_false": "action--1f4adf68-9c57-4e6e-b123-4e8744c5eb15",
+            "type": "if-condition"
+        },
+        "action--02f94725-bf74-4c0e-bf2d-d13c447f6a6b": {
+            "name": "Block outgoing connection to malicious IP",
+            "description": "Prevent any further communication to the malicious IP address.",
+            "on_completion": "action--1f4adf68-9c57-4e6e-b123-4e8744c5eb15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--1a4b5c29-b651-4074-a841-c2806ed23b71"
+        },
+        "action--1f4adf68-9c57-4e6e-b123-4e8744c5eb15": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Run vulnerability scans until all vulnerabilities are resolved.",
+            "on_completion": "while-condition--ba213df5-4232-4379-a8b8-6ea949d88aeb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan.sh"
+                }
+            ],
+            "agent": "organization--1a4b5c29-b651-4074-a841-c2806ed23b71"
+        },
+        "while-condition--ba213df5-4232-4379-a8b8-6ea949d88aeb": {
+            "name": "Verify vulnerability status",
+            "description": "Repeat the vulnerability scan until no vulnerabilities are found.",
+            "condition": "vulnerabilities_found == true",
+            "on_true": "action--1f4adf68-9c57-4e6e-b123-4e8744c5eb15",
+            "on_false": "end--bc9f389e-f89c-462e-91a9-5e78961b7181",
+            "type": "while-condition"
+        },
+        "end--bc9f389e-f89c-462e-91a9-5e78961b7181": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1a4b5c29-b651-4074-a841-c2806ed23b71": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

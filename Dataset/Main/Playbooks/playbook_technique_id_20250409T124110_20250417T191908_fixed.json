@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--04c67df4-bf03-4511-9fb6-1037394ab777",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook handles the incident where an attacker exploited a command-line interface to execute a series of malicious scripts, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--e63c17cb-b4fa-4794-a1eb-1eaa5dad3b8d",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--0e18b974-a55c-4bca-8ae4-f5531b43dc7c",
+    "workflow": {
+        "action--df6a6c69-d6ca-4d9e-bcdb-b9f4994b0e91": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious scripts.",
+            "on_completion": "end--ee46f6a9-56be-40ff-b9b5-1b7b737be375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--d28cd32b-6af2-429a-92ea-5029772bfd42"
+        },
+        "if-condition--2a4e4e5a-4123-4e29-bd54-0d140f5f2bc1": {
+            "name": "Check if Backup Exists",
+            "type": "if-condition",
+            "condition": "backup_exists",
+            "on_true": "action--32dc3864-85e3-45f0-8092-4e6c94e6e829",
+            "on_false": "action--620db814-923b-41f6-b839-c1f5a5a1ad9f"
+        },
+        "action--620db814-923b-41f6-b839-c1f5a5a1ad9f": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Continuously scan for vulnerabilities until the system is clean.",
+            "on_completion": "end--ee46f6a9-56be-40ff-b9b5-1b7b737be375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while [ $(run_scan) -ne 0 ]; do run_scan; done"
+                }
+            ],
+            "agent": "organization--d28cd32b-6af2-429a-92ea-5029772bfd42"
+        },
+        "start--0e18b974-a55c-4bca-8ae4-f5531b43dc7c": {
+            "on_completion": "parallel--3b85b122-bd8d-4f28-a990-7a4cef058cc2",
+            "type": "start"
+        },
+        "parallel--3b85b122-bd8d-4f28-a990-7a4cef058cc2": {
+            "name": "Parallel Actions to Mitigate the Threat",
+            "description": "Execute actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--df6a6c69-d6ca-4d9e-bcdb-b9f4994b0e91",
+                "if-condition--2a4e4e5a-4123-4e29-bd54-0d140f5f2bc1",
+                "action--620db814-923b-41f6-b839-c1f5a5a1ad9f"
+            ]
+        },
+        "action--32dc3864-85e3-45f0-8092-4e6c94e6e829": {
+            "name": "Restore modified files from backup",
+            "description": "Restore modified files from backup.",
+            "on_completion": "end--ee46f6a9-56be-40ff-b9b5-1b7b737be375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/path/ /original/path/"
+                }
+            ],
+            "agent": "organization--d28cd32b-6af2-429a-92ea-5029772bfd42"
+        },
+        "end--ee46f6a9-56be-40ff-b9b5-1b7b737be375": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d28cd32b-6af2-429a-92ea-5029772bfd42": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

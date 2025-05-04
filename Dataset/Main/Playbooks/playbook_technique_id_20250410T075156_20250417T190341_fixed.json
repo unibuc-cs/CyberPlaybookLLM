@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e77d4e1e-69d6-4adb-9c20-86a23b9fa9f9",
+    "name": "Mitigation Playbook for Scripting Interpreter Vulnerability",
+    "description": "A CACAO 2.0 playbook designed to respond to an incident involving unauthorized script execution, data exfiltration, and backdoor creation.",
+    "created_by": "identity--fe0f7732-2361-46ec-ba0e-e0e4bdc8c20c",
+    "created": "2023-10-10T12:00:00Z",
+    "modified": "2023-10-10T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--1ac4b857-8462-4e8b-a8c8-dee6742f8f4b",
+    "workflow": {
+        "start--1ac4b857-8462-4e8b-a8c8-dee6742f8f4b": {
+            "on_completion": "parallel--00be1167-76e2-4c44-b49c-f659fb79ddd9",
+            "type": "start"
+        },
+        "parallel--00be1167-76e2-4c44-b49c-f659fb79ddd9": {
+            "name": "Execute Parallel Actions - Isolate and Revoke",
+            "description": "Parallel execution to isolate compromised host and revoke user credentials.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--90cb6475-10d5-4081-8fae-2aab7e21978f",
+                "action--e2960394-65eb-4031-acf2-85021e7b5df3"
+            ]
+        },
+        "if-condition--90cb6475-10d5-4081-8fae-2aab7e21978f": {
+            "name": "Check Host Compromised Status",
+            "type": "if-condition",
+            "condition": "$host_status == 'compromised'",
+            "on_true": "action--0e25cf9d-979e-474b-aadb-8f59c3ced6c7",
+            "on_false": "action--155008e6-cc58-47e2-afa6-a498e04a9e7d"
+        },
+        "action--0e25cf9d-979e-474b-aadb-8f59c3ced6c7": {
+            "name": "Isolate Host from Network",
+            "description": "Isolate the compromised host from network communication.",
+            "on_completion": "action--155008e6-cc58-47e2-afa6-a498e04a9e7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp -d 0/0 -j REJECT"
+                }
+            ],
+            "agent": "organization--4a777bc2-e635-49d7-81de-41c24c52eb22"
+        },
+        "action--155008e6-cc58-47e2-afa6-a498e04a9e7d": {
+            "name": "Remove Persistence Mechanisms",
+            "description": "Delete any identified backdoor mechanisms such as scheduled tasks.",
+            "on_completion": "action--1bdedd05-7c3d-4eeb-b251-aa974b41a159",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /Delete /TN \"MaliciousTask\" /F"
+                }
+            ],
+            "agent": "organization--4a777bc2-e635-49d7-81de-41c24c52eb22"
+        },
+        "action--1bdedd05-7c3d-4eeb-b251-aa974b41a159": {
+            "name": "Perform Full System Scan",
+            "description": "Perform a full system antivirus scan and repeat until clean.",
+            "type": "while-condition",
+            "condition": "repeat_until_clean()",
+            "on_true": "action--1bdedd05-7c3d-4eeb-b251-aa974b41a159",
+            "on_completion": "action--3d45e567-66a4-4f6f-ad0d-3c2ef931c709"
+        },
+        "action--e2960394-65eb-4031-acf2-85021e7b5df3": {
+            "name": "Revoke Compromised User Credentials",
+            "description": "Revoke credentials of the compromised user to prevent further unauthorized access.",
+            "on_completion": "action--1b32ca6a-dfe9-4bdf-abb2-dd4e2670986d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd -l username"
+                }
+            ],
+            "agent": "organization--4a777bc2-e635-49d7-81de-41c24c52eb22"
+        },
+        "action--1b32ca6a-dfe9-4bdf-abb2-dd4e2670986d": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any malicious processes identified on the system.",
+            "on_completion": "action--3d45e567-66a4-4f6f-ad0d-3c2ef931c709",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f malicious_script.ps1)"
+                }
+            ],
+            "agent": "organization--4a777bc2-e635-49d7-81de-41c24c52eb22"
+        },
+        "action--3d45e567-66a4-4f6f-ad0d-3c2ef931c709": {
+            "name": "Patch Scripting Engine Vulnerability",
+            "description": "Update and restart the scripting engine to patch vulnerability.",
+            "on_completion": "end--5273e723-791d-4b40-aeb0-f662e273199b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update all && restart_script_engine"
+                }
+            ],
+            "step_variables": {
+                "os_version": {
+                    "type": "string",
+                    "description": "Operating system version",
+                    "value": "RHEL8",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--4a777bc2-e635-49d7-81de-41c24c52eb22"
+        },
+        "end--5273e723-791d-4b40-aeb0-f662e273199b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4a777bc2-e635-49d7-81de-41c24c52eb22": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

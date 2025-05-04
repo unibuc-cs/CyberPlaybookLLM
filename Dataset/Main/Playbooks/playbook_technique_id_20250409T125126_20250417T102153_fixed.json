@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--315795bc-02b5-4c0f-814f-92f817749435",
+    "name": "Playbook for Malicious Script Execution Incident Mitigation",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate data and create persistence.",
+    "created_by": "identity--c0b7180c-bdb1-4a23-8ae5-50981ce6f313",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b51a6d80-3809-4f1b-a70c-08b895fa63c9",
+    "workflow": {
+        "start--b51a6d80-3809-4f1b-a70c-08b895fa63c9": {
+            "on_completion": "parallel--dd178b96-943a-4f94-a256-64fcb8b3ed02",
+            "type": "start"
+        },
+        "end--6fabb0cd-d67e-4ae4-8748-955ab4e80b5d": {
+            "type": "end"
+        },
+        "parallel--dd178b96-943a-4f94-a256-64fcb8b3ed02": {
+            "name": "Perform Mitigations",
+            "description": "Execute mitigation steps in parallel to handle the malicious scripts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bc07e7ac-acd2-43fb-af20-5821bd0d6f92",
+                "action--c021e96f-faca-4ea1-873c-ee76c960e641",
+                "loop--1e18db8d-015b-43e8-a1c1-018f7715a4d7"
+            ]
+        },
+        "action--bc07e7ac-acd2-43fb-af20-5821bd0d6f92": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--c021e96f-faca-4ea1-873c-ee76c960e641",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--1bb0282c-d308-4230-b043-217dfb489e46"
+        },
+        "action--c021e96f-faca-4ea1-873c-ee76c960e641": {
+            "name": "Remove malicious registry key",
+            "description": "Delete the registry entry to prevent startup execution of the malicious script.",
+            "on_completion": "loop--1e18db8d-015b-43e8-a1c1-018f7715a4d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reg delete HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v MaliciousScript /f"
+                }
+            ],
+            "agent": "organization--1bb0282c-d308-4230-b043-217dfb489e46"
+        },
+        "loop--1e18db8d-015b-43e8-a1c1-018f7715a4d7": {
+            "name": "Scan for additional threats",
+            "description": "Perform a threat scan and repeat until no more threats are found.",
+            "on_completion": "end--6fabb0cd-d67e-4ae4-8748-955ab4e80b5d",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--7a905a6f-6d05-4df7-a365-ac35d87443b7",
+            "on_false": "end--6fabb0cd-d67e-4ae4-8748-955ab4e80b5d"
+        },
+        "action--7a905a6f-6d05-4df7-a365-ac35d87443b7": {
+            "name": "Scan for additional threats",
+            "description": "Scan the specified directory for any additional threats.",
+            "on_completion": "loop--1e18db8d-015b-43e8-a1c1-018f7715a4d7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --scan-directory /path/to/scan"
+                }
+            ],
+            "agent": "organization--1bb0282c-d308-4230-b043-217dfb489e46"
+        }
+    },
+    "agent_definitions": {
+        "organization--1bb0282c-d308-4230-b043-217dfb489e46": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

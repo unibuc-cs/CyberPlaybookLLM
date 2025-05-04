@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8b20dca3-92a1-4cce-9f56-26e4a062f40a",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability to execute malicious scripts for data exfiltration.",
+    "created_by": "identity--e77b91d2-2777-43db-86a9-a06e99d3c354",
+    "created": "2023-10-22T10:30:00Z",
+    "modified": "2023-10-22T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--cfe72b33-4b5b-48f2-a56c-d38879a64c24",
+    "workflow": {
+        "action--c220b5a6-bbfb-4f30-848f-9e9141c858cc": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--5e4e26c2-4f82-4221-b107-b3446d6408e7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--a4c0bd33-aedf-4e52-9e4c-5d15e30810aa"
+        },
+        "action--5e4e26c2-4f82-4221-b107-b3446d6408e7": {
+            "name": "Isolate affected host",
+            "description": "Block connections from the malicious IP.",
+            "on_completion": "while-condition--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--a4c0bd33-aedf-4e52-9e4c-5d15e30810aa"
+        },
+        "while-condition--1f62c563-f863-4a4f-9b96-75d41063c4d2": {
+            "name": "Run antivirus scan until no threats found",
+            "description": "Perform an antivirus scan repeatedly until no threats are detected.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--1f62c563-f863-4a4f-9b96-75d41063c4d2": {
+            "name": "Run antivirus scan",
+            "description": "Scan the filesystem for malicious files.",
+            "on_completion": "if-condition--b4c51c59-edad-4e6a-80d1-5afa7d8d7939",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--a4c0bd33-aedf-4e52-9e4c-5d15e30810aa"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "start--cfe72b33-4b5b-48f2-a56c-d38879a64c24": {
+            "on_completion": "action--c220b5a6-bbfb-4f30-848f-9e9141c858cc",
+            "type": "start"
+        },
+        "if-condition--b4c51c59-edad-4e6a-80d1-5afa7d8d7939": {
+            "name": "Check for threats",
+            "type": "if-condition",
+            "condition": "threats_found == true",
+            "on_true": "while-condition--1f62c563-f863-4a4f-9b96-75d41063c4d2",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        }
+    },
+    "agent_definitions": {
+        "organization--a4c0bd33-aedf-4e52-9e4c-5d15e30810aa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "threats_found": {
+            "type": "boolean",
+            "description": "Indicates if threats were found during the antivirus scan.",
+            "value": true,
+            "constant": false,
+            "external": false
+        }
+    }
+}

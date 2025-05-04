@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9d32f3c-e3b9-4c88-9b45-e3af96c6d128",
+    "name": "Mitigation Playbook for PowerShell Malware Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a PowerShell script via a phishing email to deliver malware.",
+    "created_by": "identity--7270501c-5cba-4a71-90f1-5e46f28a8cd5",
+    "created": "2023-10-01T08:00:00Z",
+    "modified": "2023-10-01T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--859fa7b4-f063-42a9-8261-38b08442554f",
+    "workflow": {
+        "action--a9df5f20-8ddd-4e17-82f4-3db035e572b1": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell scripts that may be malicious.",
+            "on_completion": "if-condition--c6a8e12d-b6b9-46d8-b927-43a2044f645f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM powershell.exe"
+                }
+            ],
+            "agent": "organization--2df55221-f0f1-4969-938d-9445f652e862"
+        },
+        "if-condition--c6a8e12d-b6b9-46d8-b927-43a2044f645f": {
+            "name": "Check if malicious process is detected",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--c6a8e12d-b6b9-46d8-b927-43a2044f645f",
+            "on_false": "action--9bb05f88-fb65-4f36-a2ed-20dc3b19a87d"
+        },
+        "action--c6a8e12d-b6b9-46d8-b927-43a2044f645f": {
+            "name": "Isolate host from network",
+            "description": "Disconnect the compromised host to prevent further damage.",
+            "on_completion": "while-condition--e6108fce-b6a7-4df3-b8d8-f47bc5c1a047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--2df55221-f0f1-4969-938d-9445f652e862"
+        },
+        "while-condition--e6108fce-b6a7-4df3-b8d8-f47bc5c1a047": {
+            "name": "Run malware scan repeatedly until clean",
+            "description": "Continue running malware scan until the system is verified as clean.",
+            "on_true": "action--e6108fce-b6a7-4df3-b8d8-f47bc5c1a047",
+            "on_completion": "if-condition--2b3db5aa-3489-4814-a480-b2b446eeb426",
+            "type": "while-condition",
+            "condition": "scan_status != clean"
+        },
+        "action--e6108fce-b6a7-4df3-b8d8-f47bc5c1a047": {
+            "name": "Execute Malware Scan",
+            "description": "Run an antivirus software scan to detect and remove malware.",
+            "on_completion": "while-condition--e6108fce-b6a7-4df3-b8d8-f47bc5c1a047",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan.sh"
+                }
+            ],
+            "agent": "organization--2df55221-f0f1-4969-938d-9445f652e862"
+        },
+        "action--9bb05f88-fb65-4f36-a2ed-20dc3b19a87d": {
+            "name": "Patch known vulnerability",
+            "description": "Apply necessary patches to fix vulnerabilities that allow privilege escalation.",
+            "on_completion": "end--9da60769-86cb-4556-81bb-94bc3796f70c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply-patch.sh"
+                }
+            ],
+            "step_variables": {
+                "vulnerability_id": {
+                    "type": "string",
+                    "description": "The vulnerability that needs to be patched as part of this action.",
+                    "value": "CVE-2023-XXXX",
+                    "constant": false
+                }
+            },
+            "agent": "organization--2df55221-f0f1-4969-938d-9445f652e862"
+        },
+        "if-condition--2b3db5aa-3489-4814-a480-b2b446eeb426": {
+            "name": "Check if host is verified clean",
+            "type": "if-condition",
+            "condition": "scan_status == clean",
+            "on_true": "action--2b3db5aa-3489-4814-a480-b2b446eeb426",
+            "on_false": "end--9da60769-86cb-4556-81bb-94bc3796f70c"
+        },
+        "action--2b3db5aa-3489-4814-a480-b2b446eeb426": {
+            "name": "Restore network connection",
+            "description": "Re-enable network access for the cleaned host.",
+            "on_completion": "end--9da60769-86cb-4556-81bb-94bc3796f70c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state on"
+                }
+            ],
+            "agent": "organization--2df55221-f0f1-4969-938d-9445f652e862"
+        },
+        "start--859fa7b4-f063-42a9-8261-38b08442554f": {
+            "on_completion": "action--a9df5f20-8ddd-4e17-82f4-3db035e572b1",
+            "type": "start"
+        },
+        "end--9da60769-86cb-4556-81bb-94bc3796f70c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2df55221-f0f1-4969-938d-9445f652e862": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

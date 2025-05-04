@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e9e25d18-3cc5-4ad5-bd42-fadc8b2276a8",
+    "name": "Mitigation Playbook for PowerShell Malicious Scripts Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed obfuscated PowerShell commands to drop malicious payloads.",
+    "created_by": "identity--9391160d-f540-4019-9da9-6c365230f7bf",
+    "created": "2023-10-16T10:00:00Z",
+    "modified": "2023-10-16T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b528d793-0f94-412b-af10-111a65012e4b",
+    "workflow": {
+        "action--d63eeb9b-7739-4d10-850b-0316b3bf71de": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes running malicious scripts.",
+            "on_completion": "action--917c97c3-e4f5-4cb1-ade3-82d7af9492a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--52f8b2e5-0c3d-4ff8-bdda-613c0b86029c"
+        },
+        "action--917c97c3-e4f5-4cb1-ade3-82d7af9492a1": {
+            "name": "Remove dropped malicious files",
+            "description": "Delete any files dropped by the malicious scripts.",
+            "on_completion": "action--1b2c4c6c-5842-4872-a438-a4cbebf70e98",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_executable.exe"
+                }
+            ],
+            "agent": "organization--52f8b2e5-0c3d-4ff8-bdda-613c0b86029c"
+        },
+        "action--1b2c4c6c-5842-4872-a438-a4cbebf70e98": {
+            "name": "Monitor outbound connections to known malicious IPs",
+            "description": "Block outbound connections to known malicious IPs if suspicious IP is detected.",
+            "on_completion": "loop--3d0917e2-ed43-400d-8681-abbf8a999476",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--52f8b2e5-0c3d-4ff8-bdda-613c0b86029c",
+            "condition": "if suspicious IP is detected"
+        },
+        "action--ab29e393-fb29-4c7e-ae8b-c45ef1c75ccd": {
+            "name": "Scan for additional threats using antivirus",
+            "description": "Perform an antivirus scan to find additional threats that may have been introduced.",
+            "on_completion": "end--01629d37-66ff-45c7-af48-3031fe0672fd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --bell"
+                }
+            ],
+            "agent": "organization--52f8b2e5-0c3d-4ff8-bdda-613c0b86029c"
+        },
+        "start--b528d793-0f94-412b-af10-111a65012e4b": {
+            "on_completion": "action--d63eeb9b-7739-4d10-850b-0316b3bf71de",
+            "type": "start"
+        },
+        "loop--3d0917e2-ed43-400d-8681-abbf8a999476": {
+            "name": "Check for Suspicious Connections Every 5 Minutes",
+            "description": "Repeat the monitoring for suspicious outbound connections to malicious IPs.",
+            "on_completion": "action--ab29e393-fb29-4c7e-ae8b-c45ef1c75ccd",
+            "type": "while-condition",
+            "condition": "suspicious_IP_alerts > 0",
+            "next_steps": [
+                "action--1b2c4c6c-5842-4872-a438-a4cbebf70e98"
+            ]
+        },
+        "end--01629d37-66ff-45c7-af48-3031fe0672fd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--52f8b2e5-0c3d-4ff8-bdda-613c0b86029c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

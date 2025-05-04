@@ -1,0 +1,69 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5aeb4d5-b6e7-4f64-bd01-86c6bb1dc31b",
+    "name": "Mitigation Playbook for Signed Binary Proxy Execution Using Regsvr32",
+    "description": "This playbook addresses an incident where an attacker utilized Regsvr32 to execute a malicious payload disguised as a legitimate DLL.",
+    "created_by": "identity--abc12345-6789-def0-1234-56789abcdef0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f2baa27b-2b3a-4c1d-9b48-d682faa872f7",
+    "workflow": {
+        "start--f2baa27b-2b3a-4c1d-9b48-d682faa872f7": {
+            "on_completion": "action--12e4b5cb-eb23-454c-b0d3-4eae49dd6ee7",
+            "type": "start"
+        },
+        "action--12e4b5cb-eb23-454c-b0d3-4eae49dd6ee7": {
+            "name": "Kill malicious Regsvr32 process",
+            "description": "Terminate any active Regsvr32 processes to prevent execution of malicious payload.",
+            "on_completion": "if-condition--2c2d0013-1c5a-4948-910e-ec89c7a95c26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'regsvr32'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--2c2d0013-1c5a-4948-910e-ec89c7a95c26": {
+            "name": "Check if Regsvr32 process was killed",
+            "type": "if-condition",
+            "condition": "pgrep -f 'regsvr32' == 0",
+            "on_true": "action--45c2f66e-54f0-4394-86a8-89c68aca0c98",
+            "on_false": "end--f3c15b68-36b0-4eb7-962b-cd09d80668d5"
+        },
+        "action--45c2f66e-54f0-4394-86a8-89c68aca0c98": {
+            "name": "Delete suspicious DLL from Temp directory",
+            "description": "Remove the suspicious DLL file found in the Temp directory.",
+            "on_completion": "loop--1a6e7c2d-584e-4fc4-85ee-9569cf0b4280",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/suspicious.dll"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--1a6e7c2d-584e-4fc4-85ee-9569cf0b4280": {
+            "name": "Scan network for unauthorized connections",
+            "description": "Continuously check for unauthorized network connections until the system is clean.",
+            "on_completion": "if-condition--8d978ae6-5774-46a9-9081-48f833509b87",
+            "type": "while-condition",
+            "condition": "netstat -ant | grep ESTABLISHED | wc -l > 0",
+            "on_true": "action--1a6e7c2d-584e-4fc4-85ee-9569cf0b4280",
+            "on_false": "end--f3c15b68-36b0-4eb7-962b-cd09d80668d5"
+        },
+        "end--f3c15b68-36b0-4eb7-962b-cd09d80668d5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c6e1e2ab-75e2-4c54-a4a7-e5745672d482",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access, executed malicious scripts, and exfiltrated sensitive data.",
+    "created_by": "identity--fac6b8bc-5059-4da4-8b1e-88e8e9c3d4be",
+    "created": "2023-10-10T10:15:00Z",
+    "modified": "2023-10-10T10:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--eae0d5ab-7cf3-4de8-bf35-5c7e2b23c078",
+    "workflow": {
+        "start--eae0d5ab-7cf3-4de8-bf35-5c7e2b23c078": {
+            "on_completion": "parallel--7d315e85-210f-41f4-91ef-c37c08cb5fc5",
+            "type": "start"
+        },
+        "parallel--7d315e85-210f-41f4-91ef-c37c08cb5fc5": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate mitigations in parallel to contain the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5d99cde4-1812-4e2a-bd64-b892bc50ef0d",
+                "action--b4f6720b-86dc-4df8-8c1d-094bb3a30f7a",
+                "action--7f77b3c1-5991-4c47-8ec6-d24cb998ede3"
+            ]
+        },
+        "action--5d99cde4-1812-4e2a-bd64-b892bc50ef0d": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--b4f6720b-86dc-4df8-8c1d-094bb3a30f7a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f suspicious_script.ps1)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--b4f6720b-86dc-4df8-8c1d-094bb3a30f7a": {
+            "name": "Block Outgoing Access to Malicious IP",
+            "description": "Block any outgoing traffic to a known malicious IP address.",
+            "on_completion": "action--d185a7f0-0ea4-4dfb-b062-09d5bc2970b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 198.51.100.1 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d185a7f0-0ea4-4dfb-b062-09d5bc2970b0": {
+            "name": "Run Antivirus Scan",
+            "description": "Perform a recursive antivirus scan to detect any remaining threats.",
+            "on_completion": "if-condition--8405e0db-5f3c-40c3-b005-cf81602f7162",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--8405e0db-5f3c-40c3-b005-cf81602f7162": {
+            "name": "Check Antivirus Scan Result",
+            "type": "if-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--d185a7f0-0ea4-4dfb-b062-09d5bc2970b0",
+            "on_false": "end--439423e7-c030-4b7e-a7f2-1d08dad4d0f7"
+        },
+        "action--7f77b3c1-5991-4c47-8ec6-d24cb998ede3": {
+            "name": "Notify Security Team",
+            "description": "Notify the security team about the breach.",
+            "on_completion": "action--aa09ab28-5857-4cae-b3a0-26b0a29ebd7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security Alert: Potential breach on server-01' | mail -s 'Incident Notification' security@organization.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--aa09ab28-5857-4cae-b3a0-26b0a29ebd7b": {
+            "name": "Change Passwords for Affected Accounts",
+            "on_completion": "end--439423e7-c030-4b7e-a7f2-1d08dad4d0f7",
+            "if-condition": {
+                "condition": "suspicious_activity_detected == true"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd admin"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--439423e7-c030-4b7e-a7f2-1d08dad4d0f7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

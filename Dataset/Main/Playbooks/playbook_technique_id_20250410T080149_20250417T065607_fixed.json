@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f50d114e-870b-44d2-8796-b86e007b3a84",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook responds to incidents involving unauthorized execution of malicious scripts via PowerShell, focusing on terminating the threat and ensuring system integrity.",
+    "created_by": "identity--1c7fa56f-0f8c-4ffd-bd3c-affc21e72465",
+    "created": "2025-10-20T10:00:00Z",
+    "modified": "2025-10-20T10:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--a5c50bbe-1c7c-426d-9f77-e5752bbf8d6e",
+    "workflow": {
+        "start--a5c50bbe-1c7c-426d-9f77-e5752bbf8d6e": {
+            "on_completion": "parallel--eff74532-e1e4-4d88-996f-0bcd4f392190",
+            "type": "start"
+        },
+        "parallel--eff74532-e1e4-4d88-996f-0bcd4f392190": {
+            "name": "Terminate and Cleanup Actions",
+            "description": "Execute multiple mitigation steps in parallel to halt the attack and analyze the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d",
+                "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb",
+                "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73",
+                "action--75b10d86-60a3-4790-af24-053f1a7b3cc4"
+            ]
+        },
+        "action--dcb7e409-d6be-4ae5-98ac-563f45bee64d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the script process running on the system.",
+            "on_completion": "action--75b10d86-60a3-4790-af24-053f1a7b3cc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo kill -9 $(pgrep -f script.js)"
+                }
+            ],
+            "agent": "organization--6986a09f-e43f-478b-821a-54dabc34da4f"
+        },
+        "action--c2f31c6a-4bc5-4cfc-9068-49ff0e7e67bb": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete the script if it exists.",
+            "on_completion": "action--75b10d86-60a3-4790-af24-053f1a7b3cc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ -f /tmp/script.js ]; then sudo rm /tmp/script.js; fi"
+                }
+            ],
+            "agent": "organization--6986a09f-e43f-478b-821a-54dabc34da4f"
+        },
+        "action--fbd8927d-b381-4eba-90c5-a94fbbde5b73": {
+            "name": "Block IP of command and control server",
+            "description": "Prevent the host from communicating with the command and control server.",
+            "on_completion": "action--75b10d86-60a3-4790-af24-053f1a7b3cc4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A OUTPUT -d 198.51.100.1 -j DROP"
+                }
+            ],
+            "agent": "organization--6986a09f-e43f-478b-821a-54dabc34da4f"
+        },
+        "action--75b10d86-60a3-4790-af24-053f1a7b3cc4": {
+            "name": "Notify security team to review logs",
+            "description": "Alert the security team to investigate the PowerShell activity.",
+            "on_completion": "loop--aad8df38-af64-4deb-a4bb-f76d526d1776",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Review required: Check PowerShell activity logs' | mail -s 'Incident Response' sec-team@organization.com"
+                }
+            ],
+            "agent": "organization--6986a09f-e43f-478b-821a-54dabc34da4f"
+        },
+        "loop--aad8df38-af64-4deb-a4bb-f76d526d1776": {
+            "name": "Conduct system integrity check",
+            "description": "Ensure the system is secure by checking its integrity in a loop until clean.",
+            "on_completion": "end--fccc1ead-9888-4d38-bdad-528e8957a008",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d"
+        },
+        "action--82c9c176-60fe-4c0f-8f28-2f1275f9842d": {
+            "name": "Conduct system integrity check",
+            "description": "Perform a system integrity check to ensure that no rootkits or other malicious alterations are present.",
+            "on_completion": "loop--aad8df38-af64-4deb-a4bb-f76d526d1776",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo chkrootkit"
+                }
+            ],
+            "agent": "organization--6986a09f-e43f-478b-821a-54dabc34da4f",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the integrity check passed.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--fccc1ead-9888-4d38-bdad-528e8957a008": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6986a09f-e43f-478b-821a-54dabc34da4f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

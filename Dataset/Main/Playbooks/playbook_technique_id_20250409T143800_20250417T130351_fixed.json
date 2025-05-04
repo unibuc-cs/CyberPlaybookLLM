@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e690d5d2-b75d-4a18-b1b0-40c826e5c88a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where an attacker executed arbitrary commands on a web server.",
+    "created_by": "identity--d68ff98f-a795-4960-9a72-f0ebc0c91181",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:05:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--01dc9fb6-467b-4cbd-9dd8-8ab7aeb44bff",
+    "workflow": {
+        "action--b1a7e14c-fb51-4cbf-8aeb-4e1a6ad3b4a0": {
+            "name": "Kill malicious process",
+            "on_completion": "action--4452378a-2c1e-4b78-981a-9461622e0071",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f reverse_shell"
+                }
+            ],
+            "agent": "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4"
+        },
+        "action--cab5bfc3-f27e-4ed9-8ec1-148e0956dafa": {
+            "name": "Remove dropped files",
+            "on_completion": "action--4452378a-2c1e-4b78-981a-9461622e0071",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4"
+        },
+        "action--d4c1b76c-d607-41bd-ae92-00aad1732fca": {
+            "name": "Update firewall rules",
+            "on_completion": "action--4452378a-2c1e-4b78-981a-9461622e0071",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4"
+        },
+        "action--4452378a-2c1e-4b78-981a-9461622e0071": {
+            "name": "Monitor network traffic",
+            "on_completion": "while-condition--e1e4eb8f-1265-476d-b759-fb3667440ca3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w capture.pcap"
+                }
+            ],
+            "agent": "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4"
+        },
+        "while-condition--e1e4eb8f-1265-476d-b759-fb3667440ca3": {
+            "name": "Monitor for suspicious activity",
+            "description": "Continue monitoring network traffic until normal operations are confirmed.",
+            "type": "while-condition",
+            "condition": "system_status != 'normal'",
+            "on_true": "action--e1e4eb8f-1265-476d-b759-fb3667440ca3",
+            "on_false": "end--cabe4b3a-4a1e-486b-b2ed-5f5e6d97f628"
+        },
+        "action--e1e4eb8f-1265-476d-b759-fb3667440ca3": {
+            "name": "Scan system for vulnerabilities",
+            "on_completion": "end--cabe4b3a-4a1e-486b-b2ed-5f5e6d97f628",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS -p 1-65535 -oN scan_results.txt"
+                }
+            ],
+            "agent": "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4"
+        },
+        "end--cabe4b3a-4a1e-486b-b2ed-5f5e6d97f628": {
+            "step_extensions": {
+                "": "extension-definition--12345678-1234-1234-1234-1234567890ab"
+            },
+            "type": "end"
+        },
+        "start--01dc9fb6-467b-4cbd-9dd8-8ab7aeb44bff": {
+            "on_completion": "parallel--18c5fca5-b442-4d07-a969-882dd40f2dcb",
+            "type": "start"
+        },
+        "parallel--18c5fca5-b442-4d07-a969-882dd40f2dcb": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1a7e14c-fb51-4cbf-8aeb-4e1a6ad3b4a0",
+                "action--cab5bfc3-f27e-4ed9-8ec1-148e0956dafa",
+                "action--d4c1b76c-d607-41bd-ae92-00aad1732fca"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--d94fc1da-3c28-4f73-bc44-ee84021be7b4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

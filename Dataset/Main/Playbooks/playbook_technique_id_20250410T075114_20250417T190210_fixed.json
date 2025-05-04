@@ -1,0 +1,138 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b07384-d9f3-4c8c-9d1e-a35a88a5bb44",
+    "name": "Mitigation Playbook for T1059 - Command and Scripting Interpreter",
+    "description": "This playbook addresses an incident where an unauthorized script executed on host-22, dropping malicious files and creating backdoor access.",
+    "created_by": "identity--c66aebeb-415b-4e3e-9b16-1331994a271a",
+    "created": "2023-10-12T15:00:00.000Z",
+    "modified": "2023-10-12T15:00:00.000Z",
+    "workflow_start": "start--1f2e3d5c-a4b8-4fbb-b217-7c8a3f123456",
+    "workflow": {
+        "start--1f2e3d5c-a4b8-4fbb-b217-7c8a3f123456": {
+            "on_completion": "parallel--4a7d2b9f-882b-4518-9c8a-12f3740f7b29",
+            "type": "start"
+        },
+        "parallel--4a7d2b9f-882b-4518-9c8a-12f3740f7b29": {
+            "name": "Mitigation Actions Parallel Execution",
+            "type": "parallel",
+            "next_steps": [
+                "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f",
+                "action--fb217749-5369-4f3e-a2e4-5a764c1099b5",
+                "action--c8bfa757-bcdd-4205-8966-af2aba3f738e"
+            ]
+        },
+        "action--a3aa4f8e-88d7-4b2e-b6a4-6b3135f93f9f": {
+            "name": "Terminate Unauthorized Script Process",
+            "description": "Terminate the unauthorized script running on host-22.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058",
+            "on_completion": "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02"
+        },
+        "action--fb217749-5369-4f3e-a2e4-5a764c1099b5": {
+            "name": "Block Outbound Network Connectivity",
+            "description": "Block suspicious outbound network connections.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.remote.ip -j DROP"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058",
+            "on_completion": "action--f0b7a464-c081-490a-982e-d5bf59576b0b"
+        },
+        "action--c8bfa757-bcdd-4205-8966-af2aba3f738e": {
+            "name": "Repeat Virus Scan Until Clean",
+            "description": "Perform a virus scan and iterate until no virus is detected.",
+            "type": "while-condition",
+            "condition": "virus_detected == true",
+            "on_true": "action--d67c5ed7-7368-411f-b699-4304cb2a8a3a",
+            "variables": {
+                "virus_detected": {
+                    "type": "boolean",
+                    "description": "Flag to determine if a virus is detected.",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "decision--c8f347e3-72f5-445a-84a2-fc3e6a19b357": {
+            "name": "Check Virus Scan Result",
+            "description": "Determine if virus cleaning succeeded.",
+            "type": "if-condition",
+            "condition": "virus_detected == false",
+            "on_true": "action--f0b7a464-c081-490a-982e-d5bf59576b0b",
+            "on_false": "action--c8bfa757-bcdd-4205-8966-af2aba3f738e"
+        },
+        "action--c57dc41f-8f56-4a8c-9d77-48866eff7c02": {
+            "name": "Scan and Quarantine Detected Backdoor",
+            "description": "Scan for and quarantine detected backdoor if malware found.",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --move=/quarantine /system/directory/malicious_backdoor"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058"
+        },
+        "action--e01c47e6-03f7-49b5-932f-2cc6af61c2a9": {
+            "name": "Revert System Files from Backup",
+            "description": "Revert system files from backup if file integrity check failed.",
+            "type": "if-condition",
+            "condition": "file_integrity_check_failed == true",
+            "on_true": "action--f0b7a464-c081-490a-982e-d5bf59576b0b",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a --delete /backup/system_directory/ /system/directory/"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058"
+        },
+        "action--f0b7a464-c081-490a-982e-d5bf59576b0b": {
+            "name": "Inform IT Security Team",
+            "description": "Notify the IT Security Team about the incident.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Security incident detected on host-22' | mail -s 'Security Alert' it_sec_team@example.com"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058",
+            "on_completion": "end--7685ea2e-dc9f-4b6c-b639-5f9876e1024d"
+        },
+        "end--7685ea2e-dc9f-4b6c-b639-5f9876e1024d": {
+            "type": "end"
+        },
+        "action--d67c5ed7-7368-411f-b699-4304cb2a8a3a": {
+            "name": "Virus Scan",
+            "description": "Perform a recursive scan of the system to detect any virus.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--027acf32-669c-4f21-a18d-a635f5fe2058",
+            "on_completion": "decision--c8f347e3-72f5-445a-84a2-fc3e6a19b357"
+        }
+    },
+    "agent_definitions": {
+        "organization--027acf32-669c-4f21-a18d-a635f5fe2058": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

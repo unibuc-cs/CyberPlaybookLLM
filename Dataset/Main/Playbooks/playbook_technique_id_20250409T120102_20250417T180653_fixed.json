@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8a99cb1-d693-49a7-9f73-f8b45c94fa43",
+    "name": "Mitigation Playbook for Phishing-Related Backdoor Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a phishing email with a malicious script, establishing a backdoor for further commands.",
+    "created_by": "identity--b7655c85-b8b1-4ace-88f5-eb34a256b44c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1d38d22a-1c9f-4f12-821d-d7c7fe0f2c37",
+    "workflow": {
+        "start--1d38d22a-1c9f-4f12-821d-d7c7fe0f2c37": {
+            "on_completion": "action--b1d2a445-11fe-4fc2-b163-d4936f03edc3",
+            "type": "start"
+        },
+        "action--b1d2a445-11fe-4fc2-b163-d4936f03edc3": {
+            "name": "Terminate suspicious PowerShell process",
+            "description": "Terminate any unrecognized PowerShell processes that could be associated with the backdoor.",
+            "on_completion": "if-condition--4d1e64b2-a5d4-4267-80a3-65005e1f4a54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a9492b9c-a565-4873-ae6c-417612baaee6"
+        },
+        "if-condition--4d1e64b2-a5d4-4267-80a3-65005e1f4a54": {
+            "name": "Check if PowerShell process terminated",
+            "type": "if-condition",
+            "condition": "ps aux | grep powershell | grep -v grep",
+            "on_true": "action--c471f715-1f23-4273-8cc8-04c592356b23",
+            "on_false": "action--9f6f3a5b-7a82-4dcf-839b-d762ae304ae6"
+        },
+        "action--c471f715-1f23-4273-8cc8-04c592356b23": {
+            "name": "Run full antivirus scan",
+            "description": "Perform a full antivirus scan and loop until the system is clean.",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the antivirus scan.",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o; scan_status=$(grep 'Infected files: 0' result.txt && echo 'clean' || echo 'not clean')"
+                }
+            ],
+            "agent": "organization--a9492b9c-a565-4873-ae6c-417612baaee6",
+            "on_completion": "while-condition--e74d5bd7-235a-4e74-9d67-bf808df69f56"
+        },
+        "while-condition--e74d5bd7-235a-4e74-9d67-bf808df69f56": {
+            "name": "Antivirus Scan Loop",
+            "description": "Repeat the antivirus scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not clean'",
+            "on_true": "action--c471f715-1f23-4273-8cc8-04c592356b23",
+            "on_false": "action--9f6f3a5b-7a82-4dcf-839b-d762ae304ae6"
+        },
+        "action--9f6f3a5b-7a82-4dcf-839b-d762ae304ae6": {
+            "name": "Remove malicious scripts from system",
+            "description": "Delete any detected malicious scripts from the system.",
+            "on_completion": "end--d2f3bacd-5e33-48e8-bcdf-dad8c4bc5b47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'malicious_script.ps1' -delete"
+                }
+            ],
+            "agent": "organization--a9492b9c-a565-4873-ae6c-417612baaee6"
+        },
+        "end--d2f3bacd-5e33-48e8-bcdf-dad8c4bc5b47": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a9492b9c-a565-4873-ae6c-417612baaee6": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

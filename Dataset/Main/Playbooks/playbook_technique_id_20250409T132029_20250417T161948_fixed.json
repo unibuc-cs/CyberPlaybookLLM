@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e43b1ea1-334e-4cd0-af1e-6fda235d5c88",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on a compromised server, leveraging command line access.",
+    "created_by": "identity--bfcde3f0-fc7d-4b64-9a8f-afd5cbcb4a25",
+    "created": "2023-10-12T09:00:00Z",
+    "modified": "2023-10-12T09:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--e02c965b-5e93-4f8a-82df-07296be8e02b",
+    "workflow": {
+        "start--e02c965b-5e93-4f8a-82df-07296be8e02b": {
+            "on_completion": "action--7ff6835f-dfb2-4e2c-af6c-5c4e8990013f",
+            "type": "start"
+        },
+        "action--7ff6835f-dfb2-4e2c-af6c-5c4e8990013f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script currently running on the server.",
+            "on_completion": "action--ab13b58e-0c7c-4aff-9c3e-0ed05b54d13c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script_name'"
+                }
+            ],
+            "agent": "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815"
+        },
+        "action--ab13b58e-0c7c-4aff-9c3e-0ed05b54d13c": {
+            "name": "Isolate compromised host",
+            "description": "Disable the network interface of the compromised host.",
+            "on_completion": "while-condition--cf2ae1c9-6b72-4d72-9be7-410bc19318b1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815"
+        },
+        "action--a8d2a444-3e5b-4e45-9c01-7401e4c55d9b": {
+            "name": "Review logs",
+            "description": "Grepping through logs for suspicious activity.",
+            "on_completion": "action--04f5db38-239f-45c0-abd3-144c0eb1bd8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'external_ip' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815"
+        },
+        "action--d1a06475-8e5a-4971-bf33-cf7c0b82516e": {
+            "name": "Run malware scans",
+            "description": "Perform a malware scan on the affected directories.",
+            "on_completion": "while-condition--b7b79435-77a5-4edc-bda5-5189e78aa03c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/affected/directory"
+                }
+            ],
+            "agent": "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815"
+        },
+        "action--c4a6a91a-f141-4f96-bb84-53cb5cfb6db8": {
+            "name": "Patch vulnerabilities",
+            "description": "Update and upgrade the system to patch vulnerabilities.",
+            "on_completion": "end--d7c1daaa-8e0a-4005-b75f-b5f00f9a0a01",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815",
+            "step_variables": {
+                "version_upgrade": {
+                    "type": "string",
+                    "description": "Variable for upgraded version details.",
+                    "value": "latest",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--d7c1daaa-8e0a-4005-b75f-b5f00f9a0a01": {
+            "type": "end"
+        },
+        "while-condition--cf2ae1c9-6b72-4d72-9be7-410bc19318b1": {
+            "name": "Review network activity logs",
+            "description": "Check for any suspicious network activity until all logs are reviewed.",
+            "on_true": "action--a8d2a444-3e5b-4e45-9c01-7401e4c55d9b",
+            "on_completion": "action--d1a06475-8e5a-4971-bf33-cf7c0b82516e",
+            "type": "while-condition",
+            "condition": "suspicious_activity_found",
+            "next_steps": [
+                "action--a8d2a444-3e5b-4e45-9c01-7401e4c55d9b"
+            ]
+        },
+        "while-condition--b7b79435-77a5-4edc-bda5-5189e78aa03c": {
+            "name": "Check if scan is clean",
+            "description": "Repeat scanning until the system is confirmed clean.",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d1a06475-8e5a-4971-bf33-cf7c0b82516e",
+            "on_false": "action--c4a6a91a-f141-4f96-bb84-53cb5cfb6db8",
+            "type": "if-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--71b42fcc-b069-4ad0-8f3b-5bc47d5df815": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

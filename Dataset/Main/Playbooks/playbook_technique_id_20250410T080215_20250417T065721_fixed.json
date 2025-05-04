@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3f3f0ab6-eca3-450c-bd8b-845db33f4c03",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving an attacker executing malicious PowerShell scripts leading to unauthorized data exfiltration from a vulnerable web application.",
+    "created_by": "identity--a1b2c3d4-e5f6-4789-b8e1-abb4c59afc43",
+    "created": "2023-10-20T08:50:00Z",
+    "modified": "2023-10-20T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1e2d3c4-b5a6-456a-bd8e-ccd4e5c6d7a8",
+    "workflow": {
+        "start--f1e2d3c4-b5a6-456a-bd8e-ccd4e5c6d7a8": {
+            "on_completion": "parallel--7ab65c72-76c5-4c06-97c2-f13460a41d7f",
+            "type": "start"
+        },
+        "parallel--7ab65c72-76c5-4c06-97c2-f13460a41d7f": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7febc4e5-f9fc-4d89-91d1-f6e82731d94d",
+                "action--e0d7bdc7-8e06-4ac3-b5c8-68bde9a0a05c",
+                "action--fa496e95-e8b3-4bcd-8a72-e96c8a1d6a33",
+                "if-condition--2f3043f6-7311-4b00-96ac-d841cbfa2371"
+            ]
+        },
+        "action--7febc4e5-f9fc-4d89-91d1-f6e82731d94d": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that could be executing malicious scripts.",
+            "on_completion": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--1d89a6ef-9568-429d-b4e4-8bd9eaaf6c1b"
+        },
+        "action--e0d7bdc7-8e06-4ac3-b5c8-68bde9a0a05c": {
+            "name": "Block suspicious IP address",
+            "description": "Deny connections from a known suspicious IP address.",
+            "on_completion": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.0.2.1"
+                }
+            ],
+            "agent": "organization--1d89a6ef-9568-429d-b4e4-8bd9eaaf6c1b",
+            "step_variables": {
+                "suspicious_ip": {
+                    "type": "string",
+                    "value": "192.0.2.1"
+                }
+            }
+        },
+        "action--fa496e95-e8b3-4bcd-8a72-e96c8a1d6a33": {
+            "name": "Deploy IDS",
+            "description": "Install and start Snort to monitor network traffic.",
+            "on_completion": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt install snort && snort -D -i eth0 -c /etc/snort/snort.conf"
+                }
+            ],
+            "agent": "organization--e05a6a33-2c5b-4e9f-bc8c-c7d23901bd96",
+            "step_variables": {
+                "network_interface": {
+                    "type": "string",
+                    "value": "eth0"
+                }
+            }
+        },
+        "if-condition--2f3043f6-7311-4b00-96ac-d841cbfa2371": {
+            "name": "Check for suspicious login",
+            "type": "if-condition",
+            "condition": "suspicious_login_detected == true",
+            "on_true": "action--2f3043f6-7311-4b00-96ac-d841cbfa2371",
+            "on_false": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58"
+        },
+        "action--2f3043f6-7311-4b00-96ac-d841cbfa2371": {
+            "name": "Reset high-privilege credentials",
+            "description": "Change the password for high-privilege accounts to prevent further unauthorized access.",
+            "on_completion": "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd admin"
+                }
+            ],
+            "agent": "organization--1d89a6ef-9568-429d-b4e4-8bd9eaaf6c1b"
+        },
+        "action--09b06933-559a-40d1-bb8e-ebf9d9a26b58": {
+            "name": "Perform system scan",
+            "description": "Scan the system for other potential threats and remove any detected malware.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "until clamscan / --recursive --remove; do sleep 10; done"
+                }
+            ],
+            "agent": "organization--1d89a6ef-9568-429d-b4e4-8bd9eaaf6c1b"
+        },
+        "end--8d2a5948-76ab-4bb6-b0eb-52a6d73c6c1f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1d89a6ef-9568-429d-b4e4-8bd9eaaf6c1b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--e05a6a33-2c5b-4e9f-bc8c-c7d23901bd96": {
+            "type": "organization",
+            "name": "NetworkMonitorOrg"
+        }
+    }
+}

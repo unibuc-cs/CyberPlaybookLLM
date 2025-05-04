@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bc2e8e99-29a1-478a-b3e1-4c4e84acf89e",
+    "name": "Response Playbook for Log Deletion Incident",
+    "description": "This playbook addresses incidents where an attacker deleted logs to cover their tracks. It includes restoring logs, implementing monitoring, and auditing privileged users.",
+    "created_by": "identity--67008e75-1bb2-4dbf-992c-4a716e9f9191",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1e6f0e34-344c-404b-b6be-1d26b9875dde",
+    "workflow": {
+        "start--1e6f0e34-344c-404b-b6be-1d26b9875dde": {
+            "on_completion": "action--12e755eb-5795-4b34-a68f-ebeb6e45ae3d",
+            "type": "start"
+        },
+        "if-condition--34f9a279-c4af-4458-8cde-305149b1142a": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists == true",
+            "on_true": "action--12e755eb-5795-4b34-a68f-ebeb6e45ae3d",
+            "on_false": "action--8c802019-6bff-4925-9f68-0bd056c0e2d0"
+        },
+        "action--12e755eb-5795-4b34-a68f-ebeb6e45ae3d": {
+            "name": "Restore deleted logs from backup",
+            "description": "Restore critical logs from the backup to investigate further.",
+            "on_completion": "action--8c802019-6bff-4925-9f68-0bd056c0e2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_logs --from backup --to /var/log"
+                }
+            ],
+            "agent": "organization--204cc02b-277a-4512-b517-b52b54d5791e"
+        },
+        "action--8c802019-6bff-4925-9f68-0bd056c0e2d0": {
+            "name": "Implement file integrity monitoring",
+            "description": "Enable monitoring on log files to catch any future modifications.",
+            "on_completion": "action--bc2e8e99-29a1-478a-b3e1-4c4e84acf89e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "enable_file_integrity --monitor /var/log"
+                }
+            ],
+            "agent": "organization--204cc02b-277a-4512-b517-b52b54d5791e"
+        },
+        "action--bc2e8e99-29a1-478a-b3e1-4c4e84acf89e": {
+            "name": "Run security audits on all users with elevated privileges",
+            "description": "Audit users who have unauthorized elevated access rights.",
+            "type": "action",
+            "on_completion": "end--b9b35ee2-829e-408a-8b47-2a12bd5f3607",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_users --elevated --audit"
+                }
+            ],
+            "loop": "for each user in elevated_users",
+            "variables": {
+                "elevated_users": {
+                    "type": "string",
+                    "description": "List of elevated users from the system",
+                    "value": "get_elevated_users()",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--204cc02b-277a-4512-b517-b52b54d5791e"
+        },
+        "end--b9b35ee2-829e-408a-8b47-2a12bd5f3607": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--204cc02b-277a-4512-b517-b52b54d5791e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

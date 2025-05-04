@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f57ed047-10b7-4718-8d8b-e9ac1e36c5a0",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via the command interpreter, aiming to exfiltrate sensitive data and create backdoors.",
+    "created_by": "identity--a36e156e-e0c5-45c8-b1d6-60734cb8d74c",
+    "created": "2023-10-23T12:00:00Z",
+    "modified": "2023-10-23T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--2b7c5e41-a73a-4646-bb1d-f86da0963d54",
+    "workflow": {
+        "start--2b7c5e41-a73a-4646-bb1d-f86da0963d54": {
+            "on_completion": "action--d3c9ea58-ecb9-4cee-b811-ec8e38e04670",
+            "type": "start"
+        },
+        "action--d3c9ea58-ecb9-4cee-b811-ec8e38e04670": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be malicious.",
+            "on_completion": "if-condition--874ef744-f3c9-40c2-922f-f809bed8e263",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--874ef744-f3c9-40c2-922f-f809bed8e263": {
+            "name": "Check if malicious process was terminated",
+            "type": "if-condition",
+            "condition": "process_running('powershell') == false",
+            "on_true": "action--b1cd682e-5e4f-4915-a8e4-f7b01fc6d6f1",
+            "on_false": "end--6625a4b1-6d1f-4bbf-bd99-c3a38c409039"
+        },
+        "action--b1cd682e-5e4f-4915-a8e4-f7b01fc6d6f1": {
+            "name": "Block outbound connections to known malicious IPs",
+            "description": "Prevent any further outbound network communications to known malicious IPs.",
+            "on_completion": "loop--2ca58522-a29d-42bf-9557-f251ebcd5e28",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--2ca58522-a29d-42bf-9557-f251ebcd5e28": {
+            "name": "Conduct a full system scan",
+            "description": "Run a complete system scan to detect any remnants of the attack.",
+            "on_true": "action--1a5ac49a-b13a-4774-b0c0-7ad6c8d234fa",
+            "type": "loop",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--1a5ac49a-b13a-4774-b0c0-7ad6c8d234fa"
+            ]
+        },
+        "action--1a5ac49a-b13a-4774-b0c0-7ad6c8d234fa": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a recursive scan of the system\u2019s files.",
+            "on_completion": "loop--2ca58522-a29d-42bf-9557-f251ebcd5e28",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--6625a4b1-6d1f-4bbf-bd99-c3a38c409039": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

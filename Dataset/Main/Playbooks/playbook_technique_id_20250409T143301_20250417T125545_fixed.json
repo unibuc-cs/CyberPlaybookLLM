@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1f83446e-85b8-4869-a6da-b034f5ae6948",
+    "name": "Mitigation Playbook for Data Exfiltration via Application Layer Protocol",
+    "description": "This playbook outlines the steps to mitigate a data exfiltration incident involving legitimate application layer protocols.",
+    "created_by": "identity--40bb89d1-4220-41f9-83eb-10996b4e0d6a",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c533acb7-b082-4d50-9130-a6985cb3a12d",
+    "workflow": {
+        "start--c533acb7-b082-4d50-9130-a6985cb3a12d": {
+            "on_completion": "action--e5c1db07-3c5e-4a92-b558-08467d86479d",
+            "type": "start"
+        },
+        "action--e5c1db07-3c5e-4a92-b558-08467d86479d": {
+            "name": "Block suspicious outbound traffic",
+            "description": "Block any outbound traffic on port 443 to prevent further data exfiltration.",
+            "on_completion": "if-condition--f8d24cf2-fb19-4d06-a1fc-3bba6712d123",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 443 -j DROP"
+                }
+            ],
+            "agent": "organization--136dc829-acce-456a-9ae3-56ece379e10f"
+        },
+        "if-condition--f8d24cf2-fb19-4d06-a1fc-3bba6712d123": {
+            "name": "Check if server is compromised",
+            "type": "if-condition",
+            "condition": "server_compromised == true",
+            "on_true": "action--f8d24cf2-fb19-4d06-a1fc-3bba6712d123",
+            "on_false": "action--ff1c732c-53ae-49de-ba0b-02d89854b7a8"
+        },
+        "action--f8d24cf2-fb19-4d06-a1fc-3bba6712d123": {
+            "name": "Investigate compromised server",
+            "description": "Stop the potentially compromised server and check logs.",
+            "on_completion": "while-condition--ff1c732c-53ae-49de-ba0b-02d89854b7a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl stop apache2; check_logs.sh"
+                }
+            ],
+            "agent": "organization--136dc829-acce-456a-9ae3-56ece379e10f",
+            "step_variables": {
+                "server_compromised": {
+                    "type": "boolean",
+                    "value": true,
+                    "constant": true
+                }
+            }
+        },
+        "while-condition--ff1c732c-53ae-49de-ba0b-02d89854b7a8": {
+            "name": "Conduct network packet capture",
+            "description": "Capture suspicious outgoing traffic for analysis.",
+            "type": "while-condition",
+            "condition": "analysis_complete == false",
+            "on_true": "action--ff1c732c-53ae-49de-ba0b-02d89854b7a8",
+            "on_false": "end--de9c76f6-d646-4e51-bb28-fb3557a1f7fd"
+        },
+        "action--ff1c732c-53ae-49de-ba0b-02d89854b7a8": {
+            "name": "Perform packet capture",
+            "description": "Capture packets for analysis to understand the data exfiltration.",
+            "on_completion": "while-condition--ff1c732c-53ae-49de-ba0b-02d89854b7a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -w suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--136dc829-acce-456a-9ae3-56ece379e10f"
+        },
+        "end--de9c76f6-d646-4e51-bb28-fb3557a1f7fd": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--136dc829-acce-456a-9ae3-56ece379e10f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

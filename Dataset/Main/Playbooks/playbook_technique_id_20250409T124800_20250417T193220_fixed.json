@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--710d41a8-e9a3-4ec5-909f-31a405f6a261",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a scripting language to execute malicious commands across multiple hosts within the network.",
+    "created_by": "identity--3f7e7410-804c-4f87-9a8d-578d7fb16e8b",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--0c1a1e1d-4790-4461-8c37-7706596a4214",
+    "workflow": {
+        "start--0c1a1e1d-4790-4461-8c37-7706596a4214": {
+            "on_completion": "action--786b7032-0523-4d20-9659-8b78faa0ffee",
+            "type": "start"
+        },
+        "action--786b7032-0523-4d20-9659-8b78faa0ffee": {
+            "name": "Kill malicious processes",
+            "description": "Kill any processes that are running malicious scripts.",
+            "on_completion": "action--cd4ca57e-2a5b-41eb-ad18-3d69f291f545",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--985ee41f-bd92-437f-bf84-fc7d06ab7acb"
+        },
+        "action--cd4ca57e-2a5b-41eb-ad18-3d69f291f545": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate compromised hosts from the network.",
+            "on_completion": "decision--5f7094c5-7598-4b4c-ac07-4a58d71428a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--985ee41f-bd92-437f-bf84-fc7d06ab7acb",
+            "targets": [
+                "host-22"
+            ]
+        },
+        "decision--5f7094c5-7598-4b4c-ac07-4a58d71428a0": {
+            "name": "Check if malware scan is required",
+            "type": "if-condition",
+            "condition": "malware_detected == true",
+            "on_true": "loop--812b7779-eddf-47c1-b702-9596eb6e3a26",
+            "on_false": "action--435a974f-28a1-4d16-a96d-0d889453d74a"
+        },
+        "loop--812b7779-eddf-47c1-b702-9596eb6e3a26": {
+            "name": "Run malware scan",
+            "description": "Repeat the scan until no malware is found.",
+            "on_completion": "action--435a974f-28a1-4d16-a96d-0d889453d74a",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--2c662e23-19ae-44d1-a73c-5d91c63ec3ab",
+            "next_steps": [
+                "action--2c662e23-19ae-44d1-a73c-5d91c63ec3ab"
+            ]
+        },
+        "action--2c662e23-19ae-44d1-a73c-5d91c63ec3ab": {
+            "name": "Perform malware scan",
+            "on_completion": "loop--812b7779-eddf-47c1-b702-9596eb6e3a26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--985ee41f-bd92-437f-bf84-fc7d06ab7acb"
+        },
+        "action--435a974f-28a1-4d16-a96d-0d889453d74a": {
+            "name": "Check script execution logs",
+            "description": "Examine logs for malicious activity.",
+            "on_completion": "end--06b16937-33e5-4bb6-844e-ad1ab7f8b72b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious' /var/log/command.log"
+                }
+            ],
+            "agent": "organization--985ee41f-bd92-437f-bf84-fc7d06ab7acb",
+            "step_variables": {
+                "log_file": {
+                    "type": "string",
+                    "value": "/var/log/command.log"
+                }
+            }
+        },
+        "end--06b16937-33e5-4bb6-844e-ad1ab7f8b72b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--985ee41f-bd92-437f-bf84-fc7d06ab7acb": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--217ff3b9-b693-4b70-8594-530c6fbaccd6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to remotely execute malicious scripts on the server. The workflow includes steps for terminating unauthorized sessions, blocking malicious IPs, scanning for threats, and enhancing firewall rules.",
+    "created_by": "identity--d86e823e-1139-41d2-b103-3ced82e6f7dd",
+    "created": "2025-04-10T08:05:00Z",
+    "modified": "2025-04-10T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--9c4a01a5-64a7-4b72-a61d-fb92645818d7",
+    "workflow": {
+        "start--9c4a01a5-64a7-4b72-a61d-fb92645818d7": {
+            "on_completion": "action--7152dfe3-bba7-4736-8a7e-9b02f3c76cca",
+            "type": "start"
+        },
+        "action--7152dfe3-bba7-4736-8a7e-9b02f3c76cca": {
+            "name": "Identify and Terminate Unauthorized PowerShell Sessions",
+            "description": "Terminate any PowerShell sessions that are identified as unauthorized.",
+            "on_completion": "action--5e8ef3a2-d6eb-4d08-b8f5-cb8ebd7b6c12",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-Process powershell | Where-Object {$_.StartInfo.WindowTitle -like '*unauthorized*'} | Stop-Process"
+                }
+            ],
+            "agent": "organization--61049231-9ffc-4d39-9ae6-522e93309d6a"
+        },
+        "action--5e8ef3a2-d6eb-4d08-b8f5-cb8ebd7b6c12": {
+            "name": "Block Outbound Traffic to Known Malicious IPs",
+            "description": "Block all network traffic to known malicious IPs.",
+            "on_completion": "loop--9f93a72b-8d55-444e-b03e-fd150c9b9456",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--61049231-9ffc-4d39-9ae6-522e93309d6a"
+        },
+        "loop--9f93a72b-8d55-444e-b03e-fd150c9b9456": {
+            "name": "Perform Full Scan Until All Threats are Removed",
+            "description": "Repeat the scan process until no threats are detected.",
+            "condition": "threats_found == true",
+            "on_true": "action--9f93a72b-8d55-444e-b03e-fd150c9b9456",
+            "on_false": "action--48b7225d-3436-4f83-b260-8ea76a72966f",
+            "type": "while-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--61049231-9ffc-4d39-9ae6-522e93309d6a"
+        },
+        "action--48b7225d-3436-4f83-b260-8ea76a72966f": {
+            "name": "Remove All Secondary Payloads from the System",
+            "description": "Delete any detected secondary payloads from the system.",
+            "on_completion": "action--c8a5d964-95ba-4f0b-8a25-f061e8cecc94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'secondary_payload*' -type f -delete"
+                }
+            ],
+            "agent": "organization--61049231-9ffc-4d39-9ae6-522e93309d6a"
+        },
+        "action--c8a5d964-95ba-4f0b-8a25-f061e8cecc94": {
+            "name": "Enhance Firewall Rules for Script-Based Attacks",
+            "description": "Update firewall rules to prevent script execution attacks.",
+            "on_completion": "end--f38b0f49-4200-4ff6-b9c2-6b19f45531e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_firewall_rules.sh"
+                }
+            ],
+            "agent": "organization--61049231-9ffc-4d39-9ae6-522e93309d6a"
+        },
+        "end--f38b0f49-4200-4ff6-b9c2-6b19f45531e2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--61049231-9ffc-4d39-9ae6-522e93309d6a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

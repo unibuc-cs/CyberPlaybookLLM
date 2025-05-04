@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d470a361-1e3e-4f84-b117-289d16c3c579",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts and an attacker's attempt to establish a foothold in the network.",
+    "created_by": "identity--88595271-4ec1-47c2-a18f-13ab745f1ee8",
+    "created": "2023-10-01T12:00:00.000Z",
+    "modified": "2023-10-01T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8f9fbc3c-cb52-46a9-8bd2-5bf56bac165b",
+    "workflow": {
+        "start--8f9fbc3c-cb52-46a9-8bd2-5bf56bac165b": {
+            "on_completion": "action--cc476a2e-f11e-4cde-9534-bf8e22d08b64",
+            "type": "start"
+        },
+        "action--cc476a2e-f11e-4cde-9534-bf8e22d08b64": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "parallel--f0adc429-9c58-4e9b-8b22-5f95f49f3ac6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--4890da26-7638-4f7c-a6bf-c9aae2b4377d"
+        },
+        "parallel--f0adc429-9c58-4e9b-8b22-5f95f49f3ac6": {
+            "name": "Address Further Mitigations",
+            "description": "Execute subsequent actions in parallel to ensure all threats are neutralized.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5a88a2db-279b-47bc-9e1d-b19c63f5e7b2",
+                "action--ad41f0c0-7d11-489b-83b1-e725c7cc3f3f"
+            ]
+        },
+        "action--5a88a2db-279b-47bc-9e1d-b19c63f5e7b2": {
+            "name": "Block malicious IP addresses",
+            "description": "Block outbound connections to known malicious IPs.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--4890da26-7638-4f7c-a6bf-c9aae2b4377d",
+            "on_condition": {
+                "condition": "connection_to_malicious_ip_exists",
+                "true": "action--5a88a2db-279b-47bc-9e1d-b19c63f5e7b2",
+                "false": "action--ad41f0c0-7d11-489b-83b1-e725c7cc3f3f"
+            }
+        },
+        "action--ad41f0c0-7d11-489b-83b1-e725c7cc3f3f": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Perform a vulnerability scan to identify any future threats.",
+            "on_completion": "action--ad41f0c0-7d11-489b-83b1-e725c7cc3f3f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan.sh"
+                }
+            ],
+            "agent": "organization--4890da26-7638-4f7c-a6bf-c9aae2b4377d",
+            "loop": {
+                "condition": "scan_is_not_clean",
+                "true": "action--ad41f0c0-7d11-489b-83b1-e725c7cc3f3f",
+                "false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4890da26-7638-4f7c-a6bf-c9aae2b4377d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

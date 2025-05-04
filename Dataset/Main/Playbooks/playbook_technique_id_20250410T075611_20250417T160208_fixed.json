@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1f5c913e-2671-4116-b08b-748fb6afbb77",
+    "name": "Mitigation Playbook for RDP Exploitation Incident",
+    "description": "This playbook addresses the incident of unauthorized access via a misconfigured remote desktop protocol, followed by script execution and data exfiltration.",
+    "created_by": "identity--d1e2bd8d-6baf-4f7a-bcc3-27b24b9df882",
+    "created": "2023-10-02T08:00:00.000Z",
+    "modified": "2023-10-02T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--740c8e35-e39f-4e54-8a29-322ba13ecac3",
+    "workflow": {
+        "start--740c8e35-e39f-4e54-8a29-322ba13ecac3": {
+            "on_completion": "if-condition--d1575cde-daa6-4f3c-a6c9-ef4c9b7ff872",
+            "type": "start"
+        },
+        "if-condition--d1575cde-daa6-4f3c-a6c9-ef4c9b7ff872": {
+            "name": "Check for Unauthorized Access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d",
+            "on_false": "action--66cf8b24-4e0d-4319-9806-a0470927e503"
+        },
+        "action--1e2d4f7b-4a1c-456e-9004-d3c75b2bf03d": {
+            "name": "Terminate Unauthorized Remote Desktop Sessions",
+            "description": "Terminate all remote desktop connections established by unauthorized users.",
+            "on_completion": "action--66cf8b24-4e0d-4319-9806-a0470927e503",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo pkill -u remote_user"
+                }
+            ],
+            "agent": "organization--6e92e35b-5b53-4793-910d-217af82c8cd7"
+        },
+        "action--66cf8b24-4e0d-4319-9806-a0470927e503": {
+            "name": "Remove Unauthorized User Accounts",
+            "description": "Delete any malicious user accounts created during the incident.",
+            "on_completion": "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo deluser malign_user"
+                }
+            ],
+            "agent": "organization--6e92e35b-5b53-4793-910d-217af82c8cd7"
+        },
+        "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f": {
+            "name": "Scan System for Remaining Malicious Scripts",
+            "description": "Conduct a scan of the system to identify any residual malicious scripts.",
+            "on_completion": "while-condition--ba8fe32a-9cb3-42e0-8c8b-c18ee03ae565",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/remote_user/"
+                }
+            ],
+            "agent": "organization--6e92e35b-5b53-4793-910d-217af82c8cd7"
+        },
+        "while-condition--ba8fe32a-9cb3-42e0-8c8b-c18ee03ae565": {
+            "name": "Checking for Malware",
+            "description": "Loop until no malware is found in the system.",
+            "on_completion": "action--f27a58c0-5b25-4d35-9b68-6b6015179fbe",
+            "type": "while-condition",
+            "condition": "no_malware_found == false",
+            "on_true": "action--c5c2e5ae-29f9-418c-a92b-8641d9c6b49f"
+        },
+        "action--f27a58c0-5b25-4d35-9b68-6b6015179fbe": {
+            "name": "Deploy Network Monitoring to Detect Data Exfiltration",
+            "description": "Set up monitoring tools to detect any further data exfiltration attempts.",
+            "on_completion": "action--3c6e5a2f-b3ab-400a-bd18-656e2d060a8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -Pn 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--6e92e35b-5b53-4793-910d-217af82c8cd7"
+        },
+        "action--3c6e5a2f-b3ab-400a-bd18-656e2d060a8a": {
+            "name": "Reset RDP access policies and enhance logging",
+            "description": "Reconfigure RDP access settings and improve logging for future incidents.",
+            "on_completion": "end--e0d51950-5abc-4f66-aabc-802ab527f425",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw deny 3389 && sudo systemctl restart rsyslog"
+                }
+            ],
+            "agent": "organization--6e92e35b-5b53-4793-910d-217af82c8cd7"
+        },
+        "end--e0d51950-5abc-4f66-aabc-802ab527f425": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6e92e35b-5b53-4793-910d-217af82c8cd7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

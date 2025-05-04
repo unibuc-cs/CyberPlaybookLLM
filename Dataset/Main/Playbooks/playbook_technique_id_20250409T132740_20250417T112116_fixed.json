@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d2cb8987-b573-4b46-bf1b-025239162d8f",
+    "name": "Mitigation Playbook for Malicious Script Execution and Data Exfiltration",
+    "description": "This playbook mitigates an incident where an attacker accessed a corporate server using stolen credentials and executed malicious scripts.",
+    "created_by": "identity--e034e534-ebe7-4bde-b004-9a4d907fe569",
+    "created": "2025-10-25T12:35:45Z",
+    "modified": "2025-10-25T12:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--1eaff456-ff77-4d72-bf0a-fff35ca0fc63",
+    "workflow": {
+        "start--1eaff456-ff77-4d72-bf0a-fff35ca0fc63": {
+            "on_completion": "action--de2b3e16-27a1-4d27-8aa9-d790c1f4a8d9",
+            "type": "start"
+        },
+        "action--de2b3e16-27a1-4d27-8aa9-d790c1f4a8d9": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script that is currently executing.",
+            "on_completion": "parallel--87f74b67-2c91-4342-b467-00c4f6e18c09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--9e341995-c44a-4165-b528-576409cca1e3"
+        },
+        "parallel--87f74b67-2c91-4342-b467-00c4f6e18c09": {
+            "name": "Initiate Mitigation Steps",
+            "description": "Mitigation actions will be performed in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cc9f7d05-b59e-46c5-9342-da8fa3a2f9d5",
+                "action--b39b4c1c-fd47-4088-9402-2c19abbc272d"
+            ]
+        },
+        "action--cc9f7d05-b59e-46c5-9342-da8fa3a2f9d5": {
+            "name": "Block Suspicious IP",
+            "description": "Block outbound traffic to the suspected external IP address.",
+            "on_completion": "action--b39b4c1c-fd47-4088-9402-2c19abbc272d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--9e341995-c44a-4165-b528-576409cca1e3"
+        },
+        "action--b39b4c1c-fd47-4088-9402-2c19abbc272d": {
+            "name": "Analyze Affected Systems",
+            "description": "Run an analysis tool on affected systems to check for further compromises.",
+            "on_completion": "end--c02b48e2-ea4d-44dd-8e0d-2ab7d7643f09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_analysis_tool"
+                }
+            ],
+            "agent": "organization--9e341995-c44a-4165-b528-576409cca1e3",
+            "conditional": {
+                "type": "if-condition",
+                "condition": "unauthorized_access_detected",
+                "on_true": "loop--a9d05ac1-538b-4858-b7ef-f2047748b2e8",
+                "on_false": "end--c02b48e2-ea4d-44dd-8e0d-2ab7d7643f09"
+            }
+        },
+        "loop--a9d05ac1-538b-4858-b7ef-f2047748b2e8": {
+            "name": "Repeat Analysis Until Complete",
+            "description": "Repeat the analysis process until no further unauthorized access is detected.",
+            "on_completion": "action--b39b4c1c-fd47-4088-9402-2c19abbc272d",
+            "type": "while-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--b39b4c1c-fd47-4088-9402-2c19abbc272d"
+        },
+        "end--c02b48e2-ea4d-44dd-8e0d-2ab7d7643f09": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9e341995-c44a-4165-b528-576409cca1e3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

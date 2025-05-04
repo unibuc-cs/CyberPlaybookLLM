@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ea3d2a07-b7d9-4fb0-bda2-ddf69739c347",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script, moving sensitive files to an external server.",
+    "created_by": "identity--be712bcd-1e45-4004-b3eb-fa7f3d99cf29",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1f85d620-545d-11ec-bf63-0242ac130002",
+    "workflow": {
+        "start--1f85d620-545d-11ec-bf63-0242ac130002": {
+            "on_completion": "if-condition--dd8f23b2-2af5-487b-bded-86a0c65c4901",
+            "type": "start"
+        },
+        "if-condition--dd8f23b2-2af5-487b-bded-86a0c65c4901": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--f1c2f956-4c71-4df3-8c67-9b2c8708e97e",
+            "on_false": "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3"
+        },
+        "action--f1c2f956-4c71-4df3-8c67-9b2c8708e97e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell instances that are executing malicious scripts.",
+            "on_completion": "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--78753a2f-cdd4-49e0-8823-6a10af7163f0"
+        },
+        "action--abc6a16b-2a08-4732-95bd-e9d7c8a7fee3": {
+            "name": "Conduct network traffic analysis",
+            "description": "Perform an analysis of the network traffic to identify any suspicious activities.",
+            "on_completion": "loop--c9a3de5f-8471-4e13-b1ea-50478e825db3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "./network_analysis.sh --endpoint host-22 --timeframe last_24_hours"
+                }
+            ],
+            "agent": "organization--78753a2f-cdd4-49e0-8823-6a10af7163f0",
+            "step_variables": {
+                "malicious_process_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any malicious PowerShell processes were found",
+                    "value": "true",
+                    "constant": false
+                }
+            }
+        },
+        "loop--c9a3de5f-8471-4e13-b1ea-50478e825db3": {
+            "name": "Restore Files Loop",
+            "description": "Repeat the restore process until all files have been restored.",
+            "on_completion": "end--60f95810-9dac-4d8e-a30f-03040f87c4a9",
+            "type": "while-condition",
+            "condition": "remaining_files > 0",
+            "on_true": "action--c9a3de5f-8471-4e13-b1ea-50478e825db3",
+            "steps": [
+                "action--c9a3de5f-8471-4e13-b1ea-50478e825db3"
+            ]
+        },
+        "action--c9a3de5f-8471-4e13-b1ea-50478e825db3": {
+            "name": "Restore affected files from backup",
+            "description": "Restore all affected files from the backup to the sensitive data directory.",
+            "on_completion": "loop--c9a3de5f-8471-4e13-b1ea-50478e825db3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/securefiles/ /data/sensitive/"
+                }
+            ],
+            "agent": "organization--78753a2f-cdd4-49e0-8823-6a10af7163f0"
+        },
+        "end--60f95810-9dac-4d8e-a30f-03040f87c4a9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--78753a2f-cdd4-49e0-8823-6a10af7163f0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

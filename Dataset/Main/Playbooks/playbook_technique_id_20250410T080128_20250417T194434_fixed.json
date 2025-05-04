@@ -1,0 +1,132 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--bcd907a1-8e9c-4e02-843c-b561e413acb6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of malicious PowerShell scripts via phishing, aiming to exfiltrate data. It includes steps to stop the malicious activities, quarantine affected files, reset user credentials, and audit the network.",
+    "created_by": "identity--092f7221-23a9-49d3-8477-e8a72eab9c14",
+    "created": "2023-10-25T10:30:00Z",
+    "modified": "2023-10-25T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d9fce987-f34b-4a8a-a46e-ff6d975b23aa",
+    "workflow": {
+        "start--d9fce987-f34b-4a8a-a46e-ff6d975b23aa": {
+            "on_completion": "decision--110b0c8e-3012-4bfe-83dd-960abc4f5a90",
+            "type": "start"
+        },
+        "decision--110b0c8e-3012-4bfe-83dd-960abc4f5a90": {
+            "name": "Check if PowerShell process running",
+            "description": "Determine whether the malicious PowerShell process is still active.",
+            "type": "if-condition",
+            "condition": "is_process_running('powershell.exe')",
+            "on_true": "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321",
+            "on_false": "parallel--1dd2e0a2-e2b7-4d85-b47a-813f4b0f3aad"
+        },
+        "action--c1e8f5b7-d6f4-4806-8f7e-9f516a9c4321": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process if it is running.",
+            "on_completion": "parallel--1dd2e0a2-e2b7-4d85-b47a-813f4b0f3aad",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9"
+        },
+        "parallel--1dd2e0a2-e2b7-4d85-b47a-813f4b0f3aad": {
+            "name": "Execute mitigation steps in parallel",
+            "description": "Execute parallel tasks to block C2 IP, quarantine files, reset credentials, and conduct a network audit.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2",
+                "loop--6f3bbce5-2ffa-431e-a565-2e9a8b68c8f3",
+                "for-each--e4d1f3b9-819a-45f5-8d3e-2b361a8e4950",
+                "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4"
+            ]
+        },
+        "action--ab4f6e91-d399-442d-b7b5-8f9e451bd9a2": {
+            "name": "Block IP address used for command and control",
+            "description": "Block the IP address used for the command and control server.",
+            "on_completion": "end--54f1d3f3-bd3b-4c39-b1d2-7465a8f1a2c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious-IP> -j DROP"
+                }
+            ],
+            "agent": "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9"
+        },
+        "loop--6f3bbce5-2ffa-431e-a565-2e9a8b68c8f3": {
+            "name": "Scan and quarantine compromised files",
+            "description": "Iteratively scan logs and quarantine discovered threats.",
+            "type": "while-condition",
+            "condition": "threats_detected != 0",
+            "on_true": "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc"
+        },
+        "action--f6e2a8c7-aa12-4b2e-b0e5-3e6139f7d2dc": {
+            "name": "ClamAV Scan",
+            "description": "Use ClamAV to scan and quarantine compromised files.",
+            "on_completion": "loop--6f3bbce5-2ffa-431e-a565-2e9a8b68c8f3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/log/ --move=/quarantine"
+                }
+            ],
+            "agent": "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9",
+            "step_variables": {
+                "scan_path": "/var/log/",
+                "quarantine_path": "/quarantine"
+            }
+        },
+        "for-each--e4d1f3b9-819a-45f5-8d3e-2b361a8e4950": {
+            "name": "Reset credentials for affected users",
+            "description": "Reset credentials for each of the affected users.",
+            "type": "foreach",
+            "collection": "affected_users",
+            "next_step": "action--reset-cred-e4d1f3b9"
+        },
+        "action--b2d9d5f0-e762-4f4b-9e32-6f7261a3b9a4": {
+            "name": "Conduct full network audit",
+            "description": "Perform a comprehensive network audit to identify vulnerabilities.",
+            "on_completion": "end--54f1d3f3-bd3b-4c39-b1d2-7465a8f1a2c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -A -T4 -p 1-65535 <network-range>"
+                }
+            ],
+            "agent": "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9"
+        },
+        "end--54f1d3f3-bd3b-4c39-b1d2-7465a8f1a2c3": {
+            "type": "end"
+        },
+        "action--23c57fd2-b28c-4966-9228-3f9dc49d7edb": {
+            "name": "Reset credentials",
+            "description": "Reset credentials for a specific user.",
+            "on_completion": "end--54f1d3f3-bd3b-4c39-b1d2-7465a8f1a2c3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd <username>"
+                }
+            ],
+            "agent": "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9",
+            "step_variables": {
+                "username": "affected_user"
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--42b2d0e8-7039-4f1b-82e8-c8353f85bdf9": {
+            "type": "organization",
+            "name": "Security Team"
+        }
+    }
+}

@@ -1,0 +1,106 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f5dcd823-92ff-4a00-b9a6-07b7e3dfe6b4",
+    "name": "Data Exfiltration Mitigation Playbook",
+    "description": "This playbook addresses an incident where an attacker used an application layer protocol for data exfiltration. It includes steps to terminate network connections, analyze outbound traffic, and deploy an EDR solution.",
+    "created_by": "identity--f9f6e5a1-1893-423b-918a-bc74c529c60e",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--73e3a8b7-ea12-4113-a1ed-bd10a3ddea4e",
+    "workflow": {
+        "start--73e3a8b7-ea12-4113-a1ed-bd10a3ddea4e": {
+            "on_completion": "parallel--3b85e467-4290-4f03-bfe8-084134925014",
+            "type": "start"
+        },
+        "parallel--3b85e467-4290-4f03-bfe8-084134925014": {
+            "name": "Immediate containment and analysis steps",
+            "description": "Execute containment and analysis actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b525b0f2-d173-44cf-a464-2b2bcdc41684",
+                "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db"
+            ]
+        },
+        "action--b525b0f2-d173-44cf-a464-2b2bcdc41684": {
+            "name": "Terminate unauthorized network connections",
+            "description": "Terminate all outgoing connections from the suspicious IP.",
+            "on_completion": "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--22632522-8fcd-4b6c-a6c1-4eeb9f9079b3"
+        },
+        "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db": {
+            "name": "Analyze outbound traffic for potential data exfiltration",
+            "description": "Monitor outbound traffic for large volumes indicating data exfiltration.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -n 'tcp and (dst port 80 or dst port 443)'"
+                }
+            ],
+            "agent": "organization--22632522-8fcd-4b6c-a6c1-4eeb9f9079b3",
+            "on_completion": "if-condition--a198bb33-e0a1-4b99-b13b-73d9ad9233c5"
+        },
+        "if-condition--a198bb33-e0a1-4b99-b13b-73d9ad9233c5": {
+            "name": "Check traffic volume for anomalies",
+            "type": "if-condition",
+            "condition": "traffic_volume > threshold",
+            "on_true": "loop--ef4bf350-c8fe-4ce9-8222-2d9fc8e1b8af",
+            "on_false": "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be"
+        },
+        "loop--ef4bf350-c8fe-4ce9-8222-2d9fc8e1b8af": {
+            "name": "Check anomalies in traffic repeatedly",
+            "description": "Repeat analysis until anomalies are cleared.",
+            "on_completion": "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be",
+            "type": "while-condition",
+            "condition": "anomalies_detected == true",
+            "on_true": "action--d28d370c-11a5-4a96-bb19-ba2a11b3f7db"
+        },
+        "action--edc2abf2-175a-46e6-aa2d-b758c7baf4be": {
+            "name": "Deploy endpoint detection and response (EDR) solution",
+            "description": "Deploy EDR to monitor and respond to threats on the affected host.",
+            "on_completion": "end--69dc5de5-d9bd-4514-bc10-c7378d38e0e0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "edr-deploy --host host-22"
+                }
+            ],
+            "agent": "organization--22632522-8fcd-4b6c-a6c1-4eeb9f9079b3",
+            "step_variables": {
+                "host": {
+                    "type": "string",
+                    "description": "Hostname for EDR deployment",
+                    "value": "host-22",
+                    "constant": false,
+                    "external": false
+                },
+                "status": {
+                    "type": "string",
+                    "description": "Deployment status",
+                    "value": "pending",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--69dc5de5-d9bd-4514-bc10-c7378d38e0e0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--22632522-8fcd-4b6c-a6c1-4eeb9f9079b3": {
+            "type": "organization",
+            "name": "Security Team Organization"
+        }
+    }
+}

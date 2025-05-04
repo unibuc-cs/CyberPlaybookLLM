@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b78968ef-233f-4ff3-b0b7-e3b1738dce73",
+    "name": "Mitigation Playbook for Remote Shell Incident",
+    "description": "This playbook outlines the steps to be taken in response to an incident involving unauthorized remote shell commands execution.",
+    "created_by": "identity--9a3c5e1d-f6fe-46d9-8a27-2e9733e9e2d4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--9f3a5771-155e-49d4-a5f6-584cbf4e8c35",
+    "workflow": {
+        "start--9f3a5771-155e-49d4-a5f6-584cbf4e8c35": {
+            "on_completion": "action--d6f6a680-78c0-4f4f-b191-2d826b474c27",
+            "type": "start"
+        },
+        "action--d6f6a680-78c0-4f4f-b191-2d826b474c27": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "if-condition--ac29d83d-8c4e-4fe0-8e55-fb0e860e1261",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--ae66f9f0-97f9-4be3-a643-ed8f375c6bc7"
+        },
+        "if-condition--ac29d83d-8c4e-4fe0-8e55-fb0e860e1261": {
+            "name": "Check unauthorized user",
+            "type": "if-condition",
+            "condition": "user_not_admin",
+            "on_true": "loop--f82a845e-7c10-44c3-8686-788a8f5fa1ee",
+            "on_false": "action--b1f5dd5e-9c76-4f74-9c75-c5c4624dfad0"
+        },
+        "loop--f82a845e-7c10-44c3-8686-788a8f5fa1ee": {
+            "name": "Restrict remote shell access",
+            "description": "Block remote shell access from unauthorized users.",
+            "type": "while-condition",
+            "condition": "unauthorized_access_detected",
+            "on_true": "action--ac29d83d-8c4e-4fe0-8e55-fb0e860e1261",
+            "next_steps": [
+                "action--ac29d83d-8c4e-4fe0-8e55-fb0e860e1261"
+            ],
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from any to any port 22"
+                }
+            ],
+            "agent": "organization--ae66f9f0-97f9-4be3-a643-ed8f375c6bc7"
+        },
+        "action--b1f5dd5e-9c76-4f74-9c75-c5c4624dfad0": {
+            "name": "Conduct full system scan",
+            "description": "Perform a complete system scan to detect any further threats.",
+            "on_completion": "if-condition--a8d12004-db9c-4c62-82c6-f84ffb78f6c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--ae66f9f0-97f9-4be3-a643-ed8f375c6bc7",
+            "targets": [
+                "individual--e34c9922-bffb-4c14-8137-3fc22be645e2"
+            ]
+        },
+        "if-condition--a8d12004-db9c-4c62-82c6-f84ffb78f6c9": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_result == clean",
+            "on_true": "end--3b155451-e617-401c-8274-498094ad008f",
+            "on_false": "action--b1f5dd5e-9c76-4f74-9c75-c5c4624dfad0"
+        },
+        "end--3b155451-e617-401c-8274-498094ad008f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ae66f9f0-97f9-4be3-a643-ed8f375c6bc7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

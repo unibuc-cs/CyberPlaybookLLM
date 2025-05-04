@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3be2f92e-b334-4b73-b8be-421f986e3f56",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious commands through a command-line interface, leading to data exfiltration.",
+    "created_by": "identity--2ef41db4-3c7c-42e8-9c0e-208ce006b69d",
+    "created": "2025-04-10T08:55:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bdf3a8ab-b833-4d65-bd38-112e0f02ecb9",
+    "workflow": {
+        "start--bdf3a8ab-b833-4d65-bd38-112e0f02ecb9": {
+            "on_completion": "parallel--e909f23a-b8b9-4f1c-95b4-1a745585b58f",
+            "type": "start"
+        },
+        "parallel--e909f23a-b8b9-4f1c-95b4-1a745585b58f": {
+            "name": "Immediate Mitigations",
+            "description": "Execute immediate actions to mitigate the compromised host.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--c3ecf439-23b6-4c9c-b721-bc2bb64d392e",
+                "action--61b7e18b-0e27-4f31-a9c6-342d166e134d",
+                "action--b71c3455-e6b4-4928-8db6-5c3bdeeeeb4c",
+                "action--5840f743-9d69-46e0-9d6e-c4212299b523"
+            ]
+        },
+        "if-condition--c3ecf439-23b6-4c9c-b721-bc2bb64d392e": {
+            "name": "Check if Suspicious Process Exists",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_process)",
+            "on_true": "action--c47e6f81-a812-43ec-a972-84d073f25a96",
+            "on_false": "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de"
+        },
+        "action--61b7e18b-0e27-4f31-a9c6-342d166e134d": {
+            "name": "Isolate compromised host",
+            "on_completion": "action--5840f743-9d69-46e0-9d6e-c4212299b523",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5"
+        },
+        "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de": {
+            "name": "Run malware scan",
+            "on_completion": "while-condition--3c2318a9-0310-4b1e-afcd-13996fd8cd26",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5"
+        },
+        "while-condition--3c2318a9-0310-4b1e-afcd-13996fd8cd26": {
+            "name": "Wait for malware scan to be clean",
+            "description": "Continue running the malware scan until all threats are cleared.",
+            "on_completion": "end--eb8e8b5a-56bb-4da1-9042-ec1e5f5b8d2c",
+            "type": "while-condition",
+            "condition": "scan_results != clean",
+            "on_true": "action--ae57cd84-b0c2-4d87-a8c9-8e8412ade0de"
+        },
+        "action--b71c3455-e6b4-4928-8db6-5c3bdeeeeb4c": {
+            "name": "Review command history",
+            "on_completion": "end--eb8e8b5a-56bb-4da1-9042-ec1e5f5b8d2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'CMD'"
+                }
+            ],
+            "agent": "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5"
+        },
+        "action--5840f743-9d69-46e0-9d6e-c4212299b523": {
+            "name": "Alert security team",
+            "on_completion": "end--eb8e8b5a-56bb-4da1-9042-ec1e5f5b8d2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert('Suspicious activity detected on host-22')"
+                }
+            ],
+            "agent": "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5"
+        },
+        "end--eb8e8b5a-56bb-4da1-9042-ec1e5f5b8d2c": {
+            "type": "end"
+        },
+        "action--c47e6f81-a812-43ec-a972-84d073f25a96": {
+            "name": "Kill malicious process",
+            "on_completion": "end--eb8e8b5a-56bb-4da1-9042-ec1e5f5b8d2c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5"
+        }
+    },
+    "agent_definitions": {
+        "organization--f0b49f58-e87d-40c9-bdc6-8bb4606b83f5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2b83a57-dbff-4b4c-bdee-fcb6813c0c60",
+    "name": "Mitigation Playbook for PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script via phishing, resulting in unauthorized data exfiltration.",
+    "created_by": "identity--d4564f77-34de-4321-a5d0-abcde1234567",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--0d0c350e-666c-47e5-b3c0-bd9d27e25836",
+    "workflow": {
+        "start--0d0c350e-666c-47e5-b3c0-bd9d27e25836": {
+            "on_completion": "action--7c7c9fbd-d3f3-4dab-905f-df702d9e2a91",
+            "type": "start"
+        },
+        "action--7c7c9fbd-d3f3-4dab-905f-df702d9e2a91": {
+            "name": "Terminate PowerShell sessions",
+            "description": "Terminate all PowerShell sessions to prevent further execution of malicious scripts.",
+            "on_completion": "while-condition--b5867601-2b4e-4e31-89da-2e3732fa6936",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell"
+                }
+            ],
+            "agent": "organization--707cbc38-0c45-45e7-b4a9-74b92a5a5e56"
+        },
+        "while-condition--b5867601-2b4e-4e31-89da-2e3732fa6936": {
+            "name": "Ensure all PowerShell processes are stopped",
+            "description": "Loop until all PowerShell processes are terminated.",
+            "condition": "Get-Process -Name powershell",
+            "on_true": "action--7c7c9fbd-d3f3-4dab-905f-df702d9e2a91",
+            "on_false": "action--c489e0f6-7f3a-4f68-bf23-404bde6c3f42",
+            "type": "if-condition"
+        },
+        "action--c489e0f6-7f3a-4f68-bf23-404bde6c3f42": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host to prevent data exfiltration.",
+            "on_completion": "action--a6c8e2ce-8f85-409f-8e3f-b149e2fd26c2",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "netsh interface set interface 'Ethernet' admin=disable"
+                }
+            ],
+            "agent": "organization--707cbc38-0c45-45e7-b4a9-74b92a5a5e56",
+            "condition": "if compromised_host_detected"
+        },
+        "action--a6c8e2ce-8f85-409f-8e3f-b149e2fd26c2": {
+            "name": "Update firewall rules",
+            "description": "Deny outbound connections to the external IP involved in data exfiltration.",
+            "on_completion": "action--b0d1b914-e38f-476e-a29b-18e9d13e43c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.0.2.124"
+                }
+            ],
+            "agent": "organization--570b6d62-ed0f-4b55-b4c0-4f18b5218f67",
+            "step_variables": {
+                "external_ip": {
+                    "type": "string",
+                    "description": "The IP address to which data was being exfiltrated.",
+                    "value": "192.0.2.124",
+                    "constant": true
+                }
+            }
+        },
+        "action--b0d1b914-e38f-476e-a29b-18e9d13e43c4": {
+            "name": "Scan for additional threats",
+            "description": "Scan the system to find and eliminate any other potential threats.",
+            "on_completion": "if-condition--5f058a88-a230-4dda-add8-14c5c020845b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--570b6d62-ed0f-4b55-b4c0-4f18b5218f67"
+        },
+        "if-condition--5f058a88-a230-4dda-add8-14c5c020845b": {
+            "name": "Check if scan showed malware",
+            "type": "if-condition",
+            "condition": "scan_showed_no_malware",
+            "on_true": "action--5f058a88-a230-4dda-add8-14c5c020845b",
+            "on_false": "end--f8c8b93d-501c-42b8-8dab-7b38b1b9a51f"
+        },
+        "action--5f058a88-a230-4dda-add8-14c5c020845b": {
+            "name": "Restore affected systems from backup",
+            "description": "Restore the affected systems from a safe backup after ensuring no malware is present.",
+            "on_completion": "end--f8c8b93d-501c-42b8-8dab-7b38b1b9a51f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup /live_system"
+                }
+            ],
+            "agent": "organization--707cbc38-0c45-45e7-b4a9-74b92a5a5e56"
+        },
+        "end--f8c8b93d-501c-42b8-8dab-7b38b1b9a51f": {
+            "description": "End of incident response playbook.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--707cbc38-0c45-45e7-b4a9-74b92a5a5e56": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        },
+        "organization--570b6d62-ed0f-4b55-b4c0-4f18b5218f67": {
+            "type": "organization",
+            "name": "ABC Network Defense Team"
+        }
+    }
+}

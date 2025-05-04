@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--6b7e5d58-9113-4e0b-9de6-8531a202803b",
+    "name": "Mitigation Playbook for Command and Scripting Interface Exploitation",
+    "description": "A playbook to mitigate incidents involving command and scripting interface vulnerabilities leading to unauthorized access and execution.",
+    "created_by": "identity--2040264c-5e49-4954-b81e-9e4b50660434",
+    "created": "2023-10-15T09:00:00.000Z",
+    "modified": "2023-10-15T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f2a4a329-e0e5-4e9e-a7b8-3a8027603db1",
+    "workflow": {
+        "start--f2a4a329-e0e5-4e9e-a7b8-3a8027603db1": {
+            "type": "start",
+            "on_completion": "parallel--b2c9a6d7-4e7d-431c-b5a5-7f87b7be7901"
+        },
+        "parallel--b2c9a6d7-4e7d-431c-b5a5-7f87b7be7901": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute multiple mitigation steps concurrently to address the threat comprehensively.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a6da8e59-8a4d-4605-8e52-e8518eab9b96",
+                "action--c88aeccb-3d76-4c77-9b8c-715af7a5f4bc",
+                "while-condition--a0b9ec47-b1f4-404e-b4a9-df52e77a71b1"
+            ]
+        },
+        "action--a6da8e59-8a4d-4605-8e52-e8518eab9b96": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes found running with malicious commands.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'rm -rf'"
+                }
+            ],
+            "agent": "organization--4fd43796-491b-419d-b442-3c0abe615c3e",
+            "on_completion": "if-condition--6a860677-7994-4019-ad06-3b621a530147"
+        },
+        "action--7e4c9ad6-22a6-4f8b-a1ec-c878e4d7f4bf": {
+            "name": "Remove unauthorized scripts",
+            "description": "Find and remove scripts that match unauthorized patterns.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -type f -name '*.sh' -exec rm -f {} +"
+                }
+            ],
+            "agent": "organization--4fd43796-491b-419d-b442-3c0abe615c3e",
+            "on_completion": "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d"
+        },
+        "action--c88aeccb-3d76-4c77-9b8c-715af7a5f4bc": {
+            "name": "Block outgoing traffic to malicious IP",
+            "description": "Prevent outgoing connections to the malicious IP address.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.27 -j DROP"
+                }
+            ],
+            "agent": "organization--4fd43796-491b-419d-b442-3c0abe615c3e",
+            "on_completion": "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d"
+        },
+        "while-condition--a0b9ec47-b1f4-404e-b4a9-df52e77a71b1": {
+            "name": "System Integrity Loop",
+            "description": "Perform system integrity checks and loop until no infection is found.",
+            "type": "while-condition",
+            "condition": "infection_found == True",
+            "on_true": "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b"
+        },
+        "action--5e698bca-3f43-4482-aa23-3f56fb8e9a3b": {
+            "name": "Perform system integrity checks",
+            "description": "Run checks to detect any system infections.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit | grep INFECTED"
+                }
+            ],
+            "agent": "organization--4fd43796-491b-419d-b442-3c0abe615c3e",
+            "step_variables": {
+                "infection_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any infection has been found.",
+                    "value": "True",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "on_completion": "while-condition--a0b9ec47-b1f4-404e-b4a9-df52e77a71b1"
+        },
+        "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d": {
+            "name": "Restore modified system files",
+            "description": "Restore critical system files from backup.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/etc/passwd /etc/passwd"
+                }
+            ],
+            "agent": "organization--4fd43796-491b-419d-b442-3c0abe615c3e",
+            "on_completion": "end--d1f1c6cc-15e9-4eeb-8eb7-d5ebb12c8aad"
+        },
+        "end--d1f1c6cc-15e9-4eeb-8eb7-d5ebb12c8aad": {
+            "type": "end"
+        },
+        "if-condition--6a860677-7994-4019-ad06-3b621a530147": {
+            "name": "Check for unauthorized scripts",
+            "description": "If unauthorized scripts are detected in the system, remove them.",
+            "type": "if-condition",
+            "condition": "script_contains(unauthorized_patterns)",
+            "on_true": "action--7e4c9ad6-22a6-4f8b-a1ec-c878e4d7f4bf",
+            "on_false": "action--c5a61b48-79c6-456b-bf59-f5d4427a8a1d"
+        }
+    },
+    "agent_definitions": {
+        "organization--4fd43796-491b-419d-b442-3c0abe615c3e": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

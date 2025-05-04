@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7d29273-d36f-4297-93db-0f019f86ca5f",
+    "name": "Mitigation of Malicious PowerShell Script Incident",
+    "description": "This playbook addresses the exfiltration of sensitive data via malicious PowerShell scripts executed on corporate servers.",
+    "created_by": "identity--abf63ed3-bdbb-4c3d-86b1-9c35fac9b909",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c5bbca61-ab4e-41e4-bbcb-cd910f698a3e",
+    "workflow": {
+        "action--b10e01c2-4439-4c77-abf2-572e626427ed": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are suspected to be malicious.",
+            "on_completion": "if-condition--b5f669e9-4c76-47c2-918d-e41ccb8170d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--c375de85-893e-49f1-911c-a6cde5008c90"
+        },
+        "action--a23f0c79-9171-4a9c-a233-57c8bc2e5b35": {
+            "name": "Block outbound network connection to malicious IP",
+            "description": "Block any outbound network connection attempts to the known malicious IP.",
+            "on_completion": "parallel--27d268d3-3522-45d3-9ced-36355cbcc0a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--c375de85-893e-49f1-911c-a6cde5008c90"
+        },
+        "action--fcd4d8a5-c8f5-462e-8d15-c8c5c2e2bb58": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Run a malware scan to identify and clean any malicious content left by the PowerShell scripts.",
+            "on_completion": "while-condition--4617acc1-742f-406f-93a7-5bb6bd80e7b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --run"
+                }
+            ],
+            "agent": "organization--c375de85-893e-49f1-911c-a6cde5008c90",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The variable that stores the output of the scan",
+                    "value": "initial",
+                    "constant": false
+                }
+            }
+        },
+        "start--c5bbca61-ab4e-41e4-bbcb-cd910f698a3e": {
+            "on_completion": "action--a23f0c79-9171-4a9c-a233-57c8bc2e5b35",
+            "type": "start"
+        },
+        "if-condition--b5f669e9-4c76-47c2-918d-e41ccb8170d0": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_is_running == True",
+            "on_true": "action--fcd4d8a5-c8f5-462e-8d15-c8c5c2e2bb58",
+            "on_false": "action--a23f0c79-9171-4a9c-a233-57c8bc2e5b35"
+        },
+        "parallel--27d268d3-3522-45d3-9ced-36355cbcc0a9": {
+            "name": "Mitigation Actions",
+            "description": "Perform mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fcd4d8a5-c8f5-462e-8d15-c8c5c2e2bb58",
+                "action--b10e01c2-4439-4c77-abf2-572e626427ed"
+            ]
+        },
+        "while-condition--4617acc1-742f-406f-93a7-5bb6bd80e7b8": {
+            "name": "Check Scan Results",
+            "type": "while-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--fcd4d8a5-c8f5-462e-8d15-c8c5c2e2bb58",
+            "on_false": "end--2e8c8152-9839-4714-a406-3acd77ed48a7"
+        },
+        "end--2e8c8152-9839-4714-a406-3acd77ed48a7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c375de85-893e-49f1-911c-a6cde5008c90": {
+            "type": "organization",
+            "name": "CorporateSecurity"
+        }
+    }
+}

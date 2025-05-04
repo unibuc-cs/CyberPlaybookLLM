@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a7643778-5d06-4652-b24c-a46b2d38fa28",
+    "name": "Response Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook outlines steps to mitigate the threat from a malicious PowerShell script that exfiltrated sensitive data and established persistent access.",
+    "created_by": "identity--13e08077-e084-49db-a8cd-24a62a4c9f69",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1b776b68-5c4c-4795-867b-181ad13694c0",
+    "workflow": {
+        "action--2063d5eb-3a2a-48dc-8725-e9d470c595de": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes that may be executing the malicious script.",
+            "on_completion": "if-condition--116abef8-1bb5-4e5a-826c-190dfa13daa1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--544943d6-5c08-4ead-908e-01a1041e370a"
+        },
+        "action--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete the unauthorized user accounts created by the attacker.",
+            "on_completion": "action--905e100e-3d9c-4acb-94fb-39c20c894f94",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r new_user"
+                }
+            ],
+            "agent": "organization--544943d6-5c08-4ead-908e-01a1041e370a"
+        },
+        "action--905e100e-3d9c-4acb-94fb-39c20c894f94": {
+            "name": "Scan the host for additional threats",
+            "description": "Perform a scan on the host to detect any remaining threats.",
+            "on_completion": "while-condition--3eba25ea-d56f-4314-be65-83343226ae30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /home/user"
+                }
+            ],
+            "agent": "organization--544943d6-5c08-4ead-908e-01a1041e370a",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scanning process.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--1b776b68-5c4c-4795-867b-181ad13694c0": {
+            "on_completion": "if-condition--bd123789-a2fb-4992-b2b8-01f18ccb476e",
+            "type": "start"
+        },
+        "if-condition--bd123789-a2fb-4992-b2b8-01f18ccb476e": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_found",
+            "on_true": "action--2063d5eb-3a2a-48dc-8725-e9d470c595de",
+            "on_false": "if-condition--116abef8-1bb5-4e5a-826c-190dfa13daa1"
+        },
+        "if-condition--116abef8-1bb5-4e5a-826c-190dfa13daa1": {
+            "name": "Check for unauthorized user accounts",
+            "type": "if-condition",
+            "condition": "new_user_exists",
+            "on_true": "action--b8011cc1-3a72-4a6c-a85b-2f09fc3a6f14",
+            "on_false": "action--905e100e-3d9c-4acb-94fb-39c20c894f94"
+        },
+        "while-condition--3eba25ea-d56f-4314-be65-83343226ae30": {
+            "name": "Continuation of Scan until Clear",
+            "description": "Repeat scanning until the system is determined to be clean.",
+            "on_completion": "end--ec967c95-8c9e-4638-8a22-a4be45a2c977",
+            "type": "while-condition",
+            "condition": "scan_result == 'clean'",
+            "on_true": "end--ec967c95-8c9e-4638-8a22-a4be45a2c977",
+            "on_false": "action--905e100e-3d9c-4acb-94fb-39c20c894f94"
+        },
+        "end--ec967c95-8c9e-4638-8a22-a4be45a2c977": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--544943d6-5c08-4ead-908e-01a1041e370a": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

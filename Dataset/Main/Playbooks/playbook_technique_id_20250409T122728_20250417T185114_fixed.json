@@ -1,0 +1,79 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3d3d3f4-5f0a-4f48-9e9b-5099006c38a2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook mitigates the effects of an exploit involving a command and scripting interpreter that led to data exfiltration.",
+    "created_by": "identity--306b456b-7058-47d6-85b6-dd8e2b0a17b3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--9f1eb089-374c-4d61-83ff-0a21a2db3fee",
+    "workflow": {
+        "action--3c8e1630-62d8-4e7e-be41-e6e5e14868b1": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious process that is executing.",
+            "on_completion": "parallel--d12e91c7-109f-42b6-ab84-aec25784c495",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f script_name.js"
+                }
+            ],
+            "agent": "organization--fd8518d3-10d0-4003-aaf4-30ca80d99d0c"
+        },
+        "action--67b3c86d-2192-413b-b517-1c948efcfe71": {
+            "name": "Block outgoing traffic to malicious IPs",
+            "description": "Block any outgoing connections to known malicious IPs.",
+            "on_completion": "action--b453877e-d11f-41e8-8cbd-58c0274e9547",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j REJECT"
+                }
+            ],
+            "agent": "organization--fd8518d3-10d0-4003-aaf4-30ca80d99d0c"
+        },
+        "action--b453877e-d11f-41e8-8cbd-58c0274e9547": {
+            "name": "Monitor and audit system",
+            "description": "Continuously monitor the system for unusual command executions.",
+            "on_completion": "end--e98a5df5-f2f9-486a-b7a7-66df0e6f3f9b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/syslog | grep 'EXECUTE'"
+                }
+            ],
+            "agent": "organization--fd8518d3-10d0-4003-aaf4-30ca80d99d0c",
+            "loop": {
+                "condition": "system_stable == false",
+                "on_true": "action--b453877e-d11f-41e8-8cbd-58c0274e9547"
+            }
+        },
+        "parallel--d12e91c7-109f-42b6-ab84-aec25784c495": {
+            "name": "Execute Mitigations",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--67b3c86d-2192-413b-b517-1c948efcfe71",
+                "action--b453877e-d11f-41e8-8cbd-58c0274e9547"
+            ]
+        },
+        "end--e98a5df5-f2f9-486a-b7a7-66df0e6f3f9b": {
+            "type": "end"
+        },
+        "start--9f1eb089-374c-4d61-83ff-0a21a2db3fee": {
+            "on_completion": "action--3c8e1630-62d8-4e7e-be41-e6e5e14868b1",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--fd8518d3-10d0-4003-aaf4-30ca80d99d0c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

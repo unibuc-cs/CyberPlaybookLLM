@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d674f3b5-6d9b-4aef-87c7-35ea69586fcb",
+    "name": "Incident Response Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident where an attacker used a compromised scripting interpreter to execute unauthorized commands, exfiltrating sensitive data and escalating privileges.",
+    "created_by": "identity--12a30ff9-b0c2-4c9e-af1d-ff5720fa2298",
+    "created": "2023-10-15T14:00:00.000Z",
+    "modified": "2023-10-15T14:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a712f2e6-cfd6-4c28-bf1a-64345ef4ce74",
+    "workflow": {
+        "start--a712f2e6-cfd6-4c28-bf1a-64345ef4ce74": {
+            "on_completion": "action--d6a8d2b8-3a2b-4e3e-899f-29b58c2bf5f4",
+            "type": "start"
+        },
+        "action--d6a8d2b8-3a2b-4e3e-899f-29b58c2bf5f4": {
+            "name": "Kill the malicious scripting interpreter process",
+            "description": "Terminate the suspicious script execution.",
+            "on_completion": "if-condition--d3a59237-12e3-4f73-8204-34e1676bcf7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--db4b9a55-7a62-4dd8-95b7-aadd5266906d"
+        },
+        "if-condition--d3a59237-12e3-4f73-8204-34e1676bcf7b": {
+            "name": "Check if process is still active",
+            "type": "if-condition",
+            "condition": "$(pgrep -f suspicious_script.sh) != ''",
+            "on_true": "action--d6a8d2b8-3a2b-4e3e-899f-29b58c2bf5f4",
+            "on_false": "action--c0c94a3d-e382-4ec2-9579-8fd003d3ee6f"
+        },
+        "action--c0c94a3d-e382-4ec2-9579-8fd003d3ee6f": {
+            "name": "Restore configuration files from a secure backup",
+            "description": "Copy the secure backup of configuration files to replace compromised ones.",
+            "on_completion": "while-condition--6b37eed7-998f-4179-8e05-6f9f26252529",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backups/secure/config_backup /etc/config"
+                }
+            ],
+            "agent": "organization--054ed7bb-c452-4699-b873-b5dd73ded969"
+        },
+        "while-condition--6b37eed7-998f-4179-8e05-6f9f26252529": {
+            "name": "Check configuration file integrity",
+            "description": "Loop until the restored configuration files match checksum.",
+            "on_completion": "action--582b8c65-7f0e-42be-bf56-a1b2a7a9b57f",
+            "type": "while-condition",
+            "condition": "configuration_files_match_checksum",
+            "on_true": "action--582b8c65-7f0e-42be-bf56-a1b2a7a9b57f"
+        },
+        "action--582b8c65-7f0e-42be-bf56-a1b2a7a9b57f": {
+            "name": "Reset user privileges to their default state",
+            "description": "Revert the user privileges after confirming unauthorized access.",
+            "on_completion": "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--72809475-d284-48f1-a9b4-f2573e95b158",
+            "conditions": {
+                "if_user_is_admin": "compromised_user != 'admin'"
+            }
+        },
+        "action--7cf8e4d8-e833-4c6b-99c3-f8f1c7b9e0c2": {
+            "name": "Conduct network scan for additional unauthorized scripts",
+            "description": "Perform network scans to identify any residual malicious scripts.",
+            "on_completion": "action--a9b8c2c7-200b-4f91-8e4f-0e3d58c2a47d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--db4b9a55-7a62-4dd8-95b7-aadd5266906d",
+            "loop": {
+                "repeat": "30 mins",
+                "until": "network_clean"
+            }
+        },
+        "action--a9b8c2c7-200b-4f91-8e4f-0e3d58c2a47d": {
+            "name": "Deploy security patch for scripting interpreter vulnerability",
+            "description": "Apply the latest patch to protect against similar vulnerabilities.",
+            "on_completion": "end--84f9b10b-19be-4f37-b177-5b5b6cfc9f60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get install --only-upgrade package_name"
+                }
+            ],
+            "agent": "organization--054ed7bb-c452-4699-b873-b5dd73ded969",
+            "conditions": {
+                "if_patch_available": "true"
+            }
+        },
+        "end--84f9b10b-19be-4f37-b177-5b5b6cfc9f60": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--db4b9a55-7a62-4dd8-95b7-aadd5266906d": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        },
+        "organization--054ed7bb-c452-4699-b873-b5dd73ded969": {
+            "type": "organization",
+            "name": "Backup Team"
+        },
+        "organization--72809475-d284-48f1-a9b4-f2573e95b158": {
+            "type": "organization",
+            "name": "User Management Team"
+        }
+    }
+}

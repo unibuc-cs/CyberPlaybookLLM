@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c4f0fcd5-2c41-42c8-b9c4-4b775a546555",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a remote scripting vulnerability to execute unauthorized commands on target servers.",
+    "created_by": "identity--395a55f6-2b4e-420d-bcbb-25f2ebfcfa12",
+    "created": "2025-10-01T08:00:00Z",
+    "modified": "2025-10-01T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1d54a42-b762-4f0f-8b16-56769b930722",
+    "workflow": {
+        "start--c1d54a42-b762-4f0f-8b16-56769b930722": {
+            "on_completion": "if-condition--b9b4d55c-2d11-462b-b693-0d6d4bad5c65",
+            "type": "start"
+        },
+        "if-condition--b9b4d55c-2d11-462b-b693-0d6d4bad5c65": {
+            "name": "Check for suspicious_script process",
+            "type": "if-condition",
+            "condition": "process_running('suspicious_script')",
+            "on_true": "action--2a1f56a7-d3b4-49f8-8f39-efb4d53ef29e",
+            "on_false": "action--5e92bb07-8250-42df-b3a9-0f2146f8a406"
+        },
+        "action--2a1f56a7-d3b4-49f8-8f39-efb4d53ef29e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script if it is running.",
+            "on_completion": "parallel--c1e175a4-453e-435e-b225-31c88f5c3c55",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--fe6a5120-8597-4dd0-ab69-b0cae5e8c117"
+        },
+        "parallel--c1e175a4-453e-435e-b225-31c88f5c3c55": {
+            "name": "Execute mitigation actions",
+            "description": "Perform the following actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5e92bb07-8250-42df-b3a9-0f2146f8a406",
+                "action--a8cc97dd-c0bb-4ce2-84d0-289d8c2838f4",
+                "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b",
+                "action--b321dcd1-d69f-47f3-bf61-dc1a184c1f5e"
+            ]
+        },
+        "action--5e92bb07-8250-42df-b3a9-0f2146f8a406": {
+            "name": "Block external IP connection",
+            "description": "Prevent connections to potentially malicious external IP addresses.",
+            "on_completion": "parallel--d3b8e4a8-6be6-42a4-a52c-f67e91be0239",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--fe6a5120-8597-4dd0-ab69-b0cae5e8c117"
+        },
+        "action--a8cc97dd-c0bb-4ce2-84d0-289d8c2838f4": {
+            "name": "Isolate affected host",
+            "description": "Shutdown network interface for impacted host.",
+            "on_completion": "parallel--d3b8e4a8-6be6-42a4-a52c-f67e91be0239",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--85048d52-8ad2-46b3-b6bf-64dac7c003ee"
+        },
+        "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b": {
+            "name": "Perform full system scan",
+            "description": "Conduct a full system scan to look for threats.",
+            "on_completion": "if-condition--e1d73f2f-e8c6-4052-bf6b-e43c60d93360",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--85048d52-8ad2-46b3-b6bf-64dac7c003ee",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates the status of the scan (ongoing, clean)",
+                    "value": "ongoing",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "if-condition--e1d73f2f-e8c6-4052-bf6b-e43c60d93360": {
+            "name": "Check scan status",
+            "type": "if-condition",
+            "condition": "scan_status == 'ongoing'",
+            "on_true": "action--d29a69c8-b652-4b88-b4e7-2b5f10e7539b",
+            "on_false": "end--b4006c27-7217-4a12-b547-52ecf78e31ee"
+        },
+        "action--b321dcd1-d69f-47f3-bf61-dc1a184c1f5e": {
+            "name": "Enable script execution logging",
+            "description": "Set up logging for script executions to monitor future activity.",
+            "on_completion": "end--b4006c27-7217-4a12-b547-52ecf78e31ee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "auditctl -w /usr/bin/python -p x"
+                }
+            ],
+            "agent": "organization--fe6a5120-8597-4dd0-ab69-b0cae5e8c117"
+        },
+        "end--b4006c27-7217-4a12-b547-52ecf78e31ee": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fe6a5120-8597-4dd0-ab69-b0cae5e8c117": {
+            "type": "organization",
+            "name": "ClientOrganization-XYZ"
+        },
+        "organization--85048d52-8ad2-46b3-b6bf-64dac7c003ee": {
+            "type": "organization",
+            "name": "ClientOrganization-ABC"
+        }
+    }
+}

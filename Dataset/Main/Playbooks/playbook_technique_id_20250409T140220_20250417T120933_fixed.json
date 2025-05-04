@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b1c78c82-9b78-45e3-8b71-b0e54de340f9",
+    "name": "Mitigation Playbook for PowerShell Abuse Incident",
+    "description": "This playbook addresses an incident where an attacker utilized PowerShell to execute commands undetected, harvesting credentials and exfiltrating sensitive data.",
+    "created_by": "identity--4e1b7755-f73f-4b34-8722-bcbefb6c39ee",
+    "created": "2025-10-04T08:00:00.000Z",
+    "modified": "2025-10-04T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--8f54b2f0-3298-4f99-b49e-8c45b29281d1",
+    "workflow": {
+        "start--8f54b2f0-3298-4f99-b49e-8c45b29281d1": {
+            "on_completion": "if-condition--fa493063-8396-4a4d-85e0-e3a488b89b53",
+            "type": "start"
+        },
+        "if-condition--fa493063-8396-4a4d-85e0-e3a488b89b53": {
+            "name": "Check for running PowerShell process",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--d0342e7b-b8a0-472c-b4b6-f43e7d6a42ed",
+            "on_false": "if-condition--b30ba56e-2b0c-4fba-aa8f-14c5ae70bac8"
+        },
+        "if-condition--b30ba56e-2b0c-4fba-aa8f-14c5ae70bac8": {
+            "name": "Check for unauthorized access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected()",
+            "on_true": "action--f99dc485-3d8c-4f27-91cf-a266bf78a4dc",
+            "on_false": "while-condition--c005d07c-a795-4f79-ba31-f3279818c9d0"
+        },
+        "while-condition--c005d07c-a795-4f79-ba31-f3279818c9d0": {
+            "name": "Perform malware scan loop",
+            "condition": "scan_status() == 'not clean'",
+            "on_true": "action--f7950d63-7842-4bfa-afe9-e1d265d5fe4b",
+            "on_false": "end--45f8012e-f5d8-4ea1-aa41-6b1eccf8e0a9",
+            "type": "if-condition"
+        },
+        "action--d0342e7b-b8a0-472c-b4b6-f43e7d6a42ed": {
+            "name": "Kill malicious PowerShell process",
+            "on_completion": "if-condition--b30ba56e-2b0c-4fba-aa8f-14c5ae70bac8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--cfe9a8ca-d827-4133-9bc4-2f7ab7883af0"
+        },
+        "action--f99dc485-3d8c-4f27-91cf-a266bf78a4dc": {
+            "name": "Isolate affected host from network",
+            "on_completion": "while-condition--c005d07c-a795-4f79-ba31-f3279818c9d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--cfe9a8ca-d827-4133-9bc4-2f7ab7883af0"
+        },
+        "action--f7950d63-7842-4bfa-afe9-e1d265d5fe4b": {
+            "name": "Perform system scan for malware",
+            "on_completion": "while-condition--c005d07c-a795-4f79-ba31-f3279818c9d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--cfe9a8ca-d827-4133-9bc4-2f7ab7883af0"
+        },
+        "end--45f8012e-f5d8-4ea1-aa41-6b1eccf8e0a9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cfe9a8ca-d827-4133-9bc4-2f7ab7883af0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

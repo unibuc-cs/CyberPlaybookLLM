@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--189593eb-5b67-4c72-aa2d-dc05514d633f",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker exploited a web application vulnerability to execute unauthorized commands on the server.",
+    "created_by": "identity--c7b572a6-fd0b-4f5f-8c91-32ab124d6a79",
+    "created": "2023-10-01T11:00:00Z",
+    "modified": "2023-10-01T11:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5403e9e5-bc9b-48a1-9aae-75b72403407d",
+    "workflow": {
+        "start--5403e9e5-bc9b-48a1-9aae-75b72403407d": {
+            "on_completion": "action--aabfc158-6e37-4287-bdd0-3bfb64b89d93",
+            "type": "start"
+        },
+        "action--aabfc158-6e37-4287-bdd0-3bfb64b89d93": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "action--03b2b53f-62c2-49ba-bd19-c9014bd6724a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--3d254bfd-ddfb-4c5e-9f56-923fa8560b85"
+        },
+        "action--03b2b53f-62c2-49ba-bd19-c9014bd6724a": {
+            "name": "Remove dropped files",
+            "description": "Delete any malicious files that were uploaded to the server.",
+            "on_completion": "while-condition--bfa60300-64ba-405c-b587-360919d2eeeb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /var/www/html/malicious_script.sh"
+                }
+            ],
+            "agent": "organization--3d254bfd-ddfb-4c5e-9f56-923fa8560b85"
+        },
+        "while-condition--bfa60300-64ba-405c-b587-360919d2eeeb": {
+            "name": "System Scan Loop",
+            "description": "Run system scans until no threats are detected.",
+            "on_completion": "end--fbe4c9d9-6043-49af-88b2-802dc68c64ab",
+            "condition": "scan_failed == true",
+            "on_true": "action--cc49a2b8-e051-44aa-9689-acc889cd34e7",
+            "on_false": "end--fbe4c9d9-6043-49af-88b2-802dc68c64ab",
+            "type": "while-condition"
+        },
+        "action--cc49a2b8-e051-44aa-9689-acc889cd34e7": {
+            "name": "Run system scans",
+            "description": "Perform a comprehensive scan of the system to find further threats.",
+            "on_completion": "if-condition--5e822c39-913b-4ae8-ab1b-89d5d04bb6e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_system_scan.sh"
+                }
+            ],
+            "agent": "organization--3d254bfd-ddfb-4c5e-9f56-923fa8560b85",
+            "step_variables": {
+                "scan_failed": {
+                    "type": "boolean",
+                    "description": "Indicates if the last scan detected threats",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--5e822c39-913b-4ae8-ab1b-89d5d04bb6e5": {
+            "name": "Check if scan failed",
+            "type": "if-condition",
+            "condition": "scan_failed == true",
+            "on_true": "while-condition--bfa60300-64ba-405c-b587-360919d2eeeb",
+            "on_false": "end--fbe4c9d9-6043-49af-88b2-802dc68c64ab"
+        },
+        "end--fbe4c9d9-6043-49af-88b2-802dc68c64ab": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3d254bfd-ddfb-4c5e-9f56-923fa8560b85": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

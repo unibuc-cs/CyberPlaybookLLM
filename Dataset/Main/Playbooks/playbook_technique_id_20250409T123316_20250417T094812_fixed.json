@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7c18bcef-c2e2-4fc9-8abc-ff62de6882d1",
+    "name": "Playbook for Mitigating PowerShell-based Attack",
+    "description": "This playbook addresses an incident involving the malicious use of PowerShell to execute scripts that manipulate system files.",
+    "created_by": "identity--7fa3741e-c929-420b-87a4-a8ad8e8d7645",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ff8d57ac-e213-4a0c-8938-4e9d8eb8f95e",
+    "workflow": {
+        "start--ff8d57ac-e213-4a0c-8938-4e9d8eb8f95e": {
+            "on_completion": "if-condition--f321cb3f-cf5f-44b3-b0a7-57773a067f1d",
+            "type": "start"
+        },
+        "if-condition--f321cb3f-cf5f-44b3-b0a7-57773a067f1d": {
+            "name": "Check if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--3d1c6e7f-7274-42e0-990c-93da3bc7fa9f",
+            "on_false": "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d"
+        },
+        "action--3d1c6e7f-7274-42e0-990c-93da3bc7fa9f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell processes identified.",
+            "on_completion": "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.ProcessName -eq 'powershell' } | Stop-Process"
+                }
+            ],
+            "agent": "organization--d6ebd02a-c8be-40c8-af27-483ba2bf0206"
+        },
+        "action--b5f8820b-5f55-4687-bf89-3631f4dfcf2d": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect the compromised host to prevent further damage.",
+            "on_completion": "while-condition--d7907f5b-c578-4c08-bf7a-511f82481403",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Disable-NetAdapter -Name 'Ethernet1'"
+                }
+            ],
+            "agent": "organization--d6ebd02a-c8be-40c8-af27-483ba2bf0206"
+        },
+        "while-condition--d7907f5b-c578-4c08-bf7a-511f82481403": {
+            "name": "Risk Assessment Loop",
+            "description": "Repeat isolation until the risk assessment is deemed complete.",
+            "on_completion": "action--f3b1e69b-bdaf-4554-9b59-9b218e2f7c53",
+            "type": "while-condition",
+            "condition": "risk_assessment_complete == false"
+        },
+        "action--f3b1e69b-bdaf-4554-9b59-9b218e2f7c53": {
+            "name": "Conduct forensic analysis on affected files",
+            "description": "Perform a forensic investigation on files impacted by the attack.",
+            "on_completion": "end--4b6d96c3-ee95-4d89-bc54-9848cb6c326e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Investigation -Path 'C:\\CriticalFiles\\' -Output 'C:\\ForensicReports\\'"
+                }
+            ],
+            "agent": "organization--d6ebd02a-c8be-40c8-af27-483ba2bf0206",
+            "step_variables": {
+                "investigationPath": {
+                    "type": "string",
+                    "description": "The path for the forensic investigation",
+                    "value": "C:\\CriticalFiles\\",
+                    "constant": false
+                },
+                "reportPath": {
+                    "type": "string",
+                    "description": "The path where the forensic report will be saved",
+                    "value": "C:\\ForensicReports\\",
+                    "constant": false
+                }
+            }
+        },
+        "end--4b6d96c3-ee95-4d89-bc54-9848cb6c326e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d6ebd02a-c8be-40c8-af27-483ba2bf0206": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

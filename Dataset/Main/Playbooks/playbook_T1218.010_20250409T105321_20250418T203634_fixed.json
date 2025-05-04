@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--58ee7d1a-e20f-4b77-910e-060f0f4c28cb",
+    "name": "Mitigation Playbook for Signed Binary Proxy Execution",
+    "description": "This playbook addresses an incident involving regsvr32 being used as a proxy to execute a malicious DLL on a compromised host.",
+    "created_by": "identity--8dc00056-80bd-4756-91b8-b645f16f88be",
+    "created": "2023-10-15T10:15:30Z",
+    "modified": "2023-10-15T10:15:30Z",
+    "revoked": false,
+    "workflow_start": "start--c29e6c9a-e679-4edb-bf68-a6600d5229af",
+    "workflow": {
+        "start--c29e6c9a-e679-4edb-bf68-a6600d5229af": {
+            "on_completion": "action--c7f57a01-a72b-4cb6-8467-cd6c1ae9b2bb",
+            "type": "start"
+        },
+        "action--c7f57a01-a72b-4cb6-8467-cd6c1ae9b2bb": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious DLL.",
+            "on_completion": "if-condition--0e9d3f7b-f27c-4e3e-a236-88c3c2cabe59",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'regsvr32.*malicious.dll'"
+                }
+            ],
+            "agent": "organization--2343491a-ac7d-4d7d-8bca-fab038e5b07e"
+        },
+        "if-condition--0e9d3f7b-f27c-4e3e-a236-88c3c2cabe59": {
+            "name": "Check for outbound traffic",
+            "type": "if-condition",
+            "condition": "outbound_traffic_detected == true",
+            "on_true": "action--0e9d3f7b-f27c-4e3e-a236-88c3c2cabe59",
+            "on_false": "action--d8e6533c-c23c-406d-9c58-fb76da0770a0"
+        },
+        "action--0e9d3f7b-f27c-4e3e-a236-88c3c2cabe59": {
+            "name": "Network Isolation of affected host",
+            "description": "Block outbound traffic from the affected host.",
+            "on_completion": "action--d8e6533c-c23c-406d-9c58-fb76da0770a0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s 192.168.1.42 -j DROP"
+                }
+            ],
+            "agent": "organization--2343491a-ac7d-4d7d-8bca-fab038e5b07e"
+        },
+        "action--d8e6533c-c23c-406d-9c58-fb76da0770a0": {
+            "name": "Conduct malware scan",
+            "description": "Perform a scan of the host to detect any malware.",
+            "on_completion": "while-condition--07aea7fb-34d0-405a-a6e3-13e2c9094ea2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_malware --host host-42"
+                }
+            ],
+            "agent": "organization--2343491a-ac7d-4d7d-8bca-fab038e5b07e",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan.",
+                    "value": "initial_result",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--f0d6882f-2328-4e5d-aade-440d21a764d1": {
+            "type": "end"
+        },
+        "while-condition--07aea7fb-34d0-405a-a6e3-13e2c9094ea2": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until no malware is detected.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--d8e6533c-c23c-406d-9c58-fb76da0770a0"
+        }
+    },
+    "agent_definitions": {
+        "organization--2343491a-ac7d-4d7d-8bca-fab038e5b07e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

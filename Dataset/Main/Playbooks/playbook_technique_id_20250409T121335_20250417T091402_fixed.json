@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fbbefed6-b8ee-4a2f-9359-4c8ea232a3f7",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where a malicious script was executed on the corporate network, leading to the unauthorized extraction of sensitive data.",
+    "created_by": "identity--cf7655fe-724b-4998-9d13-f80ae0006c83",
+    "created": "2023-10-10T14:30:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a7d5634b-1ede-49de-8d3a-b62ffb1de0c4",
+    "workflow": {
+        "start--a7d5634b-1ede-49de-8d3a-b62ffb1de0c4": {
+            "on_completion": "action--eec93b8f-0e57-4fcb-8f7e-8b1f7e8e82c3",
+            "type": "start"
+        },
+        "action--eec93b8f-0e57-4fcb-8f7e-8b1f7e8e82c3": {
+            "name": "Kill malicious process associated with script execution",
+            "description": "Terminate any suspicious processes executing malicious scripts.",
+            "on_completion": "parallel--b2b37def-9c3e-4d4f-9b16-c6a8f6a5c3df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca"
+        },
+        "parallel--b2b37def-9c3e-4d4f-9b16-c6a8f6a5c3df": {
+            "name": "Conduct Mitigations",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "condition--f7e30467-05c0-4a43-b1d3-4a53849c0c4e",
+                "action--25b9d114-d8a5-55e8-b092-7b68e0fb1191",
+                "action--a8016b78-2000-471d-9fb4-dbd33de37b3d",
+                "action--b8a4f2d9-5e29-4736-b4f7-9c38aec93436"
+            ]
+        },
+        "condition--f7e30467-05c0-4a43-b1d3-4a53849c0c4e": {
+            "name": "Isolate affected host?",
+            "type": "if-condition",
+            "condition": "compromised == true",
+            "on_true": "action--f7e30467-05c0-4a43-b1d3-4a53849c0c4e",
+            "on_false": "action--25b9d114-d8a5-55e8-b092-7b68e0fb1191"
+        },
+        "action--f7e30467-05c0-4a43-b1d3-4a53849c0c4e": {
+            "name": "Isolate affected host from the network",
+            "description": "Take the compromised host offline to prevent further data exfiltration.",
+            "on_completion": "action--25b9d114-d8a5-55e8-b092-7b68e0fb1191",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca"
+        },
+        "action--25b9d114-d8a5-55e8-b092-7b68e0fb1191": {
+            "name": "Perform a full system scan for malware",
+            "description": "Scan the system for malware after killing the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --remove --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca",
+            "on_completion": "loop--eae09f81-0f41-475e-86b4-b493e1770c2c"
+        },
+        "action--a8016b78-2000-471d-9fb4-dbd33de37b3d": {
+            "name": "Analyze network traffic for suspicious connections",
+            "description": "Capture network traffic data to check for anomalies.",
+            "on_completion": "action--b8a4f2d9-5e29-4736-b4f7-9c38aec93436",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -nn -s0 -A 'tcp port 80 or port 443'"
+                }
+            ],
+            "agent": "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca",
+            "step_variables": {
+                "suspicious_ports": {
+                    "type": "array",
+                    "description": "Ports commonly used for suspicious connections.",
+                    "value": [
+                        80,
+                        443
+                    ]
+                }
+            }
+        },
+        "action--b8a4f2d9-5e29-4736-b4f7-9c38aec93436": {
+            "name": "Update firewall rules to block known C2 servers",
+            "description": "Prevent further communication to known command and control servers.",
+            "on_completion": "end--e743908f-4578-43a9-bc58-7a13298ca623",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <C2_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca"
+        },
+        "end--e743908f-4578-43a9-bc58-7a13298ca623": {
+            "type": "end"
+        },
+        "loop--eae09f81-0f41-475e-86b4-b493e1770c2c": {
+            "name": "Repeat until no threats detected",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--25b9d114-d8a5-55e8-b092-7b68e0fb1191"
+        }
+    },
+    "agent_definitions": {
+        "organization--303bdd2c-a06e-4d05-916c-330796cfd7ca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

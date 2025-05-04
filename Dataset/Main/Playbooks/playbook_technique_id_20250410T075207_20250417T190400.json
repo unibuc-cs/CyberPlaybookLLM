@@ -1,0 +1,124 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b438c02-4595-4e42-8a05-8f10b8f5f7a1",
+    "name": "Incident Response Playbook for Command and Scripting Interpreter",
+    "description": "The playbook addresses an incident where an attacker gained shell access by exploiting a vulnerable service and executed arbitrary commands via a scripting interpreter for data exfiltration.",
+    "created_by": "identity--generated-unique-id",
+    "created": "2023-10-10T12:00:00Z",
+    "modified": "2023-10-10T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f4b1c02e-9fcb-4bde-b5b6-8a4c0a10e10c",
+    "workflow": {
+        "start--f4b1c02e-9fcb-4bde-b5b6-8a4c0a10e10c": {
+            "on_completion": "if-condition--671c88a4-0a43-4ac2-b1e8-fd1add8c1894",
+            "type": "start"
+        },
+        "if-condition--671c88a4-0a43-4ac2-b1e8-fd1add8c1894": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "malicious_process_running == True",
+            "on_true": "action--f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            "on_false": "loop--884f07c2-bbda-4909-9372-ec6f1fa9d6cd"
+        },
+        "action--f47ac10b-58cc-4372-a567-0e02b2c3d479": {
+            "name": "Terminate malicious shell process",
+            "description": "Terminate any malicious shell processes detected.",
+            "on_completion": "loop--884f07c2-bbda-4909-9372-ec6f1fa9d6cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep '[e]vil_shell' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--884f07c2-bbda-4909-9372-ec6f1fa9d6cd": {
+            "name": "Monitor Network Traffic",
+            "description": "Initiate network traffic analysis until suspicious traffic is zero.",
+            "on_true": "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd",
+            "type": "loop-until",
+            "condition": "suspicious_traffic == 0",
+            "on_false": "end--e0ba8f11-d1cc-4c4a-9a9d-1bda1d8ac8ca"
+        },
+        "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599": {
+            "name": "Audit and monitor all executed scripts",
+            "description": "Audit script logs for sensitive data mentions.",
+            "on_completion": "parallel--1234abcd-5678-ef90-ghij-0987klmn5432",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'sensitive_data' /var/log/script_logs > /tmp/suspected_scripts.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--884f07c2-bbda-4909-9372-ec6f1fa9d6cd": {
+            "name": "Initiate network traffic analysis",
+            "description": "Capture suspicious traffic not from trusted IPs.",
+            "on_completion": "end--e0ba8f11-d1cc-4c4a-9a9d-1bda1d8ac8ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 'host not trusted_ip' -w /tmp/suspicious_traffic.pcap"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--1234abcd-5678-ef90-ghij-0987klmn5432": {
+            "name": "Execute post-incident actions in parallel",
+            "description": "Perform database rollback and update IDS rules concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd",
+                "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123"
+            ]
+        },
+        "action--cabb9ee1-1335-4c38-9cde-5f3fde3ab0dd": {
+            "name": "Roll back database to restore point",
+            "description": "Restore database to last known good state if data integrity compromised.",
+            "on_completion": "action--5a1c2d34-9e6f-45bc-9050-92c08f71e599",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "/usr/local/bin/db_restore --point=2023-09-30"
+                }
+            ],
+            "agent": "organization--def"
+        },
+        "action--3b00c139-a8b4-4d1f-bef5-a08bfc8de123": {
+            "name": "Update network intrusion detection rules",
+            "description": "Update IDS rules to improve defenses against similar attacks.",
+            "on_completion": "end--e0ba8f11-d1cc-4c4a-9a9d-1bda1d8ac8ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "suricata-update && systemctl restart suricata"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e0ba8f11-d1cc-4c4a-9a9d-1bda1d8ac8ca": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "SecurityResponseTeamABC"
+        },
+        "organization--xyz": {
+            "type": "organization",
+            "name": "NetworkSecurityOpsXYZ"
+        },
+        "organization--def": {
+            "type": "organization",
+            "name": "DatabaseRecoveryUnitDEF"
+        }
+    }
+}

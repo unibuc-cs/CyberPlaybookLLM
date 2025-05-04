@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1df54a46-1a38-466b-b99a-8c339103a982",
+    "name": "Mitigation Playbook for Inhibit System Recovery Incident",
+    "description": "This playbook responds to an incident where system recovery options were disabled via a malicious PowerShell script. The actions aim to restore settings, scan for ransomware, and notify the security team.",
+    "created_by": "identity--6953e990-05cd-4aca-a01c-85839a7a1414",
+    "created": "2025-04-09T10:48:56.000Z",
+    "modified": "2025-04-09T10:50:00.000Z",
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "if-condition--25fb3ef1-2672-4cb7-b403-916e6ddaf843",
+            "type": "start"
+        },
+        "end--f45b6e7f-90da-4f10-b5b6-fc879dabcdef": {
+            "type": "end"
+        },
+        "if-condition--25fb3ef1-2672-4cb7-b403-916e6ddaf843": {
+            "name": "Check Recovery Options Status",
+            "type": "if-condition",
+            "condition": "recovery_options_disabled == true",
+            "on_true": "loop--47cbd5e1-9610-42e2-808d-d42e630cc85c",
+            "on_false": "action--de2cb1ca-f15a-4bb1-82a4-822479dd7703"
+        },
+        "loop--47cbd5e1-9610-42e2-808d-d42e630cc85c": {
+            "name": "Restore System Recovery Settings Loop",
+            "description": "Repeat the action until recovery settings are restored.",
+            "on_completion": "action--de2cb1ca-f15a-4bb1-82a4-822479dd7703",
+            "type": "while-condition",
+            "condition": "recovery_settings_restored == false",
+            "next_steps": [
+                "action--261a2512-7fc4-45e0-979e-3364a8c145c6"
+            ]
+        },
+        "action--261a2512-7fc4-45e0-979e-3364a8c145c6": {
+            "name": "Restore system recovery settings",
+            "description": "Enables system recovery options.",
+            "on_completion": "update_variables--94868e0a-2230-423b-aabf-804b3e2f296c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Enable-ComputerRestore -Drive 'C:\\'"
+                }
+            ],
+            "agent": "organization--6f124c65-38ed-49b6-b811-331839b9fa86"
+        },
+        "update_variables--94868e0a-2230-423b-aabf-804b3e2f296c": {
+            "on_completion": "if-condition--25fb3ef1-2672-4cb7-b403-916e6ddaf843",
+            "type": "action",
+            "step_variables": {
+                "recovery_settings_restored": {
+                    "type": "boolean",
+                    "value": "true"
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo :  "
+                }
+            ],
+            "agent": "organization--6f124c65-38ed-49b6-b811-331839b9fa86"
+        },
+        "action--de2cb1ca-f15a-4bb1-82a4-822479dd7703": {
+            "name": "Run a complete antivirus scan",
+            "description": "Scans the system for ransomware after settings are restored.",
+            "on_completion": "action--52b5a805-227e-436a-a91f-a15502ae07c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--6f124c65-38ed-49b6-b811-331839b9fa86"
+        },
+        "action--52b5a805-227e-436a-a91f-a15502ae07c0": {
+            "name": "Notify IT security team",
+            "description": "Sends a notification that ransomware has been detected.",
+            "on_completion": "end--f45b6e7f-90da-4f10-b5b6-fc879dabcdef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Send-MailMessage -To 'security@xyz.org' -Subject 'Ransomware Alert' -Body 'Ransomware has been detected, immediate action required.'"
+                }
+            ],
+            "agent": "organization--6f124c65-38ed-49b6-b811-331839b9fa86",
+            "step_variables": {
+                "recipient": {
+                    "type": "string",
+                    "value": "security@xyz.org"
+                },
+                "subject": {
+                    "type": "string",
+                    "value": "Ransomware Alert"
+                },
+                "body": {
+                    "type": "string",
+                    "value": "Ransomware has been detected, immediate action required."
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--6f124c65-38ed-49b6-b811-331839b9fa86": {
+            "type": "organization",
+            "name": "XYZ Corporation"
+        }
+    }
+}

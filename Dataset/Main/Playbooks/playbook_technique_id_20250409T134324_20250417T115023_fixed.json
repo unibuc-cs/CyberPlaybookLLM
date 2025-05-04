@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6761e78-3a4b-45e6-8d6d-eb4ee8a21e53",
+    "name": "Mitigation Playbook for PowerShell Script Exfiltration Incident",
+    "description": "This playbook addresses an incident involving a PowerShell script that exfiltrated sensitive data from internal servers.",
+    "created_by": "identity--c3a1db5f-b3f4-4304-9d30-a4b8f035f09d",
+    "created": "2023-10-09T14:00:00.000Z",
+    "modified": "2023-10-09T14:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--cb1b6931-8d6f-4c9c-a476-1b71337c19e3",
+    "workflow": {
+        "start--cb1b6931-8d6f-4c9c-a476-1b71337c19e3": {
+            "on_completion": "action--8ffd2921-a1d1-4ea1-bc67-fd8b28dd067c",
+            "type": "start"
+        },
+        "action--8ffd2921-a1d1-4ea1-bc67-fd8b28dd067c": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious PowerShell process to stop further damage.",
+            "on_completion": "action--b40bc6a5-2668-4067-b78f-5d172d58f965",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--5732f9d5-84be-4740-88be-5c543919e0db"
+        },
+        "action--b40bc6a5-2668-4067-b78f-5d172d58f965": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect host-45 from the network to prevent data exfiltration.",
+            "on_completion": "loop--281b38a9-9094-481f-b40a-c3bdde5b5c37",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-45 down"
+                }
+            ],
+            "agent": "organization--5732f9d5-84be-4740-88be-5c543919e0db"
+        },
+        "loop--281b38a9-9094-481f-b40a-c3bdde5b5c37": {
+            "name": "Perform malware scan on host",
+            "description": "Conduct a malware scan on the affected host. Loop until the scan results are clean.",
+            "type": "while-condition",
+            "condition": "scan_results == 'not_clean'",
+            "on_completion": "end--f52a1a5f-4fa5-470e-b156-1657d5378ff3",
+            "loop_steps": {
+                "action--0d78c63c-4dc5-4597-b3f2-7547e5c55cb9": {
+                    "name": "Running malware scan",
+                    "on_completion": "check_scan_results--7a1229ba-3551-45c6-8c14-8fcc5e3f9ce9",
+                    "type": "action",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "malware_scanner --scan /path/to/suspicious/file"
+                        }
+                    ],
+                    "agent": "organization--5732f9d5-84be-4740-88be-5c543919e0db"
+                },
+                "check_scan_results--3b810a85-eabf-4c3a-ADD3-e596fae09c9b": {
+                    "name": "Check scan results",
+                    "type": "if-condition",
+                    "condition": "[ -f /path/to/suspicious/file ] && scan_results == 'not_clean'",
+                    "on_true": "action--0d78c63c-4dc5-4597-b3f2-7547e5c55cb9",
+                    "on_false": "end--f52a1a5f-4fa5-470e-b156-1657d5378ff3"
+                }
+            }
+        },
+        "end--f52a1a5f-4fa5-470e-b156-1657d5378ff3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5732f9d5-84be-4740-88be-5c543919e0db": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

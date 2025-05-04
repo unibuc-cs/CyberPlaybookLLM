@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f4bd7e1b-d1ee-4b07-a1ff-d39e425c0364",
+    "name": "Malicious PowerShell Script Response Playbook",
+    "description": "This playbook mitigates the effects of a malicious PowerShell script executed on host-22.",
+    "created_by": "identity--12345678-abcd-1234-abcd-123456789abc",
+    "created": "2023-10-21T09:00:00Z",
+    "modified": "2023-10-21T09:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--16655494-9bd1-4178-aeb5-e73ba23bd0e9",
+    "workflow": {
+        "decision--1c72ab1a-e4fb-45bc-bd65-5ea8f3d1069a": {
+            "name": "Check if malicious PowerShell process is running",
+            "condition": "is_process_running('powershell')",
+            "on_true": "action--3a086ed6-f601-47b1-88b1-d5120303b9f8",
+            "on_false": "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99",
+            "type": "if-condition"
+        },
+        "action--3a086ed6-f601-47b1-88b1-d5120303b9f8": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Stop any running malicious PowerShell processes.",
+            "on_completion": "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name 'powershell' -Force"
+                }
+            ],
+            "agent": "organization--2ae1c9ad-d0d5-41b0-bb37-64b6330d3ded"
+        },
+        "action--f3177f98-3725-4a1f-9b4a-73f58c3feb99": {
+            "name": "Block outbound traffic to malicious IP",
+            "on_completion": "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.10 -j DROP"
+                }
+            ],
+            "agent": "organization--2ae1c9ad-d0d5-41b0-bb37-64b6330d3ded",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "value": "192.168.1.10",
+                    "constant": true
+                }
+            }
+        },
+        "action--cfa89e9e-3df0-4c09-b0dc-ae0e9b1890fa": {
+            "name": "Remove backdoor executable",
+            "on_completion": "loop--92d33f69-f429-4131-b259-43cc4e4d638b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.exe"
+                }
+            ],
+            "agent": "organization--2ae1c9ad-d0d5-41b0-bb37-64b6330d3ded"
+        },
+        "loop--92d33f69-f429-4131-b259-43cc4e4d638b": {
+            "name": "Scan system for additional threats",
+            "description": "Repeat the scan until no threats are found.",
+            "condition": "scan_result == 'clean'",
+            "on_true": "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72",
+            "on_false": "loop--92d33f69-f429-4131-b259-43cc4e4d638b",
+            "on_completion": "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72",
+            "type": "while-condition"
+        },
+        "action--5fd3bbaa-609b-4f8e-8b22-d57c4e083f72": {
+            "name": "Scan system with ClamAV",
+            "on_completion": "decision--1c72ab1a-e4fb-45bc-bd65-5ea8f3d1069a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamdscan / --remove"
+                }
+            ],
+            "agent": "organization--2ae1c9ad-d0d5-41b0-bb37-64b6330d3ded"
+        },
+        "start--16655494-9bd1-4178-aeb5-e73ba23bd0e9": {
+            "on_completion": "decision--1c72ab1a-e4fb-45bc-bd65-5ea8f3d1069a",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--2ae1c9ad-d0d5-41b0-bb37-64b6330d3ded": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

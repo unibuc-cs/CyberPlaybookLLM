@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d50d4614-d1e3-40d5-a800-463e16c6e756",
+    "name": "Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts after gaining access to the network through a vulnerability.",
+    "created_by": "identity--abc12345-67de-89f0-gh12-ijklmnop3456",
+    "created": "2023-10-06T10:00:00Z",
+    "modified": "2023-10-06T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e7a0d6de-221f-45d9-83ab-67a631e0c248",
+    "workflow": {
+        "start--e7a0d6de-221f-45d9-83ab-67a631e0c248": {
+            "on_completion": "parallel--c1734811-c5f8-4da0-9fc3-bc2052da3b5f",
+            "type": "start"
+        },
+        "parallel--c1734811-c5f8-4da0-9fc3-bc2052da3b5f": {
+            "name": "Mitigation Actions",
+            "description": "Perform actions in parallel to address the malicious activity.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fc432c67-2eee-4580-8ee8-d0368f842214",
+                "if-condition--bcd132b5-4c61-4720-bbab-bf816b9941c3",
+                "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4"
+            ]
+        },
+        "action--fc432c67-2eee-4580-8ee8-d0368f842214": {
+            "name": "Block Malicious IP",
+            "description": "Identify and block outbound connections to the malicious IP.",
+            "on_completion": "end--0ac67aaf-b274-4647-92bb-2124df3c92b9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--bcd132b5-4c61-4720-bbab-bf816b9941c3": {
+            "name": "Check for PowerShell Process",
+            "type": "if-condition",
+            "condition": "pgrep -f PowerShell > /dev/null",
+            "on_true": "action--bcd132b5-4c61-4720-bbab-bf816b9941c3a",
+            "on_false": "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4"
+        },
+        "action--bcd132b5-4c61-4720-bbab-bf816b9941c3a": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Kill malicious PowerShell process if it exists.",
+            "on_completion": "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4": {
+            "name": "Remove Malicious Script Files",
+            "description": "Remove dropped script files from the user directory until no more malicious files are found.",
+            "on_completion": "end--0ac67aaf-b274-4647-92bb-2124df3c92b9",
+            "type": "while-condition",
+            "condition": "ls /home/user/scripts/malicious_script.ps1 > /dev/null 2>&1",
+            "on_true": "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "on_false": "end--0ac67aaf-b274-4647-92bb-2124df3c92b9"
+        },
+        "action--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4": {
+            "name": "Remove Malicious Script File",
+            "description": "Remove malicious script file from the user directory.",
+            "on_completion": "loop--e8e1b130-eb02-4732-91d8-c85b1fa5e8a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /home/user/scripts/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--0ac67aaf-b274-4647-92bb-2124df3c92b9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

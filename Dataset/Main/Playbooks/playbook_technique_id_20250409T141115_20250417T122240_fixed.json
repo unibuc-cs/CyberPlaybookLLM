@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2f7e2d3-e867-40c1-b80f-bec9ffbfb583",
+    "name": "Mitigation Playbook for Unauthorized PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where unauthorized users executed malicious PowerShell scripts aimed at extracting sensitive data and establishing a backdoor.",
+    "created_by": "identity--ca2395d7-60cb-41d1-9b4d-ea4e6bc8f3be",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2f8e2d3-e867-40c1-b80f-bec9ffbfb583",
+    "workflow": {
+        "start--b2f8e2d3-e867-40c1-b80f-bec9ffbfb583": {
+            "on_completion": "if-condition--ef1f29f6-bb62-4a6d-9602-f750e8ddf4f3",
+            "type": "start"
+        },
+        "if-condition--ef1f29f6-bb62-4a6d-9602-f750e8ddf4f3": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--9f1a29f6-bb62-4a6d-9602-f750e8ddf4e7",
+            "on_false": "action--56b6c54e-8c0a-4810-939c-2cce629891dd"
+        },
+        "action--9f1a29f6-bb62-4a6d-9602-f750e8ddf4e7": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes associated with malicious activity.",
+            "on_completion": "if-condition--33d924ef-0c82-400e-ae49-d8f4aaf26a65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--8e497685-972f-45f5-aa67-5774f988b629"
+        },
+        "if-condition--33d924ef-0c82-400e-ae49-d8f4aaf26a65": {
+            "name": "Check for suspicious scripts",
+            "type": "if-condition",
+            "condition": "suspicious_scripts_found()",
+            "on_true": "action--33d924ef-0c82-400e-ae49-d8f4aaf26a65",
+            "on_false": "action--56b6c54e-8c0a-4810-939c-2cce629891dd"
+        },
+        "action--33d924ef-0c82-400e-ae49-d8f4aaf26a65": {
+            "name": "Isolate affected host from network",
+            "description": "Prevent any further network access from the compromised host.",
+            "on_completion": "loop--a18bc124-81d8-470f-b0f2-b5e58edfb8a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--8e497685-972f-45f5-aa67-5774f988b629"
+        },
+        "action--56b6c54e-8c0a-4810-939c-2cce629891dd": {
+            "name": "Scan system for additional malicious scripts",
+            "description": "Perform a scan of the system to find and eliminate other possible threats.",
+            "on_completion": "loop--a18bc124-81d8-470f-b0f2-b5e58edfb8a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--8e497685-972f-45f5-aa67-5774f988b629"
+        },
+        "loop--a18bc124-81d8-470f-b0f2-b5e58edfb8a8": {
+            "name": "Scan system for additional malicious scripts",
+            "description": "Recurrently scan the system until it is deemed clean.",
+            "on_completion": "end--71c8376e-4a82-4227-9902-5ac77edbe131",
+            "type": "while-condition",
+            "condition": "!scan_is_clean",
+            "on_true": "action--56b6c54e-8c0a-4810-939c-2cce629891dd"
+        },
+        "end--71c8376e-4a82-4227-9902-5ac77edbe131": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8e497685-972f-45f5-aa67-5774f988b629": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

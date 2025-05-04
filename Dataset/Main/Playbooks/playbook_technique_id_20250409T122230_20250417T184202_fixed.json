@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8fd7cef4-0c3b-4ad2-a97b-9ee0c6f84068",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script leading to data exfiltration.",
+    "created_by": "identity--7e5a7de9-8902-4d4a-8442-2fe63fd72a15",
+    "created": "2023-10-05T15:00:00Z",
+    "modified": "2023-10-05T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--0cbe1cfe-f89b-4a1b-8603-03972bff92c3",
+    "workflow": {
+        "start--0cbe1cfe-f89b-4a1b-8603-03972bff92c3": {
+            "on_completion": "if-condition--ec18d8c2-fcbb-4f0d-8753-ae97ca6f33f2",
+            "type": "start"
+        },
+        "if-condition--ec18d8c2-fcbb-4f0d-8753-ae97ca6f33f2": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists(malicious_process)",
+            "on_true": "action--6eaf7beb-85ce-4c40-afdd-0db735c50309",
+            "on_false": "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921"
+        },
+        "action--6eaf7beb-85ce-4c40-afdd-0db735c50309": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process to prevent further damage.",
+            "on_completion": "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process"
+                }
+            ],
+            "agent": "organization--3f4451c6-e26d-4294-9620-40bccfbfe548"
+        },
+        "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921": {
+            "name": "Delete dropped files",
+            "description": "Recursively remove dropped suspicious files.",
+            "on_completion": "loop--d34c0637-af96-489e-bae1-cc014d922b96",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/dropped_files/*"
+                }
+            ],
+            "agent": "organization--3f4451c6-e26d-4294-9620-40bccfbfe548"
+        },
+        "loop--d34c0637-af96-489e-bae1-cc014d922b96": {
+            "name": "Clean dropped files loop",
+            "description": "Repeat the file deletion until no dropped files remain.",
+            "on_completion": "if-condition--667d04b6-ca23-4463-b1ef-b508d95e6c40",
+            "type": "while-condition",
+            "condition": "files_exist('/path/to/dropped_files/*')",
+            "on_true": "action--1b31d7d5-1410-4bf6-8b11-162f7ecaf921"
+        },
+        "if-condition--667d04b6-ca23-4463-b1ef-b508d95e6c40": {
+            "name": "Check for data exfiltration",
+            "type": "if-condition",
+            "condition": "data_exfiltrated()",
+            "on_true": "action--b34a8bc3-1018-4a7c-b88c-43cb0787c538",
+            "on_false": "action--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5"
+        },
+        "action--b34a8bc3-1018-4a7c-b88c-43cb0787c538": {
+            "name": "Perform network traffic analysis",
+            "description": "Analyze traffic to capture potential exfiltration packets.",
+            "on_completion": "end--972eab09-360d-4a1b-b3f4-c6ae8b2b1187",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i any -w network_traffic.pcap host 192.168.1.10"
+                }
+            ],
+            "agent": "organization--3f4451c6-e26d-4294-9620-40bccfbfe548"
+        },
+        "action--4daf62bc-bb62-4ad8-9978-f0b51e34f2d5": {
+            "name": "Initiate full system antivirus scan",
+            "description": "Conduct a thorough antivirus scan due to the incident.",
+            "on_completion": "end--972eab09-360d-4a1b-b3f4-c6ae8b2b1187",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--3f4451c6-e26d-4294-9620-40bccfbfe548",
+            "condition": "if incident_id == 'e5c208d7-5c58-4bff-9275-1fc38472b16e'"
+        },
+        "action--8c72d1c2-bc7a-49b2-bd6f-b7631285b46a": {
+            "name": "Update firewall rules",
+            "description": "Block all malicious IP addresses from accessing the network.",
+            "on_completion": "end--972eab09-360d-4a1b-b3f4-c6ae8b2b1187",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--3f4451c6-e26d-4294-9620-40bccfbfe548"
+        },
+        "end--972eab09-360d-4a1b-b3f4-c6ae8b2b1187": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3f4451c6-e26d-4294-9620-40bccfbfe548": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

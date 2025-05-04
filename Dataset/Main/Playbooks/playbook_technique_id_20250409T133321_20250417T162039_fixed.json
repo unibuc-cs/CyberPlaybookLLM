@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e6cab6f2-714c-4e4b-8f63-663300c39a6d",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker used a PowerShell script to execute commands remotely, initiated by a phishing email.",
+    "created_by": "identity--6dba0f17-cfaf-4a6d-a551-f83cfc62daf9",
+    "created": "2023-10-05T14:55:00Z",
+    "modified": "2023-10-05T14:56:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "if-condition--11c04061-b3ca-4ea4-9d73-9eebf3bd7702",
+            "type": "start"
+        },
+        "if-condition--11c04061-b3ca-4ea4-9d73-9eebf3bd7702": {
+            "name": "Check if malicious PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--4a939c55-b3b7-467d-b02c-ffdeaf5c7769",
+            "on_false": "action--41f877f1-e530-44ce-9af3-0281b06148f7"
+        },
+        "action--4a939c55-b3b7-467d-b02c-ffdeaf5c7769": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process that may be executing malicious commands.",
+            "on_completion": "action--41f877f1-e530-44ce-9af3-0281b06148f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--55c5127f-ab4e-41b4-9f32-0af8914ed221"
+        },
+        "action--41f877f1-e530-44ce-9af3-0281b06148f7": {
+            "name": "Remove dropped malicious payload",
+            "description": "Delete the malicious payload dropped in the TEMP directory.",
+            "on_completion": "while-condition--00faac7d-5d9a-4aa2-8f6e-c82a043175d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload.exe"
+                }
+            ],
+            "agent": "organization--55c5127f-ab4e-41b4-9f32-0af8914ed221",
+            "step_variables": {
+                "payload_path": {
+                    "type": "string",
+                    "value": "/tmp/malicious_payload.exe"
+                }
+            }
+        },
+        "while-condition--00faac7d-5d9a-4aa2-8f6e-c82a043175d3": {
+            "name": "Scan the host for further threats",
+            "description": "Perform a scan of the host to check for additional threats.",
+            "on_completion": "action--cc236bee-5684-4518-b617-20795dfed1d2",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--496b5ce7-5eac-44b9-a3da-b1946986c628",
+            "on_false": "action--cc236bee-5684-4518-b617-20795dfed1d2"
+        },
+        "action--496b5ce7-5eac-44b9-a3da-b1946986c628": {
+            "name": "Run ClamAV scan",
+            "description": "Execute the ClamAV scan to detect further malicious activity.",
+            "on_completion": "while-condition--00faac7d-5d9a-4aa2-8f6e-c82a043175d3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--55c5127f-ab4e-41b4-9f32-0af8914ed221",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "value": "in-progress"
+                }
+            }
+        },
+        "action--cc236bee-5684-4518-b617-20795dfed1d2": {
+            "name": "Finalize scan results",
+            "description": "Complete the scanning process and log results.",
+            "on_completion": "end--278c0758-b204-4837-960b-75891d78cf1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Scan completed. Review results for further actions.'"
+                }
+            ],
+            "agent": "organization--55c5127f-ab4e-41b4-9f32-0af8914ed221"
+        },
+        "end--278c0758-b204-4837-960b-75891d78cf1d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--55c5127f-ab4e-41b4-9f32-0af8914ed221": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

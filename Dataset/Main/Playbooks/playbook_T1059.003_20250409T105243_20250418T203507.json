@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8e611f3-f6b2-4ad1-b933-205b8a833688",
+    "name": "Mitigation Playbook for Suspicious Command Execution Incident",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts through the Windows Command Shell.",
+    "created_by": "identity--d349b840-2c01-4935-ad12-f26f7cb2e0ac",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--d5f4cba6-013b-41d5-bb6e-d5fc839cf982",
+    "workflow": {
+        "start--d5f4cba6-013b-41d5-bb6e-d5fc839cf982": {
+            "on_completion": "action--82a48679-a20a-4777-b12f-5c9d744308ee",
+            "type": "start"
+        },
+        "action--82a48679-a20a-4777-b12f-5c9d744308ee": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process that is executing.",
+            "on_completion": "if-condition--f8e7b2f2-69e8-469e-8c76-14878a54efda",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /PID <process_id> /F"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--f8e7b2f2-69e8-469e-8c76-14878a54efda": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "malicious_file_exists",
+            "on_true": "action--f8e7b2f2-69e8-469e-8c76-14878a54efda",
+            "on_false": "action--61872f56-4e54-4d89-9d8b-e15c0b9b7e1e"
+        },
+        "action--f8e7b2f2-69e8-469e-8c76-14878a54efda": {
+            "name": "Remove dropped files",
+            "description": "Delete the malicious executable file dropped by the attacker.",
+            "on_completion": "action--61872f56-4e54-4d89-9d8b-e15c0b9b7e1e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "del /F /Q C:\\Users\\<user>\\AppData\\Local\\Temp\\malicious.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--61872f56-4e54-4d89-9d8b-e15c0b9b7e1e": {
+            "name": "Initiate a full system scan",
+            "description": "Run a comprehensive scan to ensure that no additional malicious content exists on the system.",
+            "on_completion": "while-condition--scan_loop--d7a112ab-bf69-4715-b871-ca8cf3c09bc2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "start /wait antivirus.exe /scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--scan_loop--d7a112ab-bf69-4715-b871-ca8cf3c09bc2": {
+            "name": "Check scan results",
+            "description": "Repeat the scan until the system is confirmed clean.",
+            "on_completion": "end--e4d0aeac-60e9-44cf-902c-59d309a09370",
+            "type": "while-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "end--e4d0aeac-60e9-44cf-902c-59d309a09370",
+            "on_false": "action--61872f56-4e54-4d89-9d8b-e15c0b9b7e1e"
+        },
+        "end--e4d0aeac-60e9-44cf-902c-59d309a09370": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

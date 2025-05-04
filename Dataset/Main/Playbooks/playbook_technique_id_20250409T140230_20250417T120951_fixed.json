@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4bc1e38-aca2-4ba0-8ae4-39d8a1e3501f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through a command line interface after gaining access via an exposed RDP port.",
+    "created_by": "identity--dd3bc1b0-5775-4de6-993f-3f8343c9be89",
+    "created": "2025-04-09T08:55:35.000Z",
+    "modified": "2025-04-09T08:56:56.000Z",
+    "revoked": false,
+    "workflow_start": "start--9f1fc0b3-ff36-4359-b991-82aa7e5aace5",
+    "workflow": {
+        "start--9f1fc0b3-ff36-4359-b991-82aa7e5aace5": {
+            "on_completion": "parallel--c5f6a470-dc1b-4f27-9cd8-2d9d1f3d43b1",
+            "type": "start"
+        },
+        "action--eb1bc572-3c48-4c2f-8fd5-274085c1bca5": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that were created by the attacker.",
+            "on_completion": "action--c0627ab4-77e8-4230-a08a-bdc8431d667d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process_name"
+                }
+            ],
+            "agent": "organization--4765991f-972e-4152-82ff-48fabc2530c5"
+        },
+        "action--c0627ab4-77e8-4230-a08a-bdc8431d667d": {
+            "name": "Remove dropped file",
+            "description": "Delete any malicious files dropped by the attacker.",
+            "on_completion": "while-condition--e4d1ffb8-07b6-4041-b5f8-17f7923f3e2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/dropped/file"
+                }
+            ],
+            "agent": "organization--4765991f-972e-4152-82ff-48fabc2530c5"
+        },
+        "while-condition--e4d1ffb8-07b6-4041-b5f8-17f7923f3e2f": {
+            "name": "Antivirus Scan Loop",
+            "description": "Run an antivirus scan until no malware is detected.",
+            "on_completion": "end--118215e4-fc34-43a6-96f4-e5427357a1ff",
+            "condition": "malware_detected == true",
+            "on_true": "action--8dce0b77-5159-4594-bb00-58b025d9ed04",
+            "on_false": "end--118215e4-fc34-43a6-96f4-e5427357a1ff",
+            "type": "while-condition"
+        },
+        "action--8dce0b77-5159-4594-bb00-58b025d9ed04": {
+            "name": "Run antivirus scan",
+            "description": "Perform a full antivirus scan to detect any remaining malware.",
+            "on_completion": "while-condition--e4d1ffb8-07b6-4041-b5f8-17f7923f3e2f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --full"
+                }
+            ],
+            "agent": "organization--4765991f-972e-4152-82ff-48fabc2530c5"
+        },
+        "parallel--c5f6a470-dc1b-4f27-9cd8-2d9d1f3d43b1": {
+            "name": "Execute Mitigations in Parallel",
+            "description": "Kill malicious processes and remove dropped files simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--eb1bc572-3c48-4c2f-8fd5-274085c1bca5",
+                "action--c0627ab4-77e8-4230-a08a-bdc8431d667d"
+            ]
+        },
+        "end--118215e4-fc34-43a6-96f4-e5427357a1ff": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4765991f-972e-4152-82ff-48fabc2530c5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

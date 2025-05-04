@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3e4b7151-0f3c-4fe5-b0e9-c652980f226b",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts that compromised multiple machines, deploying malware across the organization.",
+    "created_by": "identity--c5e7d6ce-e001-4d6e-8a75-afcd6ea92c9f",
+    "created": "2023-10-03T15:00:00Z",
+    "modified": "2023-10-03T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--0ac3b72a-0f3c-4fe5-b0e9-c652980f226b",
+    "workflow": {
+        "start--0ac3b72a-0f3c-4fe5-b0e9-c652980f226b": {
+            "on_completion": "action--b2d1fa5c-5191-4da1-bb27-5a555d731924",
+            "type": "start"
+        },
+        "action--b2d1fa5c-5191-4da1-bb27-5a555d731924": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running processes related to the suspicious activity.",
+            "on_completion": "if-condition--a8d0c3a1-41e2-4937-bb46-417152c1ae78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious-process"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--a8d0c3a1-41e2-4937-bb46-417152c1ae78": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "process_running('suspicious-process')",
+            "on_true": "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a",
+            "on_false": "loop--c4e54f45-7c38-4c45-9359-db2ef9447d8c"
+        },
+        "action--e46e6fe9-72f5-4dd1-bf9b-b88f9205b92a": {
+            "name": "Isolate affected host",
+            "description": "Isolate the host that executed the malicious scripts.",
+            "on_completion": "loop--c4e54f45-7c38-4c45-9359-db2ef9447d8c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "curl -X POST http://network-isolation/api/isolate -d '{\"host_id\": \"host-22\"}'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--c4e54f45-7c38-4c45-9359-db2ef9447d8c": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan until the result is clean.",
+            "type": "loop",
+            "condition": "scan_result != 'clean'",
+            "next_steps": [
+                "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c"
+            ]
+        },
+        "action--c4e54f45-7c38-4c45-9359-db2ef9447d8c": {
+            "name": "Execute malware scan",
+            "description": "Execute the malware scan on the affected systems.",
+            "on_completion": "update-scan-result",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav -r /path/to/scan --log=/path/to/log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "update-scan-result": {
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Variable to store the result of the malware scan",
+                    "value": "not_safe",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "type": "action",
+            "on_completion": "loop--c4e54f45-7c38-4c45-9359-db2ef9447d8c"
+        },
+        "end--5c69ed0b-49f4-4dfc-b18e-7d4a87f161b2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

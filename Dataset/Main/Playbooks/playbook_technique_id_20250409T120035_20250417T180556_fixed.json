@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4c2b51c8-2799-49f9-9868-a52904e2ce74",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "Responds to an incident where an attacker exploited a vulnerability using a malicious script. This playbook mitigates damage by killing processes, blocking IPs, and performing system scans.",
+    "created_by": "identity--e4cf0191-b017-42b6-afa1-045b398213e6",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b0d2b063-1a8d-4a53-9643-53c98e703f3b",
+    "workflow": {
+        "start--b0d2b063-1a8d-4a53-9643-53c98e703f3b": {
+            "on_completion": "parallel--a9d1c7ff-92f9-4e6c-bf88-3be0b1b2cc2c",
+            "type": "start"
+        },
+        "parallel--a9d1c7ff-92f9-4e6c-bf88-3be0b1b2cc2c": {
+            "name": "Initial Response Actions",
+            "description": "Simultaneous actions to mitigate the attack and secure the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a3c598e9-0c4e-4a88-b658-6e1510a20e66",
+                "action--f05f5a43-08f5-41f1-a7d3-d35eaa435147",
+                "action--loop-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2"
+            ]
+        },
+        "action--a3c598e9-0c4e-4a88-b658-6e1510a20e66": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate the malicious script process.",
+            "on_completion": "action--f05f5a43-08f5-41f1-a7d3-d35eaa435147",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--2e938207-687b-4948-b880-3ea2c40e572d"
+        },
+        "action--f05f5a43-08f5-41f1-a7d3-d35eaa435147": {
+            "name": "Block External IPs",
+            "description": "Block all outgoing traffic to the detected malicious IP.",
+            "on_completion": "loop-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--2e938207-687b-4948-b880-3ea2c40e572d"
+        },
+        "loop-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2": {
+            "name": "Perform System-Wide Scan",
+            "description": "Scan the entire system for threats. Repeat until no threats are found.",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": "action--63bc5b62-fb1e-48a1-ab43-7ef7327ee2f4",
+            "on_false": "end--a59d1b07-ec99-4bc4-9b83-73c2c3506c3b"
+        },
+        "end--a59d1b07-ec99-4bc4-9b83-73c2c3506c3b": {
+            "type": "end"
+        },
+        "action--63bc5b62-fb1e-48a1-ab43-7ef7327ee2f4": {
+            "name": "Scan the System",
+            "description": "Run a comprehensive scan on the system.",
+            "on_completion": "loop-condition--b1f8f0b1-ec93-4589-8105-c96a20c295c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--2e938207-687b-4948-b880-3ea2c40e572d"
+        }
+    },
+    "agent_definitions": {
+        "organization--2e938207-687b-4948-b880-3ea2c40e572d": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

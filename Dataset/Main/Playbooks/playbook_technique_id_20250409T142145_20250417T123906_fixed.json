@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1a6f2be-470d-4fc7-bd75-ebf4cb3cc9b8",
+    "name": "Mitigation Playbook for PowerShell Reverse Shell Incident",
+    "description": "Mitigation actions for an incident involving a PowerShell command that established a reverse shell and exfiltrated data.",
+    "created_by": "identity--1d2f4867-46a6-4e73-ab54-9afe5e40125f",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1cc27333-4fc7-44fe-bb33-012ddee3c17f",
+    "workflow": {
+        "start--1cc27333-4fc7-44fe-bb33-012ddee3c17f": {
+            "on_completion": "action--9f26c7a5-acef-4597-a131-9c6a98a2108d",
+            "type": "start"
+        },
+        "action--9f26c7a5-acef-4597-a131-9c6a98a2108d": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes related to the reverse shell.",
+            "on_completion": "action--4cda2d67-4863-4f91-a9c2-34f5c0bf61fa",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--0bb61f24-60d8-487c-8519-151578c5f510"
+        },
+        "action--4cda2d67-4863-4f91-a9c2-34f5c0bf61fa": {
+            "name": "Block outgoing traffic to known bad IP",
+            "description": "Block any outgoing traffic to the IP address associated with the reverse shell.",
+            "on_completion": "loop--a384f90d-9fa9-4b75-bb71-0ad1c7d2674b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--0bb61f24-60d8-487c-8519-151578c5f510"
+        },
+        "loop--a384f90d-9fa9-4b75-bb71-0ad1c7d2674b": {
+            "name": "Scan for additional indicators of compromise",
+            "description": "Repeatedly scan the system until no more indicators of compromise are detected.",
+            "on_true": "action--a384f90d-9fa9-4b75-bb71-0ad1c7d2674b",
+            "next_steps": "action--308a0c60-c652-4d09-851a-d3b998c803bb",
+            "condition": "scan_complete == false",
+            "type": "while-condition"
+        },
+        "action--a384f90d-9fa9-4b75-bb71-0ad1c7d2674b": {
+            "name": "Run system scan",
+            "description": "Run the scan for indicators of compromise.",
+            "on_completion": "loop--a384f90d-9fa9-4b75-bb71-0ad1c7d2674b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--0bb61f24-60d8-487c-8519-151578c5f510"
+        },
+        "action--308a0c60-c652-4d09-851a-d3b998c803bb": {
+            "name": "Mark scan as complete",
+            "description": "Flag that the scan has completed and update the scan status variable.",
+            "on_completion": "end--c922aa6b-2832-4db4-bf1b-b318b3c70c49",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_complete=true"
+                }
+            ],
+            "agent": "organization--0bb61f24-60d8-487c-8519-151578c5f510"
+        },
+        "end--c922aa6b-2832-4db4-bf1b-b318b3c70c49": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0bb61f24-60d8-487c-8519-151578c5f510": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

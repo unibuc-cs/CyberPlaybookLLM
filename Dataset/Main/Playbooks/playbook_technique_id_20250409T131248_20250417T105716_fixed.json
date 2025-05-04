@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c29e174b-7e0b-4ddb-b64d-093b8de6f09e",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses the incident where an attacker utilized a malicious script through the command-line interface, leading to unauthorized command execution and data compromise.",
+    "created_by": "identity--6958a415-46b3-4e0e-a744-4179404ef91b",
+    "created": "2023-10-01T12:15:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--dd9e4698-a9c7-4d19-a5f8-ffa6ff53fa37",
+    "workflow": {
+        "start--dd9e4698-a9c7-4d19-a5f8-ffa6ff53fa37": {
+            "on_completion": "action--dac68c4b-631b-4e2d-9b1b-6ed85676dc7b",
+            "type": "start"
+        },
+        "action--dac68c4b-631b-4e2d-9b1b-6ed85676dc7b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process associated with the malicious script.",
+            "on_completion": "action--bc5b5b88-06b3-4b58-8e5f-27a9893eae1d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "action--bc5b5b88-06b3-4b58-8e5f-27a9893eae1d": {
+            "name": "Isolate affected host from network",
+            "description": "Drop any incoming packets from the compromised host to prevent further communication.",
+            "on_completion": "parallel--eb908562-ae9d-476a-9ad2-ed7ca1785b6b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-12 -j DROP"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "action--c7b6a595-6af5-45a7-bfa1-a7d99f12f49d": {
+            "name": "Run malware scan on all servers",
+            "description": "Execute a malware scan to identify and clean any potential threats.",
+            "on_completion": "while-condition--15217c8d-1e38-4575-aace-89caf2c9b42e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "action--aef29d89-e5bb-4fb1-b457-0f450c823fbf": {
+            "name": "Review command history for unusual activity",
+            "description": "Check for malicious commands in the history that may require further investigation.",
+            "on_completion": "if-condition--aa80477e-8f86-465c-a114-1651af2800a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "history | grep 'malicious_command'"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "action--91e5d962-73cf-4403-8f9f-72a73636f75e": {
+            "name": "Change passwords for compromised accounts",
+            "description": "Ensure that any accounts that might have been exposed are promptly secured.",
+            "on_completion": "end--05957de1-2f32-4828-a872-18fd0f511b5d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'newpassword' | passwd --stdin user1"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "parallel--eb908562-ae9d-476a-9ad2-ed7ca1785b6b": {
+            "name": "Run Malware Scan and Check History",
+            "description": "Perform a malware scan on all servers and review command history for anomalies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c7b6a595-6af5-45a7-bfa1-a7d99f12f49d",
+                "action--aef29d89-e5bb-4fb1-b457-0f450c823fbf"
+            ]
+        },
+        "while-condition--15217c8d-1e38-4575-aace-89caf2c9b42e": {
+            "name": "Repeat scan until clean",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--c7b6a595-6af5-45a7-bfa1-a7d99f12f49d",
+            "on_false": "action--91e5d962-73cf-4403-8f9f-72a73636f75e",
+            "type": "if-condition"
+        },
+        "if-condition--aa80477e-8f86-465c-a114-1651af2800a8": {
+            "name": "Check if history shows malicious commands",
+            "condition": "history_found == true",
+            "on_true": "action--155f795f-9889-4734-9e7d-9cbd196e94f0",
+            "on_false": "action--91e5d962-73cf-4403-8f9f-72a73636f75e",
+            "type": "if-condition"
+        },
+        "action--155f795f-9889-4734-9e7d-9cbd196e94f0": {
+            "name": "Escalate to Incident Response Team",
+            "description": "Incident history has been reviewed, escalate the findings for further analysis.",
+            "on_completion": "end--05957de1-2f32-4828-a872-18fd0f511b5d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "notify_incident_response_team()"
+                }
+            ],
+            "agent": "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31"
+        },
+        "end--05957de1-2f32-4828-a872-18fd0f511b5d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3bb9c9d5-a3b1-4ec0-bc84-a1916a161b31": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

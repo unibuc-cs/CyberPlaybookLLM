@@ -1,0 +1,102 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6f92f4a-7468-4e69-8c00-75c57c6f95a3",
+    "name": "Mitigation Playbook for Application Layer Protocol Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited a web application via malicious payloads embedded in legitimate application protocol communications.",
+    "created_by": "identity--0e649a3c-c628-48e6-8fdb-975319575548",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--00cf1fd2-d8ca-4cfc-a384-e9215f6780f8",
+    "workflow": {
+        "action--feda52c2-7cd3-42e6-a4a3-b8ae2c28ab31": {
+            "name": "Block suspicious IP addresses",
+            "description": "Block any outbound traffic to the suspicious IP address identified during the attack.",
+            "on_completion": "parallel--df222a27-11c1-4f42-a926-1ea0069cd45a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious-ip -j DROP"
+                }
+            ],
+            "agent": "organization--a7ae2d25-3249-4a95-bf9d-16770a684178"
+        },
+        "action--8923ab6a-a628-4838-bcec-eefb53245e84": {
+            "name": "Run security audit on web application",
+            "description": "Run a security audit on the compromised web application.",
+            "on_completion": "end--7996a3a2-a6ed-456f-af7a-2c63492b4b81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_audit_app --app web-server-01"
+                }
+            ],
+            "agent": "organization--a7ae2d25-3249-4a95-bf9d-16770a684178",
+            "step_variables": {
+                "audit_complete": {
+                    "type": "boolean",
+                    "description": "Indicates if the audit is completed.",
+                    "value": false
+                }
+            }
+        },
+        "action--c7eca40a-6f34-4a79-947e-3e08058884b3": {
+            "name": "Review application logs for anomalies",
+            "description": "Check the web application logs for any anomalies.",
+            "on_completion": "if-condition--56723b26-a1de-4dd5-a6e9-1460f7939b0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/webapp.log | grep 'ERROR'"
+                }
+            ],
+            "agent": "organization--a7ae2d25-3249-4a95-bf9d-16770a684178"
+        },
+        "start--00cf1fd2-d8ca-4cfc-a384-e9215f6780f8": {
+            "on_completion": "action--feda52c2-7cd3-42e6-a4a3-b8ae2c28ab31",
+            "type": "start"
+        },
+        "parallel--df222a27-11c1-4f42-a926-1ea0069cd45a": {
+            "name": "Perform Audits and Log Reviews",
+            "description": "Conduct necessary audits and reviews in parallel",
+            "type": "parallel",
+            "next_steps": [
+                "action--8923ab6a-a628-4838-bcec-eefb53245e84",
+                "action--c7eca40a-6f34-4a79-947e-3e08058884b3"
+            ]
+        },
+        "if-condition--56723b26-a1de-4dd5-a6e9-1460f7939b0f": {
+            "name": "Determine if anomalies were found",
+            "type": "if-condition",
+            "condition": "audit_complete == true",
+            "on_true": "action--61c7aa1c-6a53-4e4b-a6bd-077346fd8105",
+            "on_false": "end--7996a3a2-a6ed-456f-af7a-2c63492b4b81"
+        },
+        "action--61c7aa1c-6a53-4e4b-a6bd-077346fd8105": {
+            "name": "Escalate to security team",
+            "description": "Escalate findings of anomalies to the security team for further investigation.",
+            "on_completion": "end--7996a3a2-a6ed-456f-af7a-2c63492b4b81",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "notify_security_team 'Anomalies found in application logs.'"
+                }
+            ],
+            "agent": "organization--a7ae2d25-3249-4a95-bf9d-16770a684178"
+        },
+        "end--7996a3a2-a6ed-456f-af7a-2c63492b4b81": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a7ae2d25-3249-4a95-bf9d-16770a684178": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

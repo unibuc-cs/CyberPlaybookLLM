@@ -1,0 +1,127 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e1b9f2f7-c19f-44c8-82f3-ace0a8e4732f",
+    "name": "Response to Unauthorized Script Execution Incident",
+    "description": "This playbook addresses the incident involving unauthorized command execution through a script interpreter, focusing on termination, quarantine, scanning, and strengthening security measures.",
+    "created_by": "identity--d90e5174-934b-4e71-a06b-b0dcc8920ab2",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c89cde1e-a370-4d25-a20e-b503d993ef58",
+    "workflow": {
+        "action--9f1c4a5e-bd0d-4e4e-af8a-ec8b6b44d5f1": {
+            "name": "Terminate unauthorized process",
+            "description": "Terminate any unauthorized processes that are currently running.",
+            "on_completion": "action--03c86c59-f0e5-448c-b65c-e4924ef03264",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_process"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        },
+        "action--03c86c59-f0e5-448c-b65c-e4924ef03264": {
+            "name": "Quarantine affected host",
+            "description": "Block inbound traffic from the affected host.",
+            "on_completion": "if-condition--b9e7d59a-df08-44db-b0cb-ff6136d0ed07",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        },
+        "if-condition--b9e7d59a-df08-44db-b0cb-ff6136d0ed07": {
+            "name": "Check if unauthorized_process is still running",
+            "type": "if-condition",
+            "condition": "unauthorized_process_running == true",
+            "on_true": "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9",
+            "on_false": "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b"
+        },
+        "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9": {
+            "name": "Scan host for rootkits",
+            "description": "Perform a rootkit scan to ensure the system is clean.",
+            "on_completion": "while-condition--f47ed0c8-f48f-4b1f-85bd-754627d3c4ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        },
+        "while-condition--f47ed0c8-f48f-4b1f-85bd-754627d3c4ec": {
+            "name": "Rootkit scan loop",
+            "description": "Loop until the system status is clean after scanning.",
+            "on_completion": "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b",
+            "type": "while-condition",
+            "condition": "system_status != clean",
+            "on_true": "action--b8f3b07b-718b-42fb-bc14-8f924b35c4c9"
+        },
+        "action--de9e7b7a-155d-43f5-8e2c-aaecf8d1f30b": {
+            "name": "Update system access controls",
+            "description": "Restrict access to sensitive data based on attack logs.",
+            "on_completion": "parallel--15f5c8a8-2a4b-4a43-8eb2-edc8c94c0e23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 700 /restricted/data"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        },
+        "parallel--15f5c8a8-2a4b-4a43-8eb2-edc8c94c0e23": {
+            "name": "Apply Additional Mitigations",
+            "description": "Execute additional mitigations in parallel to enhance security.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d",
+                "action--7532a26c-57c9-4a16-a6dc-d00ddc6570ce"
+            ]
+        },
+        "action--7791f531-5ec3-4dbb-98f5-dfc46bc9b59d": {
+            "name": "Review and apply strict firewall rules",
+            "description": "Update the firewall rules in response to the detected attack.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apply_firewall_rules.sh"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        },
+        "end--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "type": "end"
+        },
+        "start--c89cde1e-a370-4d25-a20e-b503d993ef58": {
+            "on_completion": "action--9f1c4a5e-bd0d-4e4e-af8a-ec8b6b44d5f1",
+            "type": "start"
+        },
+        "action--7532a26c-57c9-4a16-a6dc-d00ddc6570ce": {
+            "name": "Check for Data Access Attempt",
+            "description": "Verify any data access attempts logged during the incident.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_logs_for_data_access.sh"
+                }
+            ],
+            "agent": "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec"
+        }
+    },
+    "agent_definitions": {
+        "organization--86d80d22-b47b-43e9-96aa-b3291b3c66ec": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

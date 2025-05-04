@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4a61728-cbdd-44c1-b45e-1d452b3c9bea",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts via phishing email access, exfiltrating sensitive data.",
+    "created_by": "identity--9a8c9632-8343-4749-aefb-d7dd394d929d",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e4c73682-2add-4e5a-886f-49852cc26125",
+    "workflow": {
+        "start--e4c73682-2add-4e5a-886f-49852cc26125": {
+            "on_completion": "action--324dbe47-8578-46f1-bb94-c8d3cd4c2f79",
+            "type": "start"
+        },
+        "action--324dbe47-8578-46f1-bb94-c8d3cd4c2f79": {
+            "name": "Kill the malicious script process",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "if-condition--d887e076-f905-4eee-b90a-4d4f7e3b7af5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d887e076-f905-4eee-b90a-4d4f7e3b7af5": {
+            "name": "Check if the malicious process is still running",
+            "type": "if-condition",
+            "condition": "pgrep -f malicious_script.sh > /dev/null",
+            "on_true": "action--d887e076-f905-4eee-b90a-4d4f7e3b7af5",
+            "on_false": "action--e65d81a5-2fff-46b8-b4d6-70e5a9baca23"
+        },
+        "action--d887e076-f905-4eee-b90a-4d4f7e3b7af5": {
+            "name": "Isolate the affected host from the network",
+            "description": "Disconnect the affected host from the network.",
+            "on_completion": "action--e65d81a5-2fff-46b8-b4d6-70e5a9baca23",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e65d81a5-2fff-46b8-b4d6-70e5a9baca23": {
+            "name": "Perform a full system scan for malware",
+            "description": "Scan the entire system for possible malware.",
+            "on_completion": "while-condition--full-scan-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--full-scan-loop": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning the system until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_results_contains_threats == true",
+            "on_true": "action--e65d81a5-2fff-46b8-b4d6-70e5a9baca23",
+            "on_false": "action--12734549-b9b5-4431-a6fa-b9d3f36e4581"
+        },
+        "action--12734549-b9b5-4431-a6fa-b9d3f36e4581": {
+            "name": "Change all compromised account passwords",
+            "description": "Handle the account compromise by preparing a list for password changes.",
+            "on_completion": "action--0fdb2219-e21e-4eca-b4ff-684c6897efef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Change passwords for users' >> password_change_list.txt"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--0fdb2219-e21e-4eca-b4ff-684c6897efef": {
+            "name": "Monitor external data leaks from affected user",
+            "description": "Continuously check for data leak attempts by monitoring logs.",
+            "on_completion": "end--a1d39433-9a94-4dfc-8c3d-9b5a334b1e06",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/exfiltration.log"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "exfiltration_log": {
+                    "type": "string",
+                    "description": "Path to the exfiltration log monitor",
+                    "value": "/var/log/exfiltration.log",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--a1d39433-9a94-4dfc-8c3d-9b5a334b1e06": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

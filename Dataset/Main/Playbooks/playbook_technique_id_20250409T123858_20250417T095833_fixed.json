@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--532c6c53-109c-4f70-bcc4-afb645a435e6",
+    "name": "Mitigation Playbook for Command Execution via Web Application",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute malicious scripts and harvest sensitive user information.",
+    "created_by": "identity--7bd0b1e8-c594-4479-98d5-bd35437843b5",
+    "created": "2023-10-01T12:00:00Z",
+    "modified": "2023-10-01T12:01:00Z",
+    "revoked": false,
+    "workflow_start": "start--42ffab17-bdd4-4ac4-a894-e274726a73dc",
+    "workflow": {
+        "start--42ffab17-bdd4-4ac4-a894-e274726a73dc": {
+            "on_completion": "action--6dba410c-ff53-4a15-a957-5a530f8ef81a",
+            "type": "start"
+        },
+        "action--6dba410c-ff53-4a15-a957-5a530f8ef81a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--f45e9c1c-577c-4109-9265-c1012c5333e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d"
+        },
+        "action--f45e9c1c-577c-4109-9265-c1012c5333e4": {
+            "name": "Isolate compromised host",
+            "description": "Bring down the network interface of the affected host to prevent further data exfiltration.",
+            "on_completion": "parallel--d116c73f-2175-487a-aaec-7ffefcaac0cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ip link set host-01 down"
+                }
+            ],
+            "agent": "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d"
+        },
+        "parallel--d116c73f-2175-487a-aaec-7ffefcaac0cf": {
+            "name": "Execute Recovery Steps",
+            "description": "Execute malware scan and patch vulnerability in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4522c924-6289-4e03-84dc-268fbeab7e5b",
+                "action--0bbf866d-3636-4ed4-9237-78b1cc0e7ab1"
+            ]
+        },
+        "action--4522c924-6289-4e03-84dc-268fbeab7e5b": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan and repeat until no threats are found.",
+            "on_completion": "action--0c84f111-702d-4b19-94b6-fc2927eaa9e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -o"
+                }
+            ],
+            "agent": "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d"
+        },
+        "action--0bbf866d-3636-4ed4-9237-78b1cc0e7ab1": {
+            "name": "Patch web application vulnerability",
+            "description": "Update the web application to mitigate vulnerabilities.",
+            "on_completion": "action--0c84f111-702d-4b19-94b6-fc2927eaa9e2",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get install webapp-patch"
+                }
+            ],
+            "agent": "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d",
+            "condition": "if vulnerability exists"
+        },
+        "action--0c84f111-702d-4b19-94b6-fc2927eaa9e2": {
+            "name": "Monitor logs for suspicious activity",
+            "description": "Continuously monitor the web application logs for any suspicious actions.",
+            "on_completion": "end--a88c87d7-4d4a-4f3c-b588-243f0db250f6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f ${logfile}"
+                }
+            ],
+            "agent": "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d",
+            "step_variables": {
+                "logfile": {
+                    "type": "string",
+                    "description": "The variable for the log file being monitored.",
+                    "value": "/var/log/webapp.log",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--a88c87d7-4d4a-4f3c-b588-243f0db250f6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--24e74647-cbab-4a33-855d-7c06a4ed5f4d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d25b8e3a-36e8-45c1-a80d-424c09c7d678",
+    "name": "Playbook for Mitigating Unauthorized Script Execution",
+    "description": "This playbook outlines actions to take in response to unauthorized script execution detected on multiple hosts.",
+    "created_by": "identity--b1c35f5c-f58d-4f7a-8c65-546497c292d3",
+    "created": "2025-04-09T08:55:00.000Z",
+    "modified": "2025-04-09T08:55:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--60a9043d-e9e8-4afd-aea0-175abc2b8166",
+    "workflow": {
+        "start--60a9043d-e9e8-4afd-aea0-175abc2b8166": {
+            "on_completion": "action--b2cd8e3a-25b4-11ee-9c11-0242ac120002",
+            "type": "start"
+        },
+        "action--b2cd8e3a-25b4-11ee-9c11-0242ac120002": {
+            "name": "Terminate unauthorized processes",
+            "description": "Kill any unauthorized scripts that are currently executing.",
+            "on_completion": "if-condition--adabc4f6-25b4-11ee-9c11-0242ac120002",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--22c67d6e-2018-46b0-87a5-7812ef159bf9"
+        },
+        "if-condition--adabc4f6-25b4-11ee-9c11-0242ac120002": {
+            "name": "Check for suspicious activity",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--aec22301-6ec2-42e8-9083-c6fcf686bf53",
+            "on_false": "loop--4bc0f8db-9be8-4deb-b659-72914120cf11"
+        },
+        "action--aec22301-6ec2-42e8-9083-c6fcf686bf53": {
+            "name": "Isolate affected hosts",
+            "description": "Drop packets from the malicious source IP to prevent further malicious actions.",
+            "on_completion": "loop--4bc0f8db-9be8-4deb-b659-72914120cf11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--22c67d6e-2018-46b0-87a5-7812ef159bf9"
+        },
+        "loop--4bc0f8db-9be8-4deb-b659-72914120cf11": {
+            "name": "Conduct full scan for remaining threats",
+            "description": "Repeatedly scan the system for remaining threats until none are detected.",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--b286e074-72a6-4eb4-9fbc-51d41035fb93",
+            "on_false": "end--085d526b-18c0-4818-a23f-df4a85647174"
+        },
+        "action--b286e074-72a6-4eb4-9fbc-51d41035fb93": {
+            "name": "Scan for remaining threats",
+            "on_completion": "loop--4bc0f8db-9be8-4deb-b659-72914120cf11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--22c67d6e-2018-46b0-87a5-7812ef159bf9"
+        },
+        "end--085d526b-18c0-4818-a23f-df4a85647174": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--22c67d6e-2018-46b0-87a5-7812ef159bf9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "suspicious_activity_detected": {
+            "type": "boolean",
+            "description": "Indicates if suspicious activity has been detected.",
+            "value": "true",
+            "constant": false
+        },
+        "threats_detected": {
+            "type": "boolean",
+            "description": "Indicates if threats have been detected in the last scan.",
+            "value": "true",
+            "constant": false
+        }
+    }
+}

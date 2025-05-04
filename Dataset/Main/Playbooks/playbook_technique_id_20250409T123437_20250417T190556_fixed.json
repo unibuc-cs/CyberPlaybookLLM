@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a481b83d-0bd5-4486-ab49-d2a700e3a563",
+    "name": "Mitigation Playbook for PowerShell-based Threat",
+    "description": "This playbook addresses an incident involving the execution of malicious PowerShell scripts that led to unauthorized data exfiltration and malicious file downloads.",
+    "created_by": "identity--395b20e9-b1c6-4f3b-b1dd-2cf6a693c1ad",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1d9e5c8-acc4-4f25-98e1-2b2b8c13d3c1",
+    "workflow": {
+        "start--f1d9e5c8-acc4-4f25-98e1-2b2b8c13d3c1": {
+            "on_completion": "action--ca5b6e43-33c2-43c8-849d-26378e2fea8d",
+            "type": "start"
+        },
+        "action--ca5b6e43-33c2-43c8-849d-26378e2fea8d": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing the malicious PowerShell script.",
+            "on_completion": "action--b4bbf3dd-e9f3-4ff1-bdb5-f51e507e3745",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5"
+        },
+        "action--b4bbf3dd-e9f3-4ff1-bdb5-f51e507e3745": {
+            "name": "Isolate Compromised Host",
+            "description": "Block incoming connections to the compromised host to prevent further attacks.",
+            "on_completion": "while-condition--d54666a2-52d2-4c8e-a3f7-a7de1e26ca6f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if iptables -L | grep DROP; then echo 'Host is already isolated'; else iptables -A INPUT -s 192.168.1.0/24 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5"
+        },
+        "while-condition--d54666a2-52d2-4c8e-a3f7-a7de1e26ca6f": {
+            "name": "Scan and Clean System",
+            "description": "Repeatedly scan and clean the system until it is deemed clean from malware.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "system_scan_is_clean == false",
+            "on_true": "action--d54666a2-52d2-4c8e-a3f7-a7de1e26ca6f",
+            "iteration": {
+                "type": "loop",
+                "as_long_as": "system_scan_is_clean == false"
+            }
+        },
+        "action--d54666a2-52d2-4c8e-a3f7-a7de1e26ca6f": {
+            "name": "Execute System Cleanup",
+            "on_completion": "check-for-cleaning--7788f901-7ea7-45bf-9dd5-705e906487c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for file in $(find /tmp -name '*.exe'); do rm -f $file; done"
+                }
+            ],
+            "agent": "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        },
+        "check-for-cleaning--7788f901-7ea7-45bf-9dd5-705e906487c2": {
+            "name": "Check Malware Signature",
+            "type": "if-condition",
+            "condition": "[ -f malware_signature.txt ]",
+            "on_true": "action--aaf61034-89e3-4e3a-8d2d-6e6218c0846e",
+            "on_false": "set-variable-clean--fe44fcbc-43ca-4d37-b469-519c2ee0e8f3"
+        },
+        "action--aaf61034-89e3-4e3a-8d2d-6e6218c0846e": {
+            "name": "Set System Clean Variable",
+            "description": "Mark the system as clean.",
+            "step_variables": {
+                "system_scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the system scan is clean",
+                    "value": "true",
+                    "constant": false
+                }
+            },
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Set System Clean Variable:  Mark the system as clean."
+                }
+            ],
+            "agent": "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5"
+        },
+        "set-variable-clean--fe44fcbc-43ca-4d37-b469-519c2ee0e8f3": {
+            "name": "Leave System as Dirty",
+            "on_completion": "start--f1d9e5c8-acc4-4f25-98e1-2b2b8c13d3c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'System still has malware signatures.'"
+                }
+            ],
+            "agent": "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5"
+        }
+    },
+    "agent_definitions": {
+        "organization--a154d3c8-db78-48d0-aebb-9a152cadaca5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

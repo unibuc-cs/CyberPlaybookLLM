@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b43dcb2c-c7fa-4d6b-8b05-69e6d4b42ffb",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook responds to incidents where a malicious PowerShell script was executed through a Word document, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--c64f714b-244f-4f38-aeab-7e234eb28011",
+    "created": "2023-10-12T15:30:00Z",
+    "modified": "2023-10-12T15:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--5a4e6eed-8a06-4f96-bf41-383e9a1f1893",
+    "workflow": {
+        "start--5a4e6eed-8a06-4f96-bf41-383e9a1f1893": {
+            "on_completion": "decision--f1b23af7-444e-4260-9321-9ddf2e048eab",
+            "type": "start"
+        },
+        "decision--f1b23af7-444e-4260-9321-9ddf2e048eab": {
+            "name": "Check if PowerShell process is running",
+            "condition": "is_process_running('powershell')",
+            "on_true": "action--3268ef53-803a-4c98-9f2d-61e2e1a06c58",
+            "on_false": "action--29cabe01-2cb0-40b1-8a09-280523db24c8",
+            "type": "if-condition"
+        },
+        "action--3268ef53-803a-4c98-9f2d-61e2e1a06c58": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes related to the attack.",
+            "on_completion": "parallel--b6bd65c3-8ed2-4e88-a772-49de4a5aeb60",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--5468a9ab-ebc1-4b96-83f6-64894a1d1af3"
+        },
+        "action--29cabe01-2cb0-40b1-8a09-280523db24c8": {
+            "name": "Isolate affected host from network",
+            "description": "Disconnect the impacted host from the network.",
+            "on_completion": "end--e0f9289c-0738-4f9f-89c7-774d7f95c0cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifdown eth0"
+                }
+            ],
+            "agent": "organization--5468a9ab-ebc1-4b96-83f6-64894a1d1af3",
+            "loop": {
+                "type": "while-condition",
+                "condition": "isolation_confirmed()"
+            }
+        },
+        "parallel--b6bd65c3-8ed2-4e88-a772-49de4a5aeb60": {
+            "name": "Run additional mitigation steps",
+            "description": "Conduct further mitigations including full system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--aa267ef5-4cb8-42e9-aaee-9448384e91c7"
+            ]
+        },
+        "action--aa267ef5-4cb8-42e9-aaee-9448384e91c7": {
+            "name": "Conduct a full system scan for malicious files",
+            "description": "Scan the entire system for any hidden malicious files.",
+            "on_completion": "end--e0f9289c-0738-4f9f-89c7-774d7f95c0cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell"
+                }
+            ],
+            "agent": "organization--5468a9ab-ebc1-4b96-83f6-64894a1d1af3",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the clamscan command execution.",
+                    "value": "result of clamscan",
+                    "constant": false
+                }
+            }
+        },
+        "end--e0f9289c-0738-4f9f-89c7-774d7f95c0cf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5468a9ab-ebc1-4b96-83f6-64894a1d1af3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

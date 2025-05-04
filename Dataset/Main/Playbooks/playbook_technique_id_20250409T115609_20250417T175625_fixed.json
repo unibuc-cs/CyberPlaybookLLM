@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2c792580-1b8e-44f5-bd02-01c187fe23c7",
+    "name": "Mitigation Playbook for Phishing-Induced Malware Execution Incident",
+    "description": "This playbook addresses an incident where an employee unknowingly executed a malicious document leading to malware installation and data exfiltration.",
+    "created_by": "identity--fc577283-1fb6-41d4-8c47-3c1b018858f2",
+    "created": "2023-10-12T09:30:00Z",
+    "modified": "2023-10-12T09:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--f9a885e7-68aa-4421-baab-5b289d8e4f32",
+    "workflow": {
+        "start--f9a885e7-68aa-4421-baab-5b289d8e4f32": {
+            "on_completion": "action--f2a7ab9d-232a-4d89-9aa4-bfdf6c095b52",
+            "type": "start"
+        },
+        "action--f2a7ab9d-232a-4d89-9aa4-bfdf6c095b52": {
+            "name": "Check for malware",
+            "description": "Examine the system for malware presence.",
+            "on_completion": "if-condition--e4bfcde8-8bdd-4c76-9d2f-85fd4c4e54f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if ps aux | grep 'malicious_process_name' > /dev/null; then echo 'malware detected'; else echo 'no malware'; fi"
+                }
+            ],
+            "agent": "organization--2f5ee9f1-e7f0-4452-b7ab-09868bc9c6ae"
+        },
+        "if-condition--e4bfcde8-8bdd-4c76-9d2f-85fd4c4e54f2": {
+            "name": "Check if malware is detected",
+            "type": "if-condition",
+            "condition": "malware_detected != 'no malware'",
+            "on_true": "action--e80b2cfc-f663-4b50-bac9-bcdf8dba0a3f",
+            "on_false": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577"
+        },
+        "action--e80b2cfc-f663-4b50-bac9-bcdf8dba0a3f": {
+            "name": "Terminate malicious process",
+            "description": "Kill any processes related to the detected malware.",
+            "on_completion": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--2f5ee9f1-e7f0-4452-b7ab-09868bc9c6ae"
+        },
+        "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577": {
+            "name": "Run full system scan",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "while-condition--c3abb59c-6208-4b74-a69b-17b7c4f5703c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scanning -o > scan_report.txt; if grep -q 'Infected' scan_report.txt; then echo 'not clean'; else echo 'clean'; fi"
+                }
+            ],
+            "agent": "organization--2f5ee9f1-e7f0-4452-b7ab-09868bc9c6ae"
+        },
+        "while-condition--c3abb59c-6208-4b74-a69b-17b7c4f5703c": {
+            "name": "System Scan Loop",
+            "description": "Repeat full system scan until no malware is found.",
+            "on_completion": "end--7f88ccbf-e126-4b13-a6e8-e119e4f2fc8c",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--bb34c82a-2c5e-4631-bea4-b9ecb91da577"
+        },
+        "end--7f88ccbf-e126-4b13-a6e8-e119e4f2fc8c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2f5ee9f1-e7f0-4452-b7ab-09868bc9c6ae": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

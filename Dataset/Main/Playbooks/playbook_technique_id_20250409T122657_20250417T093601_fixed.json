@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f4d8e51b-4caf-4f8b-b7fb-b68f7c36ed0a",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses the incident where an unauthorized user executed scripts, leading to privilege escalation and data exfiltration on an internal server.",
+    "created_by": "identity--a3c64afc-1327-4f65-966d-04df0b886888",
+    "created": "2023-10-15T15:00:00Z",
+    "modified": "2023-10-15T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f0c9a2e-4c7b-4c54-bd8f-86d567f3e837",
+    "workflow": {
+        "start--1f0c9a2e-4c7b-4c54-bd8f-86d567f3e837": {
+            "on_completion": "if-condition--06b29f13-f2a5-4ce3-85cb-b8a0d7f8c974",
+            "type": "start"
+        },
+        "if-condition--06b29f13-f2a5-4ce3-85cb-b8a0d7f8c974": {
+            "name": "Check if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('PowerShell')",
+            "on_true": "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b",
+            "on_false": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5"
+        },
+        "end--b53d7396-f3ab-43a4-94b0-13dec2ef8071": {
+            "type": "end"
+        },
+        "action--78d4c6c4-70fb-4699-8531-bf6d9c68985b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell process if it exists.",
+            "on_completion": "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--d4533ccc-97bd-497b-ba51-526d64a4a20d"
+        },
+        "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5": {
+            "name": "Restore previous configurations",
+            "description": "Restore application configurations from backup.",
+            "type": "while-condition",
+            "step_variables": {
+                "is_configuration_stable": {
+                    "type": "boolean",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "on_completion": "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc",
+            "next_steps": [
+                "action--f5621f4b-d9b2-4531-b84f-ce1c9da6b7b5",
+                "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc"
+            ],
+            "condition": "is_configuration_stable == false",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/config /etc/myapp/config"
+                }
+            ],
+            "agent": "organization--d4533ccc-97bd-497b-ba51-526d64a4a20d"
+        },
+        "action--f8bce112-45a1-4cd3-b0ca-186432ce00fc": {
+            "name": "Perform a full security scan",
+            "description": "Run a full scan to identify any remaining threats.",
+            "on_completion": "end--b53d7396-f3ab-43a4-94b0-13dec2ef8071",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-scan --full"
+                }
+            ],
+            "agent": "organization--d4533ccc-97bd-497b-ba51-526d64a4a20d",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the scan",
+                    "value": "in_progress",
+                    "constant": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--d4533ccc-97bd-497b-ba51-526d64a4a20d": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

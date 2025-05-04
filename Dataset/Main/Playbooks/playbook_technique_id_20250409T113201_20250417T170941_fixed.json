@@ -1,0 +1,137 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f24f3e36-4c77-4b92-9f24-9a20c4f2c522",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script through the command line interface, leading to unauthorized activities on a host.",
+    "created_by": "identity--c64f2e62-ff27-4d5e-b737-b2dc41e6d113",
+    "created": "2023-10-17T09:00:00Z",
+    "modified": "2023-10-17T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--04b823f2-1c45-4543-b26a-5ba18d4a3299",
+    "workflow": {
+        "start--04b823f2-1c45-4543-b26a-5ba18d4a3299": {
+            "on_completion": "action--b1e101ee-4c0c-4f23-81ef-6a739df70a5c",
+            "type": "start"
+        },
+        "action--b1e101ee-4c0c-4f23-81ef-6a739df70a5c": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--6f4bd351-7ca5-4ef5-9f56-4c6c418c6a89",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667"
+        },
+        "action--6f4bd351-7ca5-4ef5-9f56-4c6c418c6a89": {
+            "name": "Isolate affected host from network",
+            "description": "Shut down the network interface of the compromised host to prevent further unauthorized access.",
+            "on_completion": "while-condition--d5e1a918-cd69-4c52-85f8-fc42059cb233",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667"
+        },
+        "while-condition--d5e1a918-cd69-4c52-85f8-fc42059cb233": {
+            "name": "Conduct forensic analysis on compromised host",
+            "description": "Run forensic analysis until it is complete.",
+            "on_completion": "action--8aeef4da-dd00-4d71-b083-d81d5564e5f1",
+            "condition": "analysis_status != 'complete'",
+            "type": "while-condition",
+            "on_true": "action--d5e1a918-cd69-4c52-85f8-fc42059cb233"
+        },
+        "action--d5e1a918-cd69-4c52-85f8-fc42059cb233": {
+            "name": "Run forensic tool on host-22",
+            "on_completion": "while-condition--d5e1a918-cd69-4c52-85f8-fc42059cb233",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_forensic_tool host-22"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667",
+            "step_variables": {
+                "analysis_status": {
+                    "type": "string",
+                    "description": "Tracks the status of the forensic analysis.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--8aeef4da-dd00-4d71-b083-d81d5564e5f1": {
+            "name": "Update signatures in antivirus software",
+            "description": "Make sure the antivirus definitions are up-to-date to prevent future attacks.",
+            "on_completion": "action--bdd2852b-00f1-4f93-a34f-d66f67b9cb0f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus --update"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667"
+        },
+        "action--bdd2852b-00f1-4f93-a34f-d66f67b9cb0f": {
+            "name": "Scan network for other affected hosts",
+            "description": "Identify any potentially affected hosts in the network.",
+            "on_completion": "decision--a318d040-3c7c-4385-8301-89cb1e57c7ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network_scan --target=organization"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667",
+            "step_variables": {
+                "compromised_count": {
+                    "type": "integer",
+                    "description": "Count of compromised hosts found during the network scan.",
+                    "value": 0,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "decision--a318d040-3c7c-4385-8301-89cb1e57c7ef": {
+            "name": "Check for compromised hosts",
+            "type": "if-condition",
+            "condition": "compromised_count > 0",
+            "on_true": "action--5b27280d-a25c-40d6-a68a-5168f51bc5e2",
+            "on_false": "end--d1899284-b0bd-4776-b217-f4d88afcfc29"
+        },
+        "action--5b27280d-a25c-40d6-a68a-5168f51bc5e2": {
+            "name": "Alert administrator of compromised hosts",
+            "description": "Notify the administrator to take further actions.",
+            "on_completion": "end--d1899284-b0bd-4776-b217-f4d88afcfc29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert_admin 'Compromised hosts detected!'"
+                }
+            ],
+            "agent": "organization--7c492615-4778-4b11-9144-442c55573667"
+        },
+        "end--d1899284-b0bd-4776-b217-f4d88afcfc29": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7c492615-4778-4b11-9144-442c55573667": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9651c47-3f8c-4f09-a85c-fb042a1fe3d7",
+    "name": "Mitigation Playbook for Malicious PDF Execution Incident",
+    "description": "This playbook addresses the incident where an employee opened a malicious PDF causing remote code execution.",
+    "created_by": "identity--d83606fc-5f6e-4acd-8206-20baddc30983",
+    "created": "2023-10-04T12:00:00Z",
+    "modified": "2023-10-04T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--23decf9c-476c-4e38-92c4-31c954864989",
+    "workflow": {
+        "start--23decf9c-476c-4e38-92c4-31c954864989": {
+            "on_completion": "action--0ceb318e-e900-4ef0-915e-a04763ddb3af",
+            "type": "start"
+        },
+        "action--0ceb318e-e900-4ef0-915e-a04763ddb3af": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious PDF execution.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--80e2dc3d-85a6-41ca-98d2-e016dc118f31",
+            "on_completion": "action--be383f07-b96a-4f1d-a5dc-45fdbb524f91"
+        },
+        "action--be383f07-b96a-4f1d-a5dc-45fdbb524f91": {
+            "name": "Isolate affected device from the network",
+            "description": "Prevent the infected device from communicating with external networks.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <affected_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--80e2dc3d-85a6-41ca-98d2-e016dc118f31",
+            "on_completion": "while-condition--efb6f779-346e-4813-ae09-7989f2f49623"
+        },
+        "while-condition--efb6f779-346e-4813-ae09-7989f2f49623": {
+            "name": "Scan for additional infections",
+            "description": "Perform a recursive scan on the device until no infections are detected.",
+            "type": "while-condition",
+            "condition": "infected == true",
+            "on_true": "action--815dfb5c-b64b-43fa-b040-866b347bc36b",
+            "on_false": "end--87f068ce-d7ff-4816-9b2f-27891bb201e4"
+        },
+        "action--815dfb5c-b64b-43fa-b040-866b347bc36b": {
+            "name": "Run malware scan",
+            "description": "Scan for infections on the device.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--80e2dc3d-85a6-41ca-98d2-e016dc118f31",
+            "step_variables": {
+                "infected": {
+                    "type": "boolean",
+                    "description": "Flag indicating if infections were found.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "update-infection-status--64710b1c-b845-4c84-8db8-02cf65c0a0e0"
+        },
+        "update-infection-status--64710b1c-b845-4c84-8db8-02cf65c0a0e0": {
+            "name": "Update infection status",
+            "type": "action",
+            "description": "Update infection status based on the scan result.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_infection_status > infected"
+                }
+            ],
+            "agent": "organization--80e2dc3d-85a6-41ca-98d2-e016dc118f31",
+            "on_completion": "while-condition--efb6f779-346e-4813-ae09-7989f2f49623"
+        },
+        "end--87f068ce-d7ff-4816-9b2f-27891bb201e4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--80e2dc3d-85a6-41ca-98d2-e016dc118f31": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "infected": {
+            "type": "boolean",
+            "description": "Indicates if any infections were detected during scanning.",
+            "value": "false",
+            "constant": false,
+            "external": true
+        }
+    }
+}

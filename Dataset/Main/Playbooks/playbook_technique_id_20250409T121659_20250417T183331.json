@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9dfffe04-351f-4c5f-b0f2-f21bc4976da3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "A playbook designed to handle incidents where an attacker utilized scripts to extract sensitive data from an internal network.",
+    "created_by": "identity--7038b41a-d8a4-4f15-97ef-4000a85f63b9",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--628b2be7-f3df-4924-bce4-8aaa313c9b1f",
+    "workflow": {
+        "start--628b2be7-f3df-4924-bce4-8aaa313c9b1f": {
+            "on_completion": "action--172d266f-83b8-4c27-91ac-1c54f114c1dc",
+            "type": "start"
+        },
+        "action--172d266f-83b8-4c27-91ac-1c54f114c1dc": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are unauthorized.",
+            "on_completion": "if-condition--process-check",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell || echo 'No malicious PowerShell process found'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--process-check": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "loop--isolation-loop",
+            "on_false": "action--d28759db-1c71-48ca-be07-8a09f33f0323"
+        },
+        "loop--isolation-loop": {
+            "name": "Isolate affected hosts",
+            "description": "Isolate hosts involved in the attack until they are secured.",
+            "type": "while-condition",
+            "condition": "not all_hosts_isolated()",
+            "on_true": [
+                {
+                    "type": "action",
+                    "next_steps": [
+                        "action--isolate-host-22",
+                        "action--isolate-host-23"
+                    ]
+                }
+            ]
+        },
+        "action--isolate-host-22": {
+            "name": "Isolate host-22",
+            "description": "Down host-22 to prevent further malicious activity.",
+            "on_completion": "loop--isolation-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--isolate-host-23": {
+            "name": "Isolate host-23",
+            "description": "Down host-23 to prevent further malicious activity.",
+            "on_completion": "loop--isolation-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-23 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d28759db-1c71-48ca-be07-8a09f33f0323": {
+            "name": "Run endpoint detection scan",
+            "description": "Perform a malware scan on the affected systems.",
+            "on_completion": "end--d4e5f73c-bfum-5bf8-bfea-f56c53ecd323",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan_tool --scan /path/to/scan"
+                }
+            ],
+            "step_variables": {
+                "scan_profile": {
+                    "type": "string",
+                    "description": "Profile to use for the scan",
+                    "value": "quick",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "agent": "organization--xyz"
+        },
+        "end--d4e5f73c-bfum-5bf8-bfea-f56c53ecd323": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1f5c993-4c66-428f-b474-3d2ec94edc90",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where a malicious actor executed scripts that downloaded additional payloads, detected by unusual network traffic patterns.",
+    "created_by": "identity--94d6047d-9e79-4645-ba30-ff9736722c5f",
+    "created": "2023-10-05T12:34:00Z",
+    "modified": "2023-10-05T12:34:00Z",
+    "revoked": false,
+    "workflow_start": "start--e3b49e3c-d0c2-4ebe-b885-262691598397",
+    "workflow": {
+        "start--e3b49e3c-d0c2-4ebe-b885-262691598397": {
+            "on_completion": "action--8e9f47b9-6107-4ad3-8019-7c66fded43e2",
+            "type": "start"
+        },
+        "action--8e9f47b9-6107-4ad3-8019-7c66fded43e2": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing suspicious scripts.",
+            "on_completion": "if-condition--bc3f2c10-0ff2-4f77-b31b-98c1402f5fb0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--2061ef50-7016-4252-98c7-9f416699f2b5"
+        },
+        "if-condition--bc3f2c10-0ff2-4f77-b31b-98c1402f5fb0": {
+            "name": "Check if the process is malicious",
+            "type": "if-condition",
+            "condition": "process_is_malicious == true",
+            "on_true": "action--9c586ffa-1f65-4203-9362-f7e844be5588",
+            "on_false": "action--f70e4cbe-9fbd-4022-98bb-ab7c4cd7da2b"
+        },
+        "action--9c586ffa-1f65-4203-9362-f7e844be5588": {
+            "name": "Isolate affected host",
+            "description": "Disable networking on the affected host.",
+            "on_completion": "action--f70e4cbe-9fbd-4022-98bb-ab7c4cd7da2b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--2061ef50-7016-4252-98c7-9f416699f2b5"
+        },
+        "action--f70e4cbe-9fbd-4022-98bb-ab7c4cd7da2b": {
+            "name": "Run a system scan",
+            "description": "Perform a scan of the system to identify any remaining threats and cleanup malware.",
+            "on_completion": "while-condition--c2e2b84b-e393-4e10-b8c6-d9870daba02c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--2061ef50-7016-4252-98c7-9f416699f2b5"
+        },
+        "while-condition--c2e2b84b-e393-4e10-b8c6-d9870daba02c": {
+            "name": "Continue scanning until clean",
+            "description": "Repeat scanning process until the system is confirmed as clean.",
+            "on_completion": "end--c1e9493f-7e99-4810-a254-cc8d0798c58b",
+            "type": "while-condition",
+            "condition": "scan_status == not_clean",
+            "on_true": "action--f70e4cbe-9fbd-4022-98bb-ab7c4cd7da2b"
+        },
+        "end--c1e9493f-7e99-4810-a254-cc8d0798c58b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2061ef50-7016-4252-98c7-9f416699f2b5": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "process_is_malicious": {
+            "type": "boolean",
+            "description": "Indicates whether the executed process is malicious.",
+            "value": "true"
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the system scan.",
+            "value": "not_clean",
+            "constant": false
+        }
+    }
+}

@@ -1,0 +1,133 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--eb95955d-a000-4cce-a8ff-5e92bcfa29ed",
+    "name": "Response to Command and Scripting Interpreter Attack",
+    "description": "This playbook addresses an incident involving a command and scripting interpreter attack, notably involving unauthorized script execution and data exfiltration.",
+    "created_by": "identity--0622ac01-bc8b-47d3-bc2f-dc0ad70690d5",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0b0e6c04-5f07-4a8c-8d80-df4d89295c25",
+    "workflow": {
+        "start--0b0e6c04-5f07-4a8c-8d80-df4d89295c25": {
+            "on_completion": "parallel--4f0f6c2a-12d3-4ce4-914d-30d5681c9519",
+            "type": "start"
+        },
+        "parallel--4f0f6c2a-12d3-4ce4-914d-30d5681c9519": {
+            "name": "Parallel Host Isolation and Process Killing",
+            "description": "Isolate affected host and kill malicious processes simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--61c4b5f3-3bb8-4340-808a-eab0240f22d6",
+                "action--577f1d4e-63c2-4a9b-8a7e-9decaedf1919"
+            ]
+        },
+        "action--61c4b5f3-3bb8-4340-808a-eab0240f22d6": {
+            "name": "Isolate affected host from network",
+            "description": "Block all incoming traffic to affected host.",
+            "on_completion": "while-loop--d17cd40f-78a2-498f-bb1c-2c857c6821cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo iptables -A INPUT -s host-38 -j DROP"
+                }
+            ],
+            "agent": "organization--c5b600e0-6b53-4cad-9ce9-e25ab146e3d8"
+        },
+        "action--577f1d4e-63c2-4a9b-8a7e-9decaedf1919": {
+            "name": "Kill malicious process",
+            "description": "Terminate the running malicious script.",
+            "on_completion": "while-loop--d17cd40f-78a2-498f-bb1c-2c857c6821cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f xfiltrate.sh"
+                }
+            ],
+            "agent": "organization--b55db086-afc8-463a-91a5-0b9671d49baa"
+        },
+        "while-loop--d17cd40f-78a2-498f-bb1c-2c857c6821cc": {
+            "name": "Scan System for Other Malicious Scripts",
+            "description": "Repeat scans until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan results are not clean",
+            "on_true": "action--d17cd40f-78a2-498f-bb1c-2c857c6821cc",
+            "on_completion": "action--d3880df9-6b8d-4b31-a83e-7376511092f4"
+        },
+        "action--d17cd40f-78a2-498f-bb1c-2c857c6821cc": {
+            "name": "Scan the system for other malicious scripts",
+            "description": "Look for suspicious shell scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -lE 'rm -rf|wget|nc' {} \\;"
+                }
+            ],
+            "agent": "organization--b1a9f381-6e22-48bf-ab2a-5f5f3424bf4b"
+        },
+        "action--d3880df9-6b8d-4b31-a83e-7376511092f4": {
+            "name": "Restore from Last Known Good Backup",
+            "description": "Revert system to a clean state.",
+            "on_completion": "if-condition--fd4a8173-966a-4f94-8747-71c4ccc5e75f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo restore --file /backup/clean-backup.tar"
+                }
+            ],
+            "agent": "organization--c5b600e0-6b53-4cad-9ce9-e25ab146e3d8"
+        },
+        "if-condition--fd4a8173-966a-4f94-8747-71c4ccc5e75f": {
+            "name": "Check if Vulnerability Persists",
+            "description": "Determine if further action is needed on firewall policies.",
+            "type": "if-condition",
+            "condition": "vulnerability persists",
+            "on_true": "action--fd4a8173-966a-4f94-8747-71c4ccc5e75f",
+            "on_false": "action--2f7c46d9-2ad1-4b39-934f-81dc9f0415f1"
+        },
+        "action--fd4a8173-966a-4f94-8747-71c4ccc5e75f": {
+            "name": "Update Firewall Rules",
+            "description": "Block potentially exploited remote access ports.",
+            "on_completion": "action--2f7c46d9-2ad1-4b39-934f-81dc9f0415f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo ufw deny from any to any port 22"
+                }
+            ],
+            "agent": "organization--c5b600e0-6b53-4cad-9ce9-e25ab146e3d8"
+        },
+        "action--2f7c46d9-2ad1-4b39-934f-81dc9f0415f1": {
+            "name": "Deploy Vulnerability Patches",
+            "description": "Execute a system-wide update to ensure all software is patched.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--b55db086-afc8-463a-91a5-0b9671d49baa"
+        }
+    },
+    "agent_definitions": {
+        "organization--c5b600e0-6b53-4cad-9ce9-e25ab146e3d8": {
+            "type": "organization",
+            "name": "XYZ Organization"
+        },
+        "organization--b55db086-afc8-463a-91a5-0b9671d49baa": {
+            "type": "organization",
+            "name": "ABC Organization"
+        },
+        "organization--b1a9f381-6e22-48bf-ab2a-5f5f3424bf4b": {
+            "type": "organization",
+            "name": "DEF Organization"
+        }
+    }
+}

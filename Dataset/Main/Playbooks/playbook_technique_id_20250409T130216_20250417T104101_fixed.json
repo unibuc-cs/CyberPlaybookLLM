@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2c8c74b-ba59-4b61-9bba-484a4079f7b5",
+    "name": "Mitigation Playbook for Malicious Scripting Incident",
+    "description": "This playbook automates the response to a malicious scripting incident involving the execution of harmful scripts and deletion of logs.",
+    "created_by": "identity--a7e8406e-0fe1-4ee1-9468-e1b4b990ec02",
+    "created": "2023-10-06T12:05:00Z",
+    "modified": "2023-10-06T12:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--8f9eabbc-6c55-4d1f-9158-b8c3d8b10f5e",
+    "workflow": {
+        "start--8f9eabbc-6c55-4d1f-9158-b8c3d8b10f5e": {
+            "on_completion": "action--da65723a-7276-4f9a-b115-9d1d296fba84",
+            "type": "start"
+        },
+        "action--da65723a-7276-4f9a-b115-9d1d296fba84": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "loop--b07cfe0a-39a9-4973-a90b-6e9b567fd063",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--50034ad3-a7b6-4424-898d-866cac37840c"
+        },
+        "loop--b07cfe0a-39a9-4973-a90b-6e9b567fd063": {
+            "name": "Perform Full System Scan",
+            "description": "Run a full system scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "threats_detected == true",
+            "on_true": "action--b07cfe0a-39a9-4973-a90b-6e9b567fd063",
+            "on_false": "if-condition--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3"
+        },
+        "action--b07cfe0a-39a9-4973-a90b-6e9b567fd063": {
+            "name": "Run Full System Scan",
+            "on_completion": "loop--b07cfe0a-39a9-4973-a90b-6e9b567fd063",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo antivirus_scan --full"
+                }
+            ],
+            "agent": "organization--50034ad3-a7b6-4424-898d-866cac37840c"
+        },
+        "if-condition--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3": {
+            "name": "Check if log files were deleted",
+            "type": "if-condition",
+            "condition": "log_files_deleted == true",
+            "on_true": "action--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3",
+            "on_false": "end--32b3c8c6-2e89-4262-b67e-5e30b0c92d6e"
+        },
+        "action--f3c9a8d3-6f43-4bfb-8559-2d8b3d91c9c3": {
+            "name": "Restore Deleted Logs from Backup",
+            "description": "Restore log files from backup after malicious activity.",
+            "on_completion": "end--32b3c8c6-2e89-4262-b67e-5e30b0c92d6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore_logs --from backup.tar.gz"
+                }
+            ],
+            "agent": "organization--50034ad3-a7b6-4424-898d-866cac37840c"
+        },
+        "end--32b3c8c6-2e89-4262-b67e-5e30b0c92d6e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--50034ad3-a7b6-4424-898d-866cac37840c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "threats_detected": {
+            "type": "boolean",
+            "description": "Indicates if any threats are detected by the antivirus scan.",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "log_files_deleted": {
+            "type": "boolean",
+            "description": "Indicates if the log files were deleted during the incident.",
+            "value": true,
+            "constant": false,
+            "external": true
+        }
+    }
+}

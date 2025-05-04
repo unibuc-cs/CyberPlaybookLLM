@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3c037d9-ff68-4c92-85b8-09bbd9cc1a02",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable remote service to execute unauthorized commands on the server using a Command and Scripting Interpreter.",
+    "created_by": "identity--1b5b9a05-c427-47c9-902f-210582843b0e",
+    "created": "2023-10-09T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--8d27fbe4-f9bb-4240-9a34-e564009ae678",
+    "workflow": {
+        "start--8d27fbe4-f9bb-4240-9a34-e564009ae678": {
+            "on_completion": "action--2ec517b2-5d77-4600-965c-54228b7b56c3",
+            "type": "start"
+        },
+        "action--2ec517b2-5d77-4600-965c-54228b7b56c3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any malicious processes running on the server.",
+            "on_completion": "action--6a8b4f39-e6b8-47e2-8b3e-1e5de9f65c62",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(pgrep -f malicious_process)"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "action--6a8b4f39-e6b8-47e2-8b3e-1e5de9f65c62": {
+            "name": "Delete suspicious file",
+            "description": "Remove the suspicious file from the temporary directory.",
+            "on_completion": "if-condition--d6f4f62c-530b-4f78-a6b1-99f9f559e4c8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_file"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "if-condition--d6f4f62c-530b-4f78-a6b1-99f9f559e4c8": {
+            "name": "Check for compromised state",
+            "type": "if-condition",
+            "condition": "compromised == true",
+            "on_true": "action--d6f4f62c-530b-4f78-a6b1-99f9f559e4c8",
+            "on_false": "action--97766c6f-9f83-4dc5-a08e-fd22a8e59637"
+        },
+        "action--d6f4f62c-530b-4f78-a6b1-99f9f559e4c8": {
+            "name": "Block offending IP",
+            "description": "Block the offending IP address to prevent further access.",
+            "on_completion": "action--97766c6f-9f83-4dc5-a08e-fd22a8e59637",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from 192.168.1.1"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "action--97766c6f-9f83-4dc5-a08e-fd22a8e59637": {
+            "name": "Ensure no persistence mechanism exists",
+            "description": "Check and disable any persistent services set by the attacker.",
+            "on_completion": "while-condition--301d34e4-4fbc-4f79-b457-827cab1e774f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl disable suspicious_service"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "while-condition--301d34e4-4fbc-4f79-b457-827cab1e774f": {
+            "name": "Check for remaining services",
+            "description": "Loop until there are no remaining suspicious services.",
+            "on_completion": "action--b7c1f2ba-8299-42fe-bb8d-0185f686b8f9",
+            "type": "while-condition",
+            "condition": "no_services_found == false",
+            "on_true": "action--97766c6f-9f83-4dc5-a08e-fd22a8e59637"
+        },
+        "action--301d34e4-4fbc-4f79-b457-827cab1e774f": {
+            "name": "Scan for other malicious scripts",
+            "description": "Perform a scan of the system for other malicious scripts.",
+            "on_completion": "action--b7c1f2ba-8299-42fe-bb8d-0185f686b8f9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool / --exclude=/proc --exclude=/sys"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "action--b7c1f2ba-8299-42fe-bb8d-0185f686b8f9": {
+            "name": "Reboot host to ensure cleanup",
+            "description": "Restart the host to finalize the cleanup process.",
+            "on_completion": "end--f97c82b0-cf84-4b57-b91d-ddd107cdd0d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reboot"
+                }
+            ],
+            "agent": "organization--fe83e651-37ae-4004-a64c-78ec712dfa36"
+        },
+        "end--f97c82b0-cf84-4b57-b91d-ddd107cdd0d8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fe83e651-37ae-4004-a64c-78ec712dfa36": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

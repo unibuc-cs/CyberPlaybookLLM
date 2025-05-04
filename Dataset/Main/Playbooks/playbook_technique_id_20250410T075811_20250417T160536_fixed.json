@@ -1,0 +1,110 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0eadf8c9-b4f3-45f5-9198-ccfefe8ebbbb",
+    "name": "Playbook for Mitigating PowerShell Attack on host-22",
+    "description": "This playbook responds to a PowerShell scripting attack that resulted in privilege escalation and tool installation on host-22.",
+    "created_by": "identity--99998888-9999-4b44-8a9f-2e5ef334daf1",
+    "created": "2025-04-10T09:00:00Z",
+    "modified": "2025-04-10T09:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--d1234567-1234-5678-9123-456789abcdef",
+    "workflow": {
+        "start--d1234567-1234-5678-9123-456789abcdef": {
+            "on_completion": "parallel--7af8ee55-1084-46d6-b41c-43995c456834",
+            "type": "start"
+        },
+        "parallel--7af8ee55-1084-46d6-b41c-43995c456834": {
+            "name": "Mitigation Actions",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--6f371c0c-30a3-4ca9-ac5e-34c8366d9cbf",
+                "action--98699bc1-5bdf-465f-bc71-1ef697e84da4",
+                "action--d7a32e4b-9af8-4bd5-9198-bdf4b36c49b5"
+            ]
+        },
+        "action--6f371c0c-30a3-4ca9-ac5e-34c8366d9cbf": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious executable process to prevent further exploitation.",
+            "on_completion": "action--d7a32e4b-9af8-4bd5-9198-bdf4b36c49b5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM malicious.exe /F"
+                }
+            ],
+            "agent": "organization--5913303b-7fc5-4015-a4a0-1181a3826f89"
+        },
+        "action--98699bc1-5bdf-465f-bc71-1ef697e84da4": {
+            "name": "Scan for additional threats",
+            "description": "Run a full system antivirus scan to identify further threats.",
+            "on_completion": "loop--523c9b72-e9a3-47ca-a5b7-1edebff8f5fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan /full"
+                }
+            ],
+            "agent": "organization--5913303b-7fc5-4015-a4a0-1181a3826f89"
+        },
+        "loop--523c9b72-e9a3-47ca-a5b7-1edebff8f5fc": {
+            "name": "Check scan results",
+            "description": "Repeat the scan until the system is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--98699bc1-5bdf-465f-bc71-1ef697e84da4",
+            "on_false": "action--b9bac6ae-65b0-451b-8d98-4aba788dc303"
+        },
+        "action--b9bac6ae-65b0-451b-8d98-4aba788dc303": {
+            "name": "Revoke escalated privileges",
+            "description": "Remove user from the administrators group if present.",
+            "on_completion": "action--42c1bf76-7f93-4283-9b3d-1ab6287a64b6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if (user in administrators) net localgroup administrators user /delete"
+                }
+            ],
+            "agent": "organization--5913303b-7fc5-4015-a4a0-1181a3826f89"
+        },
+        "action--42c1bf76-7f93-4283-9b3d-1ab6287a64b6": {
+            "name": "Block external site in firewall",
+            "description": "Add a firewall rule to block the external site used by the attacker.",
+            "on_completion": "action--8646b492-f3f8-49b8-9013-12e61eedba20",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule 'rule family=ipv4 source address=203.0.113.10 reject'"
+                }
+            ],
+            "agent": "organization--5913303b-7fc5-4015-a4a0-1181a3826f89"
+        },
+        "action--8646b492-f3f8-49b8-9013-12e61eedba20": {
+            "name": "Unset PowerShell execution policy",
+            "description": "Restrict PowerShell script execution to mitigate risk of re-exploitation.",
+            "on_completion": "end--74f113a9-5739-4a5d-adbb-2a13f210b1db",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--5913303b-7fc5-4015-a4a0-1181a3826f89"
+        },
+        "end--74f113a9-5739-4a5d-adbb-2a13f210b1db": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5913303b-7fc5-4015-a4a0-1181a3826f89": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

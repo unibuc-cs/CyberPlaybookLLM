@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cb3e6c85-1be2-47bf-9565-d5aa0672d8d5",
+    "name": "Playbook for RDP Exploitation Incident Mitigation",
+    "description": "This playbook addresses the exploitation of remote desktop protocol vulnerabilities leading to unauthorized access and privilege escalation.",
+    "created_by": "identity--e72beabc-957b-4f5e-bdcd-f2f07b65b406",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--fefb2edf-82a5-4559-8734-97b2bbdd4589",
+    "workflow": {
+        "start--fefb2edf-82a5-4559-8734-97b2bbdd4589": {
+            "on_completion": "parallel--8c4b1a8d-61a0-415f-8f87-9707deb9d2c5",
+            "type": "start"
+        },
+        "parallel--8c4b1a8d-61a0-415f-8f87-9707deb9d2c5": {
+            "name": "Execute Mitigations",
+            "description": "Execute multiple mitigation strategies in parallel based on incident findings.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--d63baa95-d23c-4bc2-94e6-5a342c65b3f0",
+                "action--cb3e681b-6843-4604-a0f3-2ce0b11ffc12"
+            ]
+        },
+        "if-condition--d63baa95-d23c-4bc2-94e6-5a342c65b3f0": {
+            "name": "Check for unauthorized access attempts",
+            "type": "if-condition",
+            "condition": "suspicious_activity_found == true",
+            "on_true": "action--b5e0351b-263b-4cbb-85d8-af79bbff64d8",
+            "on_false": "action--a19399c0-5657-4b62-b135-bdc68c2bf607"
+        },
+        "action--b5e0351b-263b-4cbb-85d8-af79bbff64d8": {
+            "name": "Terminate unauthorized RDP sessions",
+            "description": "Terminate any unauthorized RDP sessions to prevent further exploitation.",
+            "on_completion": "end--1f9948f8-497f-4e78-ba1b-bf672648e9f6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "query user | findstr /C:'*logged on*' | for /f 'tokens=2' %a in ('findstr *logged on*') do logoff %a"
+                }
+            ],
+            "agent": "organization--28416cbf-bd53-4198-9e0d-580776dedc7c"
+        },
+        "action--cb3e681b-6843-4604-a0f3-2ce0b11ffc12": {
+            "name": "Restrict RDP access to specific IP addresses",
+            "description": "Limit RDP access to only trusted IP addresses.",
+            "on_completion": "end--1f9948f8-497f-4e78-ba1b-bf672648e9f6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall add rule name='RDP Restriction' dir=in action=allow protocol=TCP localport=3389 remoteip='192.168.1.0/24'"
+                }
+            ],
+            "agent": "organization--28416cbf-bd53-4198-9e0d-580776dedc7c"
+        },
+        "action--a19399c0-5657-4b62-b135-bdc68c2bf607": {
+            "name": "Perform vulnerability scan on affected host",
+            "description": "Check the affected host for vulnerabilities using a vulnerability scan.",
+            "on_completion": "end--1f9948f8-497f-4e78-ba1b-bf672648e9f6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sV -p 3389 host-32"
+                }
+            ],
+            "agent": "organization--28416cbf-bd53-4198-9e0d-580776dedc7c"
+        },
+        "end--1f9948f8-497f-4e78-ba1b-bf672648e9f6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--28416cbf-bd53-4198-9e0d-580776dedc7c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

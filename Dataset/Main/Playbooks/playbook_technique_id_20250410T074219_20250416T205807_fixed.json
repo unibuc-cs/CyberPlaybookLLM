@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7e9a5fe9-6123-4e2d-b245-f706f37fea16",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where a PowerShell script was used by an attacker to drop a malicious file onto multiple hosts.",
+    "created_by": "identity--12fa73ad-caba-4b34-937b-f9aabc789cfa",
+    "created": "2025-04-10T09:53:00.000Z",
+    "modified": "2025-04-10T10:00:00.000Z",
+    "workflow_start": "start--9e841b2e-d6fd-4c1c-b49b-f5411d2bb66c",
+    "workflow": {
+        "start--9e841b2e-d6fd-4c1c-b49b-f5411d2bb66c": {
+            "on_completion": "parallel--4c1f2d0c-3ebd-44eb-8c0e-29f6f0f8aad9",
+            "type": "start"
+        },
+        "end--f218f4c6-46f8-4138-8f0e-419e8c399814": {
+            "type": "end"
+        },
+        "parallel--4c1f2d0c-3ebd-44eb-8c0e-29f6f0f8aad9": {
+            "name": "Concurrently Mitigate Attacks",
+            "description": "Simultaneously execute processes to kill malicious scripts and remove malicious files.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5a1f560e-8ff4-4c97-9ba5-007505e6a4f9",
+                "loop--d0cf6f36-4335-403d-9193-b975357b453a"
+            ]
+        },
+        "action--5a1f560e-8ff4-4c97-9ba5-007505e6a4f9": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate all suspicious PowerShell processes running on affected hosts.",
+            "on_completion": "loop--c980eb2b-f630-4e09-9645-d857c667f3cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /FI \"IMAGENAME eq powershell.exe\" /F"
+                }
+            ],
+            "agent": "organization--cdca947c-48ee-41b1-b2ac-e5bf4060b2e3"
+        },
+        "loop--d0cf6f36-4335-403d-9193-b975357b453a": {
+            "name": "Remove malicious files",
+            "description": "Iterate over each malicious file detected and remove it forcefully.",
+            "type": "while-condition",
+            "condition": "$maliciousFiles != []",
+            "on_true": "action--d0cf6f36-4335-403d-9193-b975357b453a",
+            "on_false": "loop--c980eb2b-f630-4e09-9645-d857c667f3cc"
+        },
+        "action--d0cf6f36-4335-403d-9193-b975357b453a": {
+            "name": "Remove malicious file from infected hosts",
+            "description": "Forcefully delete identified malicious files from infected hosts.",
+            "on_completion": "loop--d0cf6f36-4335-403d-9193-b975357b453a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "foreach ($file in $maliciousFiles) { Remove-Item -Path $file -Force }"
+                }
+            ],
+            "agent": "organization--bb8cc1ea-c6fc-4ae4-90ae-322c8c3d9d4b"
+        },
+        "loop--c980eb2b-f630-4e09-9645-d857c667f3cc": {
+            "name": "Scan network for additional infections",
+            "description": "Perform a network scan for infections until the scan returns clean.",
+            "type": "while-condition",
+            "condition": "network_scan_clean == false",
+            "on_true": "action--c980eb2b-f630-4e09-9645-d857c667f3cc",
+            "on_false": "action--f3278c6f-2a3d-4afe-bf23-3c130fb5f8c2"
+        },
+        "action--c980eb2b-f630-4e09-9645-d857c667f3cc": {
+            "name": "Start network scan",
+            "description": "Initiate a network scan across the given range to detect threats.",
+            "on_completion": "loop--c980eb2b-f630-4e09-9645-d857c667f3cc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-Scan -NetworkRange 192.168.1.0/24"
+                }
+            ],
+            "step_variables": {
+                "network_scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates whether the network scan result is clean.",
+                    "value": false
+                }
+            },
+            "agent": "organization--9d4a8de7-3703-4376-8fab-cbc0b7f3d0c9"
+        },
+        "action--f3278c6f-2a3d-4afe-bf23-3c130fb5f8c2": {
+            "name": "Update security policies to block script execution",
+            "description": "Set execution policy to prevent script execution, thereby mitigating further attacks.",
+            "on_completion": "end--f218f4c6-46f8-4138-8f0e-419e8c399814",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy Restricted -Scope CurrentUser"
+                }
+            ],
+            "agent": "organization--07898523-0f00-4ba8-9eca-c0a705e9e6c6"
+        }
+    },
+    "agent_definitions": {
+        "organization--cdca947c-48ee-41b1-b2ac-e5bf4060b2e3": {
+            "type": "organization",
+            "name": "PowerShellProcessTerminator"
+        },
+        "organization--bb8cc1ea-c6fc-4ae4-90ae-322c8c3d9d4b": {
+            "type": "organization",
+            "name": "MaliciousFileRemover"
+        },
+        "organization--9d4a8de7-3703-4376-8fab-cbc0b7f3d0c9": {
+            "type": "organization",
+            "name": "NetworkScanner"
+        },
+        "organization--07898523-0f00-4ba8-9eca-c0a705e9e6c6": {
+            "type": "organization",
+            "name": "PolicyUpdater"
+        }
+    }
+}

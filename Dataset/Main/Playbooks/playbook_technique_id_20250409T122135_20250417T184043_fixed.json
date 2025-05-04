@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2d3e5f6-ca7e-4716-abc4-e35c170be409",
+    "name": "Mitigation Playbook for Command and Script Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged a command interpreter to execute harmful scripts, leading to unauthorized access to sensitive files.",
+    "created_by": "identity--5d7b39a8-e14f-4952-bc39-a08ec8727270",
+    "created": "2025-04-09T12:00:00Z",
+    "modified": "2025-04-09T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--d4a2fe5e-a12c-4b02-8fe4-b3dbe50780f1",
+    "workflow": {
+        "start--d4a2fe5e-a12c-4b02-8fe4-b3dbe50780f1": {
+            "on_completion": "parallel--c6eae02e-7c0e-42ff-a197-a7616df384dc",
+            "type": "start"
+        },
+        "parallel--c6eae02e-7c0e-42ff-a197-a7616df384dc": {
+            "name": "ExecuteInitialMitigations",
+            "description": "Kill the malicious process and isolate the host from the network.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f3337a8c-1b55-4e18-a63e-020f0d29b9a9",
+                "action--e6cd2900-7b7f-4c45-8a5f-efc2d932b9c0"
+            ]
+        },
+        "action--f3337a8c-1b55-4e18-a63e-020f0d29b9a9": {
+            "name": "Kill the malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--bb7f3fe1-3c47-42a0-b4c3-877b103fda34",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea"
+        },
+        "action--e6cd2900-7b7f-4c45-8a5f-efc2d932b9c0": {
+            "name": "Isolate affected host from network",
+            "description": "Block network access to the affected host.",
+            "on_completion": "action--bb7f3fe1-3c47-42a0-b4c3-877b103fda34",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-01 down"
+                }
+            ],
+            "agent": "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea"
+        },
+        "action--bb7f3fe1-3c47-42a0-b4c3-877b103fda34": {
+            "name": "Conduct system-wide malware scan",
+            "on_completion": "action--b00d1bef-c8a9-47b5-97f2-0e1c167c39a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan_complete; do run_clamav; done"
+                }
+            ],
+            "agent": "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea"
+        },
+        "action--b00d1bef-c8a9-47b5-97f2-0e1c167c39a1": {
+            "name": "Review logs for suspicious activity",
+            "description": "Check logs for any actions related to malicious scripts.",
+            "on_completion": "action--8a1b72b0-b26b-4c22-a6a1-bc4c608a3488",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep 'malicious_script'"
+                }
+            ],
+            "agent": "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea"
+        },
+        "action--8a1b72b0-b26b-4c22-a6a1-bc4c608a3488": {
+            "name": "Update firewall rules to block malicious IPs",
+            "description": "Adjust firewall settings to prevent further communication with malicious sources.",
+            "on_completion": "end--8c6f7fe2-9539-4a27-beb8-724f3bc54c14",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea"
+        },
+        "end--8c6f7fe2-9539-4a27-beb8-724f3bc54c14": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2fbea0d2-b4ad-40f9-b9ff-6df8d29010ea": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4e1f1a3-3373-48f1-a204-e83953e8b648",
+    "name": "Playbook for Mitigating Malicious PowerShell Script Incident",
+    "description": "This playbook mitigates the effects of a PowerShell script executed via phishing. It includes killing the PowerShell process, removing malicious startup scripts, and scanning for additional payloads.",
+    "created_by": "identity--12345678-abcd-4321-abcd-123456789abc",
+    "created": "2023-10-14T11:00:00Z",
+    "modified": "2023-10-14T11:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f70e9a56-527f-4e97-9ad9-75e905fc4b8e",
+    "workflow": {
+        "start--f70e9a56-527f-4e97-9ad9-75e905fc4b8e": {
+            "on_completion": "parallel--d38b1621-54d5-412b-94b2-adjustera29603",
+            "type": "start"
+        },
+        "parallel--d38b1621-54d5-412b-94b2-306ec936e0d2": {
+            "name": "Mitigation Steps",
+            "description": "Kill the malicious PowerShell process and remove startup scripts if present.",
+            "type": "parallel",
+            "next_steps": [
+                "action--7cd92f4a-efb3-4e0d-8a4c-fa06e5a57086",
+                "if-condition--29f2e749-c4b9-4bc2-8fb0-d96b026eaf7b"
+            ]
+        },
+        "action--7cd92f4a-efb3-4e0d-8a4c-fa06e5a57086": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate all running PowerShell processes.",
+            "on_completion": "if-condition--29f2e749-c4b9-4bc2-8fb0-d96b026eaf7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--29f2e749-c4b9-4bc2-8fb0-d96b026eaf7b": {
+            "name": "Check for malicious startup script",
+            "type": "if-condition",
+            "condition": "[ -f /etc/init.d/malicious-script ] && echo true || echo false",
+            "on_true": "action--29f2e749-c4b9-4bc2-8fb0-d96b026eaf7b",
+            "on_false": "action--c3e6f800-952f-40c8-821f-f6507bd7811f"
+        },
+        "action--29f2e749-c4b9-4bc2-8fb0-d96b026eaf7b": {
+            "name": "Remove malicious scripts from startup",
+            "description": "Delete the identified malicious startup script if it exists.",
+            "on_completion": "action--c3e6f800-952f-40c8-821f-f6507bd7811f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /etc/init.d/malicious-script"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c3e6f800-952f-40c8-821f-f6507bd7811f": {
+            "name": "Scan for further payloads",
+            "description": "Perform a comprehensive scan to identify and remove further malicious payloads.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive --remove /"
+                }
+            ],
+            "agent": "organization--abc",
+            "on_completion": "while-condition--scan_check"
+        },
+        "while-condition--scan_check": {
+            "name": "Checking scan status",
+            "description": "Repeat scan until the system is confirmed clean.",
+            "on_completion": "end--b4e9c40b-ee01-4ae2-bae0-9c4e9e8d783f",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--c3e6f800-952f-40c8-821f-f6507bd7811f"
+        },
+        "end--b4e9c40b-ee01-4ae2-bae0-9c4e9e8d783f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

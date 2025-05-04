@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d4b3e008-bc93-4e59-bb05-2c6e4cbff3ee",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to extract sensitive data and establish persistence.",
+    "created_by": "identity--70940c3e-8f78-4a05-8a0f-13be2d7d03de",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--2bb24003-cc87-42d9-b9bc-c46733a6f608",
+    "workflow": {
+        "action--748f9d8f-fb4d-448c-ae60-72a3209e3c8a": {
+            "name": "Reset user's password",
+            "description": "Reset the password of the compromised user to prevent further unauthorized access.",
+            "on_completion": "parallel--364c1d3d-8ec8-43e6-b811-36f1d25bd901",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user123"
+                }
+            ],
+            "agent": "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c"
+        },
+        "action--b4a203f8-5d61-43af-bb67-85d98270f43a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process executing on the host.",
+            "on_completion": "end--ea036612-8c12-42b8-9b4c-502a9103f95f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c"
+        },
+        "action--319bfc2b-bce1-4260-a67c-6e8d1ae1f3e6": {
+            "name": "Perform network isolation of compromised host",
+            "description": "Block the IP address of the attacker to prevent further communication.",
+            "on_completion": "end--ea036612-8c12-42b8-9b4c-502a9103f95f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c"
+        },
+        "action--764f5469-07f7-4d4c-bb37-7cb60f3020b5": {
+            "name": "Run antivirus scan on the host",
+            "description": "Scan the host for malware and remove any detected threats.",
+            "on_completion": "end--ea036612-8c12-42b8-9b4c-502a9103f95f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! clamscan --remove=yes /path/to/scan; do sleep 60; done"
+                }
+            ],
+            "agent": "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c"
+        },
+        "action--82c6acd2-fb8b-40cd-af95-8053eb9babd8": {
+            "name": "Audit scripts in the user's home directory",
+            "description": "Inspect all scripts in the user's home folder for malicious content.",
+            "on_completion": "end--ea036612-8c12-42b8-9b4c-502a9103f95f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home/user -name '*.sh' -exec cat {} \\;"
+                }
+            ],
+            "agent": "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c"
+        },
+        "start--2bb24003-cc87-42d9-b9bc-c46733a6f608": {
+            "on_completion": "if-condition--93739fc9-2989-4422-9227-407f5e2d9c95",
+            "type": "start"
+        },
+        "if-condition--93739fc9-2989-4422-9227-407f5e2d9c95": {
+            "name": "Check if compromised user is detected",
+            "type": "if-condition",
+            "condition": "compromised_user_detected == true",
+            "on_true": "action--748f9d8f-fb4d-448c-ae60-72a3209e3c8a",
+            "on_false": "parallel--364c1d3d-8ec8-43e6-b811-36f1d25bd901"
+        },
+        "parallel--364c1d3d-8ec8-43e6-b811-36f1d25bd901": {
+            "name": "Execute mitigation actions",
+            "type": "parallel",
+            "next_steps": [
+                "action--b4a203f8-5d61-43af-bb67-85d98270f43a",
+                "action--319bfc2b-bce1-4260-a67c-6e8d1ae1f3e6",
+                "action--764f5469-07f7-4d4c-bb37-7cb60f3020b5",
+                "action--82c6acd2-fb8b-40cd-af95-8053eb9babd8"
+            ]
+        },
+        "end--ea036612-8c12-42b8-9b4c-502a9103f95f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e26c3924-ee7e-4d70-a5bc-f0f28de26a8c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

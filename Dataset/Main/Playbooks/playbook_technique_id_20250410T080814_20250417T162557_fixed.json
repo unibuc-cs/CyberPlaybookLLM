@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3e2e4ef-12f4-440c-9e7e-2f3ca378b1a0",
+    "name": "Malicious Script Execution Mitigation Playbook",
+    "description": "This playbook addresses a security incident where an attacker used a compromised admin account to access an internal server and execute malicious scripts to extract sensitive data.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2023-11-10T15:00:00Z",
+    "modified": "2023-11-10T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--f9b3c9bc-608c-4cb0-a232-3abc0081e33c",
+    "workflow": {
+        "start--f9b3c9bc-608c-4cb0-a232-3abc0081e33c": {
+            "on_completion": "action--6fc8809c-b45c-4fdd-940f-222f155a570c",
+            "type": "start"
+        },
+        "action--6fc8809c-b45c-4fdd-940f-222f155a570c": {
+            "name": "Kill malicious process",
+            "description": "Terminate detected malicious scripts that were executed.",
+            "on_completion": "parallel--6defc641-9d4a-4ba0-9cd3-cd42982d5d46",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--d96b41b7-492a-40e2-8000-55599eb15d55"
+        },
+        "parallel--6defc641-9d4a-4ba0-9cd3-cd42982d5d46": {
+            "name": "Post-Incident Actions",
+            "description": "Execute post-incident actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--eafbbdd2-267e-44cc-a95b-b570fc5241f4",
+                "action--a9d23f9c-53c4-4de1-b737-1585afa5ec7d"
+            ]
+        },
+        "if-condition--eafbbdd2-267e-44cc-a95b-b570fc5241f4": {
+            "name": "Check if compromised credentials were used",
+            "type": "if-condition",
+            "condition": "compromised_credentials_used == true",
+            "on_true": "action--4d8eb78f-d6e9-45a2-9953-a050893754d8",
+            "on_false": "action--51d4b4a2-e27b-46e5-8c5c-360d68331867"
+        },
+        "action--4d8eb78f-d6e9-45a2-9953-a050893754d8": {
+            "name": "Reset admin credentials",
+            "description": "Reset the compromised admin account credentials.",
+            "on_completion": "action--51d4b4a2-e27b-46e5-8c5c-360d68331867",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd admin"
+                }
+            ],
+            "agent": "organization--d96b41b7-492a-40e2-8000-55599eb15d55"
+        },
+        "action--51d4b4a2-e27b-46e5-8c5c-360d68331867": {
+            "name": "Run full system scan",
+            "description": "Perform a thorough scan of the system to identify any remaining threats.",
+            "on_completion": "loop--e6fbf22f-ec99-4f69-aa88-3c45389c658d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--d96b41b7-492a-40e2-8000-55599eb15d55"
+        },
+        "loop--e6fbf22f-ec99-4f69-aa88-3c45389c658d": {
+            "name": "Check scan results",
+            "description": "Continue scanning until the system is clean.",
+            "on_completion": "end--c54ad261-e6ec-4c5d-a36f-b13c6e1f0b32",
+            "type": "while-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--51d4b4a2-e27b-46e5-8c5c-360d68331867"
+        },
+        "action--a9d23f9c-53c4-4de1-b737-1585afa5ec7d": {
+            "name": "Block malicious IP",
+            "description": "Block the malicious IP address used to access the server.",
+            "on_completion": "end--c54ad261-e6ec-4c5d-a36f-b13c6e1f0b32",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.101 -j DROP"
+                }
+            ],
+            "agent": "organization--d96b41b7-492a-40e2-8000-55599eb15d55"
+        },
+        "end--c54ad261-e6ec-4c5d-a36f-b13c6e1f0b32": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d96b41b7-492a-40e2-8000-55599eb15d55": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

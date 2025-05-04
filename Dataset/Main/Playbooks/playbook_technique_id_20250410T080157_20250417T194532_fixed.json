@@ -1,0 +1,126 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3fdda7d-362c-4ef9-b7fb-796c2c123456",
+    "name": "WMI Script Execution Mitigation Playbook",
+    "description": "Mitigation steps for addressing unauthorized use of Windows Management Instrumentation to execute scripts.",
+    "created_by": "identity--b55b0f23-42ea-4593-929b-fc95d07e1f4e",
+    "created": "2023-10-22T10:30:00Z",
+    "modified": "2023-10-22T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--51dab0ef-f2a4-4d8e-aeec-d133eedb4510",
+    "workflow": {
+        "start--51dab0ef-f2a4-4d8e-aeec-d133eedb4510": {
+            "on_completion": "parallel--c0892a1a-bb4f-4312-b019-58c5f9d123c4",
+            "type": "start"
+        },
+        "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c": {
+            "type": "end"
+        },
+        "parallel--c0892a1a-bb4f-4312-b019-58c5f9d123c4": {
+            "name": "Simultaneous Remediation Steps",
+            "description": "Execute multiple remediation actions concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "while-condition--d22f2b5d-4f98-4c7c-affa-d94d67cabf2c",
+                "action--1d3c926a-8d4e-4a04-bc30-cf194e653a5d",
+                "action--a47d95b1-72ef-4a65-9091-d89f8c6c4865",
+                "while-condition--2c855cbf-7e1b-4c8d-b62e-862b07a11184",
+                "action--f498e3ba-fb51-4638-b4ec-e7be0f4c2372"
+            ]
+        },
+        "while-condition--d22f2b5d-4f98-4c7c-affa-d94d67cabf2c": {
+            "name": "Terminate PowerShell Instances",
+            "description": "Loop to terminate all malicious PowerShell instances.",
+            "condition": "malicious_powershell_instances_running",
+            "on_true": "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a",
+            "on_completion": "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c",
+            "type": "while-condition"
+        },
+        "action--8bde857c-8944-4a24-b6d9-29ddb2f8fd1a": {
+            "name": "Terminate Malicious PowerShell Instances",
+            "description": "Terminate any malicious PowerShell instances running.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /f /im powershell.exe"
+                }
+            ],
+            "agent": "organization--3b7532f9-005e-4214-81a2-9fea8148183a"
+        },
+        "action--1d3c926a-8d4e-4a04-bc30-cf194e653a5d": {
+            "name": "Block WMI Access",
+            "description": "Ensure WMI access is blocked for untrusted users.",
+            "on_completion": "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-WmiNamespaceSecurity -Namespace 'root' -Account 'untrusted_user' -Permission 'Deny'"
+                }
+            ],
+            "agent": "organization--3b7532f9-005e-4214-81a2-9fea8148183a"
+        },
+        "action--a47d95b1-72ef-4a65-9091-d89f8c6c4865": {
+            "name": "Inspect and Isolate Affected Hosts",
+            "description": "Check the status of each host and isolate if compromised.",
+            "on_completion": "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Checking host status'"
+                }
+            ],
+            "agent": "organization--3b7532f9-005e-4214-81a2-9fea8148183a"
+        },
+        "while-condition--2c855cbf-7e1b-4c8d-b62e-862b07a11184": {
+            "name": "Deploy EDR Tool Scan",
+            "description": "Perform repeated scans using EDR tools until the hosts are clean.",
+            "condition": "hosts_not_clean",
+            "on_true": "action--e2701f21-2041-4bef-b86f-1c7f9ff63229",
+            "on_completion": "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c",
+            "type": "while-condition"
+        },
+        "action--e2701f21-2041-4bef-b86f-1c7f9ff63229": {
+            "name": "EDR Tool Full Scan",
+            "description": "Deploy an EDR tool to scan for malicious scripts.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "EDRTool --scan --type ${scan_type}"
+                }
+            ],
+            "agent": "organization--3b7532f9-005e-4214-81a2-9fea8148183a",
+            "step_variables": {
+                "scan_type": {
+                    "type": "string",
+                    "description": "Type of scan to perform",
+                    "value": "full",
+                    "constant": true
+                }
+            }
+        },
+        "action--f498e3ba-fb51-4638-b4ec-e7be0f4c2372": {
+            "name": "Reset Compromised Credentials",
+            "description": "Reset credentials for compromised users.",
+            "on_completion": "end--369d5f3e-4618-49e8-9b7e-b60c9d9e8e5c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user newpassword /domain"
+                }
+            ],
+            "agent": "organization--3b7532f9-005e-4214-81a2-9fea8148183a"
+        }
+    },
+    "agent_definitions": {
+        "organization--3b7532f9-005e-4214-81a2-9fea8148183a": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3f385c2-6b4e-472b-bd33-8bc586017d5b",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed unauthorized scripts, performed privilege escalation, and established persistent access on a server.",
+    "created_by": "identity--a5bc6e27-05a7-4938-b63b-cbdae802b241",
+    "created": "2023-10-30T15:30:00Z",
+    "modified": "2023-10-30T15:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--860901e6-36cb-4e45-870d-7bf3ac059ab8",
+    "workflow": {
+        "action--8a1c8aa1-b14f-4c5a-b795-72ebb15200e4": {
+            "name": "Terminate unauthorized script execution",
+            "description": "Terminate all processes executing unauthorized scripts.",
+            "on_completion": "if-condition--b7c9de14-be3e-4fb5-85df-eb372942b789",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce"
+        },
+        "if-condition--b7c9de14-be3e-4fb5-85df-eb372942b789": {
+            "name": "Check if compromised_user exists",
+            "type": "if-condition",
+            "condition": "compromised_user_exists",
+            "on_true": "action--9b7e41b3-0768-4faa-8bb4-678ddcb77bf9",
+            "on_false": "action--c4d2c323-1b98-4423-991f-78e63cd66cae"
+        },
+        "action--9b7e41b3-0768-4faa-8bb4-678ddcb77bf9": {
+            "name": "Revoke elevated privileges",
+            "description": "Lock the user to revoke unauthorized elevated privileges.",
+            "on_completion": "action--c4d2c323-1b98-4423-991f-78e63cd66cae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce"
+        },
+        "action--c4d2c323-1b98-4423-991f-78e63cd66cae": {
+            "name": "Remove malicious scheduled task",
+            "description": "Delete the scheduled task created by the attacker.",
+            "on_completion": "if-condition--b1f4c123-5678-4ea7-b839-a7e9632187ab",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "schtasks /Delete /TN malware_task /F"
+                }
+            ],
+            "agent": "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce"
+        },
+        "if-condition--b1f4c123-5678-4ea7-b839-a7e9632187ab": {
+            "name": "Check if incident already reported",
+            "type": "if-condition",
+            "condition": "incident_reported == false",
+            "on_true": "action--4e1f8479-1e2d-4c0a-8346-a9b4b7b1bf9b",
+            "on_false": "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b"
+        },
+        "action--4e1f8479-1e2d-4c0a-8346-a9b4b7b1bf9b": {
+            "name": "Alert IT security and log the incident details",
+            "description": "Send an email alert to IT security regarding the incident.",
+            "on_completion": "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sendmail -s 'Incident Report' security@example.com < /var/log/incident_report.log"
+                }
+            ],
+            "agent": "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce"
+        },
+        "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b": {
+            "name": "Perform system integrity scan",
+            "description": "Scan the system for integrity issues.",
+            "on_completion": "loop--9796486c-b238-40d3-9b28-ebcbe83487b3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --checkall"
+                }
+            ],
+            "agent": "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce"
+        },
+        "start--860901e6-36cb-4e45-870d-7bf3ac059ab8": {
+            "on_completion": "action--8a1c8aa1-b14f-4c5a-b795-72ebb15200e4",
+            "type": "start"
+        },
+        "loop--9796486c-b238-40d3-9b28-ebcbe83487b3": {
+            "name": "Run Integrity Scan Loop",
+            "description": "Repeat the scan until a clean status is received.",
+            "on_completion": "end--1b116af5-ff03-45e8-b172-a72befdefa84",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--3d1e7462-78c1-4844-9e32-8dbf5c1e0f5b"
+        },
+        "end--1b116af5-ff03-45e8-b172-a72befdefa84": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a86b60ac-2688-4a0a-9c52-f2b25a5289ce": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

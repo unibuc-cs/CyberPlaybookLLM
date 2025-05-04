@@ -1,0 +1,142 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d03c87bc-9c1b-420e-b958-329f15cb2f36",
+    "name": "Playbook for Addressing Malicious Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate an incident where an attacker executed malicious scripts to extract sensitive data.",
+    "created_by": "identity--5d90d3ce-d98b-46d9-b0ca-6cac73a5632f",
+    "created": "2023-10-13T10:30:00Z",
+    "modified": "2023-10-13T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--9476750d-0466-4f21-ab31-515e29f06b88",
+    "workflow": {
+        "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to suspicious scripts.",
+            "type": "action",
+            "on_completion": "if-condition--74d679ef-c559-49ad-a986-e7d06855078a",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.py"
+                }
+            ],
+            "agent": "organization--fd26bbd6-d2e1-43f3-9905-3bb6c578b8bc"
+        },
+        "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada": {
+            "name": "Patch system vulnerability",
+            "description": "Update system packages and reboot to close vulnerabilities.",
+            "type": "action",
+            "on_completion": "loop--a324fa88-859f-4aca-a1dd-028fab80ee99",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y && reboot"
+                }
+            ],
+            "agent": "organization--492a82da-7981-474b-9b58-e3fde723ddd5"
+        },
+        "action--cf4098fb-a3ee-4c38-b679-372cb8f609e2": {
+            "name": "Perform full system scan",
+            "description": "Scan the system for malware and potential threats.",
+            "type": "action",
+            "loop": {
+                "type": "conditional",
+                "condition": "system_cleaned",
+                "interval": "1 hour"
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--94ce1d3a-fc9f-4d08-b92c-b7702930a7a7"
+        },
+        "action--442c154b-40dc-4dff-8f09-66e11b43c22f": {
+            "name": "Block malicious IP",
+            "description": "Prevent access from known malicious IP addresses.",
+            "type": "action",
+            "on_completion": "end--f1c8b0d4-0b30-4001-ba63-2e3461a58cb9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 198.51.100.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--fd26bbd6-d2e1-43f3-9905-3bb6c578b8bc"
+        },
+        "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0": {
+            "name": "Restore from last known good backup",
+            "description": "Restore system to a stable state if compromise is confirmed.",
+            "type": "action",
+            "on_completion": "end--f1c8b0d4-0b30-4001-ba63-2e3461a58cb9",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore-backup.sh -n last_good_backup"
+                }
+            ],
+            "agent": "organization--492a82da-7981-474b-9b58-e3fde723ddd5"
+        },
+        "start--9476750d-0466-4f21-ab31-515e29f06b88": {
+            "on_completion": "action--1a23d45b-ef67-4c12-8c19-2bd6f7f36e58",
+            "type": "start"
+        },
+        "if-condition--74d679ef-c559-49ad-a986-e7d06855078a": {
+            "name": "Check if malicious process was found",
+            "type": "if-condition",
+            "condition": "process_found_condition",
+            "on_true": "parallel--7bab7d06-6623-4ba3-a299-88efba2a4ac9",
+            "on_false": "action--8da3b587-9c74-46c6-ab97-0543c8f5b9f0"
+        },
+        "parallel--7bab7d06-6623-4ba3-a299-88efba2a4ac9": {
+            "name": "Execute parallel mitigations",
+            "description": "Patch vulnerabilities and block malicious IP while scanning the system.",
+            "type": "parallel",
+            "next_steps": [
+                "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada",
+                "action--442c154b-40dc-4dff-8f09-66e11b43c22f",
+                "action--cf4098fb-a3ee-4c38-b679-372cb8f609e2"
+            ]
+        },
+        "loop--a324fa88-859f-4aca-a1dd-028fab80ee99": {
+            "name": "Check for remaining vulnerabilities",
+            "type": "while-condition",
+            "condition": "patch_count > 0",
+            "on_true": "action--556bf7a9-1273-4e45-9ebd-bc4f1f358ada",
+            "max_iterations": 5
+        },
+        "end--f1c8b0d4-0b30-4001-ba63-2e3461a58cb9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--fd26bbd6-d2e1-43f3-9905-3bb6c578b8bc": {
+            "type": "organization",
+            "name": "Threat Response Team"
+        },
+        "organization--492a82da-7981-474b-9b58-e3fde723ddd5": {
+            "type": "organization",
+            "name": "Patch Management Team"
+        },
+        "organization--94ce1d3a-fc9f-4d08-b92c-b7702930a7a7": {
+            "type": "organization",
+            "name": "Malware Analysis Team"
+        }
+    },
+    "step_variables": {
+        "system_cleaned": {
+            "type": "boolean",
+            "value": false
+        },
+        "process_found_condition": {
+            "type": "boolean",
+            "value": true
+        },
+        "patch_count": {
+            "type": "integer",
+            "value": 3
+        }
+    }
+}

@@ -1,0 +1,125 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a901573b-4a1c-4c8b-a9ff-6e1a15a25826",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script leading to unauthorized access to sensitive data.",
+    "created_by": "identity--14c07d09-295e-444c-8e77-49feaa49ad38",
+    "created": "2023-10-10T14:30:00Z",
+    "modified": "2023-10-10T14:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--b901573b-4c1c-4c8b-a9ff-6e1a15b25873",
+    "workflow": {
+        "start--b901573b-4c1c-4c8b-a9ff-6e1a15b25873": {
+            "on_completion": "action--0c2d43ad-ee54-45bc-a5b2-e63b300fbee8",
+            "type": "start"
+        },
+        "action--0c2d43ad-ee54-45bc-a5b2-e63b300fbee8": {
+            "name": "Check for malicious PowerShell process",
+            "description": "Verify if the malicious PowerShell process is running to proceed with termination.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pgrep -f 'powershell'"
+                }
+            ],
+            "agent": "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4",
+            "on_completion": "if-condition--94973d74-9534-4a67-a510-b0ad4d38d725"
+        },
+        "action--d6872eb5-bf59-4f3b-a72c-b91ff8f79e88": {
+            "name": "Kill malicious process",
+            "description": "Terminate the detected malicious PowerShell process.",
+            "on_completion": "parallel--991a90df-1446-4b9e-8591-855e8bcfcddf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4"
+        },
+        "action--fdefb0fb-1dce-4a58-9a5f-b99a3bdc2e21": {
+            "name": "Proceed to isolation",
+            "description": "No PowerShell process detected, proceed to isolate host.",
+            "on_completion": "parallel--991a90df-1446-4b9e-8591-855e8bcfcddf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Proceed to isolation:  No PowerShell process detected, proceed to isolate host."
+                }
+            ],
+            "agent": "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4"
+        },
+        "action--fdd6ef09-375b-4815-a4f0-9335eb5c465c": {
+            "name": "Isolate affected host from network",
+            "description": "Isolate the affected host by disabling the network interface.",
+            "on_completion": "while-condition--b55a9508-3c33-4fed-81ec-1e04b33a099d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifdown eth0"
+                }
+            ],
+            "agent": "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4"
+        },
+        "action--76e58669-4d3f-4787-8e03-8287dce67b5c": {
+            "name": "Scan for indicators of compromise",
+            "description": "Perform a malware scan to identify any remnants of compromise.",
+            "on_completion": "end--8ad260a8-50ba-4e37-8cb9-9603f743fd6a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --recursive /path/to/directory"
+                }
+            ],
+            "agent": "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Results of the malware scan",
+                    "value": "result of malware_scan",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--94973d74-9534-4a67-a510-b0ad4d38d725": {
+            "name": "Test if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists != 0",
+            "on_true": "action--d6872eb5-bf59-4f3b-a72c-b91ff8f79e88",
+            "on_false": "action--fdefb0fb-1dce-4a58-9a5f-b99a3bdc2e21"
+        },
+        "parallel--991a90df-1446-4b9e-8591-855e8bcfcddf": {
+            "name": "Parallel Actions for Isolation and Scanning",
+            "description": "Initiate parallel actions to isolate the affected host and scan for threats.",
+            "type": "parallel",
+            "next_steps": [
+                "action--fdd6ef09-375b-4815-a4f0-9335eb5c465c",
+                "action--76e58669-4d3f-4787-8e03-8287dce67b5c"
+            ]
+        },
+        "while-condition--b55a9508-3c33-4fed-81ec-1e04b33a099d": {
+            "name": "Check if isolation is confirmed",
+            "description": "Repeat the isolation check until confirmed.",
+            "on_completion": "end--8ad260a8-50ba-4e37-8cb9-9603f743fd6a",
+            "type": "while-condition",
+            "condition": "isolation_confirmed == false",
+            "on_true": "action--fdd6ef09-375b-4815-a4f0-9335eb5c465c"
+        },
+        "end--8ad260a8-50ba-4e37-8cb9-9603f743fd6a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--db7c3a31-59e9-4b22-b38e-237f8e6aa5a4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

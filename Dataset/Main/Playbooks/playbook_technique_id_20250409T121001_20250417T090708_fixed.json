@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1f15c71-9e4c-4e99-a1f3-c0f1d1e11d99",
+    "name": "Playbook for Mitigating Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access through a misconfigured web server and executed a malicious script.",
+    "created_by": "identity--8022be06-fcf4-4ac9-9c4d-516c125344a9",
+    "created": "2023-10-01T14:32:00Z",
+    "modified": "2023-10-01T14:40:00Z",
+    "revoked": false,
+    "workflow_start": "start--3827afe9-cefb-45e2-b40c-20a610a887f6",
+    "workflow": {
+        "action--bf1e8e23-cc4a-411c-8b6d-d1c964e3e579": {
+            "name": "Kill the malicious script process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--e2c69a92-e9b1-40c9-9a58-61ac5e198646",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c6c673c4-65af-436b-800c-c20db0dd5a49"
+        },
+        "action--e2c69a92-e9b1-40c9-9a58-61ac5e198646": {
+            "name": "Run an integrity check on affected files",
+            "description": "Check the integrity of sensitive files to ensure they have not been tampered with.",
+            "on_completion": "if-condition--3d5db0b7-5bf7-426e-a018-4f82a293ca28",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "integrity_check --target /sensitive/path/config.txt"
+                }
+            ],
+            "agent": "organization--c6c673c4-65af-436b-800c-c20db0dd5a49"
+        },
+        "action--d3419d83-dbb7-44ae-b0de-962a3174eabc": {
+            "name": "Alert the security team and initiate a full system scan",
+            "description": "Notify the security team of the malicious activity and start a full system scan.",
+            "on_completion": "while-condition--3d3f4c52-f6ba-44c7-9103-9fac7adb01d9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --team security --message 'Malicious activity detected'"
+                }
+            ],
+            "agent": "organization--c6c673c4-65af-436b-800c-c20db0dd5a49"
+        },
+        "start--3827afe9-cefb-45e2-b40c-20a610a887f6": {
+            "on_completion": "action--bf1e8e23-cc4a-411c-8b6d-d1c964e3e579",
+            "type": "start"
+        },
+        "if-condition--3d5db0b7-5bf7-426e-a018-4f82a293ca28": {
+            "name": "Check if integrity check passes",
+            "type": "if-condition",
+            "condition": "integrity_check.success == false",
+            "on_true": "action--d3419d83-dbb7-44ae-b0de-962a3174eabc",
+            "on_false": "action--c72f58a8-50dc-4448-a727-61c560d31b90"
+        },
+        "while-condition--3d3f4c52-f6ba-44c7-9103-9fac7adb01d9": {
+            "name": "Monitor scan completion",
+            "description": "Continue scanning until the system is deemed clean.",
+            "type": "while-condition",
+            "condition": "scan_status == 'not_clean'",
+            "on_true": "action--d3419d83-dbb7-44ae-b0de-962a3174eabc",
+            "on_false": "end--82558023-ba7d-477a-9907-c29804eae1e3",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the full system scan",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--82558023-ba7d-477a-9907-c29804eae1e3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c6c673c4-65af-436b-800c-c20db0dd5a49": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

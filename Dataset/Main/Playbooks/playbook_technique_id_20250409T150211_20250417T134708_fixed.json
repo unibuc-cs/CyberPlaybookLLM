@@ -1,0 +1,100 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e23045ef-f39c-4a16-9f38-51225ef5dc13",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized script execution leading to data exfiltration.",
+    "created_by": "identity--02345fe3-e70d-4c46-b650-0f99db937c04",
+    "created": "2023-10-01T11:00:00Z",
+    "modified": "2023-10-01T11:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--803aa20e-7127-400e-a0c8-c1f984c84696",
+    "workflow": {
+        "action--25b1a27c-4c51-4d0a-8c08-570e830e4b2e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process running on the compromised host.",
+            "on_completion": "action--b3f4db28-3c8d-4d21-8fe6-5f1dd605b827",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--d432fac0-2113-464b-a796-374b372ae4ac"
+        },
+        "action--b3f4db28-3c8d-4d21-8fe6-5f1dd605b827": {
+            "name": "Isolate compromised host",
+            "description": "Isolate the compromised host from the network to prevent further access.",
+            "on_completion": "while-condition--d8a0b0bc-de8a-4abe-bf43-f5a325b2dfe5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--d432fac0-2113-464b-a796-374b372ae4ac"
+        },
+        "while-condition--d8a0b0bc-de8a-4abe-bf43-f5a325b2dfe5": {
+            "name": "Conduct security audit on network",
+            "description": "Continuously conduct a security audit until all issues are resolved.",
+            "condition": "issues_present",
+            "on_true": "action--d8a0b0bc-de8a-4abe-bf43-f5a325b2dfe5",
+            "on_false": "action--f1b0e63a-534c-4960-8ddc-1f4b98cd8827",
+            "type": "while-condition"
+        },
+        "action--d8a0b0bc-de8a-4abe-bf43-f5a325b2dfe5": {
+            "name": "Conduct a security audit on network",
+            "description": "Scan the network for vulnerabilities and unauthorized access.",
+            "on_completion": "while-condition--d8a0b0bc-de8a-4abe-bf43-f5a325b2dfe5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sV 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--d432fac0-2113-464b-a796-374b372ae4ac"
+        },
+        "action--f1b0e63a-534c-4960-8ddc-1f4b98cd8827": {
+            "name": "Check logs for abnormal activities",
+            "description": "Review logs for any entries related to malicious script executions.",
+            "on_completion": "action--77a34953-37d5-4c16-982c-fbd39cf2ae14",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'malicious_script.sh' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--d432fac0-2113-464b-a796-374b372ae4ac"
+        },
+        "action--77a34953-37d5-4c16-982c-fbd39cf2ae14": {
+            "name": "Run antivirus scan",
+            "description": "Perform a thorough antivirus scan of the compromised system.",
+            "on_completion": "end--e81c06c5-4c9b-4a5b-b506-f9de0502b375",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--d432fac0-2113-464b-a796-374b372ae4ac"
+        },
+        "end--e81c06c5-4c9b-4a5b-b506-f9de0502b375": {
+            "type": "end"
+        },
+        "start--803aa20e-7127-400e-a0c8-c1f984c84696": {
+            "on_completion": "action--25b1a27c-4c51-4d0a-8c08-570e830e4b2e",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--d432fac0-2113-464b-a796-374b372ae4ac": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7a1fb78-eddb-4828-8b5b-67caaa706916",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts through a compromised command-line interface for the purpose of exfiltrating data and establishing backdoors.",
+    "created_by": "identity--abc",
+    "created": "2025-04-09T12:30:00.000Z",
+    "modified": "2025-04-09T12:31:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--f1b28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "action--72b258e7-ccf4-4f5a-87a1-34adb973cb4a",
+            "type": "start"
+        },
+        "action--72b258e7-ccf4-4f5a-87a1-34adb973cb4a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the backdoor script executing on the target host.",
+            "on_completion": "if-condition--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f backdoor.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec": {
+            "name": "Check if backdoor script exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/backdoor.sh ]",
+            "on_true": "action--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec",
+            "on_false": "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be"
+        },
+        "action--8c4ef00e-c0bc-4b7b-98b6-c9a39b2c55ec": {
+            "name": "Remove dropped malicious files",
+            "description": "Delete the malicious backdoor script.",
+            "on_completion": "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/backdoor.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f49af6c1-4474-4ef0-b687-4c2f1e3c67be": {
+            "name": "Block outbound connection",
+            "description": "Prevent any further unauthorized connections to the external IP.",
+            "on_completion": "parallel--multiple-mitigations",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.50 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "parallel--multiple-mitigations": {
+            "name": "Execute multiple mitigations",
+            "description": "Perform the scan and update firewall rules concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d",
+                "action--089b0212-4c14-4c77-a369-6bfae00e4018"
+            ]
+        },
+        "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d": {
+            "name": "Scan system for other malicious artifacts",
+            "description": "Scan the system for any additional malicious files and artifacts.",
+            "on_completion": "while-condition--scan-until-clean",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--scan-until-clean": {
+            "name": "Scan until clean",
+            "description": "Repeat scanning until no threats are found.",
+            "on_true": "action--2b9bef4b-2cda-4b4f-83c7-bb4237ada51d",
+            "condition": "(scan_output.contains('Infected files') == false)",
+            "type": "while-condition"
+        },
+        "action--089b0212-4c14-4c77-a369-6bfae00e4018": {
+            "name": "Update firewall rules",
+            "description": "Ensure that the firewall rules are allowing legitimate traffic.",
+            "on_completion": "end--end-playbook",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw allow from any to any port ${port}"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "port": {
+                    "type": "integer",
+                    "description": "Port number for allowing traffic",
+                    "value": 22
+                }
+            }
+        },
+        "end--end-playbook": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

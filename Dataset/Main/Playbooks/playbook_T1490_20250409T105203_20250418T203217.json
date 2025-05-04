@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8aa36fd-c10b-4638-9874-ab6c970a76d6",
+    "name": "Ransomware Mitigation Playbook",
+    "description": "This playbook addresses the incident of a ransomware variant that deleted restore points and encrypted critical system files.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1a2b3c4d-e5f6-7a8b-9c0d-e1f2f3a4b5c6",
+    "workflow": {
+        "start--1a2b3c4d-e5f6-7a8b-9c0d-e1f2f3a4b5c6": {
+            "on_completion": "action--f1a5e1c7-e8c1-4b5e-bb72-fc4ec341dc63",
+            "type": "start"
+        },
+        "action--f1a5e1c7-e8c1-4b5e-bb72-fc4ec341dc63": {
+            "name": "Kill malicious process",
+            "description": "Terminate the ransomware process if it's running.",
+            "on_completion": "if-condition--e2c10274-632f-4d05-b68c-f5e4d29c6e64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f ransomware_process"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--e2c10274-632f-4d05-b68c-f5e4d29c6e64": {
+            "name": "Check if process is running",
+            "type": "if-condition",
+            "condition": "ps aux | grep 'ransomware_process' | grep -v grep",
+            "on_true": "action--776c3ec6-6887-4e2c-bbfe-41c7de2b2170",
+            "on_false": "action--b8d4c39a-9ccc-4e6d-a437-6ffd7dd6d5ca"
+        },
+        "action--776c3ec6-6887-4e2c-bbfe-41c7de2b2170": {
+            "name": "Disable remote access temporarily",
+            "description": "Block all remote access to prevent further exploitation.",
+            "on_completion": "action--b8d4c39a-9ccc-4e6d-a437-6ffd7dd6d5ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny from any to any port 22"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "access_port": {
+                    "type": "integer",
+                    "description": "Port to restrict access to",
+                    "value": 22,
+                    "constant": true
+                }
+            }
+        },
+        "action--b8d4c39a-9ccc-4e6d-a437-6ffd7dd6d5ca": {
+            "name": "Restore system from backup",
+            "description": "Restore the system files from backup until all are restored.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/restore_point /system/"
+                }
+            ],
+            "agent": "organization--xyz",
+            "loop": {
+                "condition": "all_system_files_restored == false",
+                "on_true": "action--b8d4c39a-9ccc-4e6d-a437-6ffd7dd6d5ca"
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

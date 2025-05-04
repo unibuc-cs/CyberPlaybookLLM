@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1b8a1aa-6fed-4e12-bd47-d816e4b950ea",
+    "name": "Mitigation Playbook for Exploitation of Remote Services Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability in the remote desktop service, gaining unauthorized access and exfiltrating sensitive data.",
+    "created_by": "identity--a3d9f546-b4be-4aef-9de4-62f8e91f5671",
+    "created": "2025-10-11T09:00:00.000Z",
+    "modified": "2025-10-11T09:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b001b931-90d8-43d7-b30e-50e4b8a67c01",
+    "workflow": {
+        "start--b001b931-90d8-43d7-b30e-50e4b8a67c01": {
+            "on_completion": "if-condition--7f994d9d-5825-41bc-b8c7-eb5e7e5bc254",
+            "type": "start"
+        },
+        "if-condition--7f994d9d-5825-41bc-b8c7-eb5e7e5bc254": {
+            "name": "Check if attacker IP needs to be blocked",
+            "type": "if-condition",
+            "condition": "attacker_ip != None",
+            "on_true": "action--c5f3a3cb-b907-41f4-8f74-1f694668d95e",
+            "on_false": "action--dbb55857-1e6f-4497-92be-e7de93f5e68f"
+        },
+        "action--c5f3a3cb-b907-41f4-8f74-1f694668d95e": {
+            "name": "Block IP address of the attacker",
+            "on_completion": "action--dbb55857-1e6f-4497-92be-e7de93f5e68f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--3cc4e907-1ea1-48a3-8f32-2e24c23b11de"
+        },
+        "action--dbb55857-1e6f-4497-92be-e7de93f5e68f": {
+            "name": "Kill malicious process",
+            "on_completion": "loop-condition--75b61fd4-ec63-4d84-94a0-2e114c3ff11f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_executable"
+                }
+            ],
+            "agent": "organization--3cc4e907-1ea1-48a3-8f32-2e24c23b11de"
+        },
+        "loop-condition--75b61fd4-ec63-4d84-94a0-2e114c3ff11f": {
+            "name": "Perform full system scan",
+            "type": "while-condition",
+            "condition": "scan_complete == false",
+            "on_true": "action--b3127c3e-4e77-40fc-9f91-9f7e6deca035",
+            "on_false": "end--c93730d6-b848-42fc-889c-77aaa6f5c794"
+        },
+        "action--b3127c3e-4e77-40fc-9f91-9f7e6deca035": {
+            "name": "Run system scan",
+            "on_completion": "loop-condition--75b61fd4-ec63-4d84-94a0-2e114c3ff11f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--3cc4e907-1ea1-48a3-8f32-2e24c23b11de",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates whether the scan has completed",
+                    "value": false,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--c93730d6-b848-42fc-889c-77aaa6f5c794": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3cc4e907-1ea1-48a3-8f32-2e24c23b11de": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

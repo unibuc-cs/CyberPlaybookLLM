@@ -1,0 +1,92 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4e2c3dd4-46f1-4a48-bd50-d9b3a6a0f2e1",
+    "name": "Mitigation Playbook for PowerShell Data Exfiltration Incident",
+    "description": "This playbook mitigates the incident of unauthorized access and PowerShell scripts executed for data exfiltration.",
+    "created_by": "identity--b7894021-80d8-4c0e-98f8-b482febd0def",
+    "created": "2025-04-10T12:45:00.000Z",
+    "modified": "2025-04-10T12:55:00.000Z",
+    "workflow_start": "start--ea19a1c4-d497-4c21-86d9-04c0f693b31d",
+    "workflow": {
+        "start--ea19a1c4-d497-4c21-86d9-04c0f693b31d": {
+            "on_completion": "action--c539417a-9efa-4e57-b8e4-bd86d4c392f5",
+            "type": "start"
+        },
+        "action--c539417a-9efa-4e57-b8e4-bd86d4c392f5": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell process if it is found running.",
+            "on_completion": "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--f5200d56-7c89-46cb-9a13-c8f998223810"
+        },
+        "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587": {
+            "name": "Remove suspicious files",
+            "description": "Delete any suspicious PowerShell scripts from the temp directory.",
+            "on_completion": "if-condition--3341b7f8-1f8d-4f69-b65c-b3d1477c70f1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--f5200d56-7c89-46cb-9a13-c8f998223810"
+        },
+        "if-condition--3341b7f8-1f8d-4f69-b65c-b3d1477c70f1": {
+            "name": "Check for remaining suspicious files",
+            "type": "if-condition",
+            "condition": "suspicious_files_exist",
+            "on_true": "action--bb8b11c2-7be5-4c59-bf35-f62e3d7aa587",
+            "on_false": "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68"
+        },
+        "action--f19dbe57-81e4-4e7a-9f17-88b1d6fc4b68": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block any outbound traffic to the identified malicious IP address.",
+            "on_completion": "action--dc1e4f30-6d1e-4d02-8d8e-5686f318ae6c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--f5200d56-7c89-46cb-9a13-c8f998223810"
+        },
+        "action--dc1e4f30-6d1e-4d02-8d8e-5686f318ae6c": {
+            "name": "Run security scan",
+            "description": "Run a security scan to identify any remnants of the attack.",
+            "on_completion": "if-condition--f9c40098-4c57-4811-8291-fb92e653b419",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_tool"
+                }
+            ],
+            "agent": "organization--f5200d56-7c89-46cb-9a13-c8f998223810"
+        },
+        "if-condition--f9c40098-4c57-4811-8291-fb92e653b419": {
+            "name": "Check scan result",
+            "type": "if-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--dc1e4f30-6d1e-4d02-8d8e-5686f318ae6c",
+            "on_false": "end--6f0c8c7e-f5cb-4cbc-aa29-8dc1e705ac4a"
+        },
+        "end--6f0c8c7e-f5cb-4cbc-aa29-8dc1e705ac4a": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f5200d56-7c89-46cb-9a13-c8f998223810": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

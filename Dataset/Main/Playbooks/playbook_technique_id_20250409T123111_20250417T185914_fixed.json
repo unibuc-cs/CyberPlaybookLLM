@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--396d9210-b608-4fcf-b584-e22b689eed78",
+    "name": "Playbook for Mitigating Malicious Script Execution Incident",
+    "description": "This playbook outlines the steps to mitigate an incident involving the execution of a malicious script that compromised sensitive data.",
+    "created_by": "identity--63f88b1e-407a-49c5-8f8a-23f079e5c4b3",
+    "created": "2023-10-01T10:00:00Z",
+    "modified": "2023-10-01T10:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--aa1af9c5-b007-4469-9b58-7624c90ba70f",
+    "workflow": {
+        "start--aa1af9c5-b007-4469-9b58-7624c90ba70f": {
+            "on_completion": "if-condition--6e50034e-ba22-4e3e-a56d-a70a9952e65c",
+            "type": "start"
+        },
+        "if-condition--6e50034e-ba22-4e3e-a56d-a70a9952e65c": {
+            "name": "Check if malicious process is running",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--d12c27f0-791b-4bcb-9a69-28194b0b64b8",
+            "on_false": "action--4f88581e-ae95-4b51-a9f7-4aa485b11356"
+        },
+        "action--d12c27f0-791b-4bcb-9a69-28194b0b64b8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell process running the malicious script.",
+            "on_completion": "action--4f88581e-ae95-4b51-a9f7-4aa485b11356",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--c397b333-8fd4-492c-9974-cd43e526a128"
+        },
+        "action--4f88581e-ae95-4b51-a9f7-4aa485b11356": {
+            "name": "Remove downloaded scripts",
+            "description": "Clean up malicious script from the temp directory.",
+            "on_completion": "parallel--03a1b8cd-43c3-4253-ab3d-43c04474bee4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--c397b333-8fd4-492c-9974-cd43e526a128"
+        },
+        "parallel--03a1b8cd-43c3-4253-ab3d-43c04474bee4": {
+            "name": "Run additional mitigations",
+            "description": "Execute parallel actions for further mitigation.",
+            "type": "parallel",
+            "next_steps": [
+                "action--51c26524-f803-4e26-9ea4-75f558ee1684",
+                "action--ca3d81be-8682-47d2-bab4-478761ef49f0",
+                "action--e12fce76-5b8f-43e6-b0ae-45b48d84cbf7"
+            ]
+        },
+        "action--51c26524-f803-4e26-9ea4-75f558ee1684": {
+            "name": "Run malware scan",
+            "description": "Perform a comprehensive scan of the entire system.",
+            "on_completion": "while-condition--78e5b1c3-8fbb-4a82-b43d-81ed640ae123",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--c397b333-8fd4-492c-9974-cd43e526a128"
+        },
+        "while-condition--78e5b1c3-8fbb-4a82-b43d-81ed640ae123": {
+            "name": "Check scan result",
+            "description": "Repeat scanning until no infections are found.",
+            "type": "while-condition",
+            "condition": "scan_infected()",
+            "on_true": "action--51c26524-f803-4e26-9ea4-75f558ee1684",
+            "on_false": "end--aa28f5ea-92c8-49b7-b7e4-e8539aad64fc"
+        },
+        "action--ca3d81be-8682-47d2-bab4-478761ef49f0": {
+            "name": "Enhance firewall rules",
+            "description": "Modify firewall settings to drop all suspicious outbound traffic.",
+            "on_completion": "end--aa28f5ea-92c8-49b7-b7e4-e8539aad64fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'DROP ALL' >> /etc/iptables/rules.v4"
+                }
+            ],
+            "agent": "organization--c397b333-8fd4-492c-9974-cd43e526a128"
+        },
+        "action--e12fce76-5b8f-43e6-b0ae-45b48d84cbf7": {
+            "name": "Educate users on phishing",
+            "description": "Send an email to all employees about phishing awareness.",
+            "on_completion": "end--aa28f5ea-92c8-49b7-b7e4-e8539aad64fc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_email -group 'employees' -subject 'Phishing Awareness' -body 'Important tips to identify phishing attempts.'"
+                }
+            ],
+            "agent": "organization--c397b333-8fd4-492c-9974-cd43e526a128"
+        },
+        "end--aa28f5ea-92c8-49b7-b7e4-e8539aad64fc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c397b333-8fd4-492c-9974-cd43e526a128": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

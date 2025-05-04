@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d523ff8e-8f6f-4b44-8ebe-87c59a6c1f9e",
+    "name": "Mitigation Playbook for Unauthorized HTTP Communication Incident",
+    "description": "Responds to an incident where unauthorized application layer communication has led to data exfiltration.",
+    "created_by": "identity--e1a31238-2528-45c8-b38c-7faeda2ef672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--33ab01a1-f0e5-4d6c-8e31-a38f5b154c95",
+    "workflow": {
+        "start--33ab01a1-f0e5-4d6c-8e31-a38f5b154c95": {
+            "on_completion": "action--1f483d57-7867-4f15-99d4-f5fda1c5b626",
+            "type": "start"
+        },
+        "action--1f483d57-7867-4f15-99d4-f5fda1c5b626": {
+            "name": "Block outgoing HTTP requests",
+            "description": "Block all outgoing HTTP requests from the compromised host.",
+            "on_completion": "action--1c83b4d3-3665-4ed8-bcf4-85c7f810fbbf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -s host-42 -j DROP"
+                }
+            ],
+            "agent": "organization--043b3084-0853-4182-a9e5-87287250a3ce"
+        },
+        "action--1c83b4d3-3665-4ed8-bcf4-85c7f810fbbf": {
+            "name": "Kill unauthorized process",
+            "description": "Terminate the unauthorized application process that was facilitating the exfiltration.",
+            "on_completion": "while-condition--43069de3-84f3-40f8-b9a5-5077e0e9e62d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_application"
+                }
+            ],
+            "agent": "organization--043b3084-0853-4182-a9e5-87287250a3ce"
+        },
+        "while-condition--43069de3-84f3-40f8-b9a5-5077e0e9e62d": {
+            "name": "Run security scan loop",
+            "description": "Continuously run a security scan on the compromised host until it is clean.",
+            "on_true": "action--36e1f4d9-e40d-4c8b-8ca3-3708a627b94f",
+            "on_false": "end--f4d1b48c-6dca-42a8-9900-5d63475b9b62",
+            "type": "while-condition",
+            "condition": "scan_status == 'threat_found'"
+        },
+        "action--36e1f4d9-e40d-4c8b-8ca3-3708a627b94f": {
+            "name": "Run security scan",
+            "description": "Execute a security scan on the compromised host.",
+            "on_completion": "while-condition--43069de3-84f3-40f8-b9a5-5077e0e9e62d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan host-42; update_scan_status"
+                }
+            ],
+            "agent": "organization--043b3084-0853-4182-a9e5-87287250a3ce",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the security scan results.",
+                    "value": "threat_found",
+                    "constant": false
+                }
+            }
+        },
+        "end--f4d1b48c-6dca-42a8-9900-5d63475b9b62": {
+            "name": "End of Mitigation",
+            "description": "All remediation actions completed.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--043b3084-0853-4182-a9e5-87287250a3ce": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

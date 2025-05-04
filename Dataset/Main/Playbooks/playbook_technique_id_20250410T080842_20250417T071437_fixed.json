@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b4a5b834-33ff-4c4e-87b6-fcfe9e00e3e9",
+    "name": "Mitigation Playbook for PowerShell Script Incident",
+    "description": "This playbook mitigates threats stemming from a PowerShell script execution that led to unauthorized access and privilege escalation attempts.",
+    "created_by": "identity--2eebdc94-ffbc-4a30-a48c-c3e4c86c9f3e",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--9bf0bc8e-5391-49dd-9172-e3b4e1f0ed3d",
+    "workflow": {
+        "start--9bf0bc8e-5391-49dd-9172-e3b4e1f0ed3d": {
+            "on_completion": "action--d7e5f1d0-3b7f-4e93-8a34-2a3f3a6c90de",
+            "type": "start"
+        },
+        "action--d7e5f1d0-3b7f-4e93-8a34-2a3f3a6c90de": {
+            "name": "Kill all running PowerShell processes",
+            "description": "Terminate any active PowerShell processes to prevent further unauthorized scripts from executing.",
+            "on_completion": "parallel--f58abc39-5b2e-4684-9786-808effede18a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc"
+        },
+        "parallel--f58abc39-5b2e-4684-9786-808effede18a": {
+            "name": "Mitigation Actions",
+            "description": "Conduct network isolation and scanning on affected hosts.",
+            "type": "parallel",
+            "next_steps": [
+                "action--cb9aea62-7738-4cb5-90e4-5c735c92432f",
+                "action--de123eb1-2380-4a48-bb08-7b4e6f757ff4"
+            ]
+        },
+        "action--cb9aea62-7738-4cb5-90e4-5c735c92432f": {
+            "name": "Isolate affected machines from the network",
+            "description": "Isolate host-45 and host-12 to prevent further lateral movement.",
+            "on_completion": "action--fc84d4a3-8901-4e99-8279-a6d6a879f16e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "networkctl isolate host-45 host-12"
+                }
+            ],
+            "agent": "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc"
+        },
+        "action--fc84d4a3-8901-4e99-8279-a6d6a879f16e": {
+            "name": "Conduct a full malware scan on isolated hosts",
+            "description": "Perform a comprehensive malware scan on any hosts that have been isolated.",
+            "on_completion": "action--a867f5a0-f4fa-45bb-bf0a-7c4ef7f5440e",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malwarescan --full /"
+                }
+            ],
+            "agent": "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc",
+            "condition": "isolation_successful == true"
+        },
+        "action--de123eb1-2380-4a48-bb08-7b4e6f757ff4": {
+            "name": "Revoke all elevated privileges granted during incident",
+            "on_completion": "action--a867f5a0-f4fa-45bb-bf0a-7c4ef7f5440e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L attackeruser"
+                }
+            ],
+            "agent": "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc",
+            "step_variables": {
+                "attackeruser": {
+                    "type": "string",
+                    "description": "The username of the compromised account",
+                    "value": "attackeruser",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--a867f5a0-f4fa-45bb-bf0a-7c4ef7f5440e": {
+            "name": "Patch vulnerable systems and update security configurations",
+            "description": "Ensure all vulnerable systems are patched and security configurations are updated.",
+            "on_completion": "end--d70c9545-91ed-42e5-8b38-0c2433ff77bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc",
+            "loop": "For each affected system"
+        },
+        "end--d70c9545-91ed-42e5-8b38-0c2433ff77bc": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cedf3d25-7e76-4bb9-9534-b08584e4dacc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

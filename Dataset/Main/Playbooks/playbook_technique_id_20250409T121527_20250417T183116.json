@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ffbfe9c1-e2dc-4cdd-b379-09bebe330412",
+    "name": "Playbook for Mitigating Malicious PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script to download additional payloads. It includes steps to kill the malicious process, remove downloaded malware, and run a full system scan.",
+    "created_by": "identity--1e256b1e-984b-4a6b-b27b-18e9aeae37bb",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-90ab-cdef-1234-567890abcdef",
+    "workflow": {
+        "start--12345678-90ab-cdef-1234-567890abcdef": {
+            "on_completion": "if-condition--b1497d4e-ccb4-4d73-af70-492c638c4f65",
+            "type": "start"
+        },
+        "if-condition--b1497d4e-ccb4-4d73-af70-492c638c4f65": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--e4fce872-e526-4854-bd81-d7c8be8fba8f",
+            "on_false": "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45"
+        },
+        "action--e4fce872-e526-4854-bd81-d7c8be8fba8f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes executing the malicious script.",
+            "on_completion": "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45": {
+            "name": "Remove downloaded malware",
+            "description": "Remove any malware downloaded during the execution of the malicious script.",
+            "on_completion": "if-condition--e23d917e-b5ae-4be6-abd2-c5ca51637d82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious-malware"
+                }
+            ],
+            "agent": "organization--xyz",
+            "targets": [
+                "variable--malware_path"
+            ]
+        },
+        "if-condition--e23d917e-b5ae-4be6-abd2-c5ca51637d82": {
+            "name": "Check if malware presence detected",
+            "type": "if-condition",
+            "condition": "malware_detected('suspicious-malware')",
+            "on_true": "action--e23d917e-b5ae-4be6-abd2-c5ca51637d82",
+            "on_false": "end--abcd1234-efgh-5678-ijkl-901234mnop"
+        },
+        "action--e23d917e-b5ae-4be6-abd2-c5ca51637d82": {
+            "name": "Initiate full system scan with antivirus software",
+            "description": "Perform a full system scan to identify any remaining threats.",
+            "on_completion": "end--abcd1234-efgh-5678-ijkl-901234mnop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-cli scan --full"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--abcd1234-efgh-5678-ijkl-901234mnop": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_path": {
+            "type": "string",
+            "description": "Path to malware directory to be removed",
+            "value": "/tmp/suspicious-malware",
+            "constant": false
+        }
+    }
+}

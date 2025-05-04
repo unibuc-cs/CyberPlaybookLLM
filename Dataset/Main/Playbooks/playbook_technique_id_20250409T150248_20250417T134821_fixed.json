@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2b3e42e-72d3-4047-92c8-84d0582a58b6",
+    "name": "Playbook for Command and Scripting Interpreter Incident Mitigation",
+    "description": "This playbook addresses an incident involving the execution of a PowerShell script that downloaded malicious payloads on the compromised host.",
+    "created_by": "identity--3683c20f-5cd4-4350-88d3-612b838c7d3f",
+    "created": "2023-10-21T14:40:00Z",
+    "modified": "2023-10-21T14:45:00Z",
+    "revoked": false,
+    "workflow_start": "start--e4dacc1e-0cc3-4e7f-bb49-0e1be768b799",
+    "workflow": {
+        "start--e4dacc1e-0cc3-4e7f-bb49-0e1be768b799": {
+            "on_completion": "if-condition--bfabc254-568b-44e1-8732-010cfdc9fb11",
+            "type": "start"
+        },
+        "if-condition--bfabc254-568b-44e1-8732-010cfdc9fb11": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--a2ab0e9a-9ffb-4c46-a49b-a3e249f5153b",
+            "on_false": "action--76c93619-2ae7-49a8-b04f-d7a123f2cf47"
+        },
+        "action--a2ab0e9a-9ffb-4c46-a49b-a3e249f5153b": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process executing the malicious script.",
+            "on_completion": "action--76c93619-2ae7-49a8-b04f-d7a123f2cf47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--c5eac00f-f735-433a-ac93-1b07d23a5bce"
+        },
+        "action--76c93619-2ae7-49a8-b04f-d7a123f2cf47": {
+            "name": "Isolate compromised host from the network",
+            "description": "Disabling network interfaces of the compromised host to prevent further communication.",
+            "on_completion": "while-condition--d0cc6b2d-75d5-4e05-bd92-b02e5c958929",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--c5eac00f-f735-433a-ac93-1b07d23a5bce"
+        },
+        "while-condition--d0cc6b2d-75d5-4e05-bd92-b02e5c958929": {
+            "name": "Run full malware scan",
+            "description": "Scanning the affected host for any remaining malware.",
+            "on_completion": "if-condition--bd2589ed-d88b-44d7-8556-3458f28bdc81",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--b134fbc2-f8a1-4ee8-9c62-d4bc069c4c25"
+        },
+        "action--b134fbc2-f8a1-4ee8-9c62-d4bc069c4c25": {
+            "name": "Run full malware scan",
+            "description": "Perform a thorough scan of the compromised host to identify and remove malware.",
+            "on_completion": "while-condition--d0cc6b2d-75d5-4e05-bd92-b02e5c958929",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--c5eac00f-f735-433a-ac93-1b07d23a5bce"
+        },
+        "end--3d496c0e-35b3-4b4b-897b-d1639e1e82d5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c5eac00f-f735-433a-ac93-1b07d23a5bce": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_process_exists": {
+            "type": "boolean",
+            "description": "Indicates whether the malicious PowerShell process is currently running.",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Status of the malware scan, will be updated based on scan results.",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c8f7bc28-5ca9-47dd-b949-88cbee411182",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to an incident where an attacker exploited the command and scripting interpreter to execute unauthorized scripts on the network.",
+    "created_by": "identity--4d1a1b21-b2f7-4a33-b7d4-e5ac6d9a2d61",
+    "created": "2023-10-12T14:45:00Z",
+    "modified": "2023-10-12T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--f5f7bc68-1c6b-4aec-a292-13a84263d79a",
+    "workflow": {
+        "start--f5f7bc68-1c6b-4aec-a292-13a84263d79a": {
+            "on_completion": "action--b0f97852-9261-4f3f-92e9-3d5a28d01afd",
+            "type": "start"
+        },
+        "action--b0f97852-9261-4f3f-92e9-3d5a28d01afd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script running on the system.",
+            "on_completion": "action--a1d9d1f2-f0d6-49a7-b784-979c77ace3a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--a1d9d1f2-f0d6-49a7-b784-979c77ace3a8": {
+            "name": "Block external connections",
+            "description": "Stop any unauthorized external connections from being established.",
+            "on_completion": "while-condition--73fc8e3f-aa58-48f8-946d-6c1d4c6b9217",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--73fc8e3f-aa58-48f8-946d-6c1d4c6b9217": {
+            "name": "Scan for artifacts until clean",
+            "description": "Iterate the scanning process until no malicious scripts are found.",
+            "type": "while-condition",
+            "condition": "scan_result == 'suspicious_script_found'",
+            "on_true": "action--73fc8e3f-aa58-48f8-946d-6c1d4c6b9217",
+            "on_false": "end--d59ee2c2-ede3-41e3-1235-aa1e7fc02f80"
+        },
+        "action--73fc8e3f-aa58-48f8-946d-6c1d4c6b9217": {
+            "name": "Run artifact scan",
+            "description": "Execute the scanning script to find any remaining remnants.",
+            "on_completion": "while-condition--73fc8e3f-aa58-48f8-946d-6c1d4c6b9217",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the scan indicating if suspicious scripts were found",
+                    "value": "suspicious_script_found",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--d59ee2c2-ede3-41e3-1235-aa1e7fc02f80": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

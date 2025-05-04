@@ -1,0 +1,85 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3e4f3c5-098c-4ccf-b8dc-551834fdc45d",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exploit system vulnerabilities.",
+    "created_by": "identity--d3e4f3c5-098c-4ccf-b8dc-551834fdc45d",
+    "created": "2023-10-01T14:00:00Z",
+    "modified": "2023-10-01T14:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--ae3f5338-ae6e-4e03-bbf2-8ab2e5c3cde5",
+    "workflow": {
+        "start--ae3f5338-ae6e-4e03-bbf2-8ab2e5c3cde5": {
+            "on_completion": "action--e34f5fbc-0764-4e59-b74f-cd8e1fefa621",
+            "type": "start"
+        },
+        "action--e34f5fbc-0764-4e59-b74f-cd8e1fefa621": {
+            "name": "Kill malicious script execution",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--2ffb1f56-c447-41e8-9c88-bb7e49c4940e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--1825eb1f-e591-4628-b833-1c846ff9f80c"
+        },
+        "action--2ffb1f56-c447-41e8-9c88-bb7e49c4940e": {
+            "name": "Isolate affected host from the network",
+            "description": "Block the host from communicating with the known malicious IP.",
+            "on_completion": "while-condition--9fa57a3d-ac07-4cef-ba2f-fee0d0fd97e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--1825eb1f-e591-4628-b833-1c846ff9f80c"
+        },
+        "while-condition--9fa57a3d-ac07-4cef-ba2f-fee0d0fd97e8": {
+            "name": "Run malware detection scan",
+            "description": "Perform a scan of the system to detect any malware.",
+            "on_completion": "action--end--557c3b69-d150-4f4c-b1d6-db92648bfa99",
+            "type": "while-condition",
+            "condition": "malware_detection_status == 'not_clean'",
+            "on_true": "action--9fa57a3d-ac07-4cef-ba2f-fee0d0fd97e8",
+            "on_false": "action--end--557c3b69-d150-4f4c-b1d6-db92648bfa99"
+        },
+        "action--9fa57a3d-ac07-4cef-ba2f-fee0d0fd97e8": {
+            "name": "Execute malware scan",
+            "on_completion": "while-condition--9fa57a3d-ac07-4cef-ba2f-fee0d0fd97e8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--1825eb1f-e591-4628-b833-1c846ff9f80c",
+            "step_variables": {
+                "malware_detection_status": {
+                    "type": "string",
+                    "description": "The detection status after running the malware scan",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--end--557c3b69-d150-4f4c-b1d6-db92648bfa99": {
+            "name": "End of Playbook",
+            "description": "The playbook has completed its required actions.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--1825eb1f-e591-4628-b833-1c846ff9f80c": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

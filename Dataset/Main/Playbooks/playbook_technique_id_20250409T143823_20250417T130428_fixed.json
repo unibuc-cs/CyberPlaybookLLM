@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5f4e1de3-d598-49aa-a7e6-e0d8fef1e4e0",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited the command line interface to execute unauthorized commands on a server.",
+    "created_by": "identity--c524c928-9c35-42f9-85e4-c3726bd4720c",
+    "created": "2023-10-21T11:00:00Z",
+    "modified": "2023-10-21T11:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--139a8c96-2d01-47bd-ba11-10dc4544bded",
+    "workflow": {
+        "action--6b49e698-3f1f-4d5c-b37e-1f5fefb16977": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious process executing on the server.",
+            "on_completion": "while-condition--4704e052-32f4-4f2d-a0e1-b24e313e3435",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--f6ee5268-c584-4878-bce6-0b2b4d0bfb0e"
+        },
+        "while-condition--4704e052-32f4-4f2d-a0e1-b24e313e3435": {
+            "name": "Run malware scan loop",
+            "description": "Scan the system for malware and repeat until no infections found.",
+            "type": "while-condition",
+            "condition": "malware_infections_found == true",
+            "on_true": "action--6701c0b7-56ed-4d5c-8a33-417cff81fb95",
+            "on_false": "end--21b6da5e-f1d3-48e8-b5a1-443c901cb280"
+        },
+        "action--6701c0b7-56ed-4d5c-8a33-417cff81fb95": {
+            "name": "Scan system for malware",
+            "on_completion": "while-condition--4704e052-32f4-4f2d-a0e1-b24e313e3435",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_malware_scan"
+                }
+            ],
+            "agent": "organization--f6ee5268-c584-4878-bce6-0b2b4d0bfb0e"
+        },
+        "action--43f671e5-23a9-4a97-bef2-ec42ec1ea26b": {
+            "name": "Block external URL at the firewall",
+            "description": "Prevent further access to the external URL from which the script was downloaded.",
+            "on_completion": "end--21b6da5e-f1d3-48e8-b5a1-443c901cb280",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s malicious-url -j DROP"
+                }
+            ],
+            "agent": "organization--f6ee5268-c584-4878-bce6-0b2b4d0bfb0e"
+        },
+        "end--21b6da5e-f1d3-48e8-b5a1-443c901cb280": {
+            "type": "end"
+        },
+        "start--139a8c96-2d01-47bd-ba11-10dc4544bded": {
+            "on_completion": "if-condition--9d2bd5f8-c564-4700-959e-24d12bf8285c",
+            "type": "start"
+        },
+        "if-condition--9d2bd5f8-c564-4700-959e-24d12bf8285c": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists('suspicious_process')",
+            "on_true": "action--6b49e698-3f1f-4d5c-b37e-1f5fefb16977",
+            "on_false": "action--43f671e5-23a9-4a97-bef2-ec42ec1ea26b"
+        }
+    },
+    "agent_definitions": {
+        "organization--f6ee5268-c584-4878-bce6-0b2b4d0bfb0e": {
+            "type": "organization",
+            "name": "Security Team"
+        }
+    }
+}

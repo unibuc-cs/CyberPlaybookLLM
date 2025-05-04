@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d8b7f95c-7c82-473e-abc3-b34f045b8fa1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving an attacker exploiting command-line tools to execute malicious scripts.",
+    "created_by": "identity--459d94ac-6e9f-4b51-bd12-e2bf82e6ce67",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c1990397-f7d5-4601-940b-50a96797b9ee",
+    "workflow": {
+        "start--c1990397-f7d5-4601-940b-50a96797b9ee": {
+            "on_completion": "parallel--4fb7877f-cabe-4202-b8a3-c1a867c37d5d",
+            "type": "start"
+        },
+        "parallel--4fb7877f-cabe-4202-b8a3-c1a867c37d5d": {
+            "name": "Mitigation Actions",
+            "description": "Execute mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--5ee2bc1f-c382-45a6-a42b-dad5d6ef4142",
+                "action--27543eeb-9825-452e-ad17-61bc9bee23e2",
+                "loop--10fee09e-3395-4799-8cf4-bd69fcb5f5b0"
+            ]
+        },
+        "action--5ee2bc1f-c382-45a6-a42b-dad5d6ef4142": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process that has been executed.",
+            "on_completion": "action--27543eeb-9825-452e-ad17-61bc9bee23e2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--f638443b-043e-4bef-adab-f5780f8a9777"
+        },
+        "action--27543eeb-9825-452e-ad17-61bc9bee23e2": {
+            "name": "Block outbound traffic to known malicious IP",
+            "description": "Prevent any further communication with the malicious IP.",
+            "on_completion": "loop--10fee09e-3395-4799-8cf4-bd69fcb5f5b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--f638443b-043e-4bef-adab-f5780f8a9777"
+        },
+        "loop--10fee09e-3395-4799-8cf4-bd69fcb5f5b0": {
+            "name": "Run malware scan until clean",
+            "description": "Continuously scan for malware until no threats are found.",
+            "on_completion": "end--981bd84b-f7aa-4486-8c15-16d1a11cce92",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--31a468b8-10bd-4f2e-8d1a-df1c16ef6d24",
+            "on_false": "end--981bd84b-f7aa-4486-8c15-16d1a11cce92"
+        },
+        "action--31a468b8-10bd-4f2e-8d1a-df1c16ef6d24": {
+            "name": "Run malware scan",
+            "description": "Execute a malware scan on the compromised server.",
+            "on_completion": "loop--10fee09e-3395-4799-8cf4-bd69fcb5f5b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scan"
+                }
+            ],
+            "agent": "organization--f638443b-043e-4bef-adab-f5780f8a9777",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the last malware scan",
+                    "value": "malicious",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--981bd84b-f7aa-4486-8c15-16d1a11cce92": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f638443b-043e-4bef-adab-f5780f8a9777": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

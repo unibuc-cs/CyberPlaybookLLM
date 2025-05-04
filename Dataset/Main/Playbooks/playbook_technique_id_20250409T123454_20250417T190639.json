@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--5930e83b-dd99-4935-9e7c-c1a22bfcd45a",
+    "name": "Incident Response Playbook for Unauthorized Script Execution",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data. It includes steps to terminate the malicious script, remove dropped files, and perform security scans until the system is confirmed to be clean.",
+    "created_by": "identity--abc12345-67de-89f0-a1bc-2d34567ef891",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1c2a3d4-5e67-8a90-b1c2-d3e4f5d6789a",
+    "workflow": {
+        "start--f1c2a3d4-5e67-8a90-b1c2-d3e4f5d6789a": {
+            "on_completion": "action--a331b1eb-4499-4164-bda1-4c63e39e8aeb",
+            "type": "start"
+        },
+        "action--a331b1eb-4499-4164-bda1-4c63e39e8aeb": {
+            "name": "Kill malicious script",
+            "description": "Terminate any processes running the malicious script.",
+            "on_completion": "decision--check_files",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "decision--check_files": {
+            "name": "Check if malicious files exist",
+            "type": "if-condition",
+            "condition": "test -f ~/Downloads/malicious_script.ps1 || test -f ~/Downloads/exfil_data.zip",
+            "on_true": "action--e16c55e2-bdf3-42eb-9796-ce9c3c898e12",
+            "on_false": "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c"
+        },
+        "action--e16c55e2-bdf3-42eb-9796-ce9c3c898e12": {
+            "name": "Remove dropped files",
+            "description": "Delete any malicious files that were dropped on the system.",
+            "on_completion": "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f ~/Downloads/malicious_script.ps1 && rm -f ~/Downloads/exfil_data.zip"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c": {
+            "name": "Run security scan",
+            "description": "Perform a security scan of the entire system to check for any infections.",
+            "on_completion": "loop--check_scan",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the security scan",
+                    "value": "uninfected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "loop--check_scan": {
+            "name": "Loop until scan is clean",
+            "description": "Repeat the security scan until no infections are found.",
+            "on_true": "action--bca97dcd-886b-48ae-ab4e-3b4d93ecf74c",
+            "condition": "scan_result == 'uninfected'",
+            "type": "while-condition"
+        },
+        "end--f8b3e8f2-8f32-4d32-8933-d793b5c79876": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

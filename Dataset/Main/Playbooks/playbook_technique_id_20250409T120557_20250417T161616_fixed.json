@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b7c60f0b-5f72-482e-b3c1-873f4e120d88",
+    "name": "Mitigation Playbook for Deobfuscation and Data Exfiltration Incident",
+    "description": "This playbook addresses an incident where an attacker accessed the internal network and executed a script to decode sensitive files, subsequently exfiltrating them.",
+    "created_by": "identity--1a216fbe-44d7-4f47-ad36-b7e6ba153696",
+    "created": "2025-01-01T00:00:00.000Z",
+    "modified": "2025-01-01T00:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c9e1b7d4-204c-4b07-bbcb-29dd7d925f72",
+    "workflow": {
+        "start--c9e1b7d4-204c-4b07-bbcb-29dd7d925f72": {
+            "on_completion": "action--d3bcc8bb-8125-4ae2-b8ae-0e507c58df73",
+            "type": "start"
+        },
+        "action--d3bcc8bb-8125-4ae2-b8ae-0e507c58df73": {
+            "name": "Kill malicious script process",
+            "description": "Stop any running instances of the decoding script that may be executing.",
+            "on_completion": "if-condition--c6a2716f-b7c9-48a0-a035-befaa3966d6c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--9b4b7181-c8a2-4826-ac34-961465f18518"
+        },
+        "if-condition--c6a2716f-b7c9-48a0-a035-befaa3966d6c": {
+            "name": "Check for known malicious IPs",
+            "type": "if-condition",
+            "condition": "known_malicious_ip != None",
+            "on_true": "action--c6a2716f-b7c9-48a0-a035-befaa3966d6c",
+            "on_false": "action--e4c12f71-c4f8-4be0-9d10-7c64da648142"
+        },
+        "action--c6a2716f-b7c9-48a0-a035-befaa3966d6c": {
+            "name": "Block outgoing traffic to known malicious IPs",
+            "description": "Block outgoing connections to identified known malicious IPs.",
+            "on_completion": "loop--630c7306-dfdc-4716-add5-f18d77fa93c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d known_malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--9b4b7181-c8a2-4826-ac34-961465f18518"
+        },
+        "action--e4c12f71-c4f8-4be0-9d10-7c64da648142": {
+            "name": "Remove decoded files from system",
+            "description": "Delete all decoded files from the temporary directory.",
+            "on_completion": "end--bcf1ce02-5c16-482c-97bb-2cf948a890bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find ${target_directory} -name '${file_pattern}' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--9b4b7181-c8a2-4826-ac34-961465f18518",
+            "step_variables": {
+                "target_directory": {
+                    "type": "string",
+                    "value": "/tmp"
+                },
+                "file_pattern": {
+                    "type": "string",
+                    "value": "decoded_file*"
+                }
+            }
+        },
+        "end--bcf1ce02-5c16-482c-97bb-2cf948a890bc": {
+            "type": "end"
+        },
+        "loop--630c7306-dfdc-4716-add5-f18d77fa93c2": {
+            "name": "Terminate active sessions loop",
+            "type": "while-condition",
+            "condition": "active_sessions > 0",
+            "on_true": "action--c6a2716f-b7c9-48a0-a035-befaa3966d6c",
+            "on_false": "action--e4c12f71-c4f8-4be0-9d10-7c64da648142"
+        }
+    },
+    "agent_definitions": {
+        "organization--9b4b7181-c8a2-4826-ac34-961465f18518": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e95f3573-acf2-4ac0-ab52-9b25f3564ea2",
+    "name": "Mitigation Playbook for Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to exfiltrate sensitive data.",
+    "created_by": "identity--73cdf72f-e3e1-4f59-b71e-931fffae1e8f",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a9e4fef4-9d42-4f89-b49e-715d8fc0c987",
+    "workflow": {
+        "start--a9e4fef4-9d42-4f89-b49e-715d8fc0c987": {
+            "on_completion": "action--2c0d4e36-5e04-4c7d-abc5-1ad929edbc02",
+            "type": "start"
+        },
+        "action--2c0d4e36-5e04-4c7d-abc5-1ad929edbc02": {
+            "name": "Kill malicious process",
+            "description": "Terminate any active malicious PowerShell processes.",
+            "on_completion": "if-condition--58bb84e6-b0e2-4200-8a73-6d9deeebba32",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f PowerShell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--58bb84e6-b0e2-4200-8a73-6d9deeebba32": {
+            "name": "Check if malicious process was active",
+            "type": "if-condition",
+            "condition": "malicious_process_active == true",
+            "on_true": "action--6d4eeb4b-eced-48f2-98f3-2b9e0a7f87e3",
+            "on_false": "action--e41b50da-44d2-4e3a-b9b0-4979ad13ab15"
+        },
+        "action--6d4eeb4b-eced-48f2-98f3-2b9e0a7f87e3": {
+            "name": "Isolate affected host",
+            "description": "Prevent further communication from affected host.",
+            "on_completion": "action--d534798f-6c47-4a76-84c2-63d10972f849",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--e41b50da-44d2-4e3a-b9b0-4979ad13ab15": {
+            "name": "Perform a full network scan",
+            "description": "Scan the network for vulnerabilities.",
+            "on_completion": "while-condition--f2c3d34e-1cb6-4229-ad87-1f4b3ffcc398",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sS 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f2c3d34e-1cb6-4229-ad87-1f4b3ffcc398": {
+            "name": "Network Scan Loop",
+            "description": "Repeat scanning until no vulnerabilities are found.",
+            "type": "while-condition",
+            "condition": "vulnerabilities_found == true",
+            "on_true": "action--e41b50da-44d2-4e3a-b9b0-4979ad13ab15",
+            "on_false": "action--7a8dc23b-2b7b-4ed2-866e-e5e0347cfb2d"
+        },
+        "action--7a8dc23b-2b7b-4ed2-866e-e5e0347cfb2d": {
+            "name": "Collect logs for analysis",
+            "description": "Backup current system logs for further investigation.",
+            "on_completion": "action--d534798f-6c47-4a76-84c2-63d10972f849",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /var/log/syslog /logs/syslog_backup_$(date +%F).log"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d534798f-6c47-4a76-84c2-63d10972f849": {
+            "name": "Alert incident response team",
+            "description": "Notify the incident response team of the incident.",
+            "on_completion": "end--d8c1de5b-561f-4968-9206-837cb43a8fb2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident detected on host-01' | mail -s 'Incident Alert' ir_team@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--d8c1de5b-561f-4968-9206-837cb43a8fb2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

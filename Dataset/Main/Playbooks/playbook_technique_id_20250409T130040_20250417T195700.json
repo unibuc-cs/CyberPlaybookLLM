@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3a9b77b8-d729-4e28-8d06-11397dcb4e2c",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where a user's workstation was compromised by the execution of malicious PowerShell scripts remotely due to a phishing email.",
+    "created_by": "identity--4d43cffb-2a3f-4dc8-9089-1c644bb67407",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--8735c4f9-297f-45d2-b890-314b53f9038e",
+    "workflow": {
+        "start--8735c4f9-297f-45d2-b890-314b53f9038e": {
+            "on_completion": "if-condition--8b401e37-43a1-43dc-9b9a-80dee4b1cd4b",
+            "type": "start"
+        },
+        "if-condition--8b401e37-43a1-43dc-9b9a-80dee4b1cd4b": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--ffb44f98-8987-4fbb-bc0b-b1a52311e422",
+            "on_false": "action--a98272e7-f482-4c4a-a41f-7abc928be840"
+        },
+        "action--ffb44f98-8987-4fbb-bc0b-b1a52311e422": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell process if it exists.",
+            "on_completion": "action--a98272e7-f482-4c4a-a41f-7abc928be840",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a98272e7-f482-4c4a-a41f-7abc928be840": {
+            "name": "Remove dropped files",
+            "description": "Delete any suspicious files dropped by the attack.",
+            "on_completion": "loop--2dfefe77-5016-47d3-82c5-08c5e74e3f63",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf ~/malicious_file.exe"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--2dfefe77-5016-47d3-82c5-08c5e74e3f63": {
+            "name": "Wait until all suspicious files are deleted",
+            "description": "Continue to check and remove any additional suspicious files until none remain.",
+            "on_completion": "action--2dfefe77-5016-47d3-82c5-08c5e74e3f63",
+            "type": "while-condition",
+            "condition": "suspicious_files_exist == true",
+            "on_true": "action--2dfefe77-5016-47d3-82c5-08c5e74e3f63"
+        },
+        "action--2dfefe77-5016-47d3-82c5-08c5e74e3f63": {
+            "name": "Check for additional persistence mechanisms",
+            "description": "Look for potential persistence mechanisms set by the malicious actor.",
+            "on_completion": "end--781c65c0-3db3-4f30-8607-eb1f520683b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall firewall show rule name=all"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "important_rules": {
+                    "type": "list",
+                    "description": "List of important firewall rules",
+                    "value": ""
+                }
+            }
+        },
+        "end--781c65c0-3db3-4f30-8607-eb1f520683b8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

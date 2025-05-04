@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--708f1ae0-9fc6-4884-9824-e9b86f6e8db6",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker leveraged PowerShell to execute malicious scripts, resulting in unauthorized data transfers and the installation of a backdoor.",
+    "created_by": "identity--85dcc359-6e72-4934-96d2-f2800f528cc5",
+    "created": "2023-10-16T13:00:00.000Z",
+    "modified": "2023-10-16T13:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1d92b99-78b6-4fa5-96e0-f738d4cba529",
+    "workflow": {
+        "start--b1d92b99-78b6-4fa5-96e0-f738d4cba529": {
+            "on_completion": "action--a7b0f8fc-56d2-405a-b9d5-ebac65a19ce0",
+            "type": "start"
+        },
+        "action--a7b0f8fc-56d2-405a-b9d5-ebac65a19ce0": {
+            "name": "Kill malicious process",
+            "description": "Terminate malicious processes running on the system.",
+            "on_completion": "action--2fc52ef6-08a1-4129-99ff-89e8765e9d7b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.exe"
+                }
+            ],
+            "agent": "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb"
+        },
+        "action--2fc52ef6-08a1-4129-99ff-89e8765e9d7b": {
+            "name": "Delete dropped files",
+            "description": "Remove any files dropped by the malicious payload.",
+            "on_completion": "parallel--d5fd5e94-fae3-4f04-b87f-917b727d0b8a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /C/temp/malware.exe"
+                }
+            ],
+            "agent": "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb"
+        },
+        "parallel--d5fd5e94-fae3-4f04-b87f-917b727d0b8a": {
+            "name": "Mitigation Actions",
+            "description": "Perform actions concurrently: Initiate scan and block malicious IP.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c7decdbd-dfe3-475c-a4aa-d3f3f96fbdd5",
+                "action--04c474c8-e209-4dc5-88d7-ea8cb217e265"
+            ]
+        },
+        "action--c7decdbd-dfe3-475c-a4aa-d3f3f96fbdd5": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan to ensure no other malicious activities are present.",
+            "on_completion": "if-condition--7a07f348-2aec-41f9-8780-bc3b9cd43b29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan --full-system"
+                }
+            ],
+            "agent": "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb"
+        },
+        "if-condition--7a07f348-2aec-41f9-8780-bc3b9cd43b29": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "scan_status == 'clean'",
+            "on_true": "action--3cd3188b-da60-4c1e-bdf7-675f6fb2b3e1",
+            "on_false": "action--c7decdbd-dfe3-475c-a4aa-d3f3f96fbdd5"
+        },
+        "action--04c474c8-e209-4dc5-88d7-ea8cb217e265": {
+            "name": "Block known IP addresses",
+            "description": "Block outbound connections to known malicious IP addresses.",
+            "on_completion": "action--3cd3188b-da60-4c1e-bdf7-675f6fb2b3e1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb"
+        },
+        "action--3cd3188b-da60-4c1e-bdf7-675f6fb2b3e1": {
+            "name": "Update threat intelligence database",
+            "description": "Add the known malicious IP address to the threat intelligence database.",
+            "on_completion": "end--5fd4bc6f-8341-4491-b11f-1eb999dbd52d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "update_threat_db --add 192.0.2.1"
+                }
+            ],
+            "agent": "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb"
+        },
+        "end--5fd4bc6f-8341-4491-b11f-1eb999dbd52d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--95d57591-1ae9-4690-86b9-c8c98de0d8cb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

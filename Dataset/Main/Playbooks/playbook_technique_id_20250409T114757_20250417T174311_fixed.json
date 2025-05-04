@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b56cbfbe-2d87-4794-bc5a-18f716e2c705",
+    "name": "Mitigation Playbook for PowerShell Attack Incident",
+    "description": "This playbook addresses an incident where a malicious PowerShell script was executed, leading to unauthorized data exfiltration.",
+    "created_by": "identity--e5c29c55-2b89-4a45-8715-317a166344eb",
+    "created": "2023-10-01T10:30:00.000Z",
+    "modified": "2023-10-01T10:35:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--676b8099-f10b-4a57-88bd-566c0a1227ec",
+    "workflow": {
+        "start--676b8099-f10b-4a57-88bd-566c0a1227ec": {
+            "on_completion": "parallel--110c5c51-d48a-40e0-b7a2-bc56d95eae78",
+            "type": "start"
+        },
+        "parallel--110c5c51-d48a-40e0-b7a2-bc56d95eae78": {
+            "name": "Mitigation Actions",
+            "description": "Perform multiple mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c19e8497-2ac0-4f94-9f18-57e942ae5c70",
+                "action--645ad063-5f9f-4e3c-8fb1-5474f2e7699b"
+            ]
+        },
+        "action--c19e8497-2ac0-4f94-9f18-57e942ae5c70": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "if-condition--b85c8928-2c92-4eb4-b78a-d61b549dfb08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--6093ac81-ae92-4f4e-811b-a239ca6cee44"
+        },
+        "action--645ad063-5f9f-4e3c-8fb1-5474f2e7699b": {
+            "name": "Block external IP address",
+            "description": "Block all connections to the suspicious external IP address.",
+            "on_completion": "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--6093ac81-ae92-4f4e-811b-a239ca6cee44"
+        },
+        "if-condition--b85c8928-2c92-4eb4-b78a-d61b549dfb08": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65",
+            "on_false": "end--e90604bd-3d72-45e1-8ce5-c7482052191e"
+        },
+        "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65": {
+            "name": "Initiate full malware scan",
+            "description": "Run a full malware scan on the system.",
+            "on_completion": "while-condition--e29a2e8f-7f3e-457d-b1d5-d0c6447ae12b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--6093ac81-ae92-4f4e-811b-a239ca6cee44"
+        },
+        "while-condition--e29a2e8f-7f3e-457d-b1d5-d0c6447ae12b": {
+            "name": "Scan Status Check",
+            "description": "Repeat the malware scan until clean.",
+            "on_completion": "end--e90604bd-3d72-45e1-8ce5-c7482052191e",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--afa71d85-2e76-4018-94f0-a6fbbc4bfe65"
+        },
+        "end--e90604bd-3d72-45e1-8ce5-c7482052191e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6093ac81-ae92-4f4e-811b-a239ca6cee44": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

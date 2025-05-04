@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b84d7e2b-43c8-4d92-830c-ed6ac8c1dc80",
+    "name": "Mitigation Playbook for Data Exfiltration via HTTPS",
+    "description": "This playbook addresses a data exfiltration incident where sensitive data was sent to an external server using HTTPS.",
+    "created_by": "identity--abc12345-6789-abcd-ef01-23456789abcd",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--6716e53c-c7a8-40b9-9f56-89cbdc847fe9",
+    "workflow": {
+        "start--6716e53c-c7a8-40b9-9f56-89cbdc847fe9": {
+            "on_completion": "action--c3d7ef44-a74d-4b86-aedd-9f98d38903cf",
+            "type": "start"
+        },
+        "action--c3d7ef44-a74d-4b86-aedd-9f98d38903cf": {
+            "name": "Monitor Outbound Traffic for Anomalies",
+            "description": "Use tcpdump to monitor outbound traffic for anomalies.",
+            "on_completion": "if-condition--9b186e8a-4d35-400e-a6e2-403afbb4d5ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -A 'port 443'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--9b186e8a-4d35-400e-a6e2-403afbb4d5ed": {
+            "name": "Check Traffic Anomaly",
+            "type": "if-condition",
+            "condition": "traffic > threshold",
+            "on_true": "action--5ec99cb6-4ec7-4fc1-b854-2c008681c0d9",
+            "on_false": "action--d7db4850-1150-48d1-b5ce-c8f8a9f5d341"
+        },
+        "action--5ec99cb6-4ec7-4fc1-b854-2c008681c0d9": {
+            "name": "Block Malicious IP addresses",
+            "description": "Block outbound connections to the known malicious IP address.",
+            "on_completion": "action--d7db4850-1150-48d1-b5ce-c8f8a9f5d341",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s 192.0.2.1 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--d7db4850-1150-48d1-b5ce-c8f8a9f5d341": {
+            "name": "Isolate Affected Host",
+            "description": "If data exfiltration is confirmed, isolate the affected host.",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ssh user@host-15 'shutdown now'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        },
+        "while-condition--1b2c3d4e-5f67-8910-11aa-bbccddeeffgg": {
+            "name": "Repeat Monitoring",
+            "description": "Continue monitoring traffic every minute until resolved.",
+            "on_true": "action--c3d7ef44-a74d-4b86-aedd-9f98d38903cf",
+            "on_completion": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "while-condition",
+            "condition": "traffic anomaly not resolved"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

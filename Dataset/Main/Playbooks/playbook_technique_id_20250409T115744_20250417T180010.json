@@ -1,0 +1,128 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e45f3b21-b01c-4aef-b334-f8b9e2ca1d5b",
+    "name": "Mitigation Playbook for Service Execution Incident",
+    "description": "This playbook outlines the mitigation steps for an incident where an attacker exploited a vulnerable system service to execute arbitrary code remotely.",
+    "created_by": "identity--f4a68e06-9daf-4e96-b99b-b491d3fc77d0",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--7ebf3c21-8ad1-4330-b127-782d4c4e46c1",
+    "workflow": {
+        "start--7ebf3c21-8ad1-4330-b127-782d4c4e46c1": {
+            "on_completion": "parallel--4b18bd52-b0af-4492-a8b9-717745a321b0",
+            "type": "start"
+        },
+        "parallel--4b18bd52-b0af-4492-a8b9-717745a321b0": {
+            "name": "Resolve_Threats",
+            "description": "Resolve all threats by stopping services, killing processes, and running scans in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--791c1641-ab4d-4c5e-bf4b-a5865653aa3e",
+                "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4",
+                "loop--b8ec7cf1-76aa-44e3-b0b7-69d6ee8fe282",
+                "action--0e826509-ae47-4b31-b5a7-7a94756e4406",
+                "action--aec45a5b-949d-47f7-9c66-61b65a6b2673"
+            ]
+        },
+        "loop--b8ec7cf1-76aa-44e3-b0b7-69d6ee8fe282": {
+            "name": "Full System Scan Loop",
+            "description": "Repeat the system scan until the scan status is clean.",
+            "on_completion": "if-condition--2eb8b934-2306-4b47-83c0-4c6711b7d973",
+            "type": "while-condition",
+            "condition": "scan_status != 0",
+            "on_true": "action--03c1f57c-e1d1-4e79-b880-7d83f8b1f0dd",
+            "on_false": "action--0e826509-ae47-4b31-b5a7-7a94756e4406"
+        },
+        "if-condition--2eb8b934-2306-4b47-83c0-4c6711b7d973": {
+            "name": "Check Scan Completion",
+            "type": "if-condition",
+            "condition": "scan_status != 0",
+            "on_true": "loop--b8ec7cf1-76aa-44e3-b0b7-69d6ee8fe282",
+            "on_false": "action--0e826509-ae47-4b31-b5a7-7a94756e4406"
+        },
+        "action--791c1641-ab4d-4c5e-bf4b-a5865653aa3e": {
+            "name": "Stop Malicious Service",
+            "description": "Stop the malicious service running on the system.",
+            "on_completion": "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl stop <service_name>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4": {
+            "name": "Kill Malicious Processes",
+            "description": "Kill any processes related to the malicious service.",
+            "on_completion": "loop--b8ec7cf1-76aa-44e3-b0b7-69d6ee8fe282",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_process>"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--03c1f57c-e1d1-4e79-b880-7d83f8b1f0dd": {
+            "name": "Run Full System Scan",
+            "description": "Initiate a full system scan for malware.",
+            "on_completion": "end--40d6c91c-7a92-4c1e-8f58-c1bc89d69e15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scan --full"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "integer",
+                    "description": "Status of the last scan execution",
+                    "value": "0",
+                    "constant": false
+                }
+            }
+        },
+        "action--0e826509-ae47-4b31-b5a7-7a94756e4406": {
+            "name": "Check and Remove Unauthorized Users",
+            "description": "Check for any unauthorized users and remove them.",
+            "on_completion": "action--aec45a5b-949d-47f7-9c66-61b65a6b2673",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat /etc/passwd | grep '<unauthorized_user_pattern>'); do userdel -r $user; done"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--aec45a5b-949d-47f7-9c66-61b65a6b2673": {
+            "name": "Review Logs for Unusual Activity",
+            "description": "Review system logs for any suspicious patterns.",
+            "on_completion": "end--40d6c91c-7a92-4c1e-8f58-c1bc89d69e15",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep '<suspicious_pattern>'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--40d6c91c-7a92-4c1e-8f58-c1bc89d69e15": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

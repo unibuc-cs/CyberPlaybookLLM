@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f248c074-fd9e-4894-91a3-ac8a498867cb",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts resulting in data exfiltration and system compromise.",
+    "created_by": "identity--0e417bcc-50c4-4f6b-b7b3-77681c6b2e28",
+    "created": "2023-10-20T10:20:00Z",
+    "modified": "2023-10-20T10:25:00Z",
+    "revoked": false,
+    "workflow_start": "start--8d232b8a-fca4-48e2-9ecf-a271747d72a2",
+    "workflow": {
+        "start--8d232b8a-fca4-48e2-9ecf-a271747d72a2": {
+            "on_completion": "action--b94d7479-db3c-4e4a-8f4c-dbf6992ff9a0",
+            "type": "start"
+        },
+        "parallel--5e3f047a-e9a5-48c2-bc8c-2351ce2851e6": {
+            "name": "Concurrent Mitigations",
+            "description": "Execute multiple mitigation steps concurrently to address the immediate threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b94d7479-db3c-4e4a-8f4c-dbf6992ff9a0",
+                "action--c781304a-4f8c-40c9-9e41-4aca5fe7c34e"
+            ]
+        },
+        "action--b94d7479-db3c-4e4a-8f4c-dbf6992ff9a0": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell script executed by the attacker.",
+            "on_completion": "action--0b04c6cc-c4e2-4722-9353-268174647b7f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf"
+        },
+        "action--c781304a-4f8c-40c9-9e41-4aca5fe7c34e": {
+            "name": "Block outbound traffic to attacker IP",
+            "description": "Prevent any further data exfiltration by blocking IP.",
+            "on_completion": "action--c7d70a1b-7f8e-4bf3-8c26-5dc97029ef09",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j REJECT"
+                }
+            ],
+            "agent": "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf"
+        },
+        "action--c7d70a1b-7f8e-4bf3-8c26-5dc97029ef09": {
+            "name": "Run malware scan",
+            "description": "Check for additional malware on the system.",
+            "on_completion": "decision--e9465083-ff9d-4bac-af1e-90338e472da5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --remove=yes"
+                }
+            ],
+            "agent": "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf"
+        },
+        "action--0b04c6cc-c4e2-4722-9353-268174647b7f": {
+            "name": "Review user account activity logs",
+            "description": "Assess any suspicious activity on the user account.",
+            "on_completion": "action--06d42975-36f9-4872-b315-3b14b861129c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep user-account"
+                }
+            ],
+            "agent": "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf"
+        },
+        "action--06d42975-36f9-4872-b315-3b14b861129c": {
+            "name": "Reset compromised user account password",
+            "description": "Secure the user account by changing its password.",
+            "on_completion": "end--37d28b97-3fa2-47e1-b3b3-b9f089322ccd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user-account"
+                }
+            ],
+            "agent": "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf"
+        },
+        "end--37d28b97-3fa2-47e1-b3b3-b9f089322ccd": {
+            "type": "end"
+        },
+        "decision--e9465083-ff9d-4bac-af1e-90338e472da5": {
+            "name": "Check if malware was found",
+            "type": "if-condition",
+            "condition": "malware_found == true",
+            "on_true": "action--c7d70a1b-7f8e-4bf3-8c26-5dc97029ef09",
+            "on_false": "action--0b04c6cc-c4e2-4722-9353-268174647b7f"
+        }
+    },
+    "agent_definitions": {
+        "organization--601a6a8d-c8e6-4764-bb0d-0ea96b3193cf": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

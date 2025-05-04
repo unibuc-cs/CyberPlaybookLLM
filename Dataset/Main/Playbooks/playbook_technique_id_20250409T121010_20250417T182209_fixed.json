@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d91f45a7-1baf-4e0c-aea9-4f87fb649e71",
+    "name": "Mitigation Playbook for Unauthorized Data Exfiltration via PowerShell",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script on host-12, which led to unauthorized data exfiltration.",
+    "created_by": "identity--129015c7-21f4-4b5a-b654-f4ac5fe1374c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--8af3bd40-ef58-4909-8d26-9802884e3f96",
+    "workflow": {
+        "if-condition--d7e5c940-d527-4c63-b92b-250c6b134456": {
+            "name": "Check if PowerShell process is running",
+            "type": "if-condition",
+            "condition": "process_running('powershell')",
+            "on_true": "action--f206f97f-2956-4f03-9dbd-3eb1fdd1c30e",
+            "on_false": "action--a168c3f1-3bff-4ae9-8c3f-ed7c7c70de64"
+        },
+        "action--f206f97f-2956-4f03-9dbd-3eb1fdd1c30e": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing the malicious script.",
+            "on_completion": "action--a168c3f1-3bff-4ae9-8c3f-ed7c7c70de64",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--7ad80438-040a-45ea-b31a-d377274260c6"
+        },
+        "action--a168c3f1-3bff-4ae9-8c3f-ed7c7c70de64": {
+            "name": "Isolate affected host from the network",
+            "description": "Disconnect the affected host (host-12) from the network.",
+            "on_completion": "while-condition--6731df32-8cb8-4050-bc92-dc609d4d789f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-12 down"
+                }
+            ],
+            "agent": "organization--7ad80438-040a-45ea-b31a-d377274260c6"
+        },
+        "while-condition--6731df32-8cb8-4050-bc92-dc609d4d789f": {
+            "name": "Threat scanning loop",
+            "description": "Scan for further threats using the antivirus tool until no threats are found.",
+            "on_completion": "end--9e10e45b-cc8c-47f2-a61f-06d033d7a391",
+            "type": "while-condition",
+            "condition": "threats_found",
+            "on_true": "action--0eb53f4e-2d47-42fc-b1d8-761fc1a1fae5",
+            "on_false": "end--9e10e45b-cc8c-47f2-a61f-06d033d7a391"
+        },
+        "action--0eb53f4e-2d47-42fc-b1d8-761fc1a1fae5": {
+            "name": "Scan for further threats using antivirus",
+            "description": "Use the antivirus tool to scan the affected host for potential threats.",
+            "on_completion": "while-condition--6731df32-8cb8-4050-bc92-dc609d4d789f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive --remove /path/to/scan"
+                }
+            ],
+            "agent": "organization--7ad80438-040a-45ea-b31a-d377274260c6"
+        },
+        "end--9e10e45b-cc8c-47f2-a61f-06d033d7a391": {
+            "type": "end"
+        },
+        "start--8af3bd40-ef58-4909-8d26-9802884e3f96": {
+            "on_completion": "if-condition--d7e5c940-d527-4c63-b92b-250c6b134456",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--7ad80438-040a-45ea-b31a-d377274260c6": {
+            "type": "organization",
+            "name": "SecurityOrganization"
+        }
+    }
+}

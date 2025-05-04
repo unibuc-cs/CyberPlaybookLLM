@@ -1,0 +1,130 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3e8c7e6-38f8-4f4b-8334-e9b0b4e4b694",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates against a technique where an adversary has used a scripting interpreter for unauthorized script execution, network enumeration, and data exfiltration.",
+    "created_by": "identity--7c612e3f-f4be-4f0b-8fc1-0ea42ae57c79",
+    "created": "2023-10-18T09:00:00Z",
+    "modified": "2023-10-18T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--56b5bcef-098f-4e8b-ad9b-c00e0a2dded1",
+    "workflow": {
+        "start--56b5bcef-098f-4e8b-ad9b-c00e0a2dded1": {
+            "on_completion": "parallel--5f35e87c-0adf-4c2c-b8d4-b404fc956270",
+            "type": "start"
+        },
+        "parallel--5f35e87c-0adf-4c2c-b8d4-b404fc956270": {
+            "name": "Initial Mitigations",
+            "description": "Execute initial mitigation steps in parallel",
+            "type": "parallel",
+            "next_steps": [
+                "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165",
+                "action--3127acee-575c-4dcb-8c43-8722c82e1e0f"
+            ]
+        },
+        "action--a9e539a4-88b0-4ecf-bf9f-6ffab67b6165": {
+            "name": "Terminate Malicious PowerShell Process",
+            "description": "Terminate all running malicious PowerShell processes.",
+            "on_completion": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -F $(pgrep powershell)"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--3127acee-575c-4dcb-8c43-8722c82e1e0f": {
+            "name": "Restrict PowerShell Execution Policy",
+            "description": "Set PowerShell execution policy to restricted to prevent unauthorized script execution.",
+            "on_completion": "if-condition--403e3e07-1c9c-45b7-8598-bd8deb4f10ca",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Restricted"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--403e3e07-1c9c-45b7-8598-bd8deb4f10ca": {
+            "name": "Check and Change Compromised Credentials",
+            "type": "if-condition",
+            "condition": "compromised == true",
+            "on_true": "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa",
+            "on_false": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc"
+        },
+        "action--210a4bd7-1ddd-4fab-912b-b09c6b1a40aa": {
+            "name": "Change Compromised User Credentials",
+            "description": "Reset the password for the compromised user account.",
+            "on_completion": "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user compromised_user new_password123"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--9ce3677a-a5a9-41c7-9aeb-0ffab9a99abc": {
+            "name": "Monitor and Block Suspicious Outbound Traffic",
+            "description": "Block suspicious outbound traffic over a non-standard protocol.",
+            "on_completion": "while-condition--f7632ea9-8e4b-4af8-9b22-e75b7e820e2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptable -A OUTPUT -p tcp --dport 12345 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f7632ea9-8e4b-4af8-9b22-e75b7e820e2a": {
+            "name": "Run Antivirus Scan Until Clean",
+            "description": "Iteratively run a full antivirus scan until system is clean.",
+            "on_completion": "end--402e3b9e-9184-4f98-a924-fb960e4f5e06",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce"
+        },
+        "action--1edf9d54-b379-44e5-af9e-91c8b465d7ce": {
+            "name": "Run Full Antivirus Scan",
+            "description": "Execute a full antivirus scan on the system.",
+            "on_completion": "while-condition--f7632ea9-8e4b-4af8-9b22-e75b7e820e2a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --full"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--402e3b9e-9184-4f98-a924-fb960e4f5e06": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    },
+    "variables": {
+        "compromised": {
+            "type": "boolean",
+            "description": "State of user account compromise.",
+            "value": "false",
+            "constant": false
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Stores the result of the antivirus scan.",
+            "value": "infected",
+            "constant": false
+        }
+    }
+}

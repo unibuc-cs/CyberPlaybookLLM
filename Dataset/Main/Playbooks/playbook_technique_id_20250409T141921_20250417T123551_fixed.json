@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--65e1cb98-845e-4a1b-bc64-315c4e927aef",
+    "name": "Mitigation Playbook for PowerShell Exfiltration Incident",
+    "description": "This playbook aims to mitigate the effects of a PowerShell script execution incident that resulted in unauthorized access and data exfiltration.",
+    "created_by": "identity--e2fe1fec-6b17-417f-a3cd-04c7e5c69f40",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--0fae3e96-5f9a-47b4-b953-76980bc071c3",
+    "workflow": {
+        "start--0fae3e96-5f9a-47b4-b953-76980bc071c3": {
+            "on_completion": "action--13a87eb4-4f3b-4e1b-9db6-b54fed4a7a54",
+            "type": "start"
+        },
+        "action--13a87eb4-4f3b-4e1b-9db6-b54fed4a7a54": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the PowerShell process that was used for the attack.",
+            "on_completion": "if-condition--c1e6b42d-3031-476e-b568-ecf3f9b8c783",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--cddfda7f-57a2-4c84-8ae2-50a6bee513de"
+        },
+        "if-condition--c1e6b42d-3031-476e-b568-ecf3f9b8c783": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--0f0577b5-658f-4dc5-837f-5a34c09f535e",
+            "on_false": "action--e79c1cbc-54fb-4f3a-8fe1-732f2ae2cb74"
+        },
+        "action--0f0577b5-658f-4dc5-837f-5a34c09f535e": {
+            "name": "Remove suspicious files from host",
+            "description": "Delete any dangerous payload files.",
+            "on_completion": "while-condition--aec14aa3-f83f-4260-af8f-cb248f80a09b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/payload*"
+                }
+            ],
+            "agent": "organization--cddfda7f-57a2-4c84-8ae2-50a6bee513de"
+        },
+        "while-condition--aec14aa3-f83f-4260-af8f-cb248f80a09b": {
+            "name": "Repeat deletion of suspicious files",
+            "description": "Continue removing files until no suspicious files exist.",
+            "on_completion": "action--e79c1cbc-54fb-4f3a-8fe1-732f2ae2cb74",
+            "type": "while-condition",
+            "condition": "files_match('/tmp/payload*')",
+            "on_true": "action--0f0577b5-658f-4dc5-837f-5a34c09f535e"
+        },
+        "action--e79c1cbc-54fb-4f3a-8fe1-732f2ae2cb74": {
+            "name": "Scan network for other compromised hosts",
+            "description": "Use nmap to identify potentially compromised hosts in the network segment.",
+            "on_completion": "end--b1d3cb4a-2eb9-4d4d-9899-fb1497d8b74f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP ${network}"
+                }
+            ],
+            "agent": "organization--cddfda7f-57a2-4c84-8ae2-50a6bee513de",
+            "step_variables": {
+                "network": {
+                    "type": "string",
+                    "description": "Network segment to scan for other compromised hosts.",
+                    "value": "192.168.1.0/24",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--b1d3cb4a-2eb9-4d4d-9899-fb1497d8b74f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cddfda7f-57a2-4c84-8ae2-50a6bee513de": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

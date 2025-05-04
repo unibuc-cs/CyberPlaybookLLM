@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2ef79f3-ec6a-4d62-b43d-6c014ca3d7d2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook automates responses to an incident where an attacker executed unauthorized commands on multiple hosts.",
+    "created_by": "identity--4eea60bf-2e64-43c8-ab1f-7f41079eedad",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d4c32a51-e984-4e6f-bd5f-8f16ac3bed77",
+    "workflow": {
+        "start--d4c32a51-e984-4e6f-bd5f-8f16ac3bed77": {
+            "on_completion": "action--d72a4c55-424e-4cda-846a-07ae4cc4d86f",
+            "type": "start"
+        },
+        "action--d72a4c55-424e-4cda-846a-07ae4cc4d86f": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes executing malicious scripts.",
+            "on_completion": "action--169a612c-6bcc-4f2f-91f3-1dc10509879b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--b8f728ef-d688-422c-ae5c-6c6b0d7ade31"
+        },
+        "action--169a612c-6bcc-4f2f-91f3-1dc10509879b": {
+            "name": "Block outbound traffic to command and control server",
+            "description": "Prevent any further communication with known command and control servers.",
+            "on_completion": "loop--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--b8f728ef-d688-422c-ae5c-6c6b0d7ade31"
+        },
+        "loop--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e": {
+            "name": "Scan for and remove suspicious scripts",
+            "description": "Repeatedly search for suspicious scripts until none are found.",
+            "on_completion": "decision--078faaa5-5d30-42af-8dda-c7cb915f47e6",
+            "type": "while-condition",
+            "condition": "more_suspicious_scripts_found",
+            "on_true": "action--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e",
+            "on_false": "end--78f3d12c-d7e8-45e9-9321-f41372abf9c2"
+        },
+        "action--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e": {
+            "name": "Find and remove suspicious scripts",
+            "description": "Identify and delete any suspicious scripts from the system.",
+            "on_completion": "loop--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*suspicious_script*' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--b8f728ef-d688-422c-ae5c-6c6b0d7ade31",
+            "step_variables": {
+                "more_suspicious_scripts_found": {
+                    "type": "boolean",
+                    "value": "True"
+                }
+            }
+        },
+        "decision--078faaa5-5d30-42af-8dda-c7cb915f47e6": {
+            "name": "Check for remaining suspicious scripts",
+            "type": "if-condition",
+            "condition": "more_suspicious_scripts_found == True",
+            "on_true": "action--ac57cbb2-7e65-4dc7-92e9-c640ef0a476e",
+            "on_false": "end--78f3d12c-d7e8-45e9-9321-f41372abf9c2"
+        },
+        "end--78f3d12c-d7e8-45e9-9321-f41372abf9c2": {
+            "step_extensions": {
+                "": "extension-definition--abcdefg-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b8f728ef-d688-422c-ae5c-6c6b0d7ade31": {
+            "type": "organization",
+            "name": "ClientOrganizationXYZ"
+        }
+    }
+}

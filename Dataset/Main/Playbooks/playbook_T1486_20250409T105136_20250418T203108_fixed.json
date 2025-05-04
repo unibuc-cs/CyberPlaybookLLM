@@ -1,0 +1,107 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6f158f9-8c97-4f8e-aae0-a5dba2b7215c",
+    "name": "Mitigation Playbook for Ransomware Incident (T1486)",
+    "description": "This playbook outlines actions to take in response to a ransomware incident where critical business data has been encrypted.",
+    "created_by": "identity--3f78d3bc-8c9c-4868-bc7c-8c8bb81f59ee",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1b8b3af-644e-4b80-9b58-1f47dfc1e4f7",
+    "workflow": {
+        "start--c1b8b3af-644e-4b80-9b58-1f47dfc1e4f7": {
+            "on_completion": "action--b3f1a577-2c91-4a1b-91b6-2d9609f68c57",
+            "type": "start"
+        },
+        "action--b3f1a577-2c91-4a1b-91b6-2d9609f68c57": {
+            "name": "Isolate infected host from the network",
+            "description": "Disable the network interface to prevent further communication.",
+            "on_completion": "action--df58b5a5-5c0b-4cb1-b9c2-0f9b531ca02d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb"
+        },
+        "action--df58b5a5-5c0b-4cb1-b9c2-0f9b531ca02d": {
+            "name": "Perform a full system backup",
+            "description": "Make a backup of the important directory before further actions.",
+            "loop": {
+                "condition": "backup_successful == false",
+                "actions": [
+                    {
+                        "type": "action",
+                        "commands": [
+                            {
+                                "type": "bash",
+                                "command": "tar -czf backup.tar.gz /important_directory"
+                            }
+                        ],
+                        "agent": "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb"
+                    }
+                ]
+            },
+            "on_completion": "action--124d7b40-fd7e-47b9-8a2e-ef72d0e91e3f"
+        },
+        "action--124d7b40-fd7e-47b9-8a2e-ef72d0e91e3f": {
+            "name": "Run antivirus scan",
+            "description": "Scan for additional malware and remove any threats found.",
+            "on_completion": "action--2a646c07-78ee-4dab-b3cc-40e4ee4e80c9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove"
+                }
+            ],
+            "agent": "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb",
+            "step_variables": {
+                "scan_path": {
+                    "type": "string",
+                    "description": "Directory to scan for malware",
+                    "value": "/important_directory"
+                }
+            }
+        },
+        "action--2a646c07-78ee-4dab-b3cc-40e4ee4e80c9": {
+            "name": "Notify relevant personnel",
+            "description": "Inform team leads about the security incident.",
+            "on_completion": "action--62dd2c4f-dd5b-42de-88e4-d3789cc6c6ef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send-notification -to team-leads -message 'Security incident reported.'"
+                }
+            ],
+            "agent": "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb"
+        },
+        "action--62dd2c4f-dd5b-42de-88e4-d3789cc6c6ef": {
+            "name": "Assess and recover from backups",
+            "description": "Restore the latest backup ensuring it is not affected.",
+            "on_completion": "end--e8d92575-a800-4c1d-9e69-e59c3e9d53da",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restore-backup backup.tar.gz"
+                }
+            ],
+            "agent": "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb",
+            "condition": "Verify that the latest backup is not affected"
+        },
+        "end--e8d92575-a800-4c1d-9e69-e59c3e9d53da": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--37146f8b-b6e5-473c-ba2c-dd4980db78bb": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

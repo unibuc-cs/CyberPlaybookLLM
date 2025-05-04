@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e3d7422b-f5c4-48b3-9f61-8d5bfcaf0992",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker executed PowerShell scripts to enumerate user accounts and access sensitive directories.",
+    "created_by": "identity--d1c597c7-0f7e-49ac-b3cc-8e102a62a4e5",
+    "created": "2025-04-12T08:00:00.000Z",
+    "modified": "2025-04-12T08:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--cfb6aa3f-545d-4a1c-b5ef-1e398d6ca197",
+    "workflow": {
+        "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3": {
+            "name": "Check for Malicious PowerShell Process",
+            "type": "if-condition",
+            "condition": "process_exists == true",
+            "on_true": "action--7e2c7c5a-8d1d-4b23-9a4f-f4e3d54c8835",
+            "on_false": "if-condition--e2a70a1b-9cd3-4d28-9214-d6d66a8c4f64"
+        },
+        "action--7e2c7c5a-8d1d-4b23-9a4f-f4e3d54c8835": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any malicious PowerShell processes running on the system.",
+            "on_completion": "action--547350c3-5e28-4128-a1d3-5e3028c501f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--0ebfc5b9-f014-46ed-8761-b5cb3aeecb39"
+        },
+        "action--547350c3-5e28-4128-a1d3-5e3028c501f7": {
+            "name": "Isolate affected host",
+            "description": "Disable network access for the affected host.",
+            "on_completion": "action--ab1e0847-72e0-464c-b4e6-2e10e1b9e9f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netsh advfirewall set allprofiles state off"
+                }
+            ],
+            "agent": "organization--0ebfc5b9-f014-46ed-8761-b5cb3aeecb39"
+        },
+        "action--ab1e0847-72e0-464c-b4e6-2e10e1b9e9f4": {
+            "name": "Perform a full system scan",
+            "description": "Initiate a full system scan to detect any remaining threats.",
+            "type": "action",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan.",
+                    "value": "in_progress",
+                    "constant": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes; scan_status=$(cat scan_status.txt)"
+                }
+            ],
+            "agent": "organization--0ebfc5b9-f014-46ed-8761-b5cb3aeecb39",
+            "on_completion": "while-condition--b3e4c75b-c857-4e61-8254-d8ea01ceed4b"
+        },
+        "while-condition--b3e4c75b-c857-4e61-8254-d8ea01ceed4b": {
+            "name": "Check Scan Status Loop",
+            "description": "Loop until the system scan is clean.",
+            "on_completion": "end--d1c9978c-1a1f-48a0-b3e4-f379b1bcd013",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--ab1e0847-72e0-464c-b4e6-2e10e1b9e9f4"
+        },
+        "end--d1c9978c-1a1f-48a0-b3e4-f379b1bcd013": {
+            "type": "end"
+        },
+        "start--cfb6aa3f-545d-4a1c-b5ef-1e398d6ca197": {
+            "on_completion": "if-condition--c5e6515a-a9db-4c23-a216-0c94555d5ee3",
+            "type": "start"
+        },
+        "if-condition--e2a70a1b-9cd3-4d28-9214-d6d66a8c4f64": {
+            "name": "Check for Unauthorized Access",
+            "type": "if-condition",
+            "condition": "unauthorized_access_detected == true",
+            "on_true": "action--547350c3-5e28-4128-a1d3-5e3028c501f7",
+            "on_false": "action--ab1e0847-72e0-464c-b4e6-2e10e1b9e9f4"
+        }
+    },
+    "agent_definitions": {
+        "organization--0ebfc5b9-f014-46ed-8761-b5cb3aeecb39": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

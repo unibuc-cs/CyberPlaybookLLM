@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c23cbf5c-fa92-4a8f-86ee-29ac20b38ac0",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploit",
+    "description": "This playbook addresses an incident where an adversary exploited a vulnerability in a web application to execute unauthorized shell commands, escalated privileges, and executed malicious scripts.",
+    "created_by": "identity--2c613bcd-696a-4ad8-8c4c-34353ac1dad4",
+    "created": "2023-11-01T12:00:00Z",
+    "modified": "2023-11-01T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-a12e-4f9a-af61-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-a12e-4f9a-af61-dcc18ae12345": {
+            "on_completion": "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8",
+            "type": "start"
+        },
+        "action--a3c1b2d5-9373-4a9a-b856-2e6e44bc17d8": {
+            "name": "Terminate all unauthorized shell processes",
+            "description": "Terminate any unauthorized shell processes currently running on the server.",
+            "on_completion": "if-condition--4dbe9ed7-4102-4f94-8416-d4017578c684",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_shell"
+                }
+            ],
+            "agent": "organization--3f8c269b-7cdb-4d17-9975-f136f93d914d"
+        },
+        "if-condition--4dbe9ed7-4102-4f94-8416-d4017578c684": {
+            "name": "Check for compromised host activity",
+            "type": "if-condition",
+            "condition": "if [ $(netstat -tuln | grep ':80') ]; then",
+            "on_true": "action--4dbe9ed7-4102-4f94-8416-d4017578c684",
+            "on_false": "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492"
+        },
+        "action--4dbe9ed7-4102-4f94-8416-d4017578c684": {
+            "name": "Identify and isolate compromised host",
+            "description": "Isolate the host to prevent further unauthorized access.",
+            "on_completion": "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--3f8c269b-7cdb-4d17-9975-f136f93d914d"
+        },
+        "action--ecf7a91b-fe0a-4d48-97b5-9fae0f6d7492": {
+            "name": "Restore system from known clean state",
+            "description": "Restore the system to a known clean backup state.",
+            "on_completion": "loop--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "bash restore_backup.sh"
+                }
+            ],
+            "agent": "organization--3f8c269b-7cdb-4d17-9975-f136f93d914d"
+        },
+        "loop--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f": {
+            "name": "Scan for persistence mechanisms",
+            "description": "Scan the filesystem for persistence mechanisms until the system is clean.",
+            "on_completion": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9",
+            "type": "while-condition",
+            "condition": "until clean",
+            "on_true": "action--2819fea6-9dac-4d82-8cbc-1a7f7e1d543f",
+            "on_false": "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9"
+        },
+        "action--ebe4af1e-7c76-401a-b9db-43e62a3c8ae9": {
+            "name": "Update security policy to log shell access attempts",
+            "description": "Enable logging of shell access attempts in the security policy.",
+            "on_completion": "end--12e5d106-06cd-41bf-9c5b-2b818d64f823",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'logging enabled' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--3f8c269b-7cdb-4d17-9975-f136f93d914d"
+        },
+        "end--12e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3f8c269b-7cdb-4d17-9975-f136f93d914d": {
+            "type": "organization",
+            "name": "Security Team"
+        }
+    }
+}

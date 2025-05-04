@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e8e4a63d-ebc4-466e-af0d-79abc891c8dd",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents involving unauthorized command execution from compromised scripts, leading to data exfiltration.",
+    "created_by": "identity--abc12345-def6-7890-abcd-ef1234567890",
+    "created": "2023-10-12T14:32:00Z",
+    "modified": "2023-10-12T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1d1c4a0-bd1d-48a8-82e9-d8f74b3cdd73",
+    "workflow": {
+        "start--f1d1c4a0-bd1d-48a8-82e9-d8f74b3cdd73": {
+            "on_completion": "if-condition--process-check",
+            "type": "start"
+        },
+        "if-condition--process-check": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_running == true",
+            "on_true": "action--kill-process",
+            "on_false": "action--delete-file"
+        },
+        "action--kill-process": {
+            "name": "Kill malicious process",
+            "description": "Terminate any currently running malicious processes.",
+            "on_completion": "action--delete-file",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "process_running": {
+                    "type": "boolean",
+                    "description": "Indicates whether the malicious process is currently running",
+                    "value": true,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--delete-file": {
+            "name": "Delete dropped file",
+            "description": "Remove the malicious payload from the temporary folder.",
+            "on_completion": "while-condition--file-delete",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while-condition--file-delete": {
+            "name": "Check if file is deleted",
+            "description": "Repeat deletion until the file is confirmed deleted.",
+            "on_completion": "action--monitor-network",
+            "type": "while-condition",
+            "condition": "file_exists == false",
+            "on_true": "action--delete-file",
+            "step_variables": {
+                "file_exists": {
+                    "type": "boolean",
+                    "description": "Checks if the malicious payload file exists",
+                    "value": true,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--monitor-network": {
+            "name": "Monitor network connections",
+            "description": "List established network connections to safeguard against further exfiltration.",
+            "on_completion": "end--playbook-end",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -an | grep ESTABLISHED"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "time_frame": {
+                    "type": "string",
+                    "description": "The time frame to monitor during the operation",
+                    "value": "last_30_seconds",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--playbook-end": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

@@ -1,0 +1,78 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c3f3b63f-094c-45bc-aa49-61e2706868c1",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--6d068c89-ced1-4eb3-8a3f-3fd19650dd54",
+    "created": "2023-10-10T14:20:30Z",
+    "modified": "2023-10-10T14:20:30Z",
+    "revoked": false,
+    "workflow_start": "start--349fa421-d7ce-4ca1-a1be-d01244b346c3",
+    "workflow": {
+        "action--c6a942e7-e08d-4d73-b9fc-e845de59bcba": {
+            "name": "Terminate suspicious PowerShell processes",
+            "description": "Terminate any PowerShell processes that could be executing malicious commands.",
+            "on_completion": "action--4e2f22b8-264d-4f54-a0e1-b590384061d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--6d8274d8-f388-4c2a-a596-c7f0c2713367"
+        },
+        "action--4e2f22b8-264d-4f54-a0e1-b590384061d6": {
+            "name": "Enforce new firewall rules to block outbound connections",
+            "description": "Configure firewall to prevent outgoing connections that could facilitate data exfiltration.",
+            "on_completion": "while-condition--e447089e-ed92-4335-aead-b3a10955d8ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -p tcp --dport 80 -j DROP"
+                }
+            ],
+            "agent": "organization--6d8274d8-f388-4c2a-a596-c7f0c2713367"
+        },
+        "action--d2ba4f39-69b6-4e5b-a69b-ff313f732b7e": {
+            "name": "Execute a full malware scan on all endpoints",
+            "description": "Perform a comprehensive scan to detect and remove any malicious software.",
+            "on_completion": "while-condition--e447089e-ed92-4335-aead-b3a10955d8ed",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell --verbose"
+                }
+            ],
+            "agent": "organization--6d8274d8-f388-4c2a-a596-c7f0c2713367"
+        },
+        "start--349fa421-d7ce-4ca1-a1be-d01244b346c3": {
+            "on_completion": "action--c6a942e7-e08d-4d73-b9fc-e845de59bcba",
+            "type": "start",
+            "name": "Start Playbook",
+            "description": "Initiate the mitigation workflow."
+        },
+        "while-condition--e447089e-ed92-4335-aead-b3a10955d8ed": {
+            "name": "Repeat Malware Scan",
+            "description": "Repeat the malware scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "additional_compromise_found",
+            "on_true": "action--d2ba4f39-69b6-4e5b-a69b-ff313f732b7e",
+            "on_false": "end--f7fce842-5133-4a0d-84e4-e48b83da8bfc"
+        },
+        "end--f7fce842-5133-4a0d-84e4-e48b83da8bfc": {
+            "type": "end",
+            "name": "End Playbook",
+            "description": "Finish the mitigation workflow."
+        }
+    },
+    "agent_definitions": {
+        "organization--6d8274d8-f388-4c2a-a596-c7f0c2713367": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

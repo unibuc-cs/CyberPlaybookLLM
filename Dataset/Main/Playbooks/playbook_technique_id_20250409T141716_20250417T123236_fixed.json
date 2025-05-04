@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c15f8c73-0bb0-4bfa-81ac-70b8deb387c2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker exploited the command line interface to run harmful scripts, resulting in data exfiltration and system infection.",
+    "created_by": "identity--706a8337-b496-43bc-b08f-fbaa468106a3",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--3a597b8b-6d42-48c5-b0b1-09f4c48e2b50",
+            "type": "start"
+        },
+        "action--3a597b8b-6d42-48c5-b0b1-09f4c48e2b50": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "parallel--15f35649-ba6a-4d1e-8a97-05267b0093fe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--bc420162-f1f8-4f7e-a745-5a0140698b68"
+        },
+        "parallel--15f35649-ba6a-4d1e-8a97-05267b0093fe": {
+            "name": "Mitigation Steps Execution",
+            "description": "Execute parallel mitigation actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--846b9ff0-5618-4ee9-b986-0f9fd5fc1e8f",
+                "if-condition--1e7d800d-e62e-4388-babe-5e61299b6296"
+            ]
+        },
+        "action--846b9ff0-5618-4ee9-b986-0f9fd5fc1e8f": {
+            "name": "Scan system for backdoors",
+            "description": "Run a scan on the system to identify any backdoors.",
+            "on_completion": "loop--8b2619c7-caac-4c84-b9e9-874049b4c3a9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_system"
+                }
+            ],
+            "agent": "organization--bc420162-f1f8-4f7e-a745-5a0140698b68"
+        },
+        "if-condition--1e7d800d-e62e-4388-babe-5e61299b6296": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists",
+            "on_true": "action--1e7d800d-e62e-4388-babe-5e61299b6296",
+            "on_false": "end--45d87471-ec56-4945-b027-8720cbd62351"
+        },
+        "action--1e7d800d-e62e-4388-babe-5e61299b6296": {
+            "name": "Restore affected files from backup",
+            "description": "Restore files from the backup to the original location.",
+            "on_completion": "end--45d87471-ec56-4945-b027-8720cbd62351",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av --delete /backup/host-01/ /original/path/"
+                }
+            ],
+            "agent": "organization--bc420162-f1f8-4f7e-a745-5a0140698b68"
+        },
+        "end--45d87471-ec56-4945-b027-8720cbd62351": {
+            "type": "end"
+        },
+        "loop--8b2619c7-caac-4c84-b9e9-874049b4c3a9": {
+            "name": "Waiting for scan to complete",
+            "description": "Loop until the system scan is clean.",
+            "on_completion": "end--45d87471-ec56-4945-b027-8720cbd62351",
+            "type": "while-condition",
+            "condition": "! scan_is_clean",
+            "on_true": "action--846b9ff0-5618-4ee9-b986-0f9fd5fc1e8f"
+        }
+    },
+    "agent_definitions": {
+        "organization--bc420162-f1f8-4f7e-a745-5a0140698b68": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

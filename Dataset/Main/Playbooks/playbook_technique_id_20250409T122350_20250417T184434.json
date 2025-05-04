@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f597e6fc-43b5-4673-8f11-6e259758bbf3",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to execute a malicious script on the server for data exfiltration.",
+    "created_by": "identity--1abc5b19-2d82-4ffc-8f3c-b290bcb24387",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.543Z",
+    "revoked": false,
+    "workflow_start": "start--c413b0c7-9e51-4b38-b22e-3ec3da7a5e1a",
+    "workflow": {
+        "start--c413b0c7-9e51-4b38-b22e-3ec3da7a5e1a": {
+            "on_completion": "action--c4078e20-32aa-4f19-9613-063ff17a17b1",
+            "type": "start"
+        },
+        "action--c4078e20-32aa-4f19-9613-063ff17a17b1": {
+            "name": "Disconnect from network",
+            "description": "Disconnect the server from the network to prevent further data exfiltration.",
+            "on_completion": "action--99ace3ff-631e-4b90-814d-aa2a16cb0f3b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--99ace3ff-631e-4b90-814d-aa2a16cb0f3b": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "loop--threat_check-loop",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "loop--threat_check-loop": {
+            "name": "Scan for remaining threats",
+            "description": "Repeat scanning for threats until none are found.",
+            "on_completion": "end--e777e4bd-e6a3-4e1f-8d06-81b5a90314d0",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--9f499b5e-07b9-44a9-bc51-3998e1b8e9b6",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "description": "Set to true if threats are detected.",
+                    "value": true,
+                    "constant": false
+                }
+            }
+        },
+        "action--9f499b5e-07b9-44a9-bc51-3998e1b8e9b6": {
+            "name": "Perform threat scan",
+            "description": "Scan the system for any remaining threats.",
+            "on_completion": "update_threat_found_status",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "update_threat_found_status": {
+            "name": "Check if threats are found",
+            "description": "Update the threat_found status based on the scan result.",
+            "on_completion": "end--e777e4bd-e6a3-4e1f-8d06-81b5a90314d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $? -eq 0 ]; then threat_found=false; else threat_found=true; fi"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "end--e777e4bd-e6a3-4e1f-8d06-81b5a90314d0": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

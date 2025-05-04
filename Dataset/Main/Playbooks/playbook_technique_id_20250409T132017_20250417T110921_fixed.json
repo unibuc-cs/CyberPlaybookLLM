@@ -1,0 +1,90 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d5041aee-b9e8-432b-90f2-e24f96bcf639",
+    "name": "Mitigation Playbook for Command Execution Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker exploited the command line interface to execute harmful scripts, leading to unauthorized data access and potential exfiltration.",
+    "created_by": "identity--63d49f53-8870-43c7-93ad-f48e9f3aa396",
+    "created": "2023-10-20T15:00:00Z",
+    "modified": "2023-10-20T15:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--fc6e85e8-90fc-4ace-b1ce-e8bb0cfffeff",
+    "workflow": {
+        "action--9e1c6b31-b5f6-4ae9-b137-f1916f293b0c": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes related to the attack.",
+            "on_completion": "action--95b79b3b-dc62-435d-8cd7-e49e0ddf4d61",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--994e4e6d-8cc3-4897-92f7-59d548e26bd1"
+        },
+        "action--95b79b3b-dc62-435d-8cd7-e49e0ddf4d61": {
+            "name": "Remove dropped malicious executable",
+            "description": "Delete the malicious executable that was dropped by the attacker.",
+            "on_completion": "while-condition--267a30e6-d63a-400f-8515-d2c0e6b1e8c5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/malicious/executable"
+                }
+            ],
+            "agent": "organization--994e4e6d-8cc3-4897-92f7-59d548e26bd1"
+        },
+        "while-condition--267a30e6-d63a-400f-8515-d2c0e6b1e8c5": {
+            "name": "Check if malicious executable is still present",
+            "description": "Repeat removing the malicious executable until it no longer exists.",
+            "on_true": "action--95b79b3b-dc62-435d-8cd7-e49e0ddf4d61",
+            "type": "while-condition",
+            "condition": "malicious_executable_found == True"
+        },
+        "action--267a30e6-d63a-400f-8515-d2c0e6b1e8c5": {
+            "name": "Scan system for other threats",
+            "description": "Perform a full system scan for other potential threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-threat-scan"
+                }
+            ],
+            "agent": "organization--994e4e6d-8cc3-4897-92f7-59d548e26bd1",
+            "step_variables": {
+                "scan_type": {
+                    "type": "string",
+                    "value": "full"
+                },
+                "reporting": {
+                    "type": "string",
+                    "value": "enabled"
+                }
+            },
+            "on_completion": "end--066386c4-6d88-42b8-a294-01e08fcee133"
+        },
+        "start--fc6e85e8-90fc-4ace-b1ce-e8bb0cfffeff": {
+            "on_completion": "if-condition--a27d866b-3379-41e1-b18e-36b995ac49f3",
+            "type": "start"
+        },
+        "if-condition--a27d866b-3379-41e1-b18e-36b995ac49f3": {
+            "name": "Check for active malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_found == True",
+            "on_true": "action--9e1c6b31-b5f6-4ae9-b137-f1916f293b0c",
+            "on_false": "action--95b79b3b-dc62-435d-8cd7-e49e0ddf4d61"
+        },
+        "end--066386c4-6d88-42b8-a294-01e08fcee133": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--994e4e6d-8cc3-4897-92f7-59d548e26bd1": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

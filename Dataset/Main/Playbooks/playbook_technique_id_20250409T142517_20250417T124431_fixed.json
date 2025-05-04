@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b9615f5e-7c99-4e94-bc2e-8f514c8c8c80",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed unauthorized scripts via command-line, detected through unusual script execution patterns on multiple hosts.",
+    "created_by": "identity--d1ffaaa5-797e-4178-8138-dbb626e0683e",
+    "created": "2023-10-14T12:00:00Z",
+    "modified": "2023-10-14T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--5bc56cac-93d1-41e4-ae9b-6e083b2f6585",
+    "workflow": {
+        "action--f5b1c5b4-9d05-493e-8622-a84388fefc13": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized script processes running on the host.",
+            "on_completion": "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.ps1"
+                }
+            ],
+            "agent": "organization--ab40fc27-284f-40b7-8fd6-f48d99c5f978"
+        },
+        "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e": {
+            "name": "Check for existing outbound connection",
+            "type": "if-condition",
+            "condition": "exists_outbound_connection",
+            "on_true": "loop--9921956e-4ea3-4d49-ad18-8c185f25ac54",
+            "on_false": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd"
+        },
+        "action--e88e8bc6-7b0c-4891-b8d0-bc34af56731e": {
+            "name": "Block outbound connection",
+            "description": "Use iptables to drop any existing outbound connections to malicious IP.",
+            "on_completion": "loop--9921956e-4ea3-4d49-ad18-8c185f25ac54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious_ip -j DROP"
+                }
+            ],
+            "agent": "organization--ab40fc27-284f-40b7-8fd6-f48d99c5f978"
+        },
+        "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd": {
+            "name": "Conduct system scan",
+            "description": "Scan the entire system for malware and log results.",
+            "on_completion": "loop--8bfe0dfb-0ddd-4d92-9547-06dc34a39bcc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scanner --scan / --log scan_results.log"
+                }
+            ],
+            "agent": "organization--ab40fc27-284f-40b7-8fd6-f48d99c5f978"
+        },
+        "start--5bc56cac-93d1-41e4-ae9b-6e083b2f6585": {
+            "on_completion": "action--f5b1c5b4-9d05-493e-8622-a84388fefc13",
+            "type": "start"
+        },
+        "loop--9921956e-4ea3-4d49-ad18-8c185f25ac54": {
+            "name": "Block outbound connection loop",
+            "description": "Repeatedly block any existing malicious outbound connections until none exists.",
+            "on_completion": "if-condition--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "type": "while-condition",
+            "condition": "exists_outbound_connection == true",
+            "on_true": "action--e88e8bc6-7b0c-4891-b8d0-bc34af56731e",
+            "on_false": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd"
+        },
+        "loop--8bfe0dfb-0ddd-4d92-9547-06dc34a39bcc": {
+            "name": "Scan clean loop",
+            "description": "Continue scanning until the scan results are clean.",
+            "on_completion": "end--fb05fd6b-c553-416a-bae7-5dc0edc6f518",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--cda6a857-f427-4dc4-bc50-5f1f6e4a75fd",
+            "on_false": "end--fb05fd6b-c553-416a-bae7-5dc0edc6f518"
+        },
+        "end--fb05fd6b-c553-416a-bae7-5dc0edc6f518": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ab40fc27-284f-40b7-8fd6-f48d99c5f978": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

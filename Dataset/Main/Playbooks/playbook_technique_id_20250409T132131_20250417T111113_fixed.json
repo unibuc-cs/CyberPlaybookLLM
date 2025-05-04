@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--09562359-c17b-4f41-817b-9f043e1522a6",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving an attacker who executed a malicious script to exfiltrate sensitive data.",
+    "created_by": "identity--e59fb3c0-b2f5-489d-a831-328c09adfbaa",
+    "created": "2025-04-09T09:45:00.000Z",
+    "modified": "2025-04-09T09:48:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c3d92ed4-7204-4820-beb6-add748555cf0",
+    "workflow": {
+        "start--c3d92ed4-7204-4820-beb6-add748555cf0": {
+            "on_completion": "action--a1d8b641-1bfd-4622-b3cb-7d169b4e7d63",
+            "type": "start"
+        },
+        "action--a1d8b641-1bfd-4622-b3cb-7d169b4e7d63": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--ccf5d054-6062-4fb9-a5f4-538077a8aa5b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c781bb7f-cf49-49f6-8938-be257379c563"
+        },
+        "action--ccf5d054-6062-4fb9-a5f4-538077a8aa5b": {
+            "name": "Block outbound connections to known malicious IP",
+            "description": "Block connections to the IP address used for data exfiltration.",
+            "on_completion": "while-condition--d6107077-5e94-41b5-99b5-e2203a15543f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--c781bb7f-cf49-49f6-8938-be257379c563"
+        },
+        "action--efbd629d-2d79-4f1c-9dc8-d69c1f438ade": {
+            "name": "Run malware scan on affected hosts",
+            "description": "Perform a scan on the affected directory and remove any detected malware.",
+            "on_completion": "while-condition--d6107077-5e94-41b5-99b5-e2203a15543f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory --remove"
+                }
+            ],
+            "agent": "organization--c781bb7f-cf49-49f6-8938-be257379c563",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan, 'clean' or 'dirty'",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--1e35bf23-6764-49f4-974d-ff60ef00b27d": {
+            "type": "end"
+        },
+        "while-condition--d6107077-5e94-41b5-99b5-e2203a15543f": {
+            "name": "Repeat malware scan until clean",
+            "description": "Run a malware scan on affected hosts until no malware is detected.",
+            "on_true": "action--efbd629d-2d79-4f1c-9dc8-d69c1f438ade",
+            "condition": "scan_status == 'dirty'",
+            "on_completion": "end--1e35bf23-6764-49f4-974d-ff60ef00b27d",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--c781bb7f-cf49-49f6-8938-be257379c563": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

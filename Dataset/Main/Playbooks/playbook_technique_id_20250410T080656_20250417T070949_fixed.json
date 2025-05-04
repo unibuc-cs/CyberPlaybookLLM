@@ -1,0 +1,113 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d0c6f43c-55e7-44ae-a87b-d73d3eab4814",
+    "name": "Mitigation Playbook for Malicious Script Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a remote server through malicious script injection, leading to unauthorized data access and lateral movement.",
+    "created_by": "identity--e4c73f73-aec6-4c97-98b8-cf3f1aef59b0",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:05:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--5835a3c8-7bcd-442d-9043-4cb09ab6589e",
+    "workflow": {
+        "start--5835a3c8-7bcd-442d-9043-4cb09ab6589e": {
+            "on_completion": "action--f1e292fb-b448-4b3e-80a5-1d8c57b6ab66",
+            "type": "start"
+        },
+        "action--f1e292fb-b448-4b3e-80a5-1d8c57b6ab66": {
+            "name": "Kill malicious process",
+            "description": "Terminates the malicious script execution if it is currently running.",
+            "on_completion": "if-condition--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9"
+        },
+        "if-condition--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2": {
+            "name": "Check for running processes",
+            "type": "if-condition",
+            "condition": "process_is_running",
+            "on_true": "action--f1e292fb-b448-4b3e-80a5-1d8c57b6ab66",
+            "on_false": "action--56998780-b77e-46d7-9df9-28c5f9363bc5"
+        },
+        "action--56998780-b77e-46d7-9df9-28c5f9363bc5": {
+            "name": "Block external IP addresses",
+            "on_completion": "while-condition--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0/24 -j DROP"
+                }
+            ],
+            "agent": "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9",
+            "step_variables": {
+                "ip_address": {
+                    "type": "string",
+                    "value": "192.0.2.0/24"
+                }
+            }
+        },
+        "while-condition--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2": {
+            "name": "Clean web server scripts",
+            "description": "Continuously check and remove malicious scripts from the web server until clean.",
+            "on_completion": "action--c45712aa-d9d8-4e98-b6b4-0b49b5d77bbf",
+            "type": "while-condition",
+            "condition": "web_server_clean",
+            "on_true": "action--c45712aa-d9d8-4e98-b6b4-0b49b5d77bbf",
+            "on_false": "action--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2"
+        },
+        "action--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2": {
+            "name": "Clean web server scripts",
+            "description": "Remove any remaining malicious scripts on the server.",
+            "on_completion": "while-condition--a9d2fffa-fb6b-4656-94f8-bb3d7c2e67f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /var/www/html -name '*.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9"
+        },
+        "action--c45712aa-d9d8-4e98-b6b4-0b49b5d77bbf": {
+            "name": "Restore compromised files from backup",
+            "description": "Restore files to the web server from backup if malicious scripts have been removed.",
+            "on_completion": "action--0ab30fdd-334d-4874-8a72-b509b95c09cd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/* /var/www/html/"
+                }
+            ],
+            "agent": "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9"
+        },
+        "action--0ab30fdd-334d-4874-8a72-b509b95c09cd": {
+            "name": "Enable continuous monitoring",
+            "description": "Start continuous monitoring services to detect future threats.",
+            "on_completion": "end--f3b30f2a-4f2e-40fb-bd77-9e37c8f3c31c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "service monitoring-agent start"
+                }
+            ],
+            "agent": "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9"
+        },
+        "end--f3b30f2a-4f2e-40fb-bd77-9e37c8f3c31c": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3eda102f-605b-4437-90f4-7e21b4a3cdb9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

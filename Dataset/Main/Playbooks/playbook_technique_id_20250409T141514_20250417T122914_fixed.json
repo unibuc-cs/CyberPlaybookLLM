@@ -1,0 +1,73 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2da2e5a-8d6c-4a5c-a383-f937f29ffd2b",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook mitigates the impact of an attacker executing malicious commands via a scripting interpreter and exfiltrating sensitive data.",
+    "created_by": "identity--55033542-2bd0-474d-97e2-20249586f2e3",
+    "created": "2023-10-10T14:40:12Z",
+    "modified": "2023-10-10T14:50:00Z",
+    "revoked": false,
+    "workflow_start": "start--f75a5b6e-8ad4-4a7b-a351-e9da57168226",
+    "workflow": {
+        "start--f75a5b6e-8ad4-4a7b-a351-e9da57168226": {
+            "on_completion": "action--3eb142c9-a899-4e9f-9e7b-f812dd8cfffd",
+            "type": "start"
+        },
+        "action--3eb142c9-a899-4e9f-9e7b-f812dd8cfffd": {
+            "name": "Terminate Suspicious PowerShell Scripts",
+            "description": "Terminate any running PowerShell scripts that could be executing malicious commands.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--4aa7cf68-0e66-465d-a6c5-e06d80ebd603",
+            "on_completion": "action--1935c641-8223-4eb6-8114-4d44faf92b60"
+        },
+        "action--1935c641-8223-4eb6-8114-4d44faf92b60": {
+            "name": "Remove Dropped Malicious Files",
+            "description": "Iterate until all malicious files are removed from the temporary folder.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /tmp -name 'malicious_script.sh' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--4aa7cf68-0e66-465d-a6c5-e06d80ebd603",
+            "on_completion": "if-condition--12288f26-b34a-4f70-b81c-6f0fdaab8706"
+        },
+        "if-condition--12288f26-b34a-4f70-b81c-6f0fdaab8706": {
+            "name": "Check for Malicious Files",
+            "type": "if-condition",
+            "condition": "$(find /tmp -name 'malicious_script.sh' | wc -l) > 0",
+            "on_true": "action--1935c641-8223-4eb6-8114-4d44faf92b60",
+            "on_false": "action--9577b09c-8fd5-4227-8afd-2b6c9bd4324e"
+        },
+        "action--9577b09c-8fd5-4227-8afd-2b6c9bd4324e": {
+            "name": "Monitor for Further Suspicious Command Execution",
+            "description": "Continuously monitor the command logs for any suspicious commands.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -f /var/log/command.log | grep 'suspicious_command'"
+                }
+            ],
+            "agent": "organization--4aa7cf68-0e66-465d-a6c5-e06d80ebd603",
+            "on_completion": "end--02440306-74ad-44d1-80ce-acf9b46b21a3"
+        },
+        "end--02440306-74ad-44d1-80ce-acf9b46b21a3": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4aa7cf68-0e66-465d-a6c5-e06d80ebd603": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

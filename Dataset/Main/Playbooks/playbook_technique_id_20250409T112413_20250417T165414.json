@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1e4ec3c-d60f-4e3e-a2a6-3c3f9af9b698",
+    "name": "Mitigation Playbook for Phishing and Script Execution Incident",
+    "description": "This playbook outlines the mitigation steps for incidents involving phishing that led to unauthorized script executions and file manipulations.",
+    "created_by": "identity--f429b365-90b2-4e8e-85b9-ec71ed5c3d9a",
+    "created": "2023-04-09T08:55:35.498Z",
+    "modified": "2023-04-09T09:01:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e2f25279-9e5b-49b2-9aa8-958f3ab2bbb4",
+    "workflow": {
+        "start--e2f25279-9e5b-49b2-9aa8-958f3ab2bbb4": {
+            "on_completion": "action--0c5bd450-9d9e-4417-b682-0b045409c2b3",
+            "type": "start"
+        },
+        "action--0c5bd450-9d9e-4417-b682-0b045409c2b3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the execution of the malicious script.",
+            "on_completion": "action--c12cd8f7-fd62-415c-9d7f-cb224693e4cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--c12cd8f7-fd62-415c-9d7f-cb224693e4cf": {
+            "name": "Rollback modified configuration file",
+            "description": "Revert the configuration file to its last known good version.",
+            "on_completion": "while-condition--e6237e4e-9cf7-43f7-ab44-d3d7d9aceba5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "git checkout -- config_file.cfg"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--e6237e4e-9cf7-43f7-ab44-d3d7d9aceba5": {
+            "name": "Security scan loop",
+            "description": "Run a full security scan until no threats are detected.",
+            "type": "while-condition",
+            "condition": "scan_status == 'dirty'",
+            "on_true": "action--e6237e4e-9cf7-43f7-ab44-d3d7d9aceba5",
+            "on_false": "end--f41e9ea7-2d64-4e6a-bf7c-7b81d67f6ce2"
+        },
+        "action--e6237e4e-9cf7-43f7-ab44-d3d7d9aceba5": {
+            "name": "Run full security scan",
+            "on_completion": "while-condition--e6237e4e-9cf7-43f7-ab44-d3d7d9aceba5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "scan_tool --full"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the security scan, 'clean' or 'dirty'",
+                    "value": "dirty",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--f41e9ea7-2d64-4e6a-bf7c-7b81d67f6ce2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

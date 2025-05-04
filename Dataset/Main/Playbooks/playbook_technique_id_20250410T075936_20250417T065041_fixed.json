@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c65e3c48-2cde-4f0a-ba26-732c82de09e8",
+    "name": "Mitigation Playbook for Backdoor Execution Incident",
+    "description": "This playbook addresses a situation where a PowerShell script was used to execute a backdoor, allowing remote access to the attacker.",
+    "created_by": "identity--abc12345-bc2f-4dad-9a56-6d8daccf3241",
+    "created": "2023-10-12T15:00:00Z",
+    "modified": "2023-10-12T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--c1a5dd93-0db0-4d06-adf6-4e37c6c74c23",
+    "workflow": {
+        "start--c1a5dd93-0db0-4d06-adf6-4e37c6c74c23": {
+            "on_completion": "action--da3b9825-8783-4258-89fb-7e259b4d389e",
+            "type": "start"
+        },
+        "action--da3b9825-8783-4258-89fb-7e259b4d389e": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious activity.",
+            "on_completion": "if-condition--865d3b60-cbb9-44dd-b1b8-1443f6ff412f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab"
+        },
+        "action--b1a3abc2-33cb-468c-b67e-5bf5f39e8268": {
+            "name": "Update firewall rules",
+            "description": "Block outbound connections to the known malicious IP address.",
+            "on_completion": "parallel--4b32cdb5-d0b1-4e76-89cb-859926702634",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out from any to 192.168.100.100"
+                }
+            ],
+            "agent": "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab"
+        },
+        "action--19c3d87b-ee20-4ea3-bcfa-9623581cf74d": {
+            "name": "Re-scan system until clean",
+            "description": "Continuously scan the system for infections.",
+            "on_completion": "end--a4c98d5d-3ae2-4b12-8e4c-a661f8fee3f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full"
+                }
+            ],
+            "agent": "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab",
+            "loop": {
+                "condition": "infected",
+                "next_steps": [
+                    "action--19c3d87b-ee20-4ea3-bcfa-9623581cf74d"
+                ]
+            }
+        },
+        "action--7a8d5d5b-eb17-4c91-8ccb-fd9e732b2fe1": {
+            "name": "Clear temporary script files",
+            "description": "Remove temporary files related to the malicious activities.",
+            "on_completion": "end--a4c98d5d-3ae2-4b12-8e4c-a661f8fee3f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious*"
+                }
+            ],
+            "agent": "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab"
+        },
+        "action--9153f396-8c5e-4e8f-ad3d-376c1b7d3a49": {
+            "name": "Audit and enhance script execution policies",
+            "description": "Set script execution policies to prevent future unauthorized scripts.",
+            "on_completion": "end--a4c98d5d-3ae2-4b12-8e4c-a661f8fee3f8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned"
+                }
+            ],
+            "agent": "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab"
+        },
+        "end--a4c98d5d-3ae2-4b12-8e4c-a661f8fee3f8": {
+            "type": "end"
+        },
+        "if-condition--865d3b60-cbb9-44dd-b1b8-1443f6ff412f": {
+            "name": "Check if malicious process was found",
+            "type": "if-condition",
+            "condition": "process_found",
+            "on_true": "action--b1a3abc2-33cb-468c-b67e-5bf5f39e8268",
+            "on_false": "action--7a8d5d5b-eb17-4c91-8ccb-fd9e732b2fe1"
+        },
+        "parallel--4b32cdb5-d0b1-4e76-89cb-859926702634": {
+            "name": "Cleanup and Safety Actions",
+            "description": "Perform cleanup actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--19c3d87b-ee20-4ea3-bcfa-9623581cf74d",
+                "action--7a8d5d5b-eb17-4c91-8ccb-fd9e732b2fe1",
+                "action--9153f396-8c5e-4e8f-ad3d-376c1b7d3a49"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--0271c899-024c-43e7-a2aa-94dc7236f9ab": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

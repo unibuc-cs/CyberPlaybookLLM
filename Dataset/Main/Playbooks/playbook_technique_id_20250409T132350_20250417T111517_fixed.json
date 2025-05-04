@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4a67a495-5f7a-4e00-bd99-73c82f31657b",
+    "name": "Mitigation Playbook for Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via command-line interfaces for data exfiltration.",
+    "created_by": "identity--cde1a21f-cb62-4e55-9996-a61854100f76",
+    "created": "2025-04-09T09:00:00.000Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--a4a7b99e-814f-4c93-925d-fb672b6055c2",
+    "workflow": {
+        "start--a4a7b99e-814f-4c93-925d-fb672b6055c2": {
+            "on_completion": "parallel--9f20c47d-30bc-4c78-bc10-aeae746fcd3b",
+            "type": "start"
+        },
+        "parallel--9f20c47d-30bc-4c78-bc10-aeae746fcd3b": {
+            "name": "Perform Mitigations",
+            "description": "Execute multiple mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c272882b-d1b0-4b3e-941d-dc7d6cd78a59",
+                "action--71a1e9c6-ff24-41c3-9b0f-cc2c0e6bc5c9",
+                "action--78212884-c6c9-4a30-bf2d-2b2653cf2d19",
+                "action--ad3743e0-9f6a-406c-aa7c-486f7957b2e4"
+            ]
+        },
+        "action--c272882b-d1b0-4b3e-941d-dc7d6cd78a59": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "action--3c3b01c2-0e37-4f31-b5b6-fc1e1a65e7e9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61"
+        },
+        "action--71a1e9c6-ff24-41c3-9b0f-cc2c0e6bc5c9": {
+            "name": "Block outbound connection",
+            "description": "Block outbound traffic to the suspicious IP address.",
+            "on_completion": "action--78212884-c6c9-4a30-bf2d-2b2653cf2d19",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s <suspicious_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61"
+        },
+        "action--78212884-c6c9-4a30-bf2d-2b2653cf2d19": {
+            "name": "Review system logs",
+            "description": "Retrieve the last 100 lines of the system log for review.",
+            "on_completion": "action--ad3743e0-9f6a-406c-aa7c-486f7957b2e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/syslog"
+                }
+            ],
+            "agent": "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61"
+        },
+        "action--ad3743e0-9f6a-406c-aa7c-486f7957b2e4": {
+            "name": "Alert security team",
+            "description": "Notify the security team about the incident.",
+            "on_completion": "while-condition--f403d89b-b70a-4fe2-be93-4ee5b65db58b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --type 'Incident' --severity 'High'"
+                }
+            ],
+            "agent": "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61"
+        },
+        "while-condition--f403d89b-b70a-4fe2-be93-4ee5b65db58b": {
+            "name": "Conduct Full System Scan",
+            "description": "Perform a full scan of the system to ensure there are no malicious remnants.",
+            "on_completion": "end--e16a56b3-f348-4742-bde3-f90ae98614cf",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--3c3b01c2-0e37-4f31-b5b6-fc1e1a65e7e9",
+            "on_false": "end--e16a56b3-f348-4742-bde3-f90ae98614cf"
+        },
+        "action--3c3b01c2-0e37-4f31-b5b6-fc1e1a65e7e9": {
+            "name": "Conduct Full System Scan",
+            "description": "Run a full system scan to identify any remaining threats.",
+            "on_completion": "while-condition--f403d89b-b70a-4fe2-be93-4ee5b65db58b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan.sh"
+                }
+            ],
+            "agent": "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61"
+        },
+        "end--e16a56b3-f348-4742-bde3-f90ae98614cf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c090e009-1c35-4cd0-ad4e-048f69b34b61": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

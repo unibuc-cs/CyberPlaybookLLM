@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4b5b9d8c-1e6e-4e5b-833c-b57f8c5e1fac",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook mitigates an incident where an adversary exploited the command-line interface to execute malicious scripts on a vulnerable server.",
+    "created_by": "identity--e17cd25c-291b-4949-bd3d-b81041c7526c",
+    "created": "2023-10-10T09:00:00Z",
+    "modified": "2023-10-10T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--4230c481-9585-4fde-a466-22bdbd02e1a0",
+    "workflow": {
+        "action--7b0d6b1d-5247-4a71-83cb-ad8e09b64c01": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process executing the malicious script.",
+            "on_completion": "if-condition--2f8b4a7b-a374-4519-a57e-d8a59b5a60bd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--4428b48c-20d0-41a4-b7f2-324b5bbc419a"
+        },
+        "if-condition--2f8b4a7b-a374-4519-a57e-d8a59b5a60bd": {
+            "name": "Check for malicious scripts",
+            "type": "if-condition",
+            "condition": "malicious_script_exists == true",
+            "on_true": "while-condition--44206c8f-6c02-4bee-beed-d60dd893393e",
+            "on_false": "action--4fa5b3f3-f121-4f1a-bbed-f33209e6e0bd"
+        },
+        "action--4fa5b3f3-f121-4f1a-bbed-f33209e6e0bd": {
+            "name": "Block Suspicious IP",
+            "description": "Block any known suspicious IP in the firewall to prevent further connection attempts.",
+            "on_completion": "end--f94e298b-d001-4445-83ae-d0cfd9146299",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d suspicious.ip.address -j DROP"
+                }
+            ],
+            "agent": "organization--4428b48c-20d0-41a4-b7f2-324b5bbc419a"
+        },
+        "start--4230c481-9585-4fde-a466-22bdbd02e1a0": {
+            "on_completion": "action--7b0d6b1d-5247-4a71-83cb-ad8e09b64c01",
+            "type": "start"
+        },
+        "while-condition--44206c8f-6c02-4bee-beed-d60dd893393e": {
+            "name": "Scan for Additional Threats",
+            "description": "Initiate scanning for additional threats until the system is clean.",
+            "on_true": "action--465f1202-4554-4194-8943-9ea52a09703f",
+            "condition": "scan_status == 'clean'",
+            "on_completion": "if-condition--2f8b4a7b-a374-4519-a57e-d8a59b5a60bd",
+            "type": "if-condition"
+        },
+        "action--465f1202-4554-4194-8943-9ea52a09703f": {
+            "name": "Perform scan for threats",
+            "description": "Scan the system to find any additional malicious scripts or threats.",
+            "on_completion": {
+                "step_variables": {
+                    "scan_status": {
+                        "type": "string--b14dada7-2742-44f0-83de-2a92c0fc2211",
+                        "description": "Status of the last scan--fa893465-a79e-4d2f-a980-621b217153ce",
+                        "value": "clean--9860f16d-e504-493c-8c6f-af62ededd606"
+                    }
+                }
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--4428b48c-20d0-41a4-b7f2-324b5bbc419a"
+        },
+        "end--f94e298b-d001-4445-83ae-d0cfd9146299": {
+            "type": "end"
+        }
+    },
+    "step_variables": {
+        "malicious_script_exists": {
+            "type": "boolean",
+            "description": "Indicates if any malicious scripts were found",
+            "value": true,
+            "constant": false,
+            "external": true
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "The status from the last scan",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    },
+    "agent_definitions": {
+        "organization--4428b48c-20d0-41a4-b7f2-324b5bbc419a": {
+            "type": "organization",
+            "name": "CyberSecurityFirm"
+        }
+    }
+}

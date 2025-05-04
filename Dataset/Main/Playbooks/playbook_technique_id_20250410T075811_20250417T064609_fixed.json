@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--edc73e36-d12e-444d-bee5-fba3fa74414e",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution",
+    "description": "This playbook mitigates the impact of a malicious PowerShell script that executed on host-22, downloaded a malicious payload, escalated privileges, and installed additional tools.",
+    "created_by": "identity--e4a9fbcc-27a9-480a-ab95-014fda03ca37",
+    "created": "2025-04-09T09:00:00Z",
+    "modified": "2025-04-09T09:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--25b1c8e7-f1c5-4b96-bf75-dd9e5fddf60a",
+    "workflow": {
+        "parallel--5f9c3316-da1b-41ab-b97f-04de823e4973": {
+            "name": "Mitigation Actions",
+            "description": "Execute immediate mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d290f1ee-6c54-4b01-90e6-d701748f0851",
+                "action--a12f5f33-9eb3-4f56-bb9d-bc8fd5afaeaf",
+                "action--f0973a4b-f128-4a57-b6c4-4c8f606e126b"
+            ]
+        },
+        "action--d290f1ee-6c54-4b01-90e6-d701748f0851": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious executable that was downloaded and is currently running.",
+            "on_completion": "action--c2e10b94-4f7f-4ec6-86a9-99f53e03a8c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /IM malicious.exe /F"
+                }
+            ],
+            "agent": "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87"
+        },
+        "action--a12f5f33-9eb3-4f56-bb9d-bc8fd5afaeaf": {
+            "name": "Block external site in firewall",
+            "description": "Prevent access to the external site from which the malware was downloaded.",
+            "on_completion": "action--51e04d48-2abc-4b8e-ad2e-e80d7b30656e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-rich-rule 'rule family=ipv4 source address=203.0.113.10 reject'"
+                }
+            ],
+            "agent": "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87"
+        },
+        "action--f0973a4b-f128-4a57-b6c4-4c8f606e126b": {
+            "name": "Unset PowerShell execution policy",
+            "description": "Restrict the PowerShell execution policy to prevent further script execution.",
+            "on_completion": "action--51e04d48-2abc-4b8e-ad2e-e80d7b30656e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87"
+        },
+        "action--51e04d48-2abc-4b8e-ad2e-e80d7b30656e": {
+            "name": "Scan for additional threats and remove",
+            "description": "Scan the system for further threats and ensure no malicious content remains.",
+            "on_completion": "if-condition--c2e10b94-4f7f-4ec6-86a9-99f53e03a8c0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan /full"
+                }
+            ],
+            "agent": "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87"
+        },
+        "if-condition--c2e10b94-4f7f-4ec6-86a9-99f53e03a8c0": {
+            "name": "Check escalated privileges",
+            "type": "if-condition",
+            "condition": "user in administrators",
+            "on_true": "action--c2e10b94-4f7f-4ec6-86a9-99f53e03a8c0",
+            "on_false": "end--e0b785f0-1c75-4f02-abc9-b7f88c1e59f0"
+        },
+        "action--c2e10b94-4f7f-4ec6-86a9-99f53e03a8c0": {
+            "name": "Revoke escalated privileges",
+            "description": "Remove the compromised user's access from the administrator group.",
+            "on_completion": "end--e0b785f0-1c75-4f02-abc9-b7f88c1e59f0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net localgroup administrators user /delete"
+                }
+            ],
+            "agent": "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87"
+        },
+        "end--e0b785f0-1c75-4f02-abc9-b7f88c1e59f0": {
+            "type": "end"
+        },
+        "start--25b1c8e7-f1c5-4b96-bf75-dd9e5fddf60a": {
+            "on_completion": "parallel--5f9c3316-da1b-41ab-b97f-04de823e4973",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--5384d2c8-4d63-408b-a6c4-e253d37eba87": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--783b3a12-bd9e-4b4e-996f-1a767d8cb164",
+    "name": "Mitigation Playbook for Signed Binary Proxy Execution Incident",
+    "description": "This playbook mitigates an incident involving the abuse of Regsvr32 for executing signed DLLs, ensuring the affected host is isolated and scanned for further threats.",
+    "created_by": "identity--9bfc7eb1-b272-46be-92ac-dac61a8ea1a4",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b1c627fd-3d58-4c39-81ef-08d7f2d524e3",
+    "workflow": {
+        "start--b1c627fd-3d58-4c39-81ef-08d7f2d524e3": {
+            "on_completion": "action--a5c9bfef-f4dc-4753-8cdd-e86f30174b85",
+            "type": "start"
+        },
+        "action--a5c9bfef-f4dc-4753-8cdd-e86f30174b85": {
+            "name": "Kill malicious Regsvr32 process",
+            "description": "Terminate any instances of Regsvr32 that are currently executing.",
+            "on_completion": "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill regsvr32"
+                }
+            ],
+            "agent": "organization--7673f61c-f47a-4ca8-8f5a-efea4a955a36"
+        },
+        "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c": {
+            "name": "Check if process found",
+            "type": "if-condition",
+            "condition": "process found",
+            "on_true": "loop--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "on_false": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9"
+        },
+        "loop--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c": {
+            "name": "Isolate the affected host",
+            "description": "Keep attempting to isolate the affected host until successful.",
+            "on_completion": "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "type": "while-condition",
+            "condition": "isolation not complete",
+            "on_true": "action--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "on_false": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9"
+        },
+        "action--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c": {
+            "name": "Isolate the affected host",
+            "description": "Shutdown the network interface for isolation.",
+            "on_completion": "if-condition--c291c586-1fa9-45fc-9c0e-9e1ac7b3f77c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--7673f61c-f47a-4ca8-8f5a-efea4a955a36"
+        },
+        "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9": {
+            "name": "Perform a threat scan on affected host",
+            "description": "Scan the affected host for any remaining threats.",
+            "on_completion": "if-condition--77ad2247-ace7-4a53-bc2b-b07757ef3288",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "threat_scan --target host-22"
+                }
+            ],
+            "agent": "organization--7673f61c-f47a-4ca8-8f5a-efea4a955a36",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the threat scan.",
+                    "value": "none",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--f3bcf1f8-402e-47f6-964e-79a64c6418b0": {
+            "type": "end"
+        },
+        "if-condition--77ad2247-ace7-4a53-bc2b-b07757ef3288": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--786d8b68-bd80-4f8a-b70f-8403e79f78e9",
+            "on_false": "end--f3bcf1f8-402e-47f6-964e-79a64c6418b0"
+        }
+    },
+    "agent_definitions": {
+        "organization--7673f61c-f47a-4ca8-8f5a-efea4a955a36": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

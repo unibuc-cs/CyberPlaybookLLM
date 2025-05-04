@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0d9df88-4381-4978-8263-6f770d979b7d",
+    "name": "Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed commands through the command shell, leading to data exfiltration attempts.",
+    "created_by": "identity--1acd77c4-7522-4b41-8e5e-15a8be63a815",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--c5b9f437-5f1e-4c9d-94af-47877ef688e0",
+    "workflow": {
+        "start--c5b9f437-5f1e-4c9d-94af-47877ef688e0": {
+            "on_completion": "if-condition--20639e62-d76e-42e4-8b1c-1cd110c22cf6",
+            "type": "start"
+        },
+        "if-condition--20639e62-d76e-42e4-8b1c-1cd110c22cf6": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "process_exists(suspicious_process)",
+            "on_true": "action--a29fadfb-7f61-469a-82df-49cabc64649c",
+            "on_false": "action--f2882d04-92c2-407c-9071-6d163b6dfce5"
+        },
+        "action--a29fadfb-7f61-469a-82df-49cabc64649c": {
+            "name": "Kill malicious process",
+            "on_completion": "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "killall -9 suspicious_process"
+                }
+            ],
+            "agent": "organization--8879a73c-5e61-4ec7-9e11-cb4060919d46"
+        },
+        "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb": {
+            "name": "Search for unauthorized scripts",
+            "on_completion": "while-condition--e5781399-6cda-4b70-adfd-8a648ec173db",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' | grep -v '/home/user/' | xargs rm -f"
+                }
+            ],
+            "agent": "organization--8879a73c-5e61-4ec7-9e11-cb4060919d46"
+        },
+        "while-condition--e5781399-6cda-4b70-adfd-8a648ec173db": {
+            "name": "Check for unauthorized scripts",
+            "on_completion": "action--edba4d51-8cdb-4db2-a3bb-5545b4eb1163",
+            "type": "while-condition",
+            "condition": "unauthorized_script_exists",
+            "on_true": "action--d901efc9-6dbc-4d1f-9d6f-f500b92e78bb"
+        },
+        "action--edba4d51-8cdb-4db2-a3bb-5545b4eb1163": {
+            "name": "Monitor outbound connections",
+            "on_completion": "end--b4c78937-b3d7-4971-bbe8-37f60d86d161",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 host known_malicious_ip"
+                }
+            ],
+            "agent": "organization--8879a73c-5e61-4ec7-9e11-cb4060919d46",
+            "step_variables": {
+                "malicious_ip": {
+                    "type": "string",
+                    "description": "The malicious IP to monitor",
+                    "value": "known_malicious_ip",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--b4c78937-b3d7-4971-bbe8-37f60d86d161": {
+            "type": "end"
+        },
+        "action--f2882d04-92c2-407c-9071-6d163b6dfce5": {
+            "name": "Isolate affected host",
+            "on_completion": "action--edba4d51-8cdb-4db2-a3bb-5545b4eb1163",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--8879a73c-5e61-4ec7-9e11-cb4060919d46"
+        }
+    },
+    "agent_definitions": {
+        "organization--8879a73c-5e61-4ec7-9e11-cb4060919d46": {
+            "type": "organization",
+            "name": "Security Team"
+        }
+    }
+}

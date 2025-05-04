@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e7b86f9a-60a1-42eb-bf65-5c4f19279c39",
+    "name": "Mitigation Playbook for Web Server Compromise",
+    "description": "This playbook addresses the incident where a web server was compromised and malicious scripts were executed, leading to a data breach.",
+    "created_by": "identity--84d0c3c2-4ea5-4363-ba19-b6b75b370c2c",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "workflow_start": "start--fed86c19-2ec4-455a-be4a-4ee6e3777dd2",
+    "workflow": {
+        "action--cfa4d911-1f1f-4ec1-873c-d12d4b891226": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "parallel--e9c91b70-f5be-47fa-b057-927c9330688b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b"
+        },
+        "action--ab1e13ee-ed1d-4b34-9dea-3490e809c878": {
+            "name": "Scan for and remove unauthorized files",
+            "description": "Find and delete any backdoor files from the system.",
+            "on_completion": "action--182f3e7b-4199-40bb-8664-c4d290695d9d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name 'backdoor_file' -exec rm -f {} \\;"
+                }
+            ],
+            "agent": "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b"
+        },
+        "action--182f3e7b-4199-40bb-8664-c4d290695d9d": {
+            "name": "Isolate affected host from network",
+            "description": "Disable the network interface for the compromised host.",
+            "on_completion": "action--fb261b7f-46fb-4462-b564-2dc6f1c833f2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b",
+            "conditional": "if suspicious activity detected"
+        },
+        "action--fb261b7f-46fb-4462-b564-2dc6f1c833f2": {
+            "name": "Review access logs for anomalies",
+            "description": "Check access logs for any unusual patterns.",
+            "on_completion": "action--33c05377-1faf-4dce-bff5-89964e1f688f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "less /var/log/access.log | grep 'unusual_pattern'"
+                }
+            ],
+            "agent": "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b"
+        },
+        "action--33c05377-1faf-4dce-bff5-89964e1f688f": {
+            "name": "Implement intrusion detection system (IDS)",
+            "description": "Start the IDS service to monitor for future attacks.",
+            "on_completion": "end--0e690882-bb52-45b6-9110-f6f63f09289d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl start snort"
+                }
+            ],
+            "agent": "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b",
+            "step_variables": {
+                "ids_service": {
+                    "type": "string",
+                    "description": "The ID service to use for monitoring.",
+                    "value": "snort"
+                }
+            }
+        },
+        "parallel--e9c91b70-f5be-47fa-b057-927c9330688b": {
+            "name": "Execute parallel mitigation actions",
+            "description": "Run scan and isolation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--ab1e13ee-ed1d-4b34-9dea-3490e809c878",
+                "action--182f3e7b-4199-40bb-8664-c4d290695d9d"
+            ]
+        },
+        "start--fed86c19-2ec4-455a-be4a-4ee6e3777dd2": {
+            "on_completion": "action--cfa4d911-1f1f-4ec1-873c-d12d4b891226",
+            "type": "start"
+        },
+        "end--0e690882-bb52-45b6-9110-f6f63f09289d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--5efeed5e-3393-4bb2-976f-a977a6339f5b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

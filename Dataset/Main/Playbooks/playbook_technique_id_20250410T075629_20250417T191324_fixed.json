@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--37b308f5-3c5a-4975-8c75-8c7423dac7f6",
+    "name": "Respond to Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident of unauthorized script execution on host-22, leveraging conditional logic and iterative flows.",
+    "created_by": "identity--a946d211-e399-45a7-adf8-fa37c5b79b28",
+    "created": "2025-10-10T09:00:00Z",
+    "modified": "2025-10-10T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f8c89f4f-5080-425d-b4b2-9d8ef1f12d5a",
+    "workflow": {
+        "start--f8c89f4f-5080-425d-b4b2-9d8ef1f12d5a": {
+            "on_completion": "parallel--0ca134b1-ae7f-4b2d-bc45-89ae9a9ab234",
+            "type": "start"
+        },
+        "parallel--0ca134b1-ae7f-4b2d-bc45-89ae9a9ab234": {
+            "name": "Execute Parallel Mitigation Steps",
+            "description": "Terminate malicious process and block external IP in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8faa9e3-9f05-462a-bc33-eadb156aaaaa",
+                "action--1d2e7c8f-5f70-4141-8f25-c6de78bbcccc"
+            ]
+        },
+        "action--f8faa9e3-9f05-462a-bc33-eadb156aaaaa": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--33ef9299-31fd-4d63-8058-a182be9c6a12"
+        },
+        "action--1d2e7c8f-5f70-4141-8f25-c6de78bbcccc": {
+            "name": "Block external IP",
+            "description": "Block outbound connections to the identified malicious IP.",
+            "on_completion": "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.1 -j DROP"
+                }
+            ],
+            "agent": "organization--33ef9299-31fd-4d63-8058-a182be9c6a12"
+        },
+        "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb": {
+            "name": "Scan for additional threats",
+            "description": "Perform a recursive scan of the user's home directory to identify additional threats.",
+            "on_completion": "action--380c88fd-d6c4-4299-af84-8cbb5e3dcccc",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "loop": "action--ac9fb418-01d5-4aba-90bc-d36e1578bbbb",
+            "condition": "scan_results != 'clean'",
+            "agent": "organization--33ef9299-31fd-4d63-8058-a182be9c6a12"
+        },
+        "action--380c88fd-d6c4-4299-af84-8cbb5e3dcccc": {
+            "name": "Verify system integrity",
+            "description": "Use chkrootkit to verify the system for any rootkit presence.",
+            "on_completion": "if-condition--9d4c76f2-59d9-4e3b-bd2a-338c9c56d4dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "The result of the chkrootkit scan",
+                    "value": "output of chkrootkit",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "agent": "organization--33ef9299-31fd-4d63-8058-a182be9c6a12"
+        },
+        "if-condition--9d4c76f2-59d9-4e3b-bd2a-338c9c56d4dd": {
+            "name": "Evaluate Scan Results",
+            "description": "Determine the next course of action based on scan results.",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "action--a05624b7-4323-4df2-9119-0e0ff93d9999",
+            "on_false": "end--b399c467-3ea7-4df6-8331-fedc6e63f640"
+        },
+        "action--a05624b7-4323-4df2-9119-0e0ff93d9999": {
+            "name": "Update firewall rules",
+            "description": "Reload UFW to apply updated firewall rules.",
+            "on_completion": "end--b399c467-3ea7-4df6-8331-fedc6e63f640",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--33ef9299-31fd-4d63-8058-a182be9c6a12"
+        },
+        "end--b399c467-3ea7-4df6-8331-fedc6e63f640": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--33ef9299-31fd-4d63-8058-a182be9c6a12": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

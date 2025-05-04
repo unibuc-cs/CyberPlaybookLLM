@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ec27f77a-d8d2-4e61-b66d-f7d69151675d",
+    "name": "Mitigation Playbook for PowerShell Exploitation Incident",
+    "description": "This playbook mitigates an incident where an attacker used PowerShell to execute commands, exfiltrate data, and establish unauthorized connections.",
+    "created_by": "identity--abcdefab-1234-5678-90ab-cdef12345678",
+    "created": "2025-04-09T08:00:00.000Z",
+    "modified": "2025-04-09T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae54321",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae54321": {
+            "on_completion": "if-condition--978f4894-6700-4c32-8e7d-92ceb39c4082",
+            "type": "start"
+        },
+        "action--f9d41ace-eb71-4f70-bb7e-d1090982d81c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any executing malicious PowerShell processes.",
+            "on_completion": "parallel--3d1ed0dc-de16-4281-a47d-b3b390dd13c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--8524d557-d66c-47de-929a-128edef44fca"
+        },
+        "action--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4": {
+            "name": "Block outbound connection to suspicious IP",
+            "description": "Block any outgoing connections to the identified suspicious IP.",
+            "on_completion": "parallel--3d1ed0dc-de16-4281-a47d-b3b390dd13c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to [suspicious_ip]"
+                }
+            ],
+            "agent": "organization--8524d557-d66c-47de-929a-128edef44fca"
+        },
+        "action--de50d90e-d4e5-429e-b034-abc173951681": {
+            "name": "Initiate full system scan",
+            "description": "Run a full system scan to check for malicious threats.",
+            "on_completion": "end--04c92658-58b8-4951-8d10-070144c43628",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --bell -i /"
+                }
+            ],
+            "agent": "organization--8524d557-d66c-47de-929a-128edef44fca",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The variable to track the scan status",
+                    "value": "unknown",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "if-condition--978f4894-6700-4c32-8e7d-92ceb39c4082": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "process_running('powershell.exe')",
+            "on_true": "action--f9d41ace-eb71-4f70-bb7e-d1090982d81c",
+            "on_false": "if-condition--29f45728-1e9f-49dc-a0fa-45c9f6685699"
+        },
+        "if-condition--29f45728-1e9f-49dc-a0fa-45c9f6685699": {
+            "name": "Check for suspicious IP connection",
+            "type": "if-condition",
+            "condition": "connection_exists('[suspicious_ip]')",
+            "on_true": "action--b3a2a2f8-6e35-4a4f-b394-17e5fc9bc0a4",
+            "on_false": "action--de50d90e-d4e5-429e-b034-abc173951681"
+        },
+        "parallel--3d1ed0dc-de16-4281-a47d-b3b390dd13c4": {
+            "name": "Parallel execution for final steps",
+            "description": "Execute final mitigation tasks in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--de50d90e-d4e5-429e-b034-abc173951681"
+            ]
+        },
+        "end--04c92658-58b8-4951-8d10-070144c43628": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--8524d557-d66c-47de-929a-128edef44fca": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

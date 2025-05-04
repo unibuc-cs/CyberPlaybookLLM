@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b79b75c2-f6be-4f29-b79f-1cb3ae3fefc2",
+    "name": "Mitigation Playbook for PowerShell Malware Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited PowerShell to download and execute malware on the corporate network.",
+    "created_by": "identity--b1c8d503-78af-45d0-999f-080ef18fff17",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--8d16bda9-e346-4a0b-8052-8bb12eb22d37",
+    "workflow": {
+        "action--4bf4d194-dc59-4b63-bb3b-3e77be97ddb5": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that are potentially malicious.",
+            "on_completion": "action--d382e1a9-ace5-4889-a0ce-6a0c89c60aaf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--b7ba2dab-8e9b-4aa4-bc01-6590ba8075c4"
+        },
+        "action--d382e1a9-ace5-4889-a0ce-6a0c89c60aaf": {
+            "name": "Run malware scan on affected host",
+            "description": "Run a malware scan on the temporary directory to ensure all malware is detected and dealt with.",
+            "on_completion": "if-condition--713a5779-567d-4541-b9aa-b8dd5e5168b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /tmp"
+                }
+            ],
+            "agent": "organization--b7ba2dab-8e9b-4aa4-bc01-6590ba8075c4"
+        },
+        "action--bedfdb1c-2836-4cd1-b51a-4fc72b5a65ab": {
+            "name": "Block external IP address on firewall",
+            "description": "Block the attacker's external IP address to prevent further access.",
+            "on_completion": "end--fea5b82c-1ead-4c31-a480-3c0e0c9bc781",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--b7ba2dab-8e9b-4aa4-bc01-6590ba8075c4"
+        },
+        "start--8d16bda9-e346-4a0b-8052-8bb12eb22d37": {
+            "on_completion": "if-condition--f29b18a7-7ad3-4023-be22-a30a6ca2fe07",
+            "type": "start"
+        },
+        "if-condition--f29b18a7-7ad3-4023-be22-a30a6ca2fe07": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "is_process_running('powershell')",
+            "on_true": "action--4bf4d194-dc59-4b63-bb3b-3e77be97ddb5",
+            "on_false": "action--bedfdb1c-2836-4cd1-b51a-4fc72b5a65ab"
+        },
+        "if-condition--713a5779-567d-4541-b9aa-b8dd5e5168b8": {
+            "name": "Check if scan is clean",
+            "type": "if-condition",
+            "condition": "is_scan_clean()",
+            "on_true": "end--fea5b82c-1ead-4c31-a480-3c0e0c9bc781",
+            "on_false": "action--d382e1a9-ace5-4889-a0ce-6a0c89c60aaf"
+        },
+        "end--fea5b82c-1ead-4c31-a480-3c0e0c9bc781": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--b7ba2dab-8e9b-4aa4-bc01-6590ba8075c4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

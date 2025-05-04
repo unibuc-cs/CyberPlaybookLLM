@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6c56be1-74cc-4c9d-9bdd-6d59fcb0e570",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses an incident where an attacker leveraged a command and scripting interpreter to execute malicious commands and exfiltrate sensitive data.",
+    "created_by": "identity--c9d204c4-ff5b-4420-86a6-235edfae19bb",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--ab0a53e1-75ea-4f27-b404-e34aa428fcf0",
+    "workflow": {
+        "start--ab0a53e1-75ea-4f27-b404-e34aa428fcf0": {
+            "on_completion": "action--b6bfa0c4-c1e7-4e09-8f7c-b2cc0ab3947f",
+            "type": "start"
+        },
+        "action--b6bfa0c4-c1e7-4e09-8f7c-b2cc0ab3947f": {
+            "name": "Kill malicious process",
+            "description": "Terminate the web shell process that is executing on the compromised host.",
+            "on_completion": "if-condition--7e81fdfd-7860-4e32-af1e-4d4a41434c67",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f web-shell.php"
+                }
+            ],
+            "agent": "organization--9027e00f-4cce-401e-88e2-953013a164ef"
+        },
+        "if-condition--7e81fdfd-7860-4e32-af1e-4d4a41434c67": {
+            "name": "Check for uploaded web shell",
+            "type": "if-condition",
+            "condition": "test -f /var/www/html/web-shell.php",
+            "on_true": "action--abe6ec5a-5b1e-4c59-9a79-44b92f7593fb",
+            "on_false": "action--d192883a-08a6-4e70-aa4e-73cd2506a62b"
+        },
+        "action--abe6ec5a-5b1e-4c59-9a79-44b92f7593fb": {
+            "name": "Remove uploaded web shell",
+            "description": "Delete the malicious web shell from the server.",
+            "on_completion": "action--d192883a-08a6-4e70-aa4e-73cd2506a62b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /var/www/html/web-shell.php"
+                }
+            ],
+            "agent": "organization--9027e00f-4cce-401e-88e2-953013a164ef"
+        },
+        "action--d192883a-08a6-4e70-aa4e-73cd2506a62b": {
+            "name": "Perform disk scan for remnants",
+            "description": "Scan the home directory to detect any remaining threats.",
+            "on_completion": "while-condition--3c6d021b-8c24-4e7d-96d0-597f2ffd69b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user --remove"
+                }
+            ],
+            "agent": "organization--9027e00f-4cce-401e-88e2-953013a164ef"
+        },
+        "while-condition--3c6d021b-8c24-4e7d-96d0-597f2ffd69b0": {
+            "name": "Threat detection loop",
+            "description": "Continue scanning until no threats are detected.",
+            "on_completion": "end--18012976-3de3-489e-8957-bc2539c602d1",
+            "condition": "threats_detected == false",
+            "on_true": "action--d192883a-08a6-4e70-aa4e-73cd2506a62b",
+            "type": "if-condition"
+        },
+        "end--18012976-3de3-489e-8957-bc2539c602d1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9027e00f-4cce-401e-88e2-953013a164ef": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

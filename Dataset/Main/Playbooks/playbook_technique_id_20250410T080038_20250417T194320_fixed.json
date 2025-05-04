@@ -1,0 +1,150 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e5d8a8a1-dcdf-43a3-a9f5-b0cc8aa5e2c2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "A playbook addressing an incident involving unauthorized script execution leading to privilege escalation and backdoor installation.",
+    "created_by": "identity--e45bf2d0-eef7-4f87-b923-cb75ee4d3c31",
+    "created": "2023-11-18T16:00:00Z",
+    "modified": "2023-11-18T16:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--9bb2297a-cbaa-4e9f-9766-6c179e7d539a",
+    "workflow": {
+        "start--9bb2297a-cbaa-4e9f-9766-6c179e7d539a": {
+            "on_completion": "parallel--a3c9e0e8-564e-4023-93ba-c7de0e4a43e4",
+            "type": "start"
+        },
+        "end--199dcff6-18ca-4f44-b5c4-3ee3f9030b47": {
+            "type": "end"
+        },
+        "parallel--a3c9e0e8-564e-4023-93ba-c7de0e4a43e4": {
+            "name": "Initial Mitigation Actions",
+            "description": "Execute initial mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070",
+                "if-condition--c4c6a123-4cf7-4edf-b9bb-7e697eaeb3a4"
+            ]
+        },
+        "action--1c6b1b4f-0b40-48de-b08c-823bd63ce070": {
+            "name": "Kill malicious process",
+            "description": "Terminate the unauthorized script process.",
+            "on_completion": "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d"
+        },
+        "if-condition--c4c6a123-4cf7-4edf-b9bb-7e697eaeb3a4": {
+            "name": "Check backdoor presence",
+            "type": "if-condition",
+            "condition": "test -e /tmp/backdoor",
+            "on_true": "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7",
+            "on_false": "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5"
+        },
+        "action--0bb6dea6-3764-4b7b-9980-76ef6302a2f7": {
+            "name": "Remove backdoor files",
+            "description": "Delete the backdoor files for security.",
+            "on_completion": "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/backdoor"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d"
+        },
+        "action--9b3ce1a6-1cad-4bc8-9071-94ca678f95e5": {
+            "name": "Revert configuration changes",
+            "description": "Restore original system configurations.",
+            "on_completion": "while-condition--847afc94-59e5-4981-9ca8-c04aeb28cce5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "restorecon -R /etc/config"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d"
+        },
+        "while-condition--847afc94-59e5-4981-9ca8-c04aeb28cce5": {
+            "name": "Scan system for additional threats",
+            "description": "Perform repeated scans until no threats are found.",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "description": "Boolean to indicate if threats are still detected.",
+                    "value": true,
+                    "constant": false
+                }
+            },
+            "on_completion": "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490"
+        },
+        "action--02ebb4ce-de11-4e9a-bf3a-75ed1e323d1f": {
+            "name": "Execute system scan",
+            "description": "Run a system-wide scan.",
+            "on_completion": "while-condition--847afc94-59e5-4981-9ca8-c04aeb28cce5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "value": false
+                }
+            }
+        },
+        "action--f2bd96c0-0756-4c5c-b859-8a4e8c2e4490": {
+            "name": "Update firewall rules",
+            "description": "Block attacker IP in firewall.",
+            "on_completion": "if-condition--08bafc71-28e9-4227-9604-e6f3db623a84",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d"
+        },
+        "if-condition--08bafc71-28e9-4227-9604-e6f3db623a84": {
+            "name": "Check if threats were detected",
+            "type": "if-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--fe5bd426-bb75-4575-a44e-2321c3a83901",
+            "on_false": "end--199dcff6-18ca-4f44-b5c4-3ee3f9030b47"
+        },
+        "action--fe5bd426-bb75-4575-a44e-2321c3a83901": {
+            "name": "Notify IT security team",
+            "description": "Send incident report to IT security.",
+            "on_completion": "end--199dcff6-18ca-4f44-b5c4-3ee3f9030b47",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mail -s 'Security Incident Report' it-security@organization.com"
+                }
+            ],
+            "agent": "organization--96ecaa53-733a-4970-8845-f098f342ba5d"
+        }
+    },
+    "agent_definitions": {
+        "organization--96ecaa53-733a-4970-8845-f098f342ba5d": {
+            "type": "organization",
+            "name": "AffectedOrganization"
+        }
+    }
+}

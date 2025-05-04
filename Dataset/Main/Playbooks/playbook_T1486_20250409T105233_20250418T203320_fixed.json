@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d19b6765-d8a7-4f2b-9d68-becf4aa1ea8f",
+    "name": "Ransomware Mitigation Playbook for Data Encrypted for Impact",
+    "description": "This playbook addresses an incident involving ransomware that encrypted critical data across multiple servers.",
+    "created_by": "identity--4508129f-64f1-4194-aa4f-a720616c2bf5",
+    "created": "2025-04-09T10:00:00.000Z",
+    "modified": "2025-04-09T10:15:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12347",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12347": {
+            "on_completion": "if-condition--a4623e6c-bf4b-434c-b0b7-c18e5d80aef7",
+            "type": "start"
+        },
+        "if-condition--a4623e6c-bf4b-434c-b0b7-c18e5d80aef7": {
+            "name": "Check if ransomware detected",
+            "type": "if-condition",
+            "condition": "system_detects_ransomware == true",
+            "on_true": "loop--cfe2210e-5a39-4ca0-86b7-e04cf8addcd5",
+            "on_false": "action--0bbf4faf-686c-4bee-8c85-7c0ca5c78c8d"
+        },
+        "loop--cfe2210e-5a39-4ca0-86b7-e04cf8addcd5": {
+            "name": "Isolate infected systems loop",
+            "type": "while-condition",
+            "condition": "system_detects_ransomware == true",
+            "on_true": "action--b3198c4a-84a1-4f5c-8237-deb8726aed9a"
+        },
+        "action--b3198c4a-84a1-4f5c-8237-deb8726aed9a": {
+            "name": "Isolate infected systems",
+            "description": "Block incoming connections from the suspected IP address.",
+            "on_completion": "loop--cfe2210e-5a39-4ca0-86b7-e04cf8addcd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <IP_address> -j DROP"
+                }
+            ],
+            "agent": "organization--f706cd71-29b6-4d9c-93dc-c70ec5aa35ed"
+        },
+        "action--0bbf4faf-686c-4bee-8c85-7c0ca5c78c8d": {
+            "name": "Restore files from backup",
+            "description": "Restore critical data from backup if available.",
+            "on_completion": "if-condition--f0b807e7-c159-4a56-9b9b-c28c9a27dc18",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/secure/ /data/"
+                }
+            ],
+            "agent": "organization--f706cd71-29b6-4d9c-93dc-c70ec5aa35ed"
+        },
+        "if-condition--f0b807e7-c159-4a56-9b9b-c28c9a27dc18": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists == true",
+            "on_true": "action--f0b807e7-c159-4a56-9b9b-c28c9a27dc18",
+            "on_false": "action--end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--f0b807e7-c159-4a56-9b9b-c28c9a27dc18": {
+            "name": "Enable endpoint protection",
+            "description": "Start endpoint protection on the systems to prevent future attacks.",
+            "on_completion": "end--b4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl start endpoint-protection"
+                }
+            ],
+            "agent": "organization--f706cd71-29b6-4d9c-93dc-c70ec5aa35ed"
+        },
+        "end--b4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f706cd71-29b6-4d9c-93dc-c70ec5aa35ed": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

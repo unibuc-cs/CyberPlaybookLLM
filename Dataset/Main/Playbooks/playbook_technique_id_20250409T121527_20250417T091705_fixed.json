@@ -1,0 +1,108 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f2e5c0f5-fc36-4a26-b5cd-d05490c9000c",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses the incident where an attacker executed a malicious script through PowerShell, enabling additional payload downloads.",
+    "created_by": "identity--8de50ec7-8cb0-40d0-8ef5-2e56835b2619",
+    "created": "2023-10-05T15:00:00.000Z",
+    "modified": "2023-10-05T15:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--1f2df5a4-5f23-470e-8f2b-6b4ff4768b27",
+    "workflow": {
+        "start--1f2df5a4-5f23-470e-8f2b-6b4ff4768b27": {
+            "on_completion": "if-condition--cafea599-1212-4862-b62f-302ee1ed83c7",
+            "type": "start"
+        },
+        "if-condition--cafea599-1212-4862-b62f-302ee1ed83c7": {
+            "name": "Check for running malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "powershell_process_exists",
+            "on_true": "action--e4fce872-e526-4854-bd81-d7c8be8fba8f",
+            "on_false": "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45"
+        },
+        "action--e4fce872-e526-4854-bd81-d7c8be8fba8f": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any active PowerShell processes to stop malicious activity.",
+            "on_completion": "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--6a50e428-5e3c-4a20-8dba-f26575b62985"
+        },
+        "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45": {
+            "name": "Remove downloaded malware",
+            "description": "Remove any suspicious files that were downloaded during the incident.",
+            "on_completion": "while-condition--cfe2210e-5a39-4ca0-86b7-e04cf8addcd5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/suspicious-malware"
+                }
+            ],
+            "agent": "organization--6a50e428-5e3c-4a20-8dba-f26575b62985"
+        },
+        "while-condition--cfe2210e-5a39-4ca0-86b7-e04cf8addcd5": {
+            "name": "Check Malware Deletion",
+            "description": "Repeat until the malware is confirmed deleted.",
+            "on_completion": "if-condition--c0bba17a-2bab-48cf-b31b-e7301687858a",
+            "type": "while-condition",
+            "condition": "malware_path_exist('/tmp/suspicious-malware')",
+            "on_true": "action--df5c6c6e-ef3e-4e07-9f67-07b6bcafbd45"
+        },
+        "if-condition--c0bba17a-2bab-48cf-b31b-e7301687858a": {
+            "name": "Check if malicious process was detected",
+            "type": "if-condition",
+            "condition": "malicious_process_detected",
+            "on_true": "action--e23d917e-b5ae-4be6-abd2-c5ca51637d82",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--e23d917e-b5ae-4be6-abd2-c5ca51637d82": {
+            "name": "Initiate full system scan with antivirus software",
+            "description": "Run a full system scan to detect any residual threats.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-cli scan --full"
+                }
+            ],
+            "agent": "organization--6a50e428-5e3c-4a20-8dba-f26575b62985"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6a50e428-5e3c-4a20-8dba-f26575b62985": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malware_path": {
+            "type": "string",
+            "description": "The path of the suspected malware to be deleted",
+            "value": "/tmp/suspicious-malware",
+            "constant": false
+        },
+        "powershell_process_exists": {
+            "type": "boolean",
+            "description": "Indicates whether any malicious PowerShell process is currently running",
+            "value": true,
+            "constant": false
+        },
+        "malicious_process_detected": {
+            "type": "boolean",
+            "description": "Indicates whether any malicious processes were detected during the operations",
+            "value": true,
+            "constant": false
+        }
+    }
+}

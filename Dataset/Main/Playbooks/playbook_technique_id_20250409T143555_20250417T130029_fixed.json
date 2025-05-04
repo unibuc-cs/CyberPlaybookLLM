@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d455f594-47a9-4c03-9b47-df52c3bb15a7",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts via command-line, aiming to create backdoors for ongoing network access.",
+    "created_by": "identity--3ce6c1af-bdf5-4deb-ae18-302ff94626df",
+    "created": "2025-04-10T10:00:00Z",
+    "modified": "2025-04-10T10:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "parallel--f77a5e0a-4c3f-4cc8-9e6d-f18146e6e05c",
+            "type": "start"
+        },
+        "parallel--f77a5e0a-4c3f-4cc8-9e6d-f18146e6e05c": {
+            "name": "Execute Mitigation Tasks",
+            "description": "Initiate multiple mitigation tasks in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--e113e1cb-7215-4cb9-babe-db8455848635",
+                "action--c8f6c7b2-687f-46a0-ba61-2887fa463d52"
+            ]
+        },
+        "if-condition--e113e1cb-7215-4cb9-babe-db8455848635": {
+            "name": "Check for Malicious Process",
+            "type": "if-condition",
+            "condition": "pgrep malicious_script",
+            "on_true": "action--d44d9303-eabc-49fa-a8f5-e73f785f0300",
+            "on_false": "loop--5a1f11cb-bc59-4c07-a2a2-5ffb35a3ee0e"
+        },
+        "action--d44d9303-eabc-49fa-a8f5-e73f785f0300": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "loop--5a1f11cb-bc59-4c07-a2a2-5ffb35a3ee0e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--64a7ae6f-22a7-450e-88cc-599824783694"
+        },
+        "loop--5a1f11cb-bc59-4c07-a2a2-5ffb35a3ee0e": {
+            "name": "Delete Malicious Files Loop",
+            "description": "Repeat until all malicious files are deleted from the temp directory.",
+            "on_completion": "action--3b8da3b8-4f57-4827-9c80-ae2e1a05fc77",
+            "type": "while-condition",
+            "condition": "ls /tmp | grep malicious_payload",
+            "on_true": "action--c8f6c7b2-687f-46a0-ba61-2887fa463d52"
+        },
+        "action--c8f6c7b2-687f-46a0-ba61-2887fa463d52": {
+            "name": "Delete Malicious Files",
+            "description": "Remove malicious files from the temporary directory.",
+            "on_completion": "action--3b8da3b8-4f57-4827-9c80-ae2e1a05fc77",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malicious_payload"
+                }
+            ],
+            "agent": "organization--64a7ae6f-22a7-450e-88cc-599824783694"
+        },
+        "action--3b8da3b8-4f57-4827-9c80-ae2e1a05fc77": {
+            "name": "Run Antivirus Scan",
+            "description": "Perform a full antivirus scan on the server.",
+            "on_completion": "end--f15b2ce5-6a43-4bc5-874d-57c4948801d5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-av-scan --full > scan_report"
+                }
+            ],
+            "agent": "organization--64a7ae6f-22a7-450e-88cc-599824783694",
+            "step_variables": {
+                "scan_report": {
+                    "type": "string",
+                    "description": "Antivirus scan report output",
+                    "value": "scan_report"
+                }
+            }
+        },
+        "end--f15b2ce5-6a43-4bc5-874d-57c4948801d5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--64a7ae6f-22a7-450e-88cc-599824783694": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

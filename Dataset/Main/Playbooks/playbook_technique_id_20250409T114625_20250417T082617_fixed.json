@@ -1,0 +1,122 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3eec6053-6c0f-42f0-92c7-9b98b8ed287f",
+    "name": "Incident Response Playbook for Exploitation via Malicious Email Attachment",
+    "description": "This playbook addresses an incident where an employee opened a malicious email attachment leading to malware installation and data exfiltration.",
+    "created_by": "identity--57f43715-9ae2-4687-8d07-c19533747ba3",
+    "created": "2023-10-15T14:35:22Z",
+    "modified": "2023-10-15T14:35:22Z",
+    "revoked": false,
+    "workflow_start": "start--f71e2a07-e6b5-4e5d-afed-234251d935cf",
+    "workflow": {
+        "start--f71e2a07-e6b5-4e5d-afed-234251d935cf": {
+            "on_completion": "parallel--4424cf9f-51c8-416b-a490-e6a2e943c76f",
+            "type": "start"
+        },
+        "parallel--4424cf9f-51c8-416b-a490-e6a2e943c76f": {
+            "name": "Process Compromise",
+            "description": "Initiate immediate actions to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--36da7e7f-e063-49f6-a2b6-7e5a02525277",
+                "action--daa0a474-86f5-4701-9471-71da1aeadc29"
+            ]
+        },
+        "action--daa0a474-86f5-4701-9471-71da1aeadc29": {
+            "name": "Isolate Compromised Host",
+            "description": "Disconnect the compromised host from the network.",
+            "on_completion": "action--0a6b9c65-2775-4ec4-b7b2-b68768566507",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "action--36da7e7f-e063-49f6-a2b6-7e5a02525277": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any processes that are executing the malicious executable.",
+            "on_completion": "action--f5ef924b-ed85-4455-813d-6d9ebe2e8362",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_executable"
+                }
+            ],
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "action--f5ef924b-ed85-4455-813d-6d9ebe2e8362": {
+            "name": "Run Full System Scan",
+            "description": "Perform a full scan of the system to find other possible threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "on_completion": "if-condition--ba06afba-5ff4-4fe5-8710-51078e57b475",
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "if-condition--ba06afba-5ff4-4fe5-8710-51078e57b475": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_results == 'clean'",
+            "on_true": "action--afecdcaa-a692-4c6b-a7a5-cc12265b8fdd",
+            "on_false": "action--c39fcd81-7c5e-419b-9887-2b405ec0b2e6"
+        },
+        "action--afecdcaa-a692-4c6b-a7a5-cc12265b8fdd": {
+            "name": "Change User Credentials",
+            "description": "Change user credentials if the user is identified as compromised.",
+            "on_completion": "end--03849fc8-b354-485d-b622-1d9bd244fd08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user_name"
+                }
+            ],
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "action--c39fcd81-7c5e-419b-9887-2b405ec0b2e6": {
+            "name": "Repeat Full System Scan",
+            "description": "Repeat the full system scan until the system is clean.",
+            "on_completion": "if-condition--ba06afba-5ff4-4fe5-8710-51078e57b475",
+            "type": "loop",
+            "loop_condition": "repeat until scan is clean",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "action--0a6b9c65-2775-4ec4-b7b2-b68768566507": {
+            "name": "Notify All Users of Incident",
+            "description": "Inform all users about the security incident.",
+            "on_completion": "end--03849fc8-b354-485d-b622-1d9bd244fd08",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert --users 'all' --message 'Security Incident Detected'"
+                }
+            ],
+            "agent": "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a"
+        },
+        "end--03849fc8-b354-485d-b622-1d9bd244fd08": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7e8a5b2c-634e-40b6-8119-4dfa1bdc5a5a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

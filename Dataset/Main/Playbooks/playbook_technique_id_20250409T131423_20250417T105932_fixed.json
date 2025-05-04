@@ -1,0 +1,84 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--9c27a0d5-3b35-4c3a-8ad0-75f17d0879ff",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker utilized a command-line interpreter to execute unauthorized commands leading to data exfiltration.",
+    "created_by": "identity--dc7ce153-a208-4606-967c-5c88ef16fb07",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--8f1cbd32-d38c-44cb-8fd7-ad1a78c940f3",
+            "type": "start"
+        },
+        "action--8f1cbd32-d38c-44cb-8fd7-ad1a78c940f3": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are running the suspicious script.",
+            "on_completion": "action--ae42b070-3f2c-48b1-8f95-64c92bb5daf6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--c1f6543a-3735-440a-b155-3ebb433b7af0"
+        },
+        "action--ae42b070-3f2c-48b1-8f95-64c92bb5daf6": {
+            "name": "Monitor network traffic",
+            "description": "Monitor network traffic for unauthorized access attempts.",
+            "on_completion": "while-condition--c2d5d79b-7b19-49b5-8c52-76d413b73fd4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0 -nn -s0 -A 'tcp port 22'"
+                }
+            ],
+            "agent": "organization--c1f6543a-3735-440a-b155-3ebb433b7af0"
+        },
+        "while-condition--c2d5d79b-7b19-49b5-8c52-76d413b73fd4": {
+            "name": "Full system scan loop",
+            "description": "Perform a full system scan to ensure no malicious processes remain.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "malicious_process_found == true",
+            "on_true": "action--c2d5d79b-7b19-49b5-8c52-76d413b73fd4",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--c2d5d79b-7b19-49b5-8c52-76d413b73fd4": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to detect and remove any remaining threats.",
+            "on_completion": "while-condition--c2d5d79b-7b19-49b5-8c52-76d413b73fd4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r --remove /"
+                }
+            ],
+            "agent": "organization--c1f6543a-3735-440a-b155-3ebb433b7af0",
+            "step_variables": {
+                "malicious_process_found": {
+                    "type": "boolean",
+                    "description": "Indicates whether malicious processes are found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c1f6543a-3735-440a-b155-3ebb433b7af0": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

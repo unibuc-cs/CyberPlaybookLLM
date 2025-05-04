@@ -1,0 +1,88 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c630b7d3-57e3-4e78-bd4b-4c2cb4e94b8f",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook outlines the mitigation steps following unauthorized command execution through the command line.",
+    "created_by": "identity--00164711-04d5-4787-a248-9c3ef2e30c24",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--0b34edae-1e91-44d0-a4fd-c982c436a8c7",
+    "workflow": {
+        "start--0b34edae-1e91-44d0-a4fd-c982c436a8c7": {
+            "on_completion": "action--76ed3a7d-13a1-44d1-ab7b-3f7e0c54b3fd",
+            "type": "start"
+        },
+        "action--76ed3a7d-13a1-44d1-ab7b-3f7e0c54b3fd": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that match the suspicious command.",
+            "on_completion": "action--8c5aff54-66b9-4dbb-b204-e8fb778ff0e4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_command"
+                }
+            ],
+            "agent": "organization--c2c095aa-e36a-49e8-b3dd-8aba8c79b079"
+        },
+        "action--8c5aff54-66b9-4dbb-b204-e8fb778ff0e4": {
+            "name": "Isolate affected host",
+            "description": "Take down the compromised host to prevent further harm.",
+            "on_completion": "loop--95d20444-31f5-4c5b-867e-dbbd5b8d29a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-32 down"
+                }
+            ],
+            "agent": "organization--c2c095aa-e36a-49e8-b3dd-8aba8c79b079"
+        },
+        "loop--95d20444-31f5-4c5b-867e-dbbd5b8d29a1": {
+            "name": "Perform system audit",
+            "description": "Audit the system until the logs are clean.",
+            "on_completion": "action--fb16358b-5e36-4c02-8245-5a043b0e1c92",
+            "type": "while-condition",
+            "condition": "audit_logs_clean == false",
+            "on_true": "action--95d20444-31f5-4c5b-867e-dbbd5b8d29a1",
+            "on_false": "action--fb16358b-5e36-4c02-8245-5a043b0e1c92"
+        },
+        "action--fb16358b-5e36-4c02-8245-5a043b0e1c92": {
+            "name": "Update firewall rules",
+            "description": "Block outbound traffic to known malicious IPs.",
+            "on_completion": "action--1e3f4779-d895-434c-b24c-56da8e1c4981",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j DROP"
+                }
+            ],
+            "agent": "organization--c2c095aa-e36a-49e8-b3dd-8aba8c79b079"
+        },
+        "action--1e3f4779-d895-434c-b24c-56da8e1c4981": {
+            "name": "Restore files from backup",
+            "description": "Restore affected files from backup to ensure data integrity.",
+            "on_completion": "end--e7c84205-e339-4b38-b2f5-1b1aa3d8fbd6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/* /data/"
+                }
+            ],
+            "agent": "organization--c2c095aa-e36a-49e8-b3dd-8aba8c79b079"
+        },
+        "end--e7c84205-e339-4b38-b2f5-1b1aa3d8fbd6": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c2c095aa-e36a-49e8-b3dd-8aba8c79b079": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--ba8f9304-7a88-4a34-bc66-77ee071fce4a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to an incident where an attacker executed command scripts that probed sensitive areas and exfiltrated data.",
+    "created_by": "identity--97109727-866a-49cd-beeb-38f7d48625ed",
+    "created": "2023-10-12T14:26:00Z",
+    "modified": "2023-10-12T14:27:50Z",
+    "revoked": false,
+    "workflow_start": "start--d289045c-b782-4909-827e-4bc6fc53dc53",
+    "workflow": {
+        "start--d289045c-b782-4909-827e-4bc6fc53dc53": {
+            "on_completion": "parallel--1a678495-a316-4364-a4b1-84de6f8fa5d8",
+            "type": "start"
+        },
+        "parallel--1a678495-a316-4364-a4b1-84de6f8fa5d8": {
+            "name": "Initiate Mitigations",
+            "description": "Execute multiple actions in parallel to mitigate the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e0e7dc20-70bc-4a44-b7a9-eb2909f4081f",
+                "action--f7c8ffcb-0c3d-4de2-b382-3c327e97e523",
+                "loop--91b21367-f0ab-490b-b766-e0cfed59c87d"
+            ]
+        },
+        "action--e0e7dc20-70bc-4a44-b7a9-eb2909f4081f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes associated with the malicious script.",
+            "on_completion": "action--f7c8ffcb-0c3d-4de2-b382-3c327e97e523",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--e12d1dae-2e3b-4ea6-a682-deae2e4be508"
+        },
+        "action--f7c8ffcb-0c3d-4de2-b382-3c327e97e523": {
+            "name": "Isolate affected host",
+            "description": "Block all incoming traffic to the affected host to prevent further damage.",
+            "on_completion": "loop--91b21367-f0ab-490b-b766-e0cfed59c87d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-01' ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--e12d1dae-2e3b-4ea6-a682-deae2e4be508"
+        },
+        "loop--91b21367-f0ab-490b-b766-e0cfed59c87d": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan; repeat until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--91b21367-f0ab-490b-b766-e0cfed59c87d",
+            "on_false": "end--5a891259-b3f6-4326-ab15-500e41cd8c5f",
+            "while-steps": [
+                {
+                    "step": "Scan system",
+                    "commands": [
+                        {
+                            "type": "bash",
+                            "command": "clamscan -r / --bell"
+                        }
+                    ]
+                }
+            ]
+        },
+        "end--5a891259-b3f6-4326-ab15-500e41cd8c5f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e12d1dae-2e3b-4ea6-a682-deae2e4be508": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

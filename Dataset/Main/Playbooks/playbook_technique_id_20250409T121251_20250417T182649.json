@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e0f3c28b-7e50-4b13-83f1-38657f54d1cc",
+    "name": "Mitigation Playbook for Command Injection Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable web application to execute scripts on the server using a command injection technique, leading to unauthorized file access and data exfiltration.",
+    "created_by": "identity--abc-def-123",
+    "created": "2023-10-01T15:00:00Z",
+    "modified": "2023-10-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d5182e28-6036-4c72-9ff7-cd978e0e961c",
+    "workflow": {
+        "start--d5182e28-6036-4c72-9ff7-cd978e0e961c": {
+            "on_completion": "parallel--d1c1f88d-7c79-4ff5-896c-ef1c717780e0",
+            "type": "start"
+        },
+        "parallel--d1c1f88d-7c79-4ff5-896c-ef1c717780e0": {
+            "name": "Execute Mitigations",
+            "description": "Trigger both killing the malicious process and removing dropped files in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "if-condition--71eb7d7c-8b9b-4e92-873e-2c104cdbc02f",
+                "loop--f92c4c47-874d-4e18-b5a5-cfb617c882b8"
+            ]
+        },
+        "if-condition--71eb7d7c-8b9b-4e92-873e-2c104cdbc02f": {
+            "name": "Check if web shell is running",
+            "type": "if-condition",
+            "condition": "web_shell_is_running",
+            "on_true": "action--d3e461f8-25ff-4e68-9277-5f07f23c4f23",
+            "on_false": "loop--f92c4c47-874d-4e18-b5a5-cfb617c882b8"
+        },
+        "loop--f92c4c47-874d-4e18-b5a5-cfb617c882b8": {
+            "name": "Repeat until no dropped files",
+            "description": "Keep removing files until none are left.",
+            "on_completion": "if-condition--a6d12a69-27b2-4b0c-82bc-0c8c2c14f606",
+            "type": "loop",
+            "condition": "files_matched == true",
+            "next_steps": [
+                "action--7cfaaf51-d053-4b8d-835c-1ac4a2d0d17e"
+            ]
+        },
+        "action--7cfaaf51-d053-4b8d-835c-1ac4a2d0d17e": {
+            "name": "Remove dropped files",
+            "on_completion": "loop--f92c4c47-874d-4e18-b5a5-cfb617c882b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /var/www/html/web_shell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d3e461f8-25ff-4e68-9277-5f07f23c4f23": {
+            "name": "Kill malicious process",
+            "on_completion": "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f web_shell"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--24ec51b9-d1cd-4a6b-9f00-59e48bed4d3e": {
+            "name": "Run security scan",
+            "description": "Perform a deep scan of the web directory to detect any remaining threats.",
+            "on_completion": "end--9e2a88b5-d1b4-4654-b7bb-bdbe45094f8b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /var/www"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the scan after execution.",
+                    "value": "initial",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--9e2a88b5-d1b4-4654-b7bb-bdbe45094f8b": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

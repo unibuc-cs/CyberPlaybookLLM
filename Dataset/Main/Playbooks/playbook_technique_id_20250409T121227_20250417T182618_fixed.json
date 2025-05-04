@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d1917f97-e0f3-493e-8c8c-509e2e4db2b7",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident of an attacker leveraging a scripting interpreter to execute malicious commands, resulting in unauthorized access and data exfiltration.",
+    "created_by": "identity--43b36c0a-798b-4bb8-a085-bcd8a72ae175",
+    "created": "2023-10-10T10:00:00Z",
+    "modified": "2023-10-10T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--6309aea1-b71a-4f0a-a92e-5f3a062e2b8f",
+    "workflow": {
+        "action--c129f6c3-4e29-47a4-8f94-e4b52deeecf7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script that has been executed.",
+            "on_completion": "action--ca6c0193-3fd5-4e02-975b-809c614c8c02",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--e5b04d84-f3f3-4fdc-9748-e090e1b561f8"
+        },
+        "action--ca6c0193-3fd5-4e02-975b-809c614c8c02": {
+            "name": "Isolate affected host from network",
+            "description": "Take the affected host off the network to prevent further data exfiltration.",
+            "on_completion": "loop--de1c0a4e-2ae6-4801-b222-e3bd3e8eddbb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--e5b04d84-f3f3-4fdc-9748-e090e1b561f8"
+        },
+        "loop--de1c0a4e-2ae6-4801-b222-e3bd3e8eddbb": {
+            "name": "Run malware scan on system",
+            "description": "Perform a malware scan on the isolated system to check for threats.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "while-condition",
+            "condition": "scan_result == false",
+            "on_true": "action--de1c0a4e-2ae6-4801-b222-e3bd3e8eddbb",
+            "step_variables": {
+                "scan_result": {
+                    "type": "boolean",
+                    "description": "Result of the scan, false if threats are detected.",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "action--de1c0a4e-2ae6-4801-b222-e3bd3e8eddbb": {
+            "name": "Execute malware scan",
+            "description": "Run a malware scan on the affected system.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--e5b04d84-f3f3-4fdc-9748-e090e1b561f8"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "start--6309aea1-b71a-4f0a-a92e-5f3a062e2b8f": {
+            "on_completion": "action--c129f6c3-4e29-47a4-8f94-e4b52deeecf7",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--e5b04d84-f3f3-4fdc-9748-e090e1b561f8": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

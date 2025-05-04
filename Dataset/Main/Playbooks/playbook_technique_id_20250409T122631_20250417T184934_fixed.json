@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3bbb3ad-6ffd-4f9f-9345-4d4c3aa40d92",
+    "name": "Playbook for Command and Scripting Interpreter Incident Response",
+    "description": "This playbook addresses an incident where an attacker executed a malicious script for data exfiltration.",
+    "created_by": "identity--db6c76a7-d261-43d6-9752-c1ba336b1e07",
+    "created": "2023-10-15T14:30:00Z",
+    "modified": "2023-10-15T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b2a88df3-1146-4d69-8df8-1234567890ab",
+    "workflow": {
+        "start--b2a88df3-1146-4d69-8df8-1234567890ab": {
+            "on_completion": "action--1c7f6e8e-3ebd-4e68-bc79-12349876abcd",
+            "type": "start"
+        },
+        "action--1c7f6e8e-3ebd-4e68-bc79-12349876abcd": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that was executed.",
+            "on_completion": "action--2a6cfea4-5d07-4016-a6cf-925abcd1d334",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--d6b286b2-b132-4a79-b957-f3d1833cec83"
+        },
+        "action--2a6cfea4-5d07-4016-a6cf-925abcd1d334": {
+            "name": "Identify and block suspicious IP",
+            "description": "Block the incoming connections from the suspicious IP address.",
+            "on_completion": "decision--1848ed3f-9349-48ae-b280-792aa16d0339",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--d6b286b2-b132-4a79-b957-f3d1833cec83"
+        },
+        "action--c1199db5-63af-4cf2-bd39-456ff25c45ea": {
+            "name": "Scan the system for rootkits and malware",
+            "description": "Run a scan to identify any malware or rootkits on the system.",
+            "on_completion": "decision--ee1e3bca-2391-4eee-9a41-760af5f67660",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rkhunter --check"
+                }
+            ],
+            "agent": "organization--d6b286b2-b132-4a79-b957-f3d1833cec83"
+        },
+        "end--f36a6ce2-7d42-4549-a01c-f5b6a4c8ca57": {
+            "step_extensions": {
+                "": "extension-definition--417a3e48-6882-4d4a-8f92-133f7c6bdabd"
+            },
+            "type": "end"
+        },
+        "decision--1848ed3f-9349-48ae-b280-792aa16d0339": {
+            "name": "Check if malicious traffic detected",
+            "type": "if-condition",
+            "condition": "malicious_traffic_detected == true",
+            "on_true": "action--c1199db5-63af-4cf2-bd39-456ff25c45ea",
+            "on_false": "end--f36a6ce2-7d42-4549-a01c-f5b6a4c8ca57"
+        },
+        "decision--ee1e3bca-2391-4eee-9a41-760af5f67660": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_is_clean == false",
+            "on_true": "action--c1199db5-63af-4cf2-bd39-456ff25c45ea",
+            "on_false": "end--f36a6ce2-7d42-4549-a01c-f5b6a4c8ca57"
+        }
+    },
+    "agent_definitions": {
+        "organization--d6b286b2-b132-4a79-b957-f3d1833cec83": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "malicious_traffic_detected": {
+            "type": "boolean",
+            "description": "Flag indicating if malicious traffic was detected",
+            "value": "true",
+            "constant": false
+        },
+        "scan_is_clean": {
+            "type": "boolean",
+            "description": "Flag indicating if the scan has cleared any threats",
+            "value": "false",
+            "constant": false
+        }
+    }
+}

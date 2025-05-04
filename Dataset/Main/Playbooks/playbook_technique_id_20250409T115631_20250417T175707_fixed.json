@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a23b1d6e-3b24-4e0f-8515-d7cd5120cc90",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident involving a malicious PowerShell script execution, mitigating the risk through process termination, firewall rules, and memory scans.",
+    "created_by": "identity--928d1a3b-d8c1-4b3a-b59e-2451cb528946",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--634b03bc-5f87-4e55-bcd8-1bb15c742cc3",
+    "workflow": {
+        "start--634b03bc-5f87-4e55-bcd8-1bb15c742cc3": {
+            "on_completion": "action--c64f7c39-97a8-4c26-9c86-b87948bb59b3",
+            "type": "start"
+        },
+        "action--c64f7c39-97a8-4c26-9c86-b87948bb59b3": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "action--f0bc510b-2b78-4bd1-b458-6c7185aeabb7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name powershell -Force"
+                }
+            ],
+            "agent": "organization--294c219f-5d94-4115-b025-4d4f695f48ba"
+        },
+        "action--f0bc510b-2b78-4bd1-b458-6c7185aeabb7": {
+            "name": "Block Outbound Connection to Suspicious IP",
+            "description": "Create a firewall rule to block outbound connections to the suspicious IP address.",
+            "on_completion": "while-condition--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-NetFirewallRule -DisplayName 'Block Suspicious IP' -Direction Outbound -RemoteAddress '<Suspicious_IP>' -Action Block"
+                }
+            ],
+            "agent": "organization--294c219f-5d94-4115-b025-4d4f695f48ba"
+        },
+        "while-condition--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278": {
+            "name": "Run Memory Scan on Host-22",
+            "description": "Execute a memory scan on host-22 in a loop until the scan is clean.",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278",
+            "on_false": "end--abc8f854-458c-4c93-8146-9a2a3f0c262e"
+        },
+        "action--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278": {
+            "name": "Execute Memory Scan",
+            "description": "Perform a memory scan on host-22.",
+            "on_completion": {
+                "condition": "scan_status == 'clean'--4ccc94d2-fc00-4e44-9eff-07ca59565c3b",
+                "true": "end--abc8f854-458c-4c93-8146-9a2a3f0c262e",
+                "false": "action--cb0c3c9b-d4c8-4b44-b5be-88d0f3a74278"
+            },
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Start-Sleep -Seconds 5; Invoke-Expression 'Run-MemoryScan -Host host-22'"
+                }
+            ],
+            "agent": "organization--294c219f-5d94-4115-b025-4d4f695f48ba",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the memory scan, expected values: 'clean', 'infected'",
+                    "value": "infected",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--abc8f854-458c-4c93-8146-9a2a3f0c262e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--294c219f-5d94-4115-b025-4d4f695f48ba": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

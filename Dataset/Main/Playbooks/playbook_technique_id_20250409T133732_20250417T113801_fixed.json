@@ -1,0 +1,105 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e2a0f8f5-b8f5-4c92-b6d9-427d23e38f6d",
+    "name": "Playbook for Command and Scripting Interpreter Incident Mitigation",
+    "description": "This playbook manages an incident where an adversary used a command-line shell to execute unauthorized scripts resulting in malware deployment and data exfiltration.",
+    "created_by": "identity--a1234567-b89c-12d3-a456-426614174000",
+    "created": "2023-10-15T13:00:00Z",
+    "modified": "2023-10-15T13:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f8dce72-124c-4b25-859a-1356c40fd3ad",
+    "workflow": {
+        "start--1f8dce72-124c-4b25-859a-1356c40fd3ad": {
+            "on_completion": "action--fa8f0cce-57c2-4aa9-9e2e-1dea5cd16b73",
+            "type": "start"
+        },
+        "action--fa8f0cce-57c2-4aa9-9e2e-1dea5cd16b73": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--cd260f8c-6c6d-4914-8e04-d07f8958e367",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--0de23589-40a6-43e0-8f06-1ce883028d26"
+        },
+        "action--cd260f8c-6c6d-4914-8e04-d07f8958e367": {
+            "name": "Remove unauthorized scripts",
+            "description": "Delete any unauthorized scripts found in the user directory.",
+            "on_completion": "loop--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find /home/user -name 'suspicious_script.sh' -delete"
+                }
+            ],
+            "agent": "organization--0de23589-40a6-43e0-8f06-1ce883028d26"
+        },
+        "loop--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c": {
+            "name": "Initiate full system scan",
+            "description": "Perform a full system scan until no malicious files are found.",
+            "on_completion": "end--6f8f85b2-65b5-467e-bf12-828fb79819b0",
+            "type": "while-condition",
+            "condition": "initial_scan_status != 'clean'",
+            "on_true": "action--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c",
+            "next_steps": [
+                "action--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c"
+            ]
+        },
+        "action--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c": {
+            "name": "Run full system scan",
+            "description": "Initiate a full system scan to check for remaining malware.",
+            "on_completion": "if-condition--39d5a5a6-bf95-4c5d-a291-0ef20aa5f187",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home/user"
+                }
+            ],
+            "agent": "organization--0de23589-40a6-43e0-8f06-1ce883028d26",
+            "step_variables": {
+                "initial_scan_status": {
+                    "type": "string",
+                    "description": "Scan status indication.",
+                    "value": "not_clean",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--6f8f85b2-65b5-467e-bf12-828fb79819b0": {
+            "type": "end"
+        },
+        "if-condition--39d5a5a6-bf95-4c5d-a291-0ef20aa5f187": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "grep -q 'Infected files: 0' /path/to/scan/results",
+            "on_true": "set-scan-status-to-clean--fa59b021-1ebf-43b7-8f6b-4cda6d7f373a",
+            "on_false": "loop--b2ee5f55-dab2-41bc-8c1d-05b6df2cfd1c"
+        },
+        "set-scan-status-to-clean--fa59b021-1ebf-43b7-8f6b-4cda6d7f373a": {
+            "name": "Set scan status to clean",
+            "on_completion": "end--6f8f85b2-65b5-467e-bf12-828fb79819b0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "initial_scan_status='clean'"
+                }
+            ],
+            "agent": "organization--0de23589-40a6-43e0-8f06-1ce883028d26"
+        }
+    },
+    "agent_definitions": {
+        "organization--0de23589-40a6-43e0-8f06-1ce883028d26": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

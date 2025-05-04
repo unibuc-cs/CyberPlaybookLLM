@@ -1,0 +1,111 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4c10f8e5-a40b-4d79-b5e7-4ae10e6f8023",
+    "name": "Mitigation Playbook for Service Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable system service to execute arbitrary code remotely, detected by unusual service behavior.",
+    "created_by": "identity--69e095ce-6e4a-424b-b40c-b82df5a42f9d",
+    "created": "2025-04-10T08:55:30.498Z",
+    "modified": "2025-04-10T08:57:00.043Z",
+    "revoked": false,
+    "workflow_start": "start--c81b1c5c-377c-48ed-b27b-e0d401eedf88",
+    "workflow": {
+        "start--c81b1c5c-377c-48ed-b27b-e0d401eedf88": {
+            "on_completion": "parallel--b70e40df-020e-4f50-812d-d1627b99f291",
+            "type": "start"
+        },
+        "parallel--b70e40df-020e-4f50-812d-d1627b99f291": {
+            "name": "Execute Mitigations",
+            "description": "Run mitigation steps in parallel to contain the threat.",
+            "type": "parallel",
+            "next_steps": [
+                "action--791c1641-ab4d-4c5e-bf4b-a5865653aa3e",
+                "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4",
+                "action--03c1f57c-e1d1-4e79-b880-7d83f8b1f0dd",
+                "action--0e826509-ae47-4b31-b5a7-7a94756e4406",
+                "action--aec45a5b-949d-47f7-9c66-61b65a6b2673"
+            ]
+        },
+        "action--791c1641-ab4d-4c5e-bf4b-a5865653aa3e": {
+            "name": "Stop the malicious service",
+            "description": "Stop the identified malicious service to prevent further exploitation.",
+            "on_completion": "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl stop <service_name>"
+                }
+            ],
+            "agent": "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3"
+        },
+        "action--44a1ed53-afd5-4b62-bd4e-1e96f6aee3d4": {
+            "name": "Kill malicious processes",
+            "description": "Terminate any processes that are known to be malicious.",
+            "on_completion": "action--03c1f57c-e1d1-4e79-b880-7d83f8b1f0dd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f <malicious_process>"
+                }
+            ],
+            "agent": "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3"
+        },
+        "action--03c1f57c-e1d1-4e79-b880-7d83f8b1f0dd": {
+            "name": "Run a full system scan for malware",
+            "description": "Conduct a thorough malware scan until the system is clean.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while [ \"$scan_status\" -ne 0 ]; do clamscan -r /; scan_status=$?; done"
+                }
+            ],
+            "agent": "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3",
+            "step_variables": {
+                "scan_status": {
+                    "type": "integer",
+                    "description": "Stores the result of the last scan command; expect 0 if clean",
+                    "value": "1",
+                    "constant": false
+                }
+            }
+        },
+        "action--0e826509-ae47-4b31-b5a7-7a94756e4406": {
+            "name": "Check and remove unauthorized users",
+            "description": "Identify and remove unauthorized users from the system.",
+            "on_completion": "action--aec45a5b-949d-47f7-9c66-61b65a6b2673",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for user in $(cat /etc/passwd | grep '<unauthorized_user_pattern>'); do userdel -r $user; done"
+                }
+            ],
+            "agent": "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3"
+        },
+        "action--aec45a5b-949d-47f7-9c66-61b65a6b2673": {
+            "name": "Review logs for unusual activity",
+            "description": "Scan logs for any suspicious activities related to the incident.",
+            "on_completion": "end--e5f38a7c-0c4f-4b84-9798-0b31330df33f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/syslog | grep '<suspicious_pattern>'"
+                }
+            ],
+            "agent": "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3"
+        },
+        "end--e5f38a7c-0c4f-4b84-9798-0b31330df33f": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3094d49c-065e-4ea0-bf2e-bb63ed6732b3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

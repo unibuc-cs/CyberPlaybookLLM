@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--1b8451e1-a497-4c36-9db3-eecf7b9e4195",
+    "name": "Mitigation Playbook for Malicious PowerShell Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script for remote control and exfiltration of sensitive data.",
+    "created_by": "identity--5050476a-8a63-472d-8759-923f4f165ab0",
+    "created": "2025-04-09T14:00:00Z",
+    "modified": "2025-04-09T14:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--e453a4cc-d2e2-4ad4-9ee8-2170209a1e47",
+    "workflow": {
+        "start--e453a4cc-d2e2-4ad4-9ee8-2170209a1e47": {
+            "on_completion": "if-condition--2d3625dc-16f7-4aaf-bdfc-fd8a8191976f",
+            "type": "start"
+        },
+        "if-condition--2d3625dc-16f7-4aaf-bdfc-fd8a8191976f": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists == true",
+            "on_true": "action--653d8216-812e-4b04-bf5e-dd25065b59eb",
+            "on_false": "action--4c73863a-9327-4e21-8963-e96d2665744e"
+        },
+        "action--653d8216-812e-4b04-bf5e-dd25065b59eb": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes that may be exploited by the attacker.",
+            "on_completion": "action--4c73863a-9327-4e21-8963-e96d2665744e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097"
+        },
+        "action--4c73863a-9327-4e21-8963-e96d2665744e": {
+            "name": "Block outbound connections to known C2 IPs",
+            "description": "Prevent further communication with the command and control server.",
+            "on_completion": "action--006b9a7b-441b-4241-b490-49740a04be63",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <C2_IP> -j DROP"
+                }
+            ],
+            "agent": "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097"
+        },
+        "while-condition--6419f92e-9d29-4abc-a3e2-fcd2409eb6a5": {
+            "name": "Antivirus Scan Loop",
+            "description": "Run antivirus scan until no threats are detected.",
+            "on_true": "action--5e52a9f1-c875-4178-bb38-d80c96fb8857",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "next_steps": [
+                "action--5e52a9f1-c875-4178-bb38-d80c96fb8857"
+            ]
+        },
+        "action--5e52a9f1-c875-4178-bb38-d80c96fb8857": {
+            "name": "Run antivirus scan on affected host",
+            "on_completion": "while-condition--6419f92e-9d29-4abc-a3e2-fcd2409eb6a5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "avscan --quick host-22"
+                }
+            ],
+            "agent": "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097"
+        },
+        "action--842795d3-34e8-42ad-8b09-24c5c2ac76b3": {
+            "name": "Document incident and notify security team",
+            "description": "Record the incident details for future reference and alert the security team.",
+            "on_completion": "if-condition--1169bdfd-121e-455b-8713-dad98e3d1d6e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Incident documented' >> /var/log/security_incidents.log"
+                }
+            ],
+            "agent": "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097"
+        },
+        "if-condition--1169bdfd-121e-455b-8713-dad98e3d1d6e": {
+            "name": "Check for privilege escalation",
+            "type": "if-condition",
+            "condition": "privilege_escalation_detected == true",
+            "on_true": "action--64e94676-37b3-4877-bab0-189503623969",
+            "on_false": "end--5f2683ec-3ad6-4389-94b9-d193c9aaaca1"
+        },
+        "action--64e94676-37b3-4877-bab0-189503623969": {
+            "name": "Change network credentials",
+            "description": "Force reset the credentials to prevent further access.",
+            "on_completion": "end--5f2683ec-3ad6-4389-94b9-d193c9aaaca1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd -e user"
+                }
+            ],
+            "agent": "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097"
+        },
+        "end--5f2683ec-3ad6-4389-94b9-d193c9aaaca1": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6d59cbc0-9507-4016-a093-d1bbac7b6097": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

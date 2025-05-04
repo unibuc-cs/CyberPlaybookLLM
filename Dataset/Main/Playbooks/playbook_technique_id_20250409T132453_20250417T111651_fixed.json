@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2b39e5b8-8d43-4643-8d82-12c99cbf73f2",
+    "name": "Playbook for Command and Scripting Interpreter Incident Response",
+    "description": "This playbook addresses an incident where an attacker gained unauthorized access to the network and executed PowerShell scripts for data exfiltration.",
+    "created_by": "identity--06f1b928-e34f-4c91-ae9e-9824b421c9bd",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--b7e54c62-5195-4fe0-83f4-18276384da42",
+    "workflow": {
+        "start--b7e54c62-5195-4fe0-83f4-18276384da42": {
+            "on_completion": "if-check--e0c71d47-db12-4c60-bc4c-6ab3abfa805e",
+            "type": "start"
+        },
+        "if-check--e0c71d47-db12-4c60-bc4c-6ab3abfa805e": {
+            "name": "Check for malicious process",
+            "type": "if-condition",
+            "condition": "malicious_process_found",
+            "on_true": "action--67f5ff89-6e1c-41a7-9413-bc15cabc98b1",
+            "on_false": "action--bfea7f4e-7c43-4f6e-9e3a-489094c41e7f"
+        },
+        "action--67f5ff89-6e1c-41a7-9413-bc15cabc98b1": {
+            "name": "Kill malicious process",
+            "description": "Terminate any PowerShell processes that might be running.",
+            "on_completion": "action--bfea7f4e-7c43-4f6e-9e3a-489094c41e7f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--0f076084-2348-4f9b-86e4-44d549aa1039"
+        },
+        "action--bfea7f4e-7c43-4f6e-9e3a-489094c41e7f": {
+            "name": "Perform network isolation for affected host",
+            "description": "Block all incoming connections from the compromised host.",
+            "on_completion": "action--d09b9d7b-aa1f-4d8f-81d4-d2d7fde43a97",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--0f076084-2348-4f9b-86e4-44d549aa1039"
+        },
+        "action--d09b9d7b-aa1f-4d8f-81d4-d2d7fde43a97": {
+            "name": "Conduct malware scan",
+            "description": "Perform a comprehensive malware scan of the system.",
+            "on_completion": "while-check--c8064264-84a6-4b64-8ea0-04ae6e98ef76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--0f076084-2348-4f9b-86e4-44d549aa1039"
+        },
+        "while-check--c8064264-84a6-4b64-8ea0-04ae6e98ef76": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is clear of malware.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--d09b9d7b-aa1f-4d8f-81d4-d2d7fde43a97",
+            "on_false": "action--f8026c5f-220e-429b-a56b-db6ee296d0a3"
+        },
+        "action--f8026c5f-220e-429b-a56b-db6ee296d0a3": {
+            "name": "Review security logs for anomalies",
+            "description": "Check logs for any suspicious activity related to the affected host.",
+            "on_completion": "end--4e47e565-6f1a-4c63-9231-5ed6f0a734a7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'host-22' /var/log/auth.log"
+                }
+            ],
+            "agent": "organization--0f076084-2348-4f9b-86e4-44d549aa1039"
+        },
+        "end--4e47e565-6f1a-4c63-9231-5ed6f0a734a7": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--0f076084-2348-4f9b-86e4-44d549aa1039": {
+            "type": "organization",
+            "name": "ExampleOrganization"
+        }
+    }
+}

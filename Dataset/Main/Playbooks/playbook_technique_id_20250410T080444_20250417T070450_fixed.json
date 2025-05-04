@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--8c33f4b3-bcb6-45c7-9087-916123ffec61",
+    "name": "Mitigation Playbook for PowerShell Abuse Incident",
+    "description": "This playbook responds to an incident where an attacker executed PowerShell commands to create unauthorized accounts and escalate privileges.",
+    "created_by": "identity--abcd1234-abcd-1234-abcd-123456789abc",
+    "created": "2023-10-19T14:30:00Z",
+    "modified": "2023-10-19T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--b0d0e006-9fe2-4633-997f-ecabbb5a893e",
+    "workflow": {
+        "action--d144b242-2f74-47b2-bc74-48f62f1f4417": {
+            "name": "Terminate all PowerShell processes",
+            "description": "Terminate any active PowerShell processes to stop further malicious actions.",
+            "on_completion": "decision--d79480eb-a9ba-4759-a3d5-fb32d14507bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /im powershell.exe /f"
+                }
+            ],
+            "agent": "organization--ce79327c-3aa8-48a0-9042-62121b658ec0"
+        },
+        "action--4da680ac-a03e-44a9-98a0-ef58d5c5fcdd": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete the unauthorized user account created by the attacker.",
+            "on_completion": "action--3c9b250b-8df6-4723-b2c7-f670b2c492bc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net user backupadmin /delete"
+                }
+            ],
+            "agent": "organization--ce79327c-3aa8-48a0-9042-62121b658ec0"
+        },
+        "action--3c9b250b-8df6-4723-b2c7-f670b2c492bc": {
+            "name": "Revoke administrative privileges",
+            "description": "Remove 'backupadmin' from the administrators group if it exists.",
+            "on_completion": "action--a97e7153-1456-42ae-9470-e335161ab251",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "net localgroup administrators backupadmin /delete"
+                }
+            ],
+            "agent": "organization--ce79327c-3aa8-48a0-9042-62121b658ec0"
+        },
+        "action--a97e7153-1456-42ae-9470-e335161ab251": {
+            "name": "Conduct a full system scan",
+            "description": "Perform a full system scan to ensure no malicious scripts are present.",
+            "on_completion": "while-condition--cd9ffcec-3ade-4dee-8fef-a4ea4db022a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--ce79327c-3aa8-48a0-9042-62121b658ec0"
+        },
+        "action--5c9923ad-d0a3-4c7f-b1e5-edf52753d3a3": {
+            "name": "Analyze system logs for further anomalies",
+            "description": "Review security logs for any suspicious activity.",
+            "on_completion": "end--2e5c976b-6a80-43ad-bbea-3a723efce522",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Get-EventLog -LogName Security > C:\\temp\\security_logs.txt"
+                }
+            ],
+            "agent": "organization--ce79327c-3aa8-48a0-9042-62121b658ec0",
+            "step_variables": {
+                "logfile": {
+                    "type": "string",
+                    "description": "The variable contains the path to the saved security logs",
+                    "value": "C:\\temp\\security_logs.txt",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "start--b0d0e006-9fe2-4633-997f-ecabbb5a893e": {
+            "on_completion": "action--d144b242-2f74-47b2-bc74-48f62f1f4417",
+            "type": "start"
+        },
+        "decision--d79480eb-a9ba-4759-a3d5-fb32d14507bc": {
+            "name": "Check if unauthorized user exists",
+            "type": "if-condition",
+            "condition": "($null -ne (net user backupadmin))",
+            "on_true": "action--4da680ac-a03e-44a9-98a0-ef58d5c5fcdd",
+            "on_false": "action--3c9b250b-8df6-4723-b2c7-f670b2c492bc"
+        },
+        "while-condition--cd9ffcec-3ade-4dee-8fef-a4ea4db022a4": {
+            "name": "Scan until clean",
+            "description": "Repeat the scan until the system is clean.",
+            "on_completion": "action--5c9923ad-d0a3-4c7f-b1e5-edf52753d3a3",
+            "type": "while-condition",
+            "condition": "(Get-MpThreat).Count -eq 0",
+            "on_true": "action--a97e7153-1456-42ae-9470-e335161ab251"
+        },
+        "end--2e5c976b-6a80-43ad-bbea-3a723efce522": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ce79327c-3aa8-48a0-9042-62121b658ec0": {
+            "type": "organization",
+            "name": "IncidentResponseTeam"
+        }
+    }
+}

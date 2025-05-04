@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c1f57a2c-fb3d-4c56-bb48-70b68bf580c3",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses a command execution incident where an attacker executed malicious commands via a scripting language.",
+    "created_by": "identity--abc12345-dc3e-4d8a-b489-76cbd0a15c11",
+    "created": "2023-10-15T12:00:00Z",
+    "modified": "2023-10-15T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1bca2f3-d456-4ede-b781-ef757b1e538b",
+    "workflow": {
+        "start--a1bca2f3-d456-4ede-b781-ef757b1e538b": {
+            "on_completion": "action--c0392c4e-c8db-469f-abf0-db630b1f3c4f",
+            "type": "start"
+        },
+        "action--c0392c4e-c8db-469f-abf0-db630b1f3c4f": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "action--d7510c35-0251-48b5-a846-09b9cb14d2d0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--6545ba2b-6954-4f62-97dd-efba049d0c3e"
+        },
+        "action--d7510c35-0251-48b5-a846-09b9cb14d2d0": {
+            "name": "Block outbound connections",
+            "description": "Block outbound connections to the identified malicious IP.",
+            "on_completion": "loop--567fdd7e-0803-4bd4-b9f0-e2b0461ae52c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--6545ba2b-6954-4f62-97dd-efba049d0c3e"
+        },
+        "loop--567fdd7e-0803-4bd4-b9f0-e2b0461ae52c": {
+            "name": "Scan for remaining malware",
+            "description": "Repeat the malware scan until confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_is_clean == False",
+            "on_true": "action--567fdd7e-0803-4bd4-b9f0-e2b0461ae52c",
+            "on_false": "end--b1e4061d-a334-481d-ab81-2a65ff3cae43"
+        },
+        "action--567fdd7e-0803-4bd4-b9f0-e2b0461ae52c": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the system for any remaining malware.",
+            "on_completion": "set_scan_condition--0e20710d-841e-485e-ad3e-7deda2a41cd7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--6545ba2b-6954-4f62-97dd-efba049d0c3e"
+        },
+        "set_scan_condition--0e20710d-841e-485e-ad3e-7deda2a41cd7": {
+            "name": "Check scan results",
+            "description": "Set the scan completion condition based on malware scan results.",
+            "on_completion": "loop--567fdd7e-0803-4bd4-b9f0-e2b0461ae52c",
+            "type": "action",
+            "step_variables": {
+                "scan_is_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the scan was clean",
+                    "value": "False",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo Check scan results:  Set the scan completion condition based on malware scan results."
+                }
+            ],
+            "agent": "organization--6545ba2b-6954-4f62-97dd-efba049d0c3e"
+        },
+        "end--b1e4061d-a334-481d-ab81-2a65ff3cae43": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--6545ba2b-6954-4f62-97dd-efba049d0c3e": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

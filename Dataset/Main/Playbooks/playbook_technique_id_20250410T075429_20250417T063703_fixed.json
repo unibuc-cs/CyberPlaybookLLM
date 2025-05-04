@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--4ae0c859-1959-4fc1-8cab-f63fdf5d0bc4",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "Playbook to mitigate an incident where a malicious script created a reverse shell on the server due to a vulnerability in a web application.",
+    "created_by": "identity--d0ee153b-0485-426a-914d-d29c4a5419a1",
+    "created": "2023-11-03T15:30:00.000Z",
+    "modified": "2023-11-03T15:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--dbfa6d67-0eef-4ecf-8f66-6c899f2c9c76",
+    "workflow": {
+        "start--dbfa6d67-0eef-4ecf-8f66-6c899f2c9c76": {
+            "on_completion": "action--6fea8c4f-481d-4e40-bba6-9971e43fe3d8",
+            "type": "start",
+            "name": "Start mitigation process",
+            "description": "Initiates the mitigation process for the incident"
+        },
+        "action--6fea8c4f-481d-4e40-bba6-9971e43fe3d8": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that created the reverse shell.",
+            "on_completion": "action--1e92ed4d-5172-4631-a6db-81ce20fbd7de",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious_script.sh'"
+                }
+            ],
+            "agent": "organization--e4c7e386-047e-4c91-b8c5-0dd0eec3ff32"
+        },
+        "action--1e92ed4d-5172-4631-a6db-81ce20fbd7de": {
+            "name": "Block outbound IP address",
+            "description": "Block all outbound connections to the attacker's IP address.",
+            "on_completion": "if-condition--d30d095a-c628-43b1-844a-931016c15cdc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d [attacker_ip] -j DROP"
+                }
+            ],
+            "agent": "organization--e4c7e386-047e-4c91-b8c5-0dd0eec3ff32"
+        },
+        "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b": {
+            "name": "Scan system for further infections",
+            "description": "Scan the system to check for any further infections.",
+            "on_completion": "while-condition--41157de8-3eba-4110-907b-6fdb27505589",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--e4c7e386-047e-4c91-b8c5-0dd0eec3ff32"
+        },
+        "action--0c49643d-7bfe-4056-8753-dd33c1700862": {
+            "name": "Restore compromised files",
+            "description": "Restore files from backup to recover from the attack.",
+            "on_completion": "end--6c70414d-435a-401b-8564-16c9b493c1ec",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cp /backup/* /compromised_directory/"
+                }
+            ],
+            "agent": "organization--e4c7e386-047e-4c91-b8c5-0dd0eec3ff32"
+        },
+        "if-condition--d30d095a-c628-43b1-844a-931016c15cdc": {
+            "name": "Check for ongoing connections",
+            "type": "if-condition",
+            "condition": "scan detected outgoing connection",
+            "on_true": "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b",
+            "on_false": "action--0c49643d-7bfe-4056-8753-dd33c1700862"
+        },
+        "while-condition--41157de8-3eba-4110-907b-6fdb27505589": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the system is confirmed clean.",
+            "on_completion": "if-condition--642f7476-a17b-48ab-88a9-098c67b85db4",
+            "type": "while-condition",
+            "condition": "scan_result != clean",
+            "on_true": "action--6af0a7ea-3bd8-4ae5-875f-55303a354f6b"
+        },
+        "if-condition--642f7476-a17b-48ab-88a9-098c67b85db4": {
+            "name": "Check if files are compromised",
+            "type": "if-condition",
+            "condition": "file marked compromised",
+            "on_true": "action--0c49643d-7bfe-4056-8753-dd33c1700862",
+            "on_false": "end--6c70414d-435a-401b-8564-16c9b493c1ec"
+        },
+        "end--6c70414d-435a-401b-8564-16c9b493c1ec": {
+            "type": "end",
+            "description": "End of the mitigation process"
+        }
+    },
+    "agent_definitions": {
+        "organization--e4c7e386-047e-4c91-b8c5-0dd0eec3ff32": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

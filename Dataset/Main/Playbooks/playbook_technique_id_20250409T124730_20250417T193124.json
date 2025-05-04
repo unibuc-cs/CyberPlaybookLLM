@@ -1,0 +1,94 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--12f2b541-8ec6-4738-92ab-5d535df70adb",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident involving the execution of malicious scripts through a compromised command line interface. The workflow includes killing malicious processes, quarantining suspicious files, and scanning the system for additional threats.",
+    "created_by": "identity--5c2d7f8c-7f03-41e3-b843-4378d919f83a",
+    "created": "2025-04-10T09:00:00.000Z",
+    "modified": "2025-04-10T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d0b963d0-a2d8-468e-91e2-30334728d716",
+    "workflow": {
+        "start--d0b963d0-a2d8-468e-91e2-30334728d716": {
+            "on_completion": "action--a8e12dc7-cd23-4e12-92e0-e4d5f55b0c76",
+            "type": "start"
+        },
+        "action--a8e12dc7-cd23-4e12-92e0-e4d5f55b0c76": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the suspicious script.",
+            "on_completion": "if-condition--f9b23662-1257-4e5f-9124-4e5c485adb69",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--f9b23662-1257-4e5f-9124-4e5c485adb69": {
+            "name": "Check if suspicious file exists",
+            "type": "if-condition",
+            "condition": "test -f /tmp/suspicious_file.txt",
+            "on_true": "action--abbf747b-3ed9-4291-833f-49d9a48f8c90",
+            "on_false": "loop--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038"
+        },
+        "action--abbf747b-3ed9-4291-833f-49d9a48f8c90": {
+            "name": "Quarantine infected files",
+            "description": "Move the suspicious file to quarantine.",
+            "on_completion": "loop--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /tmp/suspicious_file.txt /quarantine/"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a scan of the entire system to find additional threats and repeat until no threats are found.",
+            "type": "while-condition",
+            "condition": "scan_status == 'threats found'",
+            "on_true": "action--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038",
+            "on_false": "end--b3c4c2c8-41fd-47d9-ad27-a46eaf42f720"
+        },
+        "action--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038": {
+            "name": "Run system scan",
+            "description": "Scan the system recursively for any malicious files or threats.",
+            "type": "action",
+            "on_completion": "set-variable--scan_status",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "set-variable--scan_status": {
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Indicates whether threats were found during the scan.",
+                    "value": "threats found",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--8f66f1c2-a1ee-4c6d-8bb5-df3a2b230038",
+            "type": "action"
+        },
+        "end--b3c4c2c8-41fd-47d9-ad27-a46eaf42f720": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

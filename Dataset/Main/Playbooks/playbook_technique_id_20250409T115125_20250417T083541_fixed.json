@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f88ccbf-e126-4b13-a6e8-e119e4f2fc8c",
+    "name": "Mitigation Playbook for Phishing Attack with Malicious Script Execution",
+    "description": "This playbook addresses a case where an attacker compromised a host through a phishing email, executed a malicious script, and exfiltrated sensitive data.",
+    "created_by": "identity--abc8def0-563e-42d1-b701-65f8eb5cd069",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--054e6588-430f-4c6c-a08c-e44bf4aeba8a",
+    "workflow": {
+        "start--054e6588-430f-4c6c-a08c-e44bf4aeba8a": {
+            "on_completion": "action--6faca043-9707-4e2e-9e99-eaf984f7c017",
+            "type": "start"
+        },
+        "action--6faca043-9707-4e2e-9e99-eaf984f7c017": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes related to the malicious script.",
+            "on_completion": "action--f4555e03-e48e-42ab-8b93-af59799bfa58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7"
+        },
+        "action--f4555e03-e48e-42ab-8b93-af59799bfa58": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the affected host from the network to prevent further data exfiltration.",
+            "on_completion": "while-condition--79227b57-372f-42ad-89df-52571cc113cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7"
+        },
+        "while-condition--79227b57-372f-42ad-89df-52571cc113cf": {
+            "name": "Conduct full malware scan",
+            "description": "Perform a full malware scan repeatedly until no threats are found.",
+            "on_completion": "action--4fa8ce42-be9c-4417-90ba-8059ee9c9cc0",
+            "type": "while-condition",
+            "condition": "threats_found_flag == true",
+            "on_true": "action--5b554a49-6017-4cca-a45d-4d486b43ed99",
+            "on_false": "action--4fa8ce42-be9c-4417-90ba-8059ee9c9cc0"
+        },
+        "action--5b554a49-6017-4cca-a45d-4d486b43ed99": {
+            "name": "Run malware scan",
+            "description": "Perform a malware scan to identify any remaining threats.",
+            "on_completion": "check_threats--c0fce39f-c393-453e-a0c3-3e6532bc40a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell --remove"
+                }
+            ],
+            "agent": "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7"
+        },
+        "check_threats--c0fce39f-c393-453e-a0c3-3e6532bc40a3": {
+            "name": "Check for remaining threats",
+            "type": "if-condition",
+            "condition": "threats_detected == false",
+            "on_true": "action--4fa8ce42-be9c-4417-90ba-8059ee9c9cc0",
+            "on_false": "while-condition--79227b57-372f-42ad-89df-52571cc113cf"
+        },
+        "action--4fa8ce42-be9c-4417-90ba-8059ee9c9cc0": {
+            "name": "Reset user credentials",
+            "description": "Reset credentials for affected users to prevent unauthorized access.",
+            "on_completion": "action--2d4035d3-3d5b-423d-bb99-f7fcf68bcc79",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user-22"
+                }
+            ],
+            "agent": "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7"
+        },
+        "action--2d4035d3-3d5b-423d-bb99-f7fcf68bcc79": {
+            "name": "Monitor network traffic",
+            "description": "Use tcpdump to monitor network traffic for any suspicious activities.",
+            "on_completion": "end--f675ce82-dc02-4c7e-8999-651dfe2abc78",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tcpdump -i eth0"
+                }
+            ],
+            "agent": "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7"
+        },
+        "end--f675ce82-dc02-4c7e-8999-651dfe2abc78": {
+            "type": "end",
+            "description": "Mitigation measures completed. Monitor for further suspicious activity."
+        }
+    },
+    "agent_definitions": {
+        "organization--11459bd5-bcf4-4044-9aa8-7b7c7fa9c5c7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

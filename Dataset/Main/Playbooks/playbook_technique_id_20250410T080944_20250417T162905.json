@@ -1,0 +1,120 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f210d335-d84d-4b76-a493-8b1e733f2e56",
+    "name": "Mitigation Playbook for PowerShell Command Execution Incident",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability to execute malicious PowerShell scripts, download payloads, and exfiltrate sensitive data.",
+    "created_by": "identity--a740b83e-f486-44a1-9fa7-f930d67cf793",
+    "created": "2025-04-10T08:09:44.000Z",
+    "modified": "2025-04-10T08:10:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b2b63bc5-3e6e-451d-a8f6-529bf80ea5f9",
+    "workflow": {
+        "start--b2b63bc5-3e6e-451d-a8f6-529bf80ea5f9": {
+            "on_completion": "action--5f4b0b15-0985-4ef1-9957-2ba3fcbf0fda",
+            "type": "start"
+        },
+        "action--5f4b0b15-0985-4ef1-9957-2ba3fcbf0fda": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the running PowerShell scripts that may be malicious.",
+            "on_completion": "if-condition--d845f57a-2baf-465c-a8ed-e6e1b3b8e4a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f Powershell"
+                }
+            ],
+            "agent": "organization--abc123"
+        },
+        "if-condition--d845f57a-2baf-465c-a8ed-e6e1b3b8e4a1": {
+            "name": "Check if outbound traffic detected",
+            "type": "if-condition",
+            "condition": "out_traffic_detected == true",
+            "on_true": "action--d845f57a-2baf-465c-a8ed-e6e1b3b8e4a1",
+            "on_false": "loop--c9ed894b-d379-47f4-8260-baadfcea76ae"
+        },
+        "action--d845f57a-2baf-465c-a8ed-e6e1b3b8e4a1": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Block any further outbound traffic to a known malicious IP address.",
+            "on_completion": "loop--c9ed894b-d379-47f4-8260-baadfcea76ae",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--abc123"
+        },
+        "loop--c9ed894b-d379-47f4-8260-baadfcea76ae": {
+            "name": "Remove downloaded payloads",
+            "description": "Iteratively remove any downloaded malicious payloads until all potentially persistent files have been dealt with.",
+            "type": "loop",
+            "condition": "no_potentially_persistent_files == false",
+            "on_true": "action--c9ed894b-d379-47f4-8260-baadfcea76ae",
+            "next_steps": [
+                "action--c9ed894b-d379-47f4-8260-baadfcea76ae"
+            ]
+        },
+        "action--c9ed894b-d379-47f4-8260-baadfcea76ae": {
+            "name": "Delete suspicious files",
+            "description": "Remove any .exe files that may be present in the suspected path.",
+            "on_completion": "action--eaf1f6e0-b2f8-4eaf-9e93-e769ef9b045e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /suspected_path/*.exe"
+                }
+            ],
+            "agent": "organization--abc123"
+        },
+        "action--eaf1f6e0-b2f8-4eaf-9e93-e769ef9b045e": {
+            "name": "Apply patches for exploited vulnerability",
+            "description": "Apply necessary updates to patch the exploited vulnerability.",
+            "on_completion": "if-condition--569e184d-3090-4574-8e5c-f4b7d3ea5cbe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "yum update -y"
+                }
+            ],
+            "agent": "organization--def456"
+        },
+        "if-condition--569e184d-3090-4574-8e5c-f4b7d3ea5cbe": {
+            "name": "Check if a full scan is required",
+            "type": "if-condition",
+            "condition": "scan_required == true",
+            "on_true": "action--569e184d-3090-4574-8e5c-f4b7d3ea5cbe",
+            "on_false": "end--bdd93764-74f3-4d31-aab1-c0a74dc02879"
+        },
+        "action--569e184d-3090-4574-8e5c-f4b7d3ea5cbe": {
+            "name": "Initiate full system scan",
+            "description": "Perform a comprehensive scan of the system to detect any remaining threats.",
+            "on_completion": "end--bdd93764-74f3-4d31-aab1-c0a74dc02879",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /"
+                }
+            ],
+            "agent": "organization--abc123"
+        },
+        "end--bdd93764-74f3-4d31-aab1-c0a74dc02879": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc123": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        },
+        "organization--def456": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

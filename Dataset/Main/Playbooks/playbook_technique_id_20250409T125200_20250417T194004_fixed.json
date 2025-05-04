@@ -1,0 +1,86 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6e2b2e1-4ff8-4c3b-a930-1856ff6d3e1c",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to gain shell access on host-22 and executed malicious scripts to exfiltrate sensitive data.",
+    "created_by": "identity--d88b40eb-869a-4ecd-b51d-371d3476ef19",
+    "created": "2023-10-01T12:30:00Z",
+    "modified": "2023-10-01T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b5ad4b41-5ffa-4ddf-bc54-a43420d046e2",
+    "workflow": {
+        "start--b5ad4b41-5ffa-4ddf-bc54-a43420d046e2": {
+            "on_completion": "parallel--c79d3e56-4b67-411f-8f2a-883f5734a5a1",
+            "type": "start"
+        },
+        "parallel--c79d3e56-4b67-411f-8f2a-883f5734a5a1": {
+            "name": "Execute Mitigations",
+            "description": "Simultaneously execute steps to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a6c5e312-bc1d-4c9f-891c-567ad2b6b1f7",
+                "action--c11b1e7f-00f0-4f8a-b1d1-5439e1e0f5c2",
+                "loop--d77b391b-60ab-4e59-a66c-de201c9eedd9"
+            ]
+        },
+        "action--a6c5e312-bc1d-4c9f-891c-567ad2b6b1f7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script process that has been executed.",
+            "on_completion": "action--c11b1e7f-00f0-4f8a-b1d1-5439e1e0f5c2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--9943bd46-bb23-482c-9b5a-eddc7c209d95"
+        },
+        "action--c11b1e7f-00f0-4f8a-b1d1-5439e1e0f5c2": {
+            "name": "Remove unauthorized user accounts",
+            "description": "Delete any unauthorized user accounts created by the attacker.",
+            "on_completion": "loop--d77b391b-60ab-4e59-a66c-de201c9eedd9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "userdel -r unauthorized_user"
+                }
+            ],
+            "agent": "organization--9943bd46-bb23-482c-9b5a-eddc7c209d95"
+        },
+        "loop--d77b391b-60ab-4e59-a66c-de201c9eedd9": {
+            "name": "Scan for additional malware",
+            "description": "Continuously scan the system for any additional malware until no threats are found.",
+            "on_true": "loop--d77b391b-60ab-4e59-a66c-de201c9eedd9",
+            "on_completion": "end--ef1956dc-91b2-4cb8-9150-b2b6db31f9e2",
+            "condition": "threat_found == true",
+            "type": "while-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "description": "Indicates if any threats were found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--ef1956dc-91b2-4cb8-9150-b2b6db31f9e2": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9943bd46-bb23-482c-9b5a-eddc7c209d95": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

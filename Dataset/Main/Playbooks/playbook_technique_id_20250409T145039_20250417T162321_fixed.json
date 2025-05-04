@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b3ed2cf0-5ab2-4d9f-a59d-bfbd4196809b",
+    "name": "Mitigation Playbook for Data Breach via Malicious Scripts",
+    "description": "This playbook addresses incidents where attackers executed malicious scripts through a compromised user account, causing a data breach across multiple systems. It includes process termination, network blocking, and scanning for additional threats.",
+    "created_by": "identity--bd44af6d-15d3-4d27-8ae6-f6c166e5227b",
+    "created": "2023-10-01T14:23:00Z",
+    "modified": "2023-10-01T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--0ca61d91-a329-40be-9bb8-4d9ebe711a38",
+    "workflow": {
+        "action--119eb8ab-4561-4d65-bcd1-e7037169d361": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any running Powershell processes that are suspected of being malicious.",
+            "on_completion": "action--6e4ed4ac-3928-4a74-8e87-74a4f29d29c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--3ed1ba9e-9892-4c64-9051-572733bec40a"
+        },
+        "action--6e4ed4ac-3928-4a74-8e87-74a4f29d29c1": {
+            "name": "Block outbound traffic to untrusted IP",
+            "description": "Prevent any outbound traffic to the known untrusted IP address.",
+            "on_completion": "loop--ed9b94e6-7011-4e24-839d-a2574a3c8cfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <untrusted_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--3ed1ba9e-9892-4c64-9051-572733bec40a"
+        },
+        "loop--ed9b94e6-7011-4e24-839d-a2574a3c8cfc": {
+            "name": "Scan for other compromised scripts",
+            "description": "Iterate through the scripts directory to scan for additional malicious scripts.",
+            "type": "while-condition",
+            "condition": "scripts_found == true",
+            "on_true": "action--f7349d6a-d82f-4f64-889d-619129eca453",
+            "on_false": "end--48157a3f-705d-4203-bda6-34436527f49d"
+        },
+        "start--0ca61d91-a329-40be-9bb8-4d9ebe711a38": {
+            "on_completion": "if-condition--40a97b8e-5ca8-41ff-888c-7ea3ebd83faf",
+            "type": "start"
+        },
+        "if-condition--40a97b8e-5ca8-41ff-888c-7ea3ebd83faf": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_detected == true",
+            "on_true": "action--119eb8ab-4561-4d65-bcd1-e7037169d361",
+            "on_false": "action--6e4ed4ac-3928-4a74-8e87-74a4f29d29c1"
+        },
+        "action--f7349d6a-d82f-4f64-889d-619129eca453": {
+            "name": "Scan for malicious keywords in scripts",
+            "on_completion": "loop--ed9b94e6-7011-4e24-839d-a2574a3c8cfc",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for script in /path/to/scripts/*.ps1; do grep -q 'malicious_keyword' \"$script\" && scripts_found=true; done"
+                }
+            ],
+            "agent": "organization--3ed1ba9e-9892-4c64-9051-572733bec40a"
+        },
+        "end--48157a3f-705d-4203-bda6-34436527f49d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--3ed1ba9e-9892-4c64-9051-572733bec40a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

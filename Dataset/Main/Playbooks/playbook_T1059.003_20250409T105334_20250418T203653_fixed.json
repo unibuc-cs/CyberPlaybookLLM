@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f1e53e62-e6b3-4797-bb4d-9c388c29c16e",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook mitigates the incident where an unauthorized user executed commands through the Windows Command Shell, leading to data exfiltration.",
+    "created_by": "identity--12345678-abcd-1234-abcd-123456789012",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d5e7c2f5-29d4-450a-ab89-dc0bac6baf14",
+    "workflow": {
+        "start--d5e7c2f5-29d4-450a-ab89-dc0bac6baf14": {
+            "on_completion": "parallel--21f5b26f-a5a7-47e7-88e1-6e5e50e968bc",
+            "type": "start"
+        },
+        "parallel--21f5b26f-a5a7-47e7-88e1-6e5e50e968bc": {
+            "name": "Execute Mitigation Steps",
+            "description": "Simultaneously execute all mitigation actions to address unauthorized access.",
+            "type": "parallel",
+            "next_steps": [
+                "action--a3693100-2797-48c5-9c80-85081d689eca",
+                "action--d0ab32f6-4ef3-49c8-ad66-aafe3130af76",
+                "loop--b1596ab0-4b4a-447a-83eb-09d6632a3e29"
+            ]
+        },
+        "end--f87ccb16-a3f0-4a5a-ae87-2883c816f787": {
+            "type": "end"
+        },
+        "action--a3693100-2797-48c5-9c80-85081d689eca": {
+            "name": "Block External IP Address",
+            "description": "Block communications to the external IP address found during the incident.",
+            "on_completion": "action--d0ab32f6-4ef3-49c8-ad66-aafe3130af76",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <external-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--ca28faf0-8f89-409e-bd77-2aeca39e66aa"
+        },
+        "action--d0ab32f6-4ef3-49c8-ad66-aafe3130af76": {
+            "name": "Kill Suspicious Processes",
+            "description": "Terminate any suspicious processes that may be running.",
+            "on_completion": "loop--b1596ab0-4b4a-447a-83eb-09d6632a3e29",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "taskkill /F /IM suspicious_process.exe"
+                }
+            ],
+            "agent": "organization--ca28faf0-8f89-409e-bd77-2aeca39e66aa"
+        },
+        "loop--b1596ab0-4b4a-447a-83eb-09d6632a3e29": {
+            "name": "System Scan Loop",
+            "description": "Repeat the malware scan until no threats are found.",
+            "on_completion": "end--f87ccb16-a3f0-4a5a-ae87-2883c816f787",
+            "type": "while-condition",
+            "condition": "threats_found == true",
+            "on_true": [
+                "action--0085bda4-9b2e-4268-9ddf-e949133fb13d"
+            ],
+            "on_false": "end--f87ccb16-a3f0-4a5a-ae87-2883c816f787"
+        },
+        "action--0085bda4-9b2e-4268-9ddf-e949133fb13d": {
+            "name": "Run Malware Scanner",
+            "description": "Run a malware scanner to check for any malicious software.",
+            "on_completion": "action--083cc558-f593-4f62-a375-4ee6e45a0036",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware-scanner.exe --scan"
+                }
+            ],
+            "agent": "organization--ca28faf0-8f89-409e-bd77-2aeca39e66aa"
+        },
+        "action--083cc558-f593-4f62-a375-4ee6e45a0036": {
+            "name": "Check for Threats",
+            "description": "Check if the malware scan found any threats.",
+            "type": "if-condition",
+            "condition": "threats_found",
+            "on_true": "loop--b1596ab0-4b4a-447a-83eb-09d6632a3e29",
+            "on_false": "end--f87ccb16-a3f0-4a5a-ae87-2883c816f787"
+        }
+    },
+    "agent_definitions": {
+        "organization--ca28faf0-8f89-409e-bd77-2aeca39e66aa": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

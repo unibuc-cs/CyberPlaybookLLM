@@ -1,0 +1,95 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d43c95d8-d4de-4f6b-a9d1-18a679f3c4f5",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a command and scripting interpreter to execute arbitrary commands and exfiltrate sensitive data.",
+    "created_by": "identity--89a2dd8d-c25e-4bc9-8b4e-1e5d6c39a111",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--f1d02d2c-1f71-4e5e-bb5a-d5f89f6e2e23",
+    "workflow": {
+        "start--f1d02d2c-1f71-4e5e-bb5a-d5f89f6e2e23": {
+            "on_completion": "action--5f8b5c3e-09c9-49cb-87a3-2b6659257f27",
+            "type": "start"
+        },
+        "action--5f8b5c3e-09c9-49cb-87a3-2b6659257f27": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious script that was executed.",
+            "on_completion": "parallel--2a0dbf5d-e0c1-4f22-a307-1e6a96315b87",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--d85834b0-cf45-469c-ade5-0304b81bf1b9"
+        },
+        "action--a7863d14-ef82-4736-b77b-e9a772c72346": {
+            "name": "Revoke user access",
+            "description": "Revoke access for the compromised user if still active.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "revoke_access --user compromised_user"
+                }
+            ],
+            "agent": "organization--d85834b0-cf45-469c-ade5-0304b81bf1b9"
+        },
+        "while-condition--3e16b2ec-316f-4aec-9361-bfb9b485208d": {
+            "name": "Malware Scan Loop",
+            "description": "Perform a system scan for malware until no threats are found.",
+            "on_completion": "action--a7863d14-ef82-4736-b77b-e9a772c72346",
+            "type": "while-condition",
+            "condition": "threat_found == true",
+            "on_true": "action--2a0dbf5d-e0c1-4f22-a307-1e6a96315b87"
+        },
+        "action--2a0dbf5d-e0c1-4f22-a307-1e6a96315b87": {
+            "name": "Perform system scan for malware",
+            "description": "Scan the system for malware and remove it.",
+            "on_completion": "while-condition--3e16b2ec-316f-4aec-9361-bfb9b485208d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan /path/to/monitor --remove --recursive"
+                }
+            ],
+            "agent": "organization--d85834b0-cf45-469c-ade5-0304b81bf1b9",
+            "step_variables": {
+                "threat_found": {
+                    "type": "boolean",
+                    "description": "Indicates if threats were found during the scan.",
+                    "value": "true",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "parallel--2a0dbf5d-e0c1-4f22-a307-1e6a96315b87": {
+            "name": "Execute Parallel Mitigations",
+            "description": "Handle revocation of user access and malware scanning concurrently.",
+            "type": "parallel",
+            "next_steps": [
+                "action--2a0dbf5d-e0c1-4f22-a307-1e6a96315b87",
+                "action--a7863d14-ef82-4736-b77b-e9a772c72346"
+            ]
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "step_extensions": {
+                "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+            },
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d85834b0-cf45-469c-ade5-0304b81bf1b9": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

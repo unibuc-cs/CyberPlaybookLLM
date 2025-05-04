@@ -1,0 +1,136 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--80d7d2d9-4627-479b-ad23-c0127f62b6c2",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a scripting interpreter for malicious activity, including sensitive data exfiltration.",
+    "created_by": "identity--c3319ba9-65e2-456f-bb7d-6551738a1234",
+    "created": "2023-10-18T16:15:43.000Z",
+    "modified": "2023-10-18T16:20:54.000Z",
+    "workflow_start": "start--b5a9c0f2-5d8b-4d20-9b99-fbcda0e7aa34",
+    "workflow": {
+        "start--b5a9c0f2-5d8b-4d20-9b99-fbcda0e7aa34": {
+            "on_completion": "parallel--d1e0e6fc-9f25-4c4a-a60d-914c9e93d65c",
+            "type": "start"
+        },
+        "end--0b6d38c5-4930-4a6b-bf87-f537d98e220f": {
+            "type": "end"
+        },
+        "parallel--d1e0e6fc-9f25-4c4a-a60d-914c9e93d65c": {
+            "name": "Initial Mitigation Actions",
+            "description": "Execute initial mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b1a9c5d2-2d5e-4c1a-8af1-5391bcea7e34",
+                "action--f2e3c67c-7c1e-4575-9a5b-f8762d53202e"
+            ]
+        },
+        "action--b1a9c5d2-2d5e-4c1a-8af1-5391bcea7e34": {
+            "name": "Terminate Unauthorized Processes",
+            "description": "Terminate any processes that are executing the unauthorized and malicious scripts.",
+            "on_completion": "decision--c4e3d11a-1abc-426e-bd8f-b94d44e74a57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489"
+        },
+        "decision--c4e3d11a-1abc-426e-bd8f-b94d44e74a57": {
+            "name": "Check for Compromised User",
+            "type": "if-condition",
+            "condition": "user_detected == true",
+            "on_true": "action--c4e3d11a-1abc-426e-bd8f-b94d44e74a57",
+            "on_false": "loop--d34366fa-5b34-461b-90d3-4c895fa5495d"
+        },
+        "action--c4e3d11a-1abc-426e-bd8f-b94d44e74a57": {
+            "name": "Revoke Compromised Credentials",
+            "description": "Revoke the credentials of compromised users.",
+            "on_completion": "loop--d34366fa-5b34-461b-90d3-4c895fa5495d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489"
+        },
+        "loop--d34366fa-5b34-461b-90d3-4c895fa5495d": {
+            "name": "Scan for Malicious Scripts",
+            "description": "Continuously scan for any remaining malicious scripts.",
+            "type": "while-condition",
+            "condition": "threat_clean == false",
+            "on_true": "action--d34366fa-5b34-461b-90d3-4c895fa5495d",
+            "on_false": "action--e5b4a71f-9f1c-4eb1-91ee-f4c3b3d82c09"
+        },
+        "action--d34366fa-5b34-461b-90d3-4c895fa5495d": {
+            "name": "Run Malware Scanner",
+            "description": "Scan the system to find and remove any remaining malicious scripts.",
+            "on_completion": "loop--d34366fa-5b34-461b-90d3-4c895fa5495d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "malware_scanner -r /"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489"
+        },
+        "action--e5b4a71f-9f1c-4eb1-91ee-f4c3b3d82c09": {
+            "name": "Backup and Patch Systems",
+            "description": "Backup affected systems and apply necessary patches to secure them.",
+            "on_completion": "action--41e47c2d-798c-4c8a-90b3-9efca347abe0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "backup_and_patch.sh"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489"
+        },
+        "action--f2e3c67c-7c1e-4575-9a5b-f8762d53202e": {
+            "name": "Verify No Unauthorized Access",
+            "description": "Verify there is no unauthorized access since the last check.",
+            "on_completion": "end--0b6d38c5-4930-4a6b-bf87-f537d98e220f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "access_audit_tool"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489",
+            "step_variables": {
+                "last_check": {
+                    "type": "string",
+                    "description": "Timestamp of the last access check",
+                    "value": "2023-10-18T15:00:00Z",
+                    "constant": true
+                }
+            }
+        },
+        "action--41e47c2d-798c-4c8a-90b3-9efca347abe0": {
+            "name": "Update Threat Indicators",
+            "description": "Update the monitoring systems with new threat indicators.",
+            "on_completion": "end--0b6d38c5-4930-4a6b-bf87-f537d98e220f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "threat_update.sh"
+                }
+            ],
+            "agent": "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489"
+        }
+    },
+    "agent_definitions": {
+        "organization--8a0d1998-e95f-4762-a5d7-c4da45c8f489": {
+            "type": "organization",
+            "name": "SecurityTeamX"
+        }
+    }
+}

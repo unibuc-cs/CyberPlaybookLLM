@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b6a88f93-293b-43e0-93ac-2c1c13f06e05",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts to harvest sensitive data.",
+    "created_by": "identity--f82a7fb4-7685-449d-9e20-e56c230986df",
+    "created": "2025-04-10T08:00:00.000Z",
+    "modified": "2025-04-10T08:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f9583f25-1d88-4871-945c-5e5e6ea5e307",
+    "workflow": {
+        "start--f9583f25-1d88-4871-945c-5e5e6ea5e307": {
+            "on_completion": "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8",
+            "type": "start"
+        },
+        "action--7c1e6962-ba77-4d7f-8ed5-4e6486d272f8": {
+            "name": "Terminate all suspicious script processes",
+            "description": "Terminate any processes that are executing the suspicious script.",
+            "on_completion": "action--5e2f6875-139f-4d9a-909b-994ff48be6bf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script"
+                }
+            ],
+            "agent": "organization--10153353-bf64-4b50-91b7-0df331cc503b"
+        },
+        "action--5e2f6875-139f-4d9a-909b-994ff48be6bf": {
+            "name": "Identify affected systems",
+            "description": "Scan the network to identify systems affected by the malicious script.",
+            "on_completion": "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "infected_hosts=$(network_scan_tool --infected)"
+                }
+            ],
+            "step_variables": {
+                "infected_hosts": {
+                    "type": "string",
+                    "description": "List of infected hosts identified by the scan.",
+                    "value": "",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "agent": "organization--10153353-bf64-4b50-91b7-0df331cc503b"
+        },
+        "action--1d1b8ac4-46ea-4c85-abf6-74b6f80f33eb": {
+            "name": "Scan and remove all malicious files",
+            "description": "Scan for and delete all identified malicious files.",
+            "on_completion": "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*malicious*' -exec rm {} \\;"
+                }
+            ],
+            "agent": "organization--10153353-bf64-4b50-91b7-0df331cc503b",
+            "loop": "until scan is clean"
+        },
+        "action--3a94aed7-6a45-451d-b7cb-4948e8b57a55": {
+            "name": "Revoke escalated privileges",
+            "description": "Revoke escalated privileges for any compromised users.",
+            "on_completion": "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "revoke_permissions --user compromised_user"
+                }
+            ],
+            "agent": "organization--10153353-bf64-4b50-91b7-0df331cc503b",
+            "condition": "if escalated privileges detected"
+        },
+        "action--b9d55ddc-e5a7-4c9a-9431-50782789a9fb": {
+            "name": "Deploy patch to all discovered hosts",
+            "description": "Deploy security patches to all hosts identified as infected.",
+            "on_completion": "end--e5583f3d-51d5-4723-9634-54c0415e572d",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "for host in ${infected_hosts}; do deploy_patch_tool --hosts $host; done"
+                }
+            ],
+            "agent": "organization--10153353-bf64-4b50-91b7-0df331cc503b",
+            "condition": "if infected_hosts list is not empty"
+        },
+        "end--e5583f3d-51d5-4723-9634-54c0415e572d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--10153353-bf64-4b50-91b7-0df331cc503b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--896fb894-b7a3-4eff-bd30-8bfddb128f98",
+    "name": "Network Compromise Mitigation Playbook",
+    "description": "Playbook to mitigate a network compromise involving execution of malicious scripts through phishing.",
+    "created_by": "identity--048d9f5e-dee6-4b6c-927c-9d1d54e7d4c4",
+    "created": "2023-10-24T08:00:00Z",
+    "modified": "2023-10-24T08:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--a1e5c9d7-580f-4399-93c6-77a6d5155f5f",
+    "workflow": {
+        "start--a1e5c9d7-580f-4399-93c6-77a6d5155f5f": {
+            "on_completion": "parallel--e15e7de7-a8aa-44bf-b0f6-f707b57ac8ee",
+            "type": "start"
+        },
+        "end--b1a8b3f5-81c1-4cab-bb38-c5d482f4609e": {
+            "type": "end"
+        },
+        "parallel--e15e7de7-a8aa-44bf-b0f6-f707b57ac8ee": {
+            "name": "Initialize Mitigation Procedures",
+            "description": "Execute mitigation steps in parallel: isolate compromised hosts, terminate malicious scripts, and purge malware files.",
+            "type": "parallel",
+            "next_steps": [
+                "action--bbb7d4ae-5a2b-4e9a-90d9-fb9d8a0e6b98",
+                "action--b9b1b7a2-9d0c-45f5-98d8-fdc8f8b9a0f9",
+                "loop--c8c2a8c9-4d8d-4a2e-8f8d-b1b7b8a3a2d0"
+            ]
+        },
+        "action--bbb7d4ae-5a2b-4e9a-90d9-fb9d8a0e6b98": {
+            "name": "Identify and isolate compromised hosts",
+            "description": "Isolate the host identified as compromised to prevent further damage.",
+            "on_completion": "action--adee7fbb-99a6-4fe6-bb4e-1f7fa8f4d335",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Isolating host: host-22' && isolation_command host-22"
+                }
+            ],
+            "agent": "organization--f9acd868-330b-425e-bcc0-d2a1df87e767"
+        },
+        "action--b9b1b7a2-9d0c-45f5-98d8-fdc8f8b9a0f9": {
+            "name": "Terminate malicious script processes",
+            "description": "Terminate processes related to the executed malicious script to halt any ongoing malicious activities.",
+            "on_completion": "end--b1a8b3f5-81c1-4cab-bb38-c5d482f4609e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_ps1"
+                }
+            ],
+            "agent": "organization--a075af86-300a-4d13-a1c3-bdbbb77486e6"
+        },
+        "loop--c8c2a8c9-4d8d-4a2e-8f8d-b1b7b8a3a2d0": {
+            "name": "Purge Malware Files",
+            "description": "Continuously check and purge malware files until the directory is clean.",
+            "on_completion": "end--b1a8b3f5-81c1-4cab-bb38-c5d482f4609e",
+            "type": "loop",
+            "loop_condition": "while $(ls /tmp/malware_files/*) do sleep 1; done",
+            "action": "action--clean-malware-files"
+        },
+        "action--adee7fbb-99a6-4fe6-bb4e-1f7fa8f4d335": {
+            "name": "Execute Network Scan for Lateral Movement",
+            "description": "Perform a network-wide scan to identify other potential malicious activities.",
+            "on_completion": "action--ceedecad-4fbf-4ff5-bc8e-a88abcd8f77d",
+            "type": "if-condition",
+            "condition": "if [[ $(nmap -sP 192.168.1.0/24) == *'malicious host detected'* ]]; then echo 'Potential lateral movement'; fi",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "nmap -sP 192.168.1.0/24"
+                }
+            ],
+            "agent": "organization--f9acd868-330b-425e-bcc0-d2a1df87e767"
+        },
+        "action--ceedecad-4fbf-4ff5-bc8e-a88abcd8f77d": {
+            "name": "Update Antivirus Signatures and Perform Full Scan",
+            "description": "Ensure antivirus software is up-to-date and perform a comprehensive scan of all systems.",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_update && full_scan"
+                }
+            ],
+            "condition": "if [[ $(date +%F) == '2023-10-24' ]]; then exit; fi",
+            "agent": "organization--a075af86-300a-4d13-a1c3-bdbbb77486e6"
+        },
+        "action--d8685a5b-93c4-4944-911f-64f8dd4eb966": {
+            "name": "Remove Malware Files",
+            "description": "Execute command to remove downloaded malware files from compromised hosts.",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /tmp/malware_files/*"
+                }
+            ],
+            "agent": "organization--d1e9f9a3-0d8a-495e-a016-2a8edc39446f"
+        }
+    },
+    "agent_definitions": {
+        "organization--f9acd868-330b-425e-bcc0-d2a1df87e767": {
+            "type": "organization",
+            "name": "NetworkSecurityTeam"
+        },
+        "organization--a075af86-300a-4d13-a1c3-bdbbb77486e6": {
+            "type": "organization",
+            "name": "EndpointProtectionTeam"
+        },
+        "organization--d1e9f9a3-0d8a-495e-a016-2a8edc39446f": {
+            "type": "organization",
+            "name": "FileIntegrityMonitor"
+        }
+    }
+}

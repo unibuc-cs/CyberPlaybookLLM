@@ -1,0 +1,97 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a1234567-b89c-40d2-b30f-5c97e1e5d9ae",
+    "name": "Response Playbook for Malicious Script Execution Incident",
+    "description": "This playbook outlines the automated response to an incident where an attacker executed malicious scripts on a compromised server.",
+    "created_by": "identity--abcd1234-efgh-5678-ijkl-90mnopqrstuv",
+    "created": "2023-10-11T14:00:00Z",
+    "modified": "2023-10-11T14:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1e34a51-c12e-4a7f-abcd-dcc18ae12345",
+    "workflow": {
+        "start--f1e34a51-c12e-4a7f-abcd-dcc18ae12345": {
+            "on_completion": "action--b8008b75-d7e1-41ab-bc63-d00d74f27634",
+            "type": "start"
+        },
+        "action--b8008b75-d7e1-41ab-bc63-d00d74f27634": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are running the malicious script.",
+            "on_completion": "if-condition--d60e3f87-9e37-4e57-b8a0-3d3db2c07e73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--d60e3f87-9e37-4e57-b8a0-3d3db2c07e73": {
+            "name": "Check if Attack Detected",
+            "type": "if-condition",
+            "condition": "attack_detected == true",
+            "on_true": "action--e0920845-b308-4436-a009-a80e720eb125",
+            "on_false": "action--d2b3f8e3-0f12-4aef-b501-4c82a18ecf57"
+        },
+        "action--e0920845-b308-4436-a009-a80e720eb125": {
+            "name": "Block IP and notify team",
+            "description": "Block the suspicious IP that initiated the attack and notify the security team.",
+            "on_completion": "action--d2b3f8e3-0f12-4aef-b501-4c82a18ecf57",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s suspicious.ip.address -j DROP; echo 'Suspicious IP has been blocked.' | mail -s 'Security Alert' team@example.com"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--d2b3f8e3-0f12-4aef-b501-4c82a18ecf57": {
+            "name": "Run a security scan",
+            "description": "Perform a security scan on the affected directory and repeat until the scan is clean.",
+            "on_completion": "loop--d2b3f8e3-0f12-4aef-b501-4c82a18ecf58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_security_scan --recursive /path/to/scanned/dir"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "loop--d2b3f8e3-0f12-4aef-b501-4c82a18ecf58": {
+            "name": "Repeat security scan until clean",
+            "description": "Iterate the security scan until it is confirmed clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--d2b3f8e3-0f12-4aef-b501-4c82a18ecf57",
+            "on_false": "end--a7b5d8b4-9a60-4ac9-86c0-ff48be8deb05"
+        },
+        "end--a7b5d8b4-9a60-4ac9-86c0-ff48be8deb05": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "attack_detected": {
+            "type": "boolean",
+            "description": "Variable indicating whether an attack was detected based on logs.",
+            "value": "true",
+            "constant": false,
+            "external": true
+        },
+        "scan_result": {
+            "type": "string",
+            "description": "Result of the last security scan.",
+            "value": "dirty",
+            "constant": false,
+            "external": true
+        }
+    }
+}

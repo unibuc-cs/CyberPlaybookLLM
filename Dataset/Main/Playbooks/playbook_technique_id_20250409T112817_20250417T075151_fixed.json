@@ -1,0 +1,114 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f6e3d513-684e-4fae-af7e-df56ebd857f8",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses incidents where an attacker executed scripts to exfiltrate data as detected by unusual command executions.",
+    "created_by": "identity--eb883ed5-98b1-4975-8bca-0f898459a89e",
+    "created": "2023-10-16T08:55:00Z",
+    "modified": "2023-10-16T08:55:00Z",
+    "revoked": false,
+    "workflow_start": "start--275bba04-b5a4-4ac8-b888-17c3e06c01f0",
+    "workflow": {
+        "start--275bba04-b5a4-4ac8-b888-17c3e06c01f0": {
+            "on_completion": "action--11cb7da2-7692-4067-99b5-edcc22e06f7e",
+            "type": "start"
+        },
+        "action--11cb7da2-7692-4067-99b5-edcc22e06f7e": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious script that is executing.",
+            "on_completion": "action--ffb79a10-c733-4d61-a639-2ca3f2667090",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.sh"
+                }
+            ],
+            "agent": "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066"
+        },
+        "action--ffb79a10-c733-4d61-a639-2ca3f2667090": {
+            "name": "Isolate affected host",
+            "description": "Prevent any further inbound and outbound connections on host-12.",
+            "on_completion": "while-condition--7e9d18c8-ab7e-4831-9751-a33acd4456ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) = host-12 ]; then iptables -A INPUT -s 0.0.0.0/0 -j DROP; fi"
+                }
+            ],
+            "agent": "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066"
+        },
+        "while-condition--7e9d18c8-ab7e-4831-9751-a33acd4456ce": {
+            "name": "Perform full system scan",
+            "description": "Continue scanning the system until it is clean of threats.",
+            "type": "while-condition",
+            "condition": "scan_status != clean",
+            "on_true": "action--49432ecd-cfaf-42a9-aad8-caed8df1065a",
+            "on_false": "action--64bace98-606d-4165-b2ca-a5ecf7b12df0"
+        },
+        "action--49432ecd-cfaf-42a9-aad8-caed8df1065a": {
+            "name": "Execute system scan",
+            "on_completion": "while-condition--7e9d18c8-ab7e-4831-9751-a33acd4456ce",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Current status of the scan",
+                    "value": "not clean",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--64bace98-606d-4165-b2ca-a5ecf7b12df0": {
+            "name": "Review logging for anomalous activity",
+            "description": "Check logs for any further suspicious activities.",
+            "on_completion": "action--0d454a9a-efd8-4d7f-84f5-0a2e30985bde",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep 'suspicious' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066"
+        },
+        "action--0d454a9a-efd8-4d7f-84f5-0a2e30985bde": {
+            "name": "Implement network access control rules",
+            "description": "Set access control rules for network traffic from the affected host.",
+            "on_completion": "end--8325b398-a3b1-45e5-993c-10198ebf21b8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Deny all outbound traffic for host-12' >> /etc/network/access_rules"
+                }
+            ],
+            "agent": "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066",
+            "conditions": {
+                "if": {
+                    "expression": "attack_vector_confirmed",
+                    "on_true": "action--e5678901-f012-3456-7890-abcdef123456"
+                }
+            }
+        },
+        "end--8325b398-a3b1-45e5-993c-10198ebf21b8": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--24a891cc-f2d7-4df7-8d00-f1e94a5a0066": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f51c3d68-4741-4b92-bd9e-547e5292d700",
+    "name": "Mitigation Playbook for Credential Harvesting via Scripting",
+    "description": "This playbook addresses an incident where an attacker executed scripts to harvest credentials and installed a backdoor.",
+    "created_by": "identity--1bda1e7a-c972-4641-ad5f-50f26b233e20",
+    "created": "2023-10-30T14:45:00Z",
+    "modified": "2023-10-30T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e5c0e9ac-6b37-48f0-8746-690178cbb11f",
+    "workflow": {
+        "start--e5c0e9ac-6b37-48f0-8746-690178cbb11f": {
+            "on_completion": "if-condition--9793a9e6-5e4a-41c7-9204-1ef071327b2e",
+            "type": "start"
+        },
+        "if-condition--9793a9e6-5e4a-41c7-9204-1ef071327b2e": {
+            "name": "Check if malicious process exists",
+            "type": "if-condition",
+            "condition": "process_exists('malicious_script')",
+            "on_true": "action--29c7c2fa-4bdf-4e6c-8777-fc2bedf5f1a7",
+            "on_false": "action--8c7c312e-bdcf-4e3f-910e-f16b6594a5c7"
+        },
+        "action--29c7c2fa-4bdf-4e6c-8777-fc2bedf5f1a7": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process executing the malicious script.",
+            "on_completion": "parallel--d0e5f185-6db2-4494-a525-b544271f3d71",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--e9613994-bc9a-4d0b-b344-d72dc2f7208f"
+        },
+        "parallel--d0e5f185-6db2-4494-a525-b544271f3d71": {
+            "name": "Conduct cleanup and scan",
+            "description": "Remove dropped files and start a system scan.",
+            "type": "parallel",
+            "next_steps": [
+                "action--8c7c312e-bdcf-4e3f-910e-f16b6594a5c7",
+                "action--0b508022-5d1d-49d6-843e-ef7b6e6c2a30"
+            ]
+        },
+        "action--8c7c312e-bdcf-4e3f-910e-f16b6594a5c7": {
+            "name": "Remove dropped files",
+            "description": "Delete any files dropped by the malicious actor.",
+            "on_completion": "loop--e14df4c1-cc1c-45b5-ae42-02f205ba4f82",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_file"
+                }
+            ],
+            "agent": "organization--e9613994-bc9a-4d0b-b344-d72dc2f7208f"
+        },
+        "loop--e14df4c1-cc1c-45b5-ae42-02f205ba4f82": {
+            "name": "Repeat file removal until clean",
+            "description": "Continue to remove harmful files until none are detected.",
+            "type": "while-condition",
+            "condition": "harmful_files_detected()",
+            "next_steps": "action--8c7c312e-bdcf-4e3f-910e-f16b6594a5c7"
+        },
+        "action--0b508022-5d1d-49d6-843e-ef7b6e6c2a30": {
+            "name": "Conduct a full system scan",
+            "description": "Run a comprehensive scan on the system to identify any lingering threats.",
+            "on_completion": "end--2b0037b2-d385-43fa-abc5-25c1c1a5cdff",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan"
+                }
+            ],
+            "agent": "organization--e9613994-bc9a-4d0b-b344-d72dc2f7208f",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Results of the full system scan.",
+                    "value": "scan_results.log",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--2b0037b2-d385-43fa-abc5-25c1c1a5cdff": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e9613994-bc9a-4d0b-b344-d72dc2f7208f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

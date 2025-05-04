@@ -1,0 +1,80 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--e4a7d1c9-ac4d-4757-b761-45f90a6f01cc",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Abuse Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to execute malicious scripts, exfiltrate sensitive data, and establish a persistent connection to their command and control server.",
+    "created_by": "identity--a4fbc029-0c5d-4c56-8c1c-72073571bc1e",
+    "created": "2023-10-15T09:18:00Z",
+    "modified": "2023-10-15T09:18:00Z",
+    "revoked": false,
+    "workflow_start": "start--b1f28bcc-e3f7-48d6-a54d-ccc2ff54388e",
+    "workflow": {
+        "start--b1f28bcc-e3f7-48d6-a54d-ccc2ff54388e": {
+            "on_completion": "action--6f4b78a9-5e9b-4cda-80f2-d65e1e9fe2f3",
+            "type": "start"
+        },
+        "action--6f4b78a9-5e9b-4cda-80f2-d65e1e9fe2f3": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious PowerShell script process.",
+            "on_completion": "if-condition--c912e4ef-f785-4f5f-b8ce-63db9fc8c923",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.ps1'"
+                }
+            ],
+            "agent": "organization--39458fe2-7dce-47b9-84e6-9a56b96af1c2"
+        },
+        "if-condition--c912e4ef-f785-4f5f-b8ce-63db9fc8c923": {
+            "name": "Check for outbound connection",
+            "type": "if-condition",
+            "condition": "malicious_IP_detected == true",
+            "on_true": "action--c912e4ef-f785-4f5f-b8ce-63db9fc8c923",
+            "on_false": "action--9bc3ae63-2384-4a56-ae39-83bb5e8f8ebe"
+        },
+        "action--c912e4ef-f785-4f5f-b8ce-63db9fc8c923": {
+            "name": "Block outbound connections to attacker IP",
+            "description": "Block all outbound connections to the detected malicious IP address.",
+            "on_completion": "action--9bc3ae63-2384-4a56-ae39-83bb5e8f8ebe",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d MALICIOUS_IP -j DROP"
+                }
+            ],
+            "agent": "organization--39458fe2-7dce-47b9-84e6-9a56b96af1c2"
+        },
+        "action--9bc3ae63-2384-4a56-ae39-83bb5e8f8ebe": {
+            "name": "Run a full system scan",
+            "description": "Perform a comprehensive scan of the system to identify potential threats.",
+            "on_completion": "while-condition--d93462bf-b6e5-432a-b5b1-427b849a5228",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav --scan / --infected"
+                }
+            ],
+            "agent": "organization--39458fe2-7dce-47b9-84e6-9a56b96af1c2"
+        },
+        "end--f1d36f08-2f0b-47a7-a190-c9a8965b5d3e": {
+            "type": "end"
+        },
+        "while-condition--d93462bf-b6e5-432a-b5b1-427b849a5228": {
+            "name": "System scan loop",
+            "description": "Continue scanning until no more infected files are found.",
+            "on_true": "action--9bc3ae63-2384-4a56-ae39-83bb5e8f8ebe",
+            "condition": "scan_result == infected_files_found",
+            "type": "while-condition"
+        }
+    },
+    "agent_definitions": {
+        "organization--39458fe2-7dce-47b9-84e6-9a56b96af1c2": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

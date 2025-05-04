@@ -1,0 +1,119 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f3a935df-902f-4bb5-970d-99e7bdefa8d6",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used a compromised account to execute PowerShell scripts and manipulate directory permissions.",
+    "created_by": "identity--c0d0d3b7-324f-4c27-a032-851d2b2e54f3",
+    "created": "2023-10-08T15:00:00.000Z",
+    "modified": "2023-10-08T15:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--c2f13bce-f46b-430b-92d0-8256d5a5f5ab",
+            "type": "start"
+        },
+        "action--c2f13bce-f46b-430b-92d0-8256d5a5f5ab": {
+            "name": "Investigate suspicious PowerShell processes",
+            "description": "Identify any currently running PowerShell processes that may be malicious.",
+            "on_completion": "decision--7a45639c-6486-4b85-ab19-dc0ebab806d8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Get-Process | Where-Object { $_.MainWindowTitle -match 'PowerShell' }"
+                }
+            ],
+            "agent": "organization--432948ad-9a63-437b-853d-2399503dba80"
+        },
+        "action--b3e8d333-7b5f-42d3-90a1-d3775d567e09": {
+            "name": "Kill malicious PowerShell scripts",
+            "description": "Terminate any malicious PowerShell scripts running on the server.",
+            "on_completion": "action--c47f69cf-7299-4d59-9f0c-21f0a2c34e74",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Stop-Process -Name 'powershell' -Force"
+                }
+            ],
+            "agent": "organization--93bf4ad9-2426-469b-befa-bcd4e8503571"
+        },
+        "action--c47f69cf-7299-4d59-9f0c-21f0a2c34e74": {
+            "name": "Restore directory permissions",
+            "description": "Restore the directory permissions to the known good state.",
+            "on_completion": "action--d5e3f632-2b67-4c47-a85a-b2f67b5f5b73",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "icacls 'path/to/directory' /restore 'backup_file.acl'"
+                }
+            ],
+            "agent": "organization--755c4c98-ceb1-49fa-b0e8-52f40c596e39"
+        },
+        "action--d5e3f632-2b67-4c47-a85a-b2f67b5f5b73": {
+            "name": "Perform security compliance scan",
+            "description": "Conduct a compliance scan and repeat until results are satisfactory.",
+            "on_completion": "action--e4a5b326-6818-42fe-b6b2-2398d53f28cb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "New-SecurityComplianceScan"
+                }
+            ],
+            "loop": {
+                "condition": "scan_results.PassCount != expected_value",
+                "type": "while"
+            },
+            "agent": "organization--893c9ece-f40a-473d-b9a7-4c63d462c87f"
+        },
+        "action--e4a5b326-6818-42fe-b6b2-2398d53f28cb": {
+            "name": "Notify IT security team",
+            "description": "Send a notification to the IT security team about the incident.",
+            "on_completion": "end--3ae7dd94-e6c1-415e-a5eb-8a247c08fc68",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Send-Notification -To 'itsecurity@example.com' -Subject 'Incident Report' -Body 'Details of the incident logged'"
+                }
+            ],
+            "agent": "organization--99060228-f627-4adc-8861-2a6b164f1493"
+        },
+        "decision--7a45639c-6486-4b85-ab19-dc0ebab806d8": {
+            "name": "Check for suspicious scripts",
+            "type": "if-condition",
+            "condition": "suspicious_scripts_found == true",
+            "on_true": "action--b3e8d333-7b5f-42d3-90a1-d3775d567e09",
+            "on_false": "action--c47f69cf-7299-4d59-9f0c-21f0a2c34e74"
+        },
+        "end--3ae7dd94-e6c1-415e-a5eb-8a247c08fc68": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--432948ad-9a63-437b-853d-2399503dba80": {
+            "type": "organization",
+            "name": "PowerShell Analysis Agent"
+        },
+        "organization--93bf4ad9-2426-469b-befa-bcd4e8503571": {
+            "type": "organization",
+            "name": "Process Termination Agent"
+        },
+        "organization--755c4c98-ceb1-49fa-b0e8-52f40c596e39": {
+            "type": "organization",
+            "name": "Directory Restoration Agent"
+        },
+        "organization--893c9ece-f40a-473d-b9a7-4c63d462c87f": {
+            "type": "organization",
+            "name": "Compliance Scan Agent"
+        },
+        "organization--99060228-f627-4adc-8861-2a6b164f1493": {
+            "type": "organization",
+            "name": "Notification Agent"
+        }
+    }
+}

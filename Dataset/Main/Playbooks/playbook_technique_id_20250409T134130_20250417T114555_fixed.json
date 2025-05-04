@@ -1,0 +1,83 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d93ad2e3-d6f0-4379-b59c-f03e6f25e0f5",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script leading to data exfiltration.",
+    "created_by": "identity--f9d7e02b-9b4b-4489-a805-713915c874be",
+    "created": "2023-10-13T12:00:00.000Z",
+    "modified": "2023-10-13T12:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--d2c73682-e39e-4ed7-90b9-fd344d165e98",
+    "workflow": {
+        "start--d2c73682-e39e-4ed7-90b9-fd344d165e98": {
+            "on_completion": "action--6c151b28-2824-47e4-bc3b-2f917c16e961",
+            "type": "start"
+        },
+        "action--6c151b28-2824-47e4-bc3b-2f917c16e961": {
+            "name": "Identify and isolate the compromised host",
+            "description": "Releasing the IP of the compromised host.",
+            "on_completion": "action--2cfb84bc-bf1e-447c-9492-ff5db8a0032f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ipconfig /release"
+                }
+            ],
+            "agent": "organization--4999a986-adeb-417a-b09b-403409df5050"
+        },
+        "action--2cfb84bc-bf1e-447c-9492-ff5db8a0032f": {
+            "name": "Kill the malicious PowerShell process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "on_completion": "while-condition--38e61bb1-eb28-4e12-bb5f-ea6a724e5e11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Stop-Process -Name 'powershell' -Force"
+                }
+            ],
+            "agent": "organization--4999a986-adeb-417a-b09b-403409df5050"
+        },
+        "while-condition--38e61bb1-eb28-4e12-bb5f-ea6a724e5e11": {
+            "name": "Antivirus Scan",
+            "description": "Run a full antivirus scan and repeat until the scan is clean.",
+            "on_true": "action--c9eac8c7-21b6-4a98-a42e-1b9c961b3b15",
+            "on_false": "end--6ee09855-54f4-4ff0-8719-ec7346315fa4",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'"
+        },
+        "action--c9eac8c7-21b6-4a98-a42e-1b9c961b3b15": {
+            "name": "Run antivirus scan on affected host",
+            "description": "Perform a full scan on the compromised host.",
+            "on_completion": "while-condition--38e61bb1-eb28-4e12-bb5f-ea6a724e5e11",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-MpScan -ScanType Full"
+                }
+            ],
+            "agent": "organization--4999a986-adeb-417a-b09b-403409df5050",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "The status of the antivirus scan.",
+                    "value": "in_progress",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--6ee09855-54f4-4ff0-8719-ec7346315fa4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--4999a986-adeb-417a-b09b-403409df5050": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

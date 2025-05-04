@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--60c994a8-97e6-46d2-b8f6-f20bacc11f98",
+    "name": "Mitigation Playbook for Unauthorized Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker executed malicious scripts on an organization's server.",
+    "created_by": "identity--df5e8c71-754e-4d05-a6d1-f415e36a79ff",
+    "created": "2023-10-15T10:00:00.000Z",
+    "modified": "2023-10-15T10:30:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--bf6e2b67-a30f-4a47-9e83-5d8dc7528db0",
+    "workflow": {
+        "start--bf6e2b67-a30f-4a47-9e83-5d8dc7528db0": {
+            "on_completion": "action--a93e4f69-bc3d-4428-bcf5-ac926340c1db",
+            "type": "start"
+        },
+        "action--a93e4f69-bc3d-4428-bcf5-ac926340c1db": {
+            "name": "Kill malicious process",
+            "description": "Identify and terminate any processes running unauthorized scripts.",
+            "on_completion": "if-condition--b86344d5-2e51-4e2b-a0d8-eb43d528b8a1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill $(pgrep -f suspicious-script.sh)"
+                }
+            ],
+            "agent": "organization--e503e944-cc72-4fbb-8d0a-e9aa2068676f"
+        },
+        "if-condition--b86344d5-2e51-4e2b-a0d8-eb43d528b8a1": {
+            "name": "Check if suspicious activity continues",
+            "type": "if-condition",
+            "condition": "grep -c 'malicious' /var/log/syslog > 3",
+            "on_true": "action--4a7526c4-2376-42a7-99dc-b234d043e988",
+            "on_false": "action--f3ba1a7e-c906-4b70-abc4-80ba3c56e730"
+        },
+        "action--4a7526c4-2376-42a7-99dc-b234d043e988": {
+            "name": "Disconnect affected host from network",
+            "description": "Block outbound traffic from the infected host if suspicious activity persists.",
+            "on_completion": "end--f1d2b333-2401-4e5e-a26a-e99e25e64147",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -s host-17 -j DROP"
+                }
+            ],
+            "agent": "organization--e503e944-cc72-4fbb-8d0a-e9aa2068676f"
+        },
+        "action--f3ba1a7e-c906-4b70-abc4-80ba3c56e730": {
+            "name": "Trigger security scan on host",
+            "description": "Initiate a security scan on the host to detect any remaining threats.",
+            "on_completion": "while-condition--2de3be6c-efb7-4056-bc91-bcbcad8cce54",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run-security-scan --host host-17"
+                }
+            ],
+            "agent": "organization--e503e944-cc72-4fbb-8d0a-e9aa2068676f"
+        },
+        "while-condition--2de3be6c-efb7-4056-bc91-bcbcad8cce54": {
+            "name": "Security Scan Loop",
+            "description": "Repeat the security scanning process until the host is clean.",
+            "on_completion": "end--f1d2b333-2401-4e5e-a26a-e99e25e64147",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--f3ba1a7e-c906-4b70-abc4-80ba3c56e730"
+        },
+        "end--f1d2b333-2401-4e5e-a26a-e99e25e64147": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--e503e944-cc72-4fbb-8d0a-e9aa2068676f": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

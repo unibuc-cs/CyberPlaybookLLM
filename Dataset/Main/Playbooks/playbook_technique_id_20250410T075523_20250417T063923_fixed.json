@@ -1,0 +1,121 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--011207be-adea-4d05-999b-ae6d635a76d0",
+    "name": "Mitigation Playbook for Persistent Backdoor Incident",
+    "description": "This playbook mitigates a security incident involving the execution of a PowerShell script that created a persistent backdoor and communicated with a command and control server.",
+    "created_by": "identity--a3b56e48-8f5b-4c9c-93f6-1899c6828d48",
+    "created": "2023-10-15T08:00:00Z",
+    "modified": "2023-10-15T08:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--eef2075a-27ef-40cb-90c6-5d1632e4d3e8",
+    "workflow": {
+        "start--eef2075a-27ef-40cb-90c6-5d1632e4d3e8": {
+            "on_completion": "action--3171456e-bc48-4d02-9e19-5b59aed31aa3",
+            "type": "start",
+            "name": "Init Incident Response",
+            "description": "Start the incident response workflow."
+        },
+        "action--3171456e-bc48-4d02-9e19-5b59aed31aa3": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate the malicious PowerShell script to stop the current attack vector.",
+            "on_completion": "if-condition--c5a4a953-fb5d-41f1-bd5e-f02a2d34d77d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9936f304-a9af-4e38-b440-d2245cfd180a"
+        },
+        "if-condition--c5a4a953-fb5d-41f1-bd5e-f02a2d34d77d": {
+            "name": "Check PowerShell Execution Policy",
+            "type": "if-condition",
+            "condition": "powerShellPolicy != 'Restricted'",
+            "on_true": "action--1acbb0fc-81a5-4ab5-91fa-d8dc0e71e36b",
+            "on_false": "action--fa9305b5-12a5-4b47-935f-b77558c8bc7c"
+        },
+        "action--1acbb0fc-81a5-4ab5-91fa-d8dc0e71e36b": {
+            "name": "Restrict PowerShell Usage",
+            "description": "Set the PowerShell execution policy to restricted to prevent script execution.",
+            "on_completion": "action--fa9305b5-12a5-4b47-935f-b77558c8bc7c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo set-executionpolicy restricted"
+                }
+            ],
+            "agent": "organization--9936f304-a9af-4e38-b440-d2245cfd180a"
+        },
+        "action--fa9305b5-12a5-4b47-935f-b77558c8bc7c": {
+            "name": "Scan Host for Additional Threats",
+            "description": "Perform a full antivirus scan on the host to detect any remaining threats.",
+            "on_completion": "while-condition--f2b24198-bcf9-493b-b8e4-5b2b50a5677a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full --log"
+                }
+            ],
+            "agent": "organization--9936f304-a9af-4e38-b440-d2245cfd180a"
+        },
+        "while-condition--f2b24198-bcf9-493b-b8e4-5b2b50a5677a": {
+            "name": "Threat Scan Loop",
+            "description": "Repeat scanning process until the host is clean.",
+            "on_completion": "action--1af580d4-98d4-4c58-866d-9bdf8fa6a712",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--fa9305b5-12a5-4b47-935f-b77558c8bc7c",
+            "type": "if-condition"
+        },
+        "action--1af580d4-98d4-4c58-866d-9bdf8fa6a712": {
+            "name": "Quarantine Infected Files",
+            "description": "Move infected files to quarantine to prevent further execution.",
+            "on_completion": "action--b6abebc9-f2e9-4f05-bc1b-d81a56b8d4a6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "mv /path/to/infected /quarantine/"
+                }
+            ],
+            "agent": "organization--9936f304-a9af-4e38-b440-d2245cfd180a",
+            "step_variables": {
+                "infected_path": {
+                    "type": "string",
+                    "value": "/path/to/infected",
+                    "constant": false
+                },
+                "quarantine_path": {
+                    "type": "string",
+                    "value": "/quarantine/",
+                    "constant": false
+                }
+            }
+        },
+        "action--b6abebc9-f2e9-4f05-bc1b-d81a56b8d4a6": {
+            "name": "Block Suspicious Outbound Connections",
+            "description": "Prevent any further communication with the command and control server.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d c2.bad-domain.com -j DROP"
+                }
+            ],
+            "agent": "organization--9936f304-a9af-4e38-b440-d2245cfd180a"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--9936f304-a9af-4e38-b440-d2245cfd180a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

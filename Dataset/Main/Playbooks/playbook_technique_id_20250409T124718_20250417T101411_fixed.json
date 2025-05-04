@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--31b00ec8-0380-4f57-a2bc-7b1dbe5127a8",
+    "name": "Mitigation Playbook for Malicious PowerShell Script Execution Incident",
+    "description": "This playbook responds to an incident where an attacker executed malicious scripts to move laterally using PowerShell commands.",
+    "created_by": "identity--2d65910a-7895-4799-bbe6-8b434a14ff78",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:10:00Z",
+    "revoked": false,
+    "workflow_start": "start--dab3f6ef-5f91-425d-b21c-db9a3b7fb443",
+    "workflow": {
+        "start--dab3f6ef-5f91-425d-b21c-db9a3b7fb443": {
+            "on_completion": "parallel--b47e38d2-5de6-4ca6-92af-db5e2a1f7af5",
+            "type": "start"
+        },
+        "parallel--b47e38d2-5de6-4ca6-92af-db5e2a1f7af5": {
+            "name": "Execute Mitigation Steps",
+            "description": "Killing malicious processes and disabling PowerShell scripting are critical immediate actions.",
+            "type": "parallel",
+            "next_steps": [
+                "action--e4eeb29e-97a7-4c2e-b1b7-2ad5f5b64e5b",
+                "action--fce3099b-59c4-44f1-9024-0ed689b9d777"
+            ]
+        },
+        "action--e4eeb29e-97a7-4c2e-b1b7-2ad5f5b64e5b": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes executing the malicious PowerShell script.",
+            "on_completion": "action--7f12c79e-1294-473e-afc0-b2fc3058d970",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--ce86777f-b949-4e5b-8d7d-618b909bfc37"
+        },
+        "action--fce3099b-59c4-44f1-9024-0ed689b9d777": {
+            "name": "Disable PowerShell scripting",
+            "description": "Update the PowerShell execution policy to restrict script execution.",
+            "on_completion": "action--7f12c79e-1294-473e-afc0-b2fc3058d970",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--ce86777f-b949-4e5b-8d7d-618b909bfc37"
+        },
+        "action--7f12c79e-1294-473e-afc0-b2fc3058d970": {
+            "name": "Scan for additional indicators of compromise",
+            "on_completion": "if-condition--56ee7d3e-9487-4851-b91a-964b5faa1b3a",
+            "type": "action",
+            "step_variables": {
+                "scan_targets": {
+                    "type": "string",
+                    "description": "Comma-separated hosts to scan for indicators of compromise.",
+                    "value": "host-33, host-40, host-27",
+                    "constant": false,
+                    "external": false
+                }
+            },
+            "commands": [
+                {
+                    "type": "powershell",
+                    "command": "invoke-scan -targets '$scan_targets'"
+                }
+            ],
+            "agent": "organization--ce86777f-b949-4e5b-8d7d-618b909bfc37"
+        },
+        "if-condition--56ee7d3e-9487-4851-b91a-964b5faa1b3a": {
+            "name": "Check scan results",
+            "type": "if-condition",
+            "condition": "scan_results != Empty",
+            "on_true": "action--0febb2be-23af-4833-81cd-419fff2733f7",
+            "on_false": "end--d3fe4fbd-eca1-4b18-8e10-9e2a0e459a64"
+        },
+        "action--0febb2be-23af-4833-81cd-419fff2733f7": {
+            "name": "Cleanup detected threats",
+            "description": "Take necessary actions for any detected threats based on scan results.",
+            "on_completion": "action--7f12c79e-1294-473e-afc0-b2fc3058d970",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cleanup_threats_based_on_results"
+                }
+            ],
+            "agent": "organization--ce86777f-b949-4e5b-8d7d-618b909bfc37"
+        },
+        "end--d3fe4fbd-eca1-4b18-8e10-9e2a0e459a64": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--ce86777f-b949-4e5b-8d7d-618b909bfc37": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

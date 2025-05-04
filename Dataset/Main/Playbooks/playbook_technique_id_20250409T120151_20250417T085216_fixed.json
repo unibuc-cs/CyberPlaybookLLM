@@ -1,0 +1,93 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f8456ea7-3a1c-48b2-a936-34c9b739e198",
+    "name": "Automated Script Execution Mitigation Playbook",
+    "description": "This playbook addresses the incident where an attacker executed malicious automated scripts, leading to modification of system files.",
+    "created_by": "identity--f18a5b90-691f-4c03-bb27-b0dcf9956a68",
+    "created": "2025-04-09T08:00:00Z",
+    "modified": "2025-04-09T09:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--5edc9cba-625a-48c7-8398-908dc2f6f2a5",
+    "workflow": {
+        "action--6b4f915d-3aeb-4ef4-a8d3-12b5cfe72f4a": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running processes related to the malicious script.",
+            "on_completion": "if-condition--d3aee480-546b-41ba-9077-54dd23510fb5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_script.sh'"
+                }
+            ],
+            "agent": "organization--448bb854-b8fb-4d9e-9154-b90fac507f78"
+        },
+        "action--4a7e690c-af44-4f2f-9e75-b37e0e604752": {
+            "name": "Restore modified files from backup",
+            "description": "Restore system files to their original state from backup.",
+            "on_completion": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -a /backup/system_files/ /etc/system_files/ --delete"
+                }
+            ],
+            "agent": "organization--448bb854-b8fb-4d9e-9154-b90fac507f78"
+        },
+        "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572": {
+            "name": "Scan for additional malware",
+            "description": "Perform a scan for additional malware on the system.",
+            "on_completion": "while-condition--239d8cde-9b5e-43cd-a54b-12dbeea390c6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --bell -i"
+                }
+            ],
+            "agent": "organization--448bb854-b8fb-4d9e-9154-b90fac507f78"
+        },
+        "start--5edc9cba-625a-48c7-8398-908dc2f6f2a5": {
+            "on_completion": "action--6b4f915d-3aeb-4ef4-a8d3-12b5cfe72f4a",
+            "type": "start"
+        },
+        "if-condition--d3aee480-546b-41ba-9077-54dd23510fb5": {
+            "name": "Check if backup exists",
+            "type": "if-condition",
+            "condition": "backup_exists == true",
+            "on_true": "action--4a7e690c-af44-4f2f-9e75-b37e0e604752",
+            "on_false": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572"
+        },
+        "while-condition--239d8cde-9b5e-43cd-a54b-12dbeea390c6": {
+            "name": "Scan until clean",
+            "description": "Loop until the scan status is clean.",
+            "on_true": "action--ed2d1d7d-4bd6-4c78-8524-af5b89dbf572",
+            "condition": "scan_status != 'clean'",
+            "on_false": "end--059e49b6-5003-4c5d-9f6f-cf98e2a293f9",
+            "type": "if-condition"
+        },
+        "end--059e49b6-5003-4c5d-9f6f-cf98e2a293f9": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--448bb854-b8fb-4d9e-9154-b90fac507f78": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    },
+    "step_variables": {
+        "backup_exists": {
+            "type": "boolean",
+            "description": "Flag indicating if the backup files exist.",
+            "value": "true"
+        },
+        "scan_status": {
+            "type": "string",
+            "description": "Indicates the status of the scan.",
+            "value": "not clean"
+        }
+    }
+}

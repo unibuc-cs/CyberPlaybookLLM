@@ -1,0 +1,109 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0f5e9e17-2d60-4c97-9641-1f5f6743e26b",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook mitigates an incident where an attacker executed malicious scripts via a compromised user account.",
+    "created_by": "identity--7d9c2e0a-128c-4cc7-b82b-4f60a2d853f8",
+    "created": "2023-10-17T14:37:00Z",
+    "modified": "2023-10-17T14:37:00Z",
+    "revoked": false,
+    "workflow_start": "start--27f246b1-adf1-4d88-b56c-2e2bc682a53c",
+    "workflow": {
+        "start--27f246b1-adf1-4d88-b56c-2e2bc682a53c": {
+            "on_completion": "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731",
+            "type": "start"
+        },
+        "end--e29daaf2-84ae-4c1f-b797-edffccaa0687": {
+            "type": "end"
+        },
+        "action--fc3b8024-d3f8-4f7d-9e8e-5566fcbeb731": {
+            "name": "Kill malicious process",
+            "description": "Terminate any running malicious processes.",
+            "on_completion": "if-condition--1cd08c56-fc92-4b83-b443-c9a9008955c4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'malicious_process'"
+                }
+            ],
+            "agent": "organization--836f8c2a-edd6-462d-94d2-45bc4fc97f0b"
+        },
+        "if-condition--1cd08c56-fc92-4b83-b443-c9a9008955c4": {
+            "name": "Check if malicious processes are running",
+            "type": "if-condition",
+            "condition": "$(pgrep -f 'malicious_process' > /dev/null && echo True || echo False)",
+            "on_true": "action--742cfba9-1513-4fed-95c9-2edb8c3b454a",
+            "on_false": "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e"
+        },
+        "action--742cfba9-1513-4fed-95c9-2edb8c3b454a": {
+            "name": "Scan for residual scripts",
+            "description": "Scan the system for residual PowerShell scripts and clean them.",
+            "on_completion": "loop--838f4c33-8cbd-4dd0-b02c-d6bb8485edf6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.ps1' -exec clamscan {} \\;"
+                }
+            ],
+            "agent": "organization--836f8c2a-edd6-462d-94d2-45bc4fc97f0b"
+        },
+        "loop--838f4c33-8cbd-4dd0-b02c-d6bb8485edf6": {
+            "name": "Check if any scripts left",
+            "description": "Repeat scanning for scripts until all are clean.",
+            "type": "while-condition",
+            "condition": "! (find / -name '*.ps1' | grep -q .)",
+            "on_true": "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e",
+            "on_false": "action--742cfba9-1513-4fed-95c9-2edb8c3b454a"
+        },
+        "action--54d6a163-2e52-42e1-bf8c-5dbda1fc595e": {
+            "name": "Disable compromised user account",
+            "description": "Disable the user account that was compromised.",
+            "on_completion": "action--430bec4a-3672-4693-a72b-61cf3b4fbc39",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L compromised_user"
+                }
+            ],
+            "agent": "organization--836f8c2a-edd6-462d-94d2-45bc4fc97f0b",
+            "step_variables": {
+                "user": {
+                    "type": "string",
+                    "description": "The compromised user to disable",
+                    "value": "compromised_user",
+                    "constant": false
+                }
+            }
+        },
+        "action--430bec4a-3672-4693-a72b-61cf3b4fbc39": {
+            "name": "Update system and security patches",
+            "on_completion": "end--e29daaf2-84ae-4c1f-b797-edffccaa0687",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "apt-get update && apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--836f8c2a-edd6-462d-94d2-45bc4fc97f0b",
+            "step_variables": {
+                "lastPatchDate": {
+                    "type": "string",
+                    "description": "Last date patches were installed",
+                    "value": "2023-10-10",
+                    "constant": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--836f8c2a-edd6-462d-94d2-45bc4fc97f0b": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

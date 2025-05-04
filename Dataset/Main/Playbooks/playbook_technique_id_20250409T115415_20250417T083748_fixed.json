@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6f9f550-233a-40ec-bbb7-e3e723cfd63f",
+    "name": "Response Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook responds to unauthorized command execution via a scripting interpreter.",
+    "created_by": "identity--132604b0-da69-428b-a97a-f4e39077a02f",
+    "created": "2023-10-10T15:00:00Z",
+    "modified": "2023-10-10T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--bdb2f775-e8c2-4f23-bd68-37ea95b0b77c",
+    "workflow": {
+        "start--bdb2f775-e8c2-4f23-bd68-37ea95b0b77c": {
+            "on_completion": "action--b34a5529-909a-4908-b4c4-224bbb0477de",
+            "type": "start",
+            "name": "Initiate Incident Response"
+        },
+        "action--b34a5529-909a-4908-b4c4-224bbb0477de": {
+            "name": "Kill malicious process",
+            "description": "Terminate processes associated with the suspected malicious activity.",
+            "on_completion": "action--e8cfc50a-f5b9-43ee-abc9-d0a671012727",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_process_name"
+                }
+            ],
+            "agent": "organization--bda3e719-ac65-427c-ac32-048877524957"
+        },
+        "action--e8cfc50a-f5b9-43ee-abc9-d0a671012727": {
+            "name": "Isolate host from the network",
+            "description": "Prevent the compromised host from communicating with the network.",
+            "on_completion": "loop--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s 0.0.0.0/0 -j DROP"
+                }
+            ],
+            "agent": "organization--bda3e719-ac65-427c-ac32-048877524957"
+        },
+        "loop--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7": {
+            "name": "Run malware scan loop",
+            "description": "Perform a malware scan and repeat until no malware is found.",
+            "on_true": "if-condition--06a00e4d-0b38-4335-9d74-062d07cf420d",
+            "on_false": "end--f1649a01-23d4-4698-a0c1-2f9cace54798",
+            "type": "while-condition",
+            "next_steps": "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7",
+            "condition": "scan_result != 'clean'"
+        },
+        "action--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7": {
+            "name": "Run malware scan",
+            "description": "Scan the system for any remaining malware.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/suspicious/files"
+                }
+            ],
+            "agent": "organization--bda3e719-ac65-427c-ac32-048877524957",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan",
+                    "value": "malware_found",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "loop--fd4ebd4f-fb90-4118-89f9-c6f8e74645c7"
+        },
+        "end--f1649a01-23d4-4698-a0c1-2f9cace54798": {
+            "name": "End of Incident Response",
+            "description": "All actions completed successfully. Incident response concluded.",
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--bda3e719-ac65-427c-ac32-048877524957": {
+            "type": "organization",
+            "name": "Client Organization"
+        }
+    }
+}

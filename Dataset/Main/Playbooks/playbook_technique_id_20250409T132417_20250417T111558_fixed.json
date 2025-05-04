@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d3b7c01d-2e1e-4cf9-b270-9c66def3bc01",
+    "name": "Mitigation Playbook for PowerShell Malicious Script Incident",
+    "description": "This playbook addresses an incident where an attacker executed a PowerShell script to perform malicious activities on the victim's host.",
+    "created_by": "identity--5bdb38c4-e67a-4030-b47e-584b10bd0a38",
+    "created": "2023-10-04T15:00:00Z",
+    "modified": "2023-10-04T15:20:00Z",
+    "revoked": false,
+    "workflow_start": "start--c9f6ee95-1d06-4e9d-ad06-9f30e72a9320",
+    "workflow": {
+        "start--c9f6ee95-1d06-4e9d-ad06-9f30e72a9320": {
+            "on_completion": "action--d4eb08d2-2bc5-4b29-9f1d-611b77c1b09d",
+            "type": "start"
+        },
+        "action--d4eb08d2-2bc5-4b29-9f1d-611b77c1b09d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the PowerShell process executing the malicious script.",
+            "on_completion": "action--b7ad1c64-b6d9-4beb-bff8-4efef64a42fb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.ps1"
+                }
+            ],
+            "agent": "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd"
+        },
+        "action--b7ad1c64-b6d9-4beb-bff8-4efef64a42fb": {
+            "name": "Isolate affected host",
+            "description": "Disconnect the host from the network to prevent further exfiltration of data.",
+            "on_completion": "decision--c2e90dba-7f66-4c68-9771-db807407e56f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ $(hostname) == 'host-22' ]; then nmcli dev disconnect eth0; fi"
+                }
+            ],
+            "agent": "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd"
+        },
+        "decision--c2e90dba-7f66-4c68-9771-db807407e56f": {
+            "name": "Check for rootkits",
+            "type": "if-condition",
+            "condition": "rootkit_check_started == false",
+            "on_true": "loop--3bcbda68-85f2-4977-b5de-764083a78945",
+            "on_false": "action--ef8dad45-b171-4b06-b96d-0c89bd4ef0c2"
+        },
+        "loop--3bcbda68-85f2-4977-b5de-764083a78945": {
+            "name": "Scan for rootkits",
+            "on_completion": "decision--77e92d56-b0d6-4d09-bf43-5b5f0dab9c64",
+            "type": "while-condition",
+            "condition": "rootkit_detected == true",
+            "on_true": "action--1f79d4ba-0cc3-4c8c-8e12-546f74fa0c80"
+        },
+        "action--1f79d4ba-0cc3-4c8c-8e12-546f74fa0c80": {
+            "name": "Run rootkit check",
+            "description": "Continue scanning the host for rootkits.",
+            "on_completion": "loop--3bcbda68-85f2-4977-b5de-764083a78945",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chkrootkit"
+                }
+            ],
+            "agent": "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd",
+            "step_variables": {
+                "rootkit_detected": {
+                    "type": "boolean",
+                    "description": "Flag indicating if any rootkits were detected.",
+                    "value": true,
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "action--ef8dad45-b171-4b06-b96d-0c89bd4ef0c2": {
+            "name": "Review firewall logs for suspicious activity",
+            "description": "Inspect firewall logs for any signs of unauthorized access or data exfiltration.",
+            "on_completion": "action--645f5e27-6b8e-4a3f-9e7f-efb17b3f8633",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "tail -n 100 /var/log/firewall.log"
+                }
+            ],
+            "agent": "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd"
+        },
+        "action--645f5e27-6b8e-4a3f-9e7f-efb17b3f8633": {
+            "name": "Change passwords for affected accounts",
+            "description": "Update passwords for any user accounts that may have been compromised during the attack.",
+            "on_completion": "end--b0c24ac8-d6e5-48bb-ba58-d1d22e01c953",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "passwd user1"
+                }
+            ],
+            "agent": "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd"
+        },
+        "end--b0c24ac8-d6e5-48bb-ba58-d1d22e01c953": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--f6de85aa-bf1e-4471-9cca-7bfaa4d996dd": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

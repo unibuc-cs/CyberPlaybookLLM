@@ -1,0 +1,96 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b2ae0052-02f8-4d41-8865-fcb156ea4fbc",
+    "name": "Mitigation Playbook for PowerShell Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker leveraged PowerShell for malicious script execution, leading to lateral movement and data exfiltration.",
+    "created_by": "identity--sample-identity-1234-5678",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--e91c7b1e-7250-40ce-82c4-a8c8421b2456",
+    "workflow": {
+        "start--e91c7b1e-7250-40ce-82c4-a8c8421b2456": {
+            "on_completion": "if-condition--6cfee228-af86-4c9a-b950-96371519e91f",
+            "type": "start"
+        },
+        "if-condition--6cfee228-af86-4c9a-b950-96371519e91f": {
+            "name": "Check for malicious PowerShell process",
+            "type": "if-condition",
+            "condition": "malicious_process_exists",
+            "on_true": "action--e5b023c7-2e28-4d0d-bde1-b02defc4529c",
+            "on_false": "action--f19e95c0-093f-4c64-b82e-2c2739e43d0b"
+        },
+        "action--e5b023c7-2e28-4d0d-bde1-b02defc4529c": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any PowerShell processes identified as malicious.",
+            "on_completion": "parallel--5f1c8a23-27c6-4e63-9432-8c8450501407",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--f19e95c0-093f-4c64-b82e-2c2739e43d0b": {
+            "name": "Isolate affected host from the network",
+            "description": "Block network access to the compromised host.",
+            "on_completion": "parallel--5f1c8a23-27c6-4e63-9432-8c8450501407",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-42 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "parallel--5f1c8a23-27c6-4e63-9432-8c8450501407": {
+            "name": "Initiate parallel mitigations",
+            "description": "Run a malware scan while handling the isolation of the affected host.",
+            "type": "parallel",
+            "next_steps": [
+                "action--de6e8aa3-6c4a-4a62-8b86-fc680e1cf9b0"
+            ]
+        },
+        "action--de6e8aa3-6c4a-4a62-8b86-fc680e1cf9b0": {
+            "name": "Run malware scan",
+            "description": "Perform a recursive malware scan and check the scan status until clean.",
+            "on_completion": "if-condition--5a3b75f0-e076-4400-8cda-a025d899443f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--xyz",
+            "step_variables": {
+                "scan_status": {
+                    "type": "string",
+                    "description": "Status of the malware scan",
+                    "value": "not_clean",
+                    "constant": false
+                }
+            }
+        },
+        "if-condition--5a3b75f0-e076-4400-8cda-a025d899443f": {
+            "name": "Check malware scan result",
+            "type": "if-condition",
+            "condition": "scan_status == not_clean",
+            "on_true": "action--de6e8aa3-6c4a-4a62-8b86-fc680e1cf9b0",
+            "on_false": "end--b3a285bb-d48c-42a7-a3de-a71718a3c998"
+        },
+        "end--b3a285bb-d48c-42a7-a3de-a71718a3c998": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

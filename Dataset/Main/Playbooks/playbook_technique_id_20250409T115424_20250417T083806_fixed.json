@@ -1,0 +1,89 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3ac42e01-9207-47c0-a7c4-402b36e32cd5",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident of a PowerShell script executed after a phishing attack that established a reverse shell.",
+    "created_by": "identity--9e6bb9b3-43be-4e79-ab1b-5586a4198d22",
+    "created": "2023-10-20T10:20:00Z",
+    "modified": "2023-10-20T10:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--b4a9b048-dac2-44bb-b1fe-68f91bdbf14f",
+    "workflow": {
+        "action--1b70c922-fb56-4e6d-bc84-7d8bcfb84f6e": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate the malicious PowerShell process if it exists.",
+            "on_completion": "if-condition--5e25df50-c05c-49e9-a9ae-7f8523e8a53a",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--d2d19312-d113-40fd-a658-d101c7afa296"
+        },
+        "action--384c4a1a-3f9e-4692-925e-455cbaa0c295": {
+            "name": "Remove Dropped Malicious Executable",
+            "description": "Delete the malicious executable that was dropped on the system.",
+            "on_completion": "loop--e936e163-e9de-49b6-b538-667895b1bb43",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/malicious/executable"
+                }
+            ],
+            "agent": "organization--d2d19312-d113-40fd-a658-d101c7afa296"
+        },
+        "action--b2f7b283-f4e5-4143-bd51-ec9c3e643657": {
+            "name": "Conduct Full System Scan",
+            "description": "Perform a full system scan to detect any remaining threats.",
+            "on_completion": "end--fe743d1e-cda7-409f-8f3f-bd0471d1a640",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_full_scan --duration 30m"
+                }
+            ],
+            "agent": "organization--d2d19312-d113-40fd-a658-d101c7afa296"
+        },
+        "start--b4a9b048-dac2-44bb-b1fe-68f91bdbf14f": {
+            "on_completion": "action--1b70c922-fb56-4e6d-bc84-7d8bcfb84f6e",
+            "type": "start"
+        },
+        "if-condition--5e25df50-c05c-49e9-a9ae-7f8523e8a53a": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell')",
+            "on_true": "action--384c4a1a-3f9e-4692-925e-455cbaa0c295",
+            "on_false": "action--b2f7b283-f4e5-4143-bd51-ec9c3e643657"
+        },
+        "loop--e936e163-e9de-49b6-b538-667895b1bb43": {
+            "name": "Ensure Malicious Executable is Deleted",
+            "description": "Repeat deletion of the executable until it's confirmed deleted.",
+            "on_completion": "if-condition--a6a89cb9-b7b8-4c63-ba7d-d3f1628fb063",
+            "type": "loop",
+            "loop_condition": "executable_exists('/path/to/malicious/executable')",
+            "on_true": "action--384c4a1a-3f9e-4692-925e-455cbaa0c295",
+            "on_false": "action--b2f7b283-f4e5-4143-bd51-ec9c3e643657"
+        },
+        "if-condition--a6a89cb9-b7b8-4c63-ba7d-d3f1628fb063": {
+            "name": "Check if Executable is Deleted",
+            "type": "if-condition",
+            "condition": "!executable_exists('/path/to/malicious/executable')",
+            "on_true": "action--b2f7b283-f4e5-4143-bd51-ec9c3e643657",
+            "on_false": "loop--e936e163-e9de-49b6-b538-667895b1bb43"
+        },
+        "end--fe743d1e-cda7-409f-8f3f-bd0471d1a640": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--d2d19312-d113-40fd-a658-d101c7afa296": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

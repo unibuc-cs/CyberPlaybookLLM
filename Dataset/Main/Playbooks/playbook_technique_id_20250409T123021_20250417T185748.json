@@ -1,0 +1,115 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--abcde123-4567-890a-bcde-fghij1234567",
+    "name": "Mitigation Playbook for Malicious Command Execution Incident",
+    "description": "This playbook addresses a malicious script execution incident involving an employee's workstation. It executes necessary mitigations to remove threats and block further access.",
+    "created_by": "identity--12345678-90ab-cdef-1234-567890abcdef",
+    "created": "2023-10-02T09:00:00Z",
+    "modified": "2023-10-02T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--12345678-90ab-cdef-1234-567890abcdef",
+    "workflow": {
+        "start--12345678-90ab-cdef-1234-567890abcdef": {
+            "on_completion": "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b",
+            "type": "start"
+        },
+        "action--36de25f6-0d92-4ba8-b108-ca5cc795f32b": {
+            "name": "Kill malicious process",
+            "description": "Terminate the cryptominer process if it exists.",
+            "on_completion": "if-condition--remove-residual-files",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f cryptominer"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "if-condition--remove-residual-files": {
+            "name": "Check for residual files",
+            "type": "if-condition",
+            "condition": "ls /path/to/cryptominer | grep cryptominer",
+            "on_true": "loop--remove-residual-files",
+            "on_false": "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854"
+        },
+        "loop--remove-residual-files": {
+            "name": "Remove dropped files loop",
+            "description": "Repeat removal of residual cryptominer files until none are found.",
+            "on_completion": "if-condition--remove-residual-files",
+            "type": "loop",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -rf /path/to/cryptominer"
+                }
+            ]
+        },
+        "action--7b23ddb6-5a1b-4427-8fbd-1a8681b0a854": {
+            "name": "Scan system for malware",
+            "description": "Perform a thorough scan of the system for potential malware.",
+            "on_completion": "parallel--execute-post-recovery-tasks",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/scan"
+                }
+            ],
+            "agent": "organization--abc",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the malware scan",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "parallel--execute-post-recovery-tasks": {
+            "name": "Execute post-recovery measures",
+            "description": "Block malicious IP and update security policies.",
+            "type": "parallel",
+            "next_steps": [
+                "action--53c581a1-4322-4f5d-baf7-7fdbdc493769",
+                "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2"
+            ]
+        },
+        "action--53c581a1-4322-4f5d-baf7-7fdbdc493769": {
+            "name": "Block outbound connections to malicious IP",
+            "description": "Prevent any further connections to the identified malicious IP.",
+            "on_completion": "end--xyz12345-6789-abcd-ef01-23456789abcdf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <malicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--f0d7be59-c5f2-4a70-b1d4-6af775c69ff2": {
+            "name": "Update security policies",
+            "description": "Modify security policies to block scripts by default.",
+            "on_completion": "end--xyz12345-6789-abcd-ef01-23456789abcdf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "echo 'Block scripts by default' >> /etc/security/policy.conf"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--xyz12345-6789-abcd-ef01-23456789abcdf": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d22f5b0c-e2da-494e-ab48-b703a3bc8a09",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability in a web application to upload a malicious PHP script that executed remotely.",
+    "created_by": "identity--f0de7300-d2fb-4af4-a9a0-21a1b7ecd209",
+    "created": "2023-10-23T12:00:00Z",
+    "modified": "2023-10-23T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345",
+    "workflow": {
+        "start--f1a23a51-c12e-4a7f-aba0-dcc18ae12345": {
+            "on_completion": "action--b1c3d016-f102-4068-9d29-4b7554a7c86e",
+            "type": "start"
+        },
+        "action--b1c3d016-f102-4068-9d29-4b7554a7c86e": {
+            "name": "Kill malicious script process",
+            "description": "Terminate any processes associated with the malicious PHP script.",
+            "on_completion": "action--e08e2849-0445-4bd9-a150-b8c1b0f7278b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.php"
+                }
+            ],
+            "agent": "organization--4642f033-4b98-4182-982a-465fd9990d54"
+        },
+        "action--e08e2849-0445-4bd9-a150-b8c1b0f7278b": {
+            "name": "Review logs for suspicious activities",
+            "description": "Check the access logs for any activities by the attacker.",
+            "step_variables": {
+                "attacker_ip": {
+                    "type": "string",
+                    "description": "The IP address of the attacker, if known.",
+                    "value": "<attacker_ip>",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "if-condition--42b482e4-2131-4f24-a4fd-aba88567f8a4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/apache2/access.log | grep '<attacker_ip>'"
+                }
+            ],
+            "agent": "organization--4642f033-4b98-4182-982a-465fd9990d54"
+        },
+        "if-condition--42b482e4-2131-4f24-a4fd-aba88567f8a4": {
+            "name": "Check if attacker IP is known",
+            "type": "if-condition",
+            "condition": "attacker_ip != None",
+            "on_true": "action--42b482e4-2131-4f24-a4fd-aba88567f8a4",
+            "on_false": "action--c5e3f232-e2d1-46d4-bf95-e451ff7d1468"
+        },
+        "action--42b482e4-2131-4f24-a4fd-aba88567f8a4": {
+            "name": "Block IP address of attacker",
+            "description": "Block any connection attempts from the attacker's IP address.",
+            "on_completion": "action--a964d2f1-3474-40b8-9d87-7265034c29b2",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <attacker_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--4642f033-4b98-4182-982a-465fd9990d54"
+        },
+        "action--c5e3f232-e2d1-46d4-bf95-e451ff7d1468": {
+            "name": "Scan for additional vulnerabilities",
+            "description": "Run a scan to identify other vulnerabilities in the system.",
+            "on_completion": "while-condition--a02df504-b144-4e17-96da-cbe058991bc0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vuln_scan.sh"
+                }
+            ],
+            "agent": "organization--4642f033-4b98-4182-982a-465fd9990d54"
+        },
+        "action--a964d2f1-3474-40b8-9d87-7265034c29b2": {
+            "name": "Update firewall rules",
+            "description": "Update rules to prevent further attacks from the defined IP.",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --permanent --add-rich-rule='rule family=\"ipv4\" source address=\"<attacker_ip>\" reject'"
+                }
+            ],
+            "agent": "organization--4642f033-4b98-4182-982a-465fd9990d54"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        },
+        "while-condition--a02df504-b144-4e17-96da-cbe058991bc0": {
+            "name": "Check scan result",
+            "description": "Repeat scanning until the system is confirmed clean.",
+            "on_true": "action--c5e3f232-e2d1-46d4-bf95-e451ff7d1468",
+            "condition": "scan_result == 'not_clean'",
+            "type": "while-condition",
+            "on_completion": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        }
+    },
+    "agent_definitions": {
+        "organization--4642f033-4b98-4182-982a-465fd9990d54": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

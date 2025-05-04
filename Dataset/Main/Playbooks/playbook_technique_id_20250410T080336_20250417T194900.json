@@ -1,0 +1,139 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--7f83e1d6-22b5-4c9d-b28b-49d3d938e4d1",
+    "name": "Command and Scripting Interpreter Mitigation Playbook",
+    "description": "Playbook to mitigate threats from script execution attempting to connect to an external C2 server.",
+    "created_by": "identity--xxxxxxx-yyyyy-zzzzz",
+    "created": "2023-10-18T12:00:00Z",
+    "modified": "2023-10-18T12:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--d6f342d0-fd94-4cde-83b9-9561b5ed5091",
+    "workflow": {
+        "start--d6f342d0-fd94-4cde-83b9-9561b5ed5091": {
+            "on_completion": "parallel--11111111-1111-1111-1111-111111111111",
+            "type": "start"
+        },
+        "end--22222222-2222-2222-2222-222222222222": {
+            "type": "end"
+        },
+        "parallel--11111111-1111-1111-1111-111111111111": {
+            "name": "Parallel Actions",
+            "description": "Execute parallel actions to handle script and connection.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b0a537b0-aba6-4c5a-b1f8-bc8d43482db6",
+                "action--a73522a8-5475-4762-9b1d-82a65a3c0413"
+            ]
+        },
+        "action--b0a537b0-aba6-4c5a-b1f8-bc8d43482db6": {
+            "name": "Terminate malicious script process",
+            "description": "Terminate any processes executing the malicious script.",
+            "on_completion": "while--eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "while--eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee": {
+            "name": "Repeat scan until clean",
+            "description": "Continue scanning until the scan result is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--84c0bfd2-6e00-4e4e-9144-d930a479ef41",
+            "on_false": "end--22222222-2222-2222-2222-222222222222"
+        },
+        "action--84c0bfd2-6e00-4e4e-9144-d930a479ef41": {
+            "name": "Scan host for additional malware",
+            "description": "Perform a full scan of the host.",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Outcome of the malware scan",
+                    "value": "unknown",
+                    "constant": false,
+                    "external": true
+                }
+            },
+            "on_completion": "if-condition--dddddddd-dddd-dddd-dddd-dddddddddddd",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan_script.sh --full-scan"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "if-condition--dddddddd-dddd-dddd-dddd-dddddddddddd": {
+            "name": "Check scan result",
+            "description": "Check if the scan finds malware.",
+            "type": "if-condition",
+            "condition": "scan_result == 'malware_found'",
+            "on_true": "action--c4e9cc4a-e276-4d72-8c94-2573a607c8b5",
+            "on_false": "end--22222222-2222-2222-2222-222222222222"
+        },
+        "action--c4e9cc4a-e276-4d72-8c94-2573a607c8b5": {
+            "name": "Notify IT security team",
+            "description": "Send an alert to the IT security team if malware is found.",
+            "on_completion": "end--22222222-2222-2222-2222-222222222222",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "send_alert.sh IT_Security 'Incident detected on host-47'"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--a73522a8-5475-4762-9b1d-82a65a3c0413": {
+            "name": "Update firewall rules to block malicious IP",
+            "description": "Add firewall rule to block outbound connections to a malicious IP.",
+            "on_completion": "action--faab8137-1375-4037-9917-d5a2c8f6ec58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.0.2.0 -j DROP"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--faab8137-1375-4037-9917-d5a2c8f6ec58": {
+            "name": "Verify firewall rule application",
+            "description": "Check if the firewall rule was applied successfully.",
+            "on_completion": "action--96492f6f-7edd-440c-9433-5f945c67a105",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "check_firewall.sh 192.0.2.0"
+                }
+            ],
+            "agent": "organization--xyz"
+        },
+        "action--96492f6f-7edd-440c-9433-5f945c67a105": {
+            "name": "Investigate unauthorized file access",
+            "description": "Review logs for unauthorized file access.",
+            "on_completion": "end--22222222-2222-2222-2222-222222222222",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "review_logs.sh /var/log/file_access.log"
+                }
+            ],
+            "agent": "organization--xyz"
+        }
+    },
+    "agent_definitions": {
+        "organization--xyz": {
+            "type": "organization",
+            "name": "SecurityIncidentResponseTeam"
+        }
+    }
+}

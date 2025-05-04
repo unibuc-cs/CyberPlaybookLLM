@@ -1,0 +1,104 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d623e7e5-2e6b-4c9a-8a7d-9e07d538cd30",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker used a command-line interface to execute malicious scripts and establish a backdoor connection.",
+    "created_by": "identity--f5b18f9c-5f46-49fd-9c13-3cbb3727bc2e",
+    "created": "2023-10-10T08:55:35.498Z",
+    "modified": "2023-10-10T09:00:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--1a23c456-b12a-4dca-99b2-d8b9d71e6f45",
+    "workflow": {
+        "start--1a23c456-b12a-4dca-99b2-d8b9d71e6f45": {
+            "on_completion": "parallel--a98d5d3b-a77c-4c06-9f66-534e55b20b6e",
+            "type": "start"
+        },
+        "parallel--a98d5d3b-a77c-4c06-9f66-534e55b20b6e": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute mitigation actions in parallel to handle the incident effectively.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f73c16d3-e12a-4b5b-8065-c3ff75d62f5a",
+                "action--b6f28f50-8456-4576-bbe2-09c712d58877",
+                "action--f0a7e783-3c9c-4d4a-b737-1f1e3829f1c8"
+            ]
+        },
+        "action--f73c16d3-e12a-4b5b-8065-c3ff75d62f5a": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "action--b6f28f50-8456-4576-bbe2-09c712d58877",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--908bade0-9c23-4f37-9cee-906f326c75d7"
+        },
+        "action--b6f28f50-8456-4576-bbe2-09c712d58877": {
+            "name": "Delete dropped malware file",
+            "description": "Remove the malware file dropped in the system directory.",
+            "on_completion": "loop--c42d7f23-ce15-4ae9-b147-4b1ff835efeb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /path/to/malware_file"
+                }
+            ],
+            "agent": "organization--908bade0-9c23-4f37-9cee-906f326c75d7"
+        },
+        "loop--c42d7f23-ce15-4ae9-b147-4b1ff835efeb": {
+            "name": "System Scan Loop",
+            "description": "Run a full system scan until the system is confirmed clean.",
+            "on_true": "end--987ef182-dc5c-4350-a86e-bf3fa90e3ff4",
+            "on_false": "action--f0a7e783-3c9c-4d4a-b737-1f1e3829f1c8",
+            "type": "while-condition",
+            "condition": "is_scan_clean == false",
+            "step_variables": {
+                "is_scan_clean": {
+                    "type": "boolean",
+                    "description": "Stores if the system scan was successful without malware detected.",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "next_steps": [
+                "action--f0a7e783-3c9c-4d4a-b737-1f1e3829f1c8"
+            ]
+        },
+        "action--f0a7e783-3c9c-4d4a-b737-1f1e3829f1c8": {
+            "name": "Run a full system scan",
+            "description": "Perform a full system scan and attempt to remove any remaining threats.",
+            "on_completion": "loop--c42d7f23-ce15-4ae9-b147-4b1ff835efeb",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r / --remove=yes"
+                }
+            ],
+            "agent": "organization--908bade0-9c23-4f37-9cee-906f326c75d7",
+            "step_variables": {
+                "is_scan_clean": {
+                    "type": "boolean",
+                    "description": "Indicates if the last scan found any threats.",
+                    "value": "$(grep -c 'Infected files: 0' scan_output.log)",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--987ef182-dc5c-4350-a86e-bf3fa90e3ff4": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--908bade0-9c23-4f37-9cee-906f326c75d7": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

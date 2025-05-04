@@ -1,0 +1,117 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a2f11f56-ade3-4e7f-90e3-3254e1a06f00",
+    "name": "Mitigation Playbook for Unauthorized Command Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerable script interpreter to execute unauthorized commands on the server.",
+    "created_by": "identity--f53d2c42-7882-4015-988c-191f2ae9b552",
+    "created": "2023-10-19T10:00:00Z",
+    "modified": "2023-10-19T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--f2c8a1e6-3e39-4fa3-94d2-7e1c76a360e7",
+    "workflow": {
+        "start--f2c8a1e6-3e39-4fa3-94d2-7e1c76a360e7": {
+            "on_completion": "action--c43b1f81-a977-4f1e-86dd-3c6476f6f1a9",
+            "type": "start"
+        },
+        "action--c43b1f81-a977-4f1e-86dd-3c6476f6f1a9": {
+            "name": "Terminate unauthorized scripts",
+            "description": "Terminate any running unauthorized scripts detected.",
+            "on_completion": "decision--1e90e30a-ec75-44cb-840d-2f2cfa52dd7d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f unauthorized_script.sh"
+                }
+            ],
+            "agent": "organization--03a4f422-8319-4532-8287-92a0e9e430b3"
+        },
+        "action--2d5f6e75-93a8-4a11-8377-18753c80163a": {
+            "name": "Block suspicious IP addresses",
+            "description": "Block traffic to suspicious IP addresses identified from logs.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 203.0.113.0/24 -j DROP"
+                }
+            ],
+            "on_completion": "action--e9b8f1a9-752b-4c83-95e7-35b70dbb3f98",
+            "agent": "organization--03a4f422-8319-4532-8287-92a0e9e430b3"
+        },
+        "action--e9b8f1a9-752b-4c83-95e7-35b70dbb3f98": {
+            "name": "Reset permissions on script directory",
+            "description": "Reset permissions to secure the script directory.",
+            "on_completion": "loop--2da82919-20c8-466d-b7f6-0b87614a81a8",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "chmod -R 750 /var/scripts"
+                }
+            ],
+            "agent": "organization--03a4f422-8319-4532-8287-92a0e9e430b3"
+        },
+        "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e": {
+            "name": "Perform antivirus scan",
+            "description": "Scan the home directory for viruses.",
+            "on_completion": "check_scan_status--64b857bf-a267-420a-bd3a-04cea3427717",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /home"
+                }
+            ],
+            "agent": "organization--03a4f422-8319-4532-8287-92a0e9e430b3"
+        },
+        "action--73a4ac0f-846a-4d56-a0ed-d9f73358b8d8": {
+            "name": "Update firewall rules",
+            "description": "Reload firewall with updated policies.",
+            "on_completion": "end--d55a4681-18e0-4c7e-8725-f3d59ca0c576",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw reload"
+                }
+            ],
+            "agent": "organization--03a4f422-8319-4532-8287-92a0e9e430b3"
+        },
+        "end--d55a4681-18e0-4c7e-8725-f3d59ca0c576": {
+            "type": "end"
+        },
+        "decision--1e90e30a-ec75-44cb-840d-2f2cfa52dd7d": {
+            "name": "Check if unauthorized script still running?",
+            "type": "if-condition",
+            "condition": "pgrep unauthorized_script.sh != None",
+            "on_true": "action--c43b1f81-a977-4f1e-86dd-3c6476f6f1a9",
+            "on_false": "action--2d5f6e75-93a8-4a11-8377-18753c80163a"
+        },
+        "loop--2da82919-20c8-466d-b7f6-0b87614a81a8": {
+            "name": "Run antivirus scan",
+            "description": "Repeat antivirus scan until the directory shows as clean.",
+            "on_completion": "decision--6db13a3a-14f4-4494-a0fe-f1130dfd5315",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e",
+            "next_steps": [
+                "action--4c135fd6-cd82-4588-bf96-7b7dbf0e4f2e"
+            ]
+        },
+        "check_scan_status--64b857bf-a267-420a-bd3a-04cea3427717": {
+            "name": "Check Scan Status",
+            "type": "if-condition",
+            "condition": "grep 'Infected' /path/to/scan_result.log",
+            "on_true": "loop--2da82919-20c8-466d-b7f6-0b87614a81a8",
+            "on_false": "action--73a4ac0f-846a-4d56-a0ed-d9f73358b8d8"
+        }
+    },
+    "agent_definitions": {
+        "organization--03a4f422-8319-4532-8287-92a0e9e430b3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

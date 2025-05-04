@@ -1,0 +1,81 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--0d6789f7-3bbe-44a4-82ae-bdb7721d0757",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook automates the response to an incident where unauthorized PowerShell scripts were executed to exfiltrate sensitive data.",
+    "created_by": "identity--5818a934-2377-43e3-8951-b122a36b47bf",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--c507d9bf-97a9-4366-baf2-f7d2c9b14022",
+    "workflow": {
+        "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56": {
+            "name": "Kill malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be exfiltrating data.",
+            "on_completion": "if-condition--8da7686d-2e81-41d8-9372-7765b668dcef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--c05aaf2d-9c17-4e28-a71e-82bf0473a499"
+        },
+        "action--b012e682-db71-41c9-9b8c-f0bc93cbd013": {
+            "name": "Scan system for malware",
+            "description": "Perform a scan of the system to find and remove any malware.",
+            "on_completion": "while-condition--74d462a1-8043-4383-b974-9eaf3e0300e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamav-scan --recursive /path/to/scan"
+                }
+            ],
+            "agent": "organization--c05aaf2d-9c17-4e28-a71e-82bf0473a499"
+        },
+        "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7": {
+            "name": "Block external IP address",
+            "description": "Prevent further connections from the identified malicious external IP.",
+            "on_completion": "end--a08db958-fbfd-4101-afe7-24a0ad94f912",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s <external-ip> -j DROP"
+                }
+            ],
+            "agent": "organization--c05aaf2d-9c17-4e28-a71e-82bf0473a499"
+        },
+        "start--c507d9bf-97a9-4366-baf2-f7d2c9b14022": {
+            "on_completion": "action--e7d32c83-c3ed-4659-b95d-5ff75bc65b56",
+            "type": "start"
+        },
+        "if-condition--8da7686d-2e81-41d8-9372-7765b668dcef": {
+            "name": "Check if process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--b012e682-db71-41c9-9b8c-f0bc93cbd013",
+            "on_false": "action--c0d35592-8f3b-4c62-a9a8-9eb1baebc5c7"
+        },
+        "while-condition--74d462a1-8043-4383-b974-9eaf3e0300e3": {
+            "name": "Scan until clean",
+            "on_completion": "action--f7c31ace-34e8-4f79-99b6-af39621e6134",
+            "type": "while-condition",
+            "condition": "is_scan_clean()",
+            "on_true": "end--a08db958-fbfd-4101-afe7-24a0ad94f912",
+            "on_false": "action--b012e682-db71-41c9-9b8c-f0bc93cbd013"
+        },
+        "end--a08db958-fbfd-4101-afe7-24a0ad94f912": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--c05aaf2d-9c17-4e28-a71e-82bf0473a499": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

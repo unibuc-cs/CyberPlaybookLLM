@@ -1,0 +1,98 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a5903e76-fe56-4ec6-acd7-3e1a2acf7fca",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker exploited a vulnerability to run a malicious script, leading to unauthorized access and data exfiltration.",
+    "created_by": "identity--9528bf3f-2fc6-4fda-9b20-26d5edd03672",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--d0457088-4fa4-4e34-8a4b-889db8f4187c",
+    "workflow": {
+        "start--d0457088-4fa4-4e34-8a4b-889db8f4187c": {
+            "on_completion": "parallel--7f88ccbf-e126-4b13-a6e8-e119e4f2fc8c",
+            "type": "start"
+        },
+        "end--18e5d106-06cd-41bf-9c5b-2b818d64f823": {
+            "type": "end"
+        },
+        "if-condition--2d990b2d-a8a5-42f0-bdae-4fdadc3e9f37": {
+            "name": "Check if full system scan is clean",
+            "type": "if-condition",
+            "condition": "scanned_clean == false",
+            "on_true": "action--5a590fc5-a16e-4f68-9b74-3c09ab2901a0",
+            "on_false": "end--18e5d106-06cd-41bf-9c5b-2b818d64f823"
+        },
+        "action--c04ade47-eb00-4949-b8c2-4de5d942cb91": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--31de7d60-5207-4c29-9bc3-efb96882b5e3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--c69248e4-7426-4daa-b7b5-df31e16ea7c4"
+        },
+        "action--31de7d60-5207-4c29-9bc3-efb96882b5e3": {
+            "name": "Remove malicious cron job",
+            "description": "Delete the cron job that was established for persistence.",
+            "on_completion": "if-condition--2d990b2d-a8a5-42f0-bdae-4fdadc3e9f37",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "crontab -l | grep -v 'malicious_job' | crontab -"
+                }
+            ],
+            "agent": "organization--c69248e4-7426-4daa-b7b5-df31e16ea7c4"
+        },
+        "parallel--7f88ccbf-e126-4b13-a6e8-e119e4f2fc8c": {
+            "name": "Execute Mitigations",
+            "description": "Run the actions needed to mitigate the incident.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c04ade47-eb00-4949-b8c2-4de5d942cb91",
+                "action--5a590fc5-a16e-4f68-9b74-3c09ab2901a0"
+            ]
+        },
+        "action--5a590fc5-a16e-4f68-9b74-3c09ab2901a0": {
+            "name": "Run full system scan",
+            "description": "Perform a full system scan to detect and eliminate any remaining threats.",
+            "on_completion": "if-condition--2d990b2d-a8a5-42f0-bdae-4fdadc3e9f37",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_scan"
+                }
+            ],
+            "agent": "organization--c69248e4-7426-4daa-b7b5-df31e16ea7c4",
+            "step_variables": {
+                "scanned_clean": {
+                    "type": "boolean",
+                    "description": "Determines if the scan detected any threats",
+                    "value": false,
+                    "constant": false
+                }
+            }
+        },
+        "while-condition--68c50f9c-48cf-4e87-90a5-cca8efabbb14": {
+            "name": "Full Scan Loop",
+            "description": "Continue scanning until no threats are found",
+            "on_completion": "if-condition--2d990b2d-a8a5-42f0-bdae-4fdadc3e9f37",
+            "type": "while-condition",
+            "condition": "scanned_clean == false",
+            "on_true": "action--5a590fc5-a16e-4f68-9b74-3c09ab2901a0"
+        }
+    },
+    "agent_definitions": {
+        "organization--c69248e4-7426-4daa-b7b5-df31e16ea7c4": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

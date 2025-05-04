@@ -1,0 +1,138 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b835f6d0-24dc-4f1b-96b7-65893d5d31fb",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook provides mitigation steps for an incident involving unauthorized command execution using a scripting interpreter.",
+    "created_by": "identity--abc12345-6789-4def-ba10-112233445566",
+    "created": "2023-10-02T14:00:00Z",
+    "modified": "2023-10-02T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--75a1ea4d-3510-4a1c-b920-5c9d4eedef66",
+    "workflow": {
+        "start--75a1ea4d-3510-4a1c-b920-5c9d4eedef66": {
+            "on_completion": "parallel--c3b9a7c4-1bef-4bc0-a5b8-def5ee76d922",
+            "type": "start"
+        },
+        "parallel--c3b9a7c4-1bef-4bc0-a5b8-def5ee76d922": {
+            "name": "Initial Mitigation Steps",
+            "description": "Execute initial mitigation steps in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--9e1cb378-74f5-4761-922e-f812e4dac8b4",
+                "decision--b2e097c8-4a5c-4b1f-9832-157ba07f6e17"
+            ]
+        },
+        "action--9e1cb378-74f5-4761-922e-f812e4dac8b4": {
+            "name": "Kill Malicious Process",
+            "description": "Terminate any running processes associated with the malicious script.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'suspicious-script.sh'"
+                }
+            ],
+            "agent": "organization--713a9ae6-b046-460d-ac6c-159470f962ad",
+            "on_completion": "loop--3c7f59e0-0fd8-4d2e-b85f-e3c1178279fc"
+        },
+        "decision--b2e097c8-4a5c-4b1f-9832-157ba07f6e17": {
+            "name": "Check Outbound Connection",
+            "type": "if-condition",
+            "condition": "connection_established",
+            "on_true": "action--12f4b908-59b8-411e-8aea-d4b6f60152c5",
+            "on_false": "loop--3c7f59e0-0fd8-4d2e-b85f-e3c1178279fc"
+        },
+        "action--12f4b908-59b8-411e-8aea-d4b6f60152c5": {
+            "name": "Block Outbound Traffic",
+            "description": "Block outgoing traffic to unapproved IP addresses.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d 192.168.1.100 -j REJECT"
+                }
+            ],
+            "agent": "organization--713a9ae6-b046-460d-ac6c-159470f962ad",
+            "on_completion": "loop--3c7f59e0-0fd8-4d2e-b85f-e3c1178279fc"
+        },
+        "loop--3c7f59e0-0fd8-4d2e-b85f-e3c1178279fc": {
+            "name": "Scan for Unauthorized Scripts",
+            "description": "Continuously scan the server for additional unauthorized scripts until the scan is completed.",
+            "type": "while-condition",
+            "condition": "!scan_completes",
+            "on_true": "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3",
+            "on_false": "decision--f166589f-e338-4a9e-a4c7-db15cd5a8a77"
+        },
+        "action--a5f6af13-0fd1-48bb-903e-e42fd579b8c3": {
+            "name": "Execute Scan",
+            "description": "Search for scripts containing malicious patterns.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'malicious-pattern' {} \\;"
+                }
+            ],
+            "agent": "organization--713a9ae6-b046-460d-ac6c-159470f962ad",
+            "step_variables": {
+                "scan_completes": {
+                    "type": "boolean",
+                    "description": "Indicates whether the script scan has completed.",
+                    "value": false,
+                    "constant": false
+                }
+            },
+            "on_completion": "loop--3c7f59e0-0fd8-4d2e-b85f-e3c1178279fc"
+        },
+        "decision--f166589f-e338-4a9e-a4c7-db15cd5a8a77": {
+            "name": "Check for New Signatures",
+            "type": "if-condition",
+            "condition": "new_signature_detected",
+            "on_true": "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8",
+            "on_false": "decision--d7f0b521-e17b-4f4b-9c10-9e4a1f07312b"
+        },
+        "action--c329e7a0-77d8-41c1-a0f4-4703b1ec70b8": {
+            "name": "Update Firewall and IDS",
+            "description": "Update firewall rules and IDS signatures based on new detections.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "firewall-cmd --add-source=192.168.1.101 && ids-update -f signatures.txt"
+                }
+            ],
+            "agent": "organization--713a9ae6-b046-460d-ac6c-159470f962ad",
+            "on_completion": "decision--d7f0b521-e17b-4f4b-9c10-9e4a1f07312b"
+        },
+        "decision--d7f0b521-e17b-4f4b-9c10-9e4a1f07312b": {
+            "name": "Check Scan Results",
+            "type": "if-condition",
+            "condition": "scan_results_clean",
+            "on_true": "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d",
+            "on_false": "end--f73392af-c7c8-4fae-92a2-5b4ca9d94fbb"
+        },
+        "action--7d3cf242-4d8c-4f3b-a9a2-cdf9f4b65e2d": {
+            "name": "Restart Compromised Server",
+            "description": "Reboot the compromised server to ensure the system is clean after remediation.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "reboot"
+                }
+            ],
+            "agent": "organization--713a9ae6-b046-460d-ac6c-159470f962ad",
+            "on_completion": "end--f73392af-c7c8-4fae-92a2-5b4ca9d94fbb"
+        },
+        "end--f73392af-c7c8-4fae-92a2-5b4ca9d94fbb": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--713a9ae6-b046-460d-ac6c-159470f962ad": {
+            "type": "organization",
+            "name": "SecurityOperationsCenter"
+        }
+    }
+}

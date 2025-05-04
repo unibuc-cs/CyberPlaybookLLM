@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f54a4a9b-4b7c-4ae5-abc5-0b4e139d34c8",
+    "name": "Mitigation Playbook for Malicious Script Execution",
+    "description": "This playbook addresses an incident where an attacker utilized a command interpreter to execute a malicious script leading to unauthorized data exfiltration.",
+    "created_by": "identity--5f4e8d78-a394-4f67-8858-55d1f4e6416b",
+    "created": "2025-04-09T08:55:35.498Z",
+    "modified": "2025-04-09T08:56:56.043Z",
+    "revoked": false,
+    "workflow_start": "start--a1b23c4d-e567-4a78-a123-67c89ab1c234",
+    "workflow": {
+        "start--a1b23c4d-e567-4a78-a123-67c89ab1c234": {
+            "on_completion": "parallel--abcd1234-e890-4a91-a234-0b1c2d3e4fa5",
+            "type": "start"
+        },
+        "parallel--abcd1234-e890-4a91-a234-0b1c2d3e4fa5": {
+            "name": "Perform immediate mitigations",
+            "type": "parallel",
+            "next_steps": [
+                "action--b8f32fa2-72f0-45fc-9498-5367d50ada85",
+                "action--d0fcf2e0-4a4b-4cde-9e60-fb2ea2d3ec58",
+                "loop--cc3b5e00-e14f-4d51-9859-79c2af843635"
+            ]
+        },
+        "action--b8f32fa2-72f0-45fc-9498-5367d50ada85": {
+            "name": "Kill the malicious script process",
+            "description": "Terminate the malicious script that is currently running on the host.",
+            "on_completion": "action--d0fcf2e0-4a4b-4cde-9e60-fb2ea2d3ec58",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--23658a43-7b7c-4c7f-928f-a8a712d58400"
+        },
+        "action--d0fcf2e0-4a4b-4cde-9e60-fb2ea2d3ec58": {
+            "name": "Isolate affected host from the network",
+            "description": "Block all incoming traffic from the compromised host to prevent further damage.",
+            "on_completion": "loop--cc3b5e00-e14f-4d51-9859-79c2af843635",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-01 -j DROP"
+                }
+            ],
+            "agent": "organization--23658a43-7b7c-4c7f-928f-a8a712d58400"
+        },
+        "loop--cc3b5e00-e14f-4d51-9859-79c2af843635": {
+            "name": "Scan the host for vulnerabilities",
+            "description": "Continuously run a vulnerability scan until the scan is complete.",
+            "type": "while-condition",
+            "condition": "scan_complete == false",
+            "on_true": "action--cc3b5e00-e14f-4d51-9859-79c2af843635",
+            "on_false": "end--5897780f-531f-4df6-87aa-c796932e64a5"
+        },
+        "action--cc3b5e00-e14f-4d51-9859-79c2af843635": {
+            "name": "Run vulnerability scan",
+            "on_completion": "loop--cc3b5e00-e14f-4d51-9859-79c2af843635",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_vulnerability_scan"
+                }
+            ],
+            "agent": "organization--23658a43-7b7c-4c7f-928f-a8a712d58400",
+            "step_variables": {
+                "scan_complete": {
+                    "type": "boolean",
+                    "description": "Indicates if the vulnerability scan has completed successfully.",
+                    "value": "false",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--5897780f-531f-4df6-87aa-c796932e64a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--23658a43-7b7c-4c7f-928f-a8a712d58400": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

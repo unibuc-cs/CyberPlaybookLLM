@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b93c6c71-96b4-4746-9ef7-04506b56bf88",
+    "name": "Mitigation Playbook for Malicious Script Execution via Phishing",
+    "description": "This playbook mitigates the impact of a successful attack where a malicious PowerShell script was executed via phishing, establishing a reverse shell.",
+    "created_by": "identity--ec547836-782a-4993-a380-20115a5415b8",
+    "created": "2023-10-12T08:32:00Z",
+    "modified": "2023-10-12T08:35:00Z",
+    "revoked": false,
+    "workflow_start": "start--0a6e7254-dc83-4556-9e0e-1a8d6f3d0eef",
+    "workflow": {
+        "start--0a6e7254-dc83-4556-9e0e-1a8d6f3d0eef": {
+            "on_completion": "if-condition--50a6f816-8a5c-4905-8878-8419aebbb44e",
+            "type": "start"
+        },
+        "if-condition--50a6f816-8a5c-4905-8878-8419aebbb44e": {
+            "name": "Check if PowerShell process exists",
+            "type": "if-condition",
+            "condition": "process_exists('powershell.exe')",
+            "on_true": "action--362c53b9-7ca4-4c3a-ad6c-3af689d5b4bb",
+            "on_false": "action--d7e7c2e3-5902-4e39-9c37-30b2f820710f"
+        },
+        "action--362c53b9-7ca4-4c3a-ad6c-3af689d5b4bb": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate the malicious PowerShell process to prevent further exploitation.",
+            "on_completion": "action--d7e7c2e3-5902-4e39-9c37-30b2f820710f",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell.exe'"
+                }
+            ],
+            "agent": "organization--813aedf2-80a9-4600-a91e-06f6d1578638"
+        },
+        "action--d7e7c2e3-5902-4e39-9c37-30b2f820710f": {
+            "name": "Isolate Host from Network",
+            "description": "Disconnect the compromised host from the network to prevent data exfiltration.",
+            "on_completion": "while-condition--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--813aedf2-80a9-4600-a91e-06f6d1578638"
+        },
+        "while-condition--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661": {
+            "name": "Run Endpoint Protection Scan",
+            "description": "Perform a scan of the system to detect any remaining threats.",
+            "on_completion": "action--1e68720d-1e79-493c-ae89-c03f0ca5ac02",
+            "type": "while-condition",
+            "condition": "scan_is_clean()",
+            "on_true": "action--1e68720d-1e79-493c-ae89-c03f0ca5ac02",
+            "on_false": "action--f39f6a7d-cb57-4b0f-9b44-14a9afcd1661"
+        },
+        "action--1e68720d-1e79-493c-ae89-c03f0ca5ac02": {
+            "name": "Clean Up Dropped Payloads",
+            "description": "Remove any malicious payloads dropped during the attack.",
+            "on_completion": "end--92e8f2d9-cadc-4c26-b48d-6b86ca7b6d34",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/malicious_payload.*"
+                }
+            ],
+            "agent": "organization--813aedf2-80a9-4600-a91e-06f6d1578638"
+        },
+        "end--92e8f2d9-cadc-4c26-b48d-6b86ca7b6d34": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--813aedf2-80a9-4600-a91e-06f6d1578638": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

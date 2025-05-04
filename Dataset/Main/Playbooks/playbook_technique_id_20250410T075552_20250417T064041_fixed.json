@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--f407b7c0-7f09-4b11-a739-2f416c9e0f21",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident where an attacker used PowerShell to execute a malicious script, potentially gaining unauthorized access and attempting privilege escalation.",
+    "created_by": "identity--9515e380-ce1b-4968-acf8-d62f416380e7",
+    "created": "2025-04-10T08:59:00.000Z",
+    "modified": "2025-04-10T09:01:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--86de39a3-7518-4233-9a28-f2cc90c18c5f",
+    "workflow": {
+        "action--a54f659d-0d42-4ee4-b26e-9c511d09f726": {
+            "name": "Terminate malicious PowerShell process",
+            "description": "Terminate any running PowerShell processes that may be executing the malicious script.",
+            "on_completion": "parallel--c2de75d4-1a02-4c13-9ee7-473f54b83f83",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--a7de20fc-2828-43e6-9fca-d89a2b703736"
+        },
+        "parallel--c2de75d4-1a02-4c13-9ee7-473f54b83f83": {
+            "name": "Execute mitigation actions",
+            "description": "Simultaneously run actions for patching, cleanup, and monitoring.",
+            "type": "parallel",
+            "next_steps": [
+                "action--b63bfc72-c5d1-497a-9b06-ffac9289872e",
+                "action--c87e59f3-d772-45a2-bd89-5417395d11c5",
+                "action--e57a6f0c-5e29-4529-af6a-b14174b9db85",
+                "loop--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9"
+            ]
+        },
+        "action--b63bfc72-c5d1-497a-9b06-ffac9289872e": {
+            "name": "Apply security patch for kernel vulnerability",
+            "description": "Update the system and apply patches for known vulnerabilities.",
+            "on_completion": "loop--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ ! $(uname -r) = 'patched-kernel-version' ]; then sudo apt-get update && sudo apt-get install patch-package; fi"
+                }
+            ],
+            "agent": "organization--f3c6f132-46eb-4153-a47e-9cd9751926e9"
+        },
+        "action--c87e59f3-d772-45a2-bd89-5417395d11c5": {
+            "name": "Remove downloaded malicious script",
+            "description": "Delete any downloaded malicious script to prevent further execution.",
+            "on_completion": "loop--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/downloaded/script.sh"
+                }
+            ],
+            "agent": "organization--6cb5b895-4cef-407f-9f98-1ae41b049f43"
+        },
+        "loop--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9": {
+            "name": "Scan system for further infections",
+            "description": "Continuously scan the system for infections until the system is clean.",
+            "on_completion": "end--4b71a714-a670-4bce-832c-5b319cae7b95",
+            "type": "while-condition",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9",
+            "on_false": "action--e57a6f0c-5e29-4529-af6a-b14174b9db85"
+        },
+        "action--d10683b8-5dbc-4f0f-9c5e-55ab0ae3fde9": {
+            "name": "Perform system scan",
+            "description": "Scan the system for further infections.",
+            "on_completion": "update_scan_status--291555be-98f6-4254-a76c-c7d3a90d2753",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full /"
+                }
+            ],
+            "agent": "organization--9707b76e-e263-4850-ad61-d8600e9d1605"
+        },
+        "action--e57a6f0c-5e29-4529-af6a-b14174b9db85": {
+            "name": "Monitor network traffic for abnormal activities",
+            "description": "Set up monitoring for any suspicious network activity.",
+            "on_completion": "end--4b71a714-a670-4bce-832c-5b319cae7b95",
+            "type": "if-condition",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --verbose"
+                }
+            ],
+            "agent": "organization--f2b4861d-0752-4353-80d5-f93ab4e88f09",
+            "condition": "suspicious activity detected"
+        },
+        "start--86de39a3-7518-4233-9a28-f2cc90c18c5f": {
+            "on_completion": "action--a54f659d-0d42-4ee4-b26e-9c511d09f726",
+            "type": "start"
+        },
+        "end--4b71a714-a670-4bce-832c-5b319cae7b95": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--a7de20fc-2828-43e6-9fca-d89a2b703736": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        },
+        "organization--f3c6f132-46eb-4153-a47e-9cd9751926e9": {
+            "type": "organization",
+            "name": "Security Updates Team"
+        },
+        "organization--6cb5b895-4cef-407f-9f98-1ae41b049f43": {
+            "type": "organization",
+            "name": "System Maintenance Team"
+        },
+        "organization--9707b76e-e263-4850-ad61-d8600e9d1605": {
+            "type": "organization",
+            "name": "Malware Analysis Team"
+        },
+        "organization--f2b4861d-0752-4353-80d5-f93ab4e88f09": {
+            "type": "organization",
+            "name": "Network Monitoring Team"
+        }
+    }
+}

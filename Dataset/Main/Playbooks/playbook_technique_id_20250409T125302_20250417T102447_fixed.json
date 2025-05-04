@@ -1,0 +1,87 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d6f29e45-f8a0-4b6e-95c7-44539fba16b9",
+    "name": "Playbook for Mitigating PowerShell Attack",
+    "description": "This playbook addresses an incident where an attacker executed PowerShell scripts to gain persistence and compromise sensitive data.",
+    "created_by": "identity--3108d582-6441-4da6-8ed9-9bec8e8026a3",
+    "created": "2025-04-09T10:00:00Z",
+    "modified": "2025-04-09T10:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--deaa03a6-67c6-4e60-ba57-7a555aad6561",
+    "workflow": {
+        "if-condition--d3c18f67-d0b0-4b51-b2ca-a33cce3579e8": {
+            "name": "Check if malicious PowerShell process exists",
+            "type": "if-condition",
+            "condition": "ps aux | grep powershell | grep -v grep",
+            "on_true": "action--c3c408f0-f4e0-4f02-bdcd-8bc82f4e38dd",
+            "on_false": "parallel--973b3f36-6eb1-4c85-b8e8-3204cdd5bc44"
+        },
+        "action--c3c408f0-f4e0-4f02-bdcd-8bc82f4e38dd": {
+            "name": "Kill malicious PowerShell process",
+            "on_completion": "parallel--973b3f36-6eb1-4c85-b8e8-3204cdd5bc44",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--9321e103-4f48-4be4-b8a2-c790245ca5be"
+        },
+        "parallel--973b3f36-6eb1-4c85-b8e8-3204cdd5bc44": {
+            "name": "Mitigations Execution",
+            "description": "Execute necessary mitigations in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--f8f49c59-f456-43f7-b40e-50a8a2ba0b79",
+                "action--de6b05c8-f686-4e31-b1f2-ab9a6124ef50"
+            ]
+        },
+        "action--f8f49c59-f456-43f7-b40e-50a8a2ba0b79": {
+            "name": "Scan host for additional threats",
+            "on_completion": "end--e704e4d6-1cbc-4a7b-8163-3fafb07bb8cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "while ! scan.isClean; do run_scan; done"
+                }
+            ],
+            "agent": "organization--9321e103-4f48-4be4-b8a2-c790245ca5be",
+            "step_variables": {
+                "scan": {
+                    "type": "boolean",
+                    "description": "Indicates whether the scan is clean",
+                    "value": "false",
+                    "constant": false
+                }
+            }
+        },
+        "action--de6b05c8-f686-4e31-b1f2-ab9a6124ef50": {
+            "name": "Disconnect from malicious network",
+            "on_completion": "end--b0e1c412-b973-4749-9961-1261f38ee6df",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig eth0 down"
+                }
+            ],
+            "agent": "organization--9321e103-4f48-4be4-b8a2-c790245ca5be"
+        },
+        "end--e704e4d6-1cbc-4a7b-8163-3fafb07bb8cf": {
+            "type": "end"
+        },
+        "start--deaa03a6-67c6-4e60-ba57-7a555aad6561": {
+            "on_completion": "if-condition--d3c18f67-d0b0-4b51-b2ca-a33cce3579e8",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--9321e103-4f48-4be4-b8a2-c790245ca5be": {
+            "type": "organization",
+            "name": "CyberSecurityTeam"
+        }
+    }
+}

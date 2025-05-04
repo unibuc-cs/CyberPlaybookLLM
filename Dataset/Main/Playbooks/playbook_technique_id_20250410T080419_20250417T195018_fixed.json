@@ -1,0 +1,140 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--3b7e4f23-7e4a-4de0-b581-a7f8d5c6461a",
+    "name": "Mitigation Playbook for PowerShell Exploitation Incident",
+    "description": "This playbook addresses an incident where an attacker used a malicious PowerShell script to escalate privileges, attempted file downloads, and executed unauthorized commands.",
+    "created_by": "identity--ec1c2ed4-6d04-4627-957e-831f811bd49c",
+    "created": "2023-10-16T09:00:00Z",
+    "modified": "2023-10-16T09:00:00Z",
+    "revoked": false,
+    "derived_from": [],
+    "workflow_start": "start--ef5540ff-64d0-42a3-8f4e-f24ed44dd904",
+    "workflow": {
+        "parallel--83acd2f6-9a8b-4e12-ba87-52ef12e2a65c": {
+            "type": "parallel",
+            "name": "Initial Mitigation Steps",
+            "description": "Perform initial mitigation steps in parallel",
+            "next_steps": [
+                "action--b20d4d27-4a83-4b89-a939-df094b4d9d1e",
+                "action--772bca76-3391-4207-8b51-9d7b02e8c01e"
+            ]
+        },
+        "action--b20d4d27-4a83-4b89-a939-df094b4d9d1e": {
+            "name": "Kill Malicious PowerShell Process",
+            "description": "Terminate any running malicious PowerShell processes.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f 'powershell'"
+                }
+            ],
+            "agent": "organization--67056027-de37-4ce8-876d-6b396f677d00",
+            "on_completion": "decision--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed"
+        },
+        "action--772bca76-3391-4207-8b51-9d7b02e8c01e": {
+            "name": "Perform Inventory of Running Scripts for Anomalies",
+            "description": "Check for any anomalous scripts running on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ps aux | grep '.ps1'"
+                }
+            ],
+            "agent": "organization--67056027-de37-4ce8-876d-6b396f677d00",
+            "on_completion": "action--df7d2f90-543e-40f5-8732-5eae2b8f430c"
+        },
+        "action--df7d2f90-543e-40f5-8732-5eae2b8f430c": {
+            "name": "Update PowerShell Profiles to Prevent Script Execution",
+            "description": "Restrict PowerShell script execution on the system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-ExecutionPolicy Restricted -Scope LocalMachine"
+                }
+            ],
+            "agent": "organization--67056027-de37-4ce8-876d-6b396f677d00",
+            "on_completion": "action--1e5e11d8-9d9a-4b30-82c5-e8aa7a821748"
+        },
+        "decision--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed": {
+            "name": "Check Threat Source IP",
+            "description": "Check if the threat source IP matches 203.0.113.5",
+            "type": "if-condition",
+            "condition": "threat_source_IP == '203.0.113.5'",
+            "on_true": "action--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed",
+            "on_false": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c"
+        },
+        "action--f4e6e3fa-0c59-4e06-ad58-e3b8709b5eed": {
+            "name": "Update Network Firewall Rules",
+            "description": "Update firewall rules to block traffic to 203.0.113.5.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ufw deny out to 203.0.113.5"
+                }
+            ],
+            "agent": "organization--e907bcfb-20c3-4015-91d9-659bc02526ab",
+            "on_completion": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c"
+        },
+        "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c": {
+            "name": "Scan and Clean Affected System",
+            "description": "Perform antivirus scan and clean the affected system.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus_scan --clean"
+                }
+            ],
+            "agent": "organization--e907bcfb-20c3-4015-91d9-659bc02526ab",
+            "on_completion": "end--77e7fde3-6456-4efb-babc-fc2ba7ae8a30",
+            "loop": {
+                "type": "while",
+                "condition": "scan_result != 'clean'",
+                "on_true": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c"
+            }
+        },
+        "action--1e5e11d8-9d9a-4b30-82c5-e8aa7a821748": {
+            "name": "Revoke Unnecessary Administrative Privileges",
+            "description": "Remove administrative privileges from users not requiring them.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "usermod -L $username"
+                }
+            ],
+            "agent": "organization--67056027-de37-4ce8-876d-6b396f677d00",
+            "on_completion": "action--7f46ac09-34f2-47b4-bf0b-24b8c9e4a35c",
+            "step_variables": {
+                "username": {
+                    "type": "string",
+                    "description": "Username extracted from affected user account details",
+                    "value": "",
+                    "constant": false
+                }
+            }
+        },
+        "end--77e7fde3-6456-4efb-babc-fc2ba7ae8a30": {
+            "type": "end"
+        },
+        "start--ef5540ff-64d0-42a3-8f4e-f24ed44dd904": {
+            "type": "start",
+            "on_completion": "parallel--83acd2f6-9a8b-4e12-ba87-52ef12e2a65c"
+        }
+    },
+    "agent_definitions": {
+        "organization--67056027-de37-4ce8-876d-6b396f677d00": {
+            "type": "organization",
+            "name": "XYZ Security Organization"
+        },
+        "organization--e907bcfb-20c3-4015-91d9-659bc02526ab": {
+            "type": "organization",
+            "name": "ABC Security Services"
+        }
+    }
+}

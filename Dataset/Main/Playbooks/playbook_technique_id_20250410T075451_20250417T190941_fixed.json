@@ -1,0 +1,112 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--2158762c-a86a-4c6e-897c-445d2f35ee2b",
+    "name": "Mitigation Playbook for PowerShell Script Execution Incident",
+    "description": "This playbook addresses an incident involving unauthorized PowerShell script execution across multiple hosts.",
+    "created_by": "identity--c3a07e93-5cef-4d9a-a3ae-9fc4159d22a5",
+    "created": "2023-11-01T09:00:00.000Z",
+    "modified": "2023-11-01T09:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--db9ae1e2-333b-4c4e-a89b-2217a4bef056",
+    "workflow": {
+        "start--db9ae1e2-333b-4c4e-a89b-2217a4bef056": {
+            "on_completion": "parallel--b92e5a4c-00ee-40a0-993f-9f5a9b2ded02",
+            "type": "start"
+        },
+        "end--5ddb5a82-9c3a-4087-9f14-4d5bf520505d": {
+            "type": "end"
+        },
+        "parallel--b92e5a4c-00ee-40a0-993f-9f5a9b2ded02": {
+            "name": "Execute Parallel Actions",
+            "description": "Run mitigations in parallel to address the incident quickly.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b",
+                "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089",
+                "loop--f16b7fd4-2a98-42da-95a9-6a0d3d70d009"
+            ]
+        },
+        "action--d7f31efa-a9cd-429e-9332-1c00c60eaa4b": {
+            "name": "Terminate Unauthorized PowerShell Sessions",
+            "description": "Identify and terminate unauthorized PowerShell sessions.",
+            "type": "if-condition",
+            "condition": "if session status is unauthorized",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Taskkill /IM powershell.exe /F"
+                }
+            ],
+            "agent": "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc",
+            "on_completion": "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8"
+        },
+        "action--ed9bb7a6-3ac7-42c3-bbd2-1d10832c1089": {
+            "name": "Scan for Malicious Scripts",
+            "description": "Scan all compromised hosts for malicious scripts.",
+            "type": "action",
+            "loop": "repeat until scan results are clean",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Start-Process -FilePath 'antivirus_scan_tool.exe' -ArgumentList '/scan'"
+                }
+            ],
+            "agent": "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc",
+            "on_completion": "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be"
+        },
+        "loop--f16b7fd4-2a98-42da-95a9-6a0d3d70d009": {
+            "name": "Isolate Compromised Hosts",
+            "description": "Isolate each compromised host from the network.",
+            "type": "loop",
+            "variables": {
+                "host_list": [
+                    "host-05",
+                    "host-11",
+                    "host-22"
+                ]
+            },
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "Set-NetAdapter -Name 'Ethernet' -AdminStatus Disabled"
+                }
+            ],
+            "agent": "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc",
+            "on_completion": "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be"
+        },
+        "action--c0cb816e-c869-4d9e-b7bf-79ba343ad5be": {
+            "name": "Patch Systems with Latest Security Updates",
+            "description": "Install the latest security updates on all systems.",
+            "type": "if-condition",
+            "condition": "if updates are available",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "sudo apt-get update && sudo apt-get upgrade -y"
+                }
+            ],
+            "agent": "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc",
+            "on_completion": "end--5ddb5a82-9c3a-4087-9f14-4d5bf520505d"
+        },
+        "action--52cf8f67-1e72-4e1b-8d4d-5b7a04290cc8": {
+            "name": "Restore Sensitive Data from Backup",
+            "description": "Restore data from backup to ensure data integrity.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rsync -av /backup/data/ /data/"
+                }
+            ],
+            "agent": "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc",
+            "on_completion": "end--5ddb5a82-9c3a-4087-9f14-4d5bf520505d"
+        }
+    },
+    "agent_definitions": {
+        "organization--9ed4b9f8-3417-4aea-80b4-406c030bebfc": {
+            "type": "organization",
+            "name": "Incident Response Team"
+        }
+    }
+}

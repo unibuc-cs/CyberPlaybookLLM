@@ -1,0 +1,143 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fe3e8cb5-0a2e-4b8d-a6e1-240ee109d4e5",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident involving the execution of a malicious PowerShell script, privilege escalation attempts, and suspicious network connections.",
+    "created_by": "identity--5a9eef7c-ad62-4d9c-90d1-3ec3a9346d80",
+    "created": "2023-10-16T13:00:00Z",
+    "modified": "2023-10-16T13:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--1f6cbb73-d121-47f7-b455-0e1807b26ffd",
+    "workflow": {
+        "start--1f6cbb73-d121-47f7-b455-0e1807b26ffd": {
+            "on_completion": "parallel--1aa486bb-fddb-4b9e-b633-02cf295e90e4",
+            "type": "start"
+        },
+        "parallel--1aa486bb-fddb-4b9e-b633-02cf295e90e4": {
+            "name": "Concurrent Mitigation Actions",
+            "description": "Trigger parallel execution to handle different mitigation tasks simultaneously.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d0d25416-9b88-47cf-9757-e5aee7d59744",
+                "action--7617d6d8-df5f-4352-914f-f65c705c9003",
+                "action--ed3fa8c7-3924-48e9-bc39-ec68ee59b987"
+            ]
+        },
+        "action--d0d25416-9b88-47cf-9757-e5aee7d59744": {
+            "name": "Terminate Malicious PowerShell Process",
+            "description": "Terminate any running malicious PowerShell processes on host-22.",
+            "on_completion": "action--e4052440-b9e5-4d92-bc8c-449d17fdc0c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f powershell"
+                }
+            ],
+            "agent": "organization--7f424ed7-13d8-4749-8408-b5f3d7b7760d"
+        },
+        "action--7617d6d8-df5f-4352-914f-f65c705c9003": {
+            "name": "Apply Security Patch",
+            "description": "Apply security patch if the system is not running the patched kernel version.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [ ! $(uname -r) = 'patched-kernel-version' ]; then sudo apt-get update && sudo apt-get install patch-package; fi"
+                }
+            ],
+            "agent": "organization--166f4ec8-3ced-4ea8-9d6a-4ad51ce9e920",
+            "on_completion": "action--e4052440-b9e5-4d92-bc8c-449d17fdc0c1"
+        },
+        "action--ed3fa8c7-3924-48e9-bc39-ec68ee59b987": {
+            "name": "Remove Malicious Script",
+            "description": "Remove the downloaded malicious script from the host.",
+            "on_completion": "action--e4052440-b9e5-4d92-bc8c-449d17fdc0c1",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /path/to/downloaded/script.sh"
+                }
+            ],
+            "agent": "organization--bc4de30a-71fb-4c52-b0d7-f5c8afb94290"
+        },
+        "action--e4052440-b9e5-4d92-bc8c-449d17fdc0c1": {
+            "name": "Scan System for Further Infections",
+            "description": "Conduct a full antivirus scan and loop until the scan is clean.",
+            "on_completion": "action--b84e8ffd-838a-4869-96fe-0c1dfd563866",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--06341280-ea13-4137-9e31-84b2945fe73f"
+        },
+        "action--06341280-ea13-4137-9e31-84b2945fe73f": {
+            "name": "Execute System Antivirus Scan",
+            "description": "Perform a full system antivirus scan.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "antivirus-scan --full /"
+                }
+            ],
+            "agent": "organization--3c859887-7150-4eae-aea7-fc01f4fad85d",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "Result of the antivirus scan",
+                    "value": "'infected'",
+                    "constant": false
+                }
+            },
+            "on_completion": "action--e4052440-b9e5-4d92-bc8c-449d17fdc0c1"
+        },
+        "action--b84e8ffd-838a-4869-96fe-0c1dfd563866": {
+            "name": "Monitor Network Traffic",
+            "description": "Monitor network traffic and take action if suspicious activity is detected.",
+            "type": "if-condition",
+            "condition": "suspicious_activity_detected == true",
+            "on_true": "action--06eb9017-fdd2-4773-9f3d-07b53d348bc4",
+            "on_false": "end--6feec915-91d4-4d4f-8535-612869da310a"
+        },
+        "action--06eb9017-fdd2-4773-9f3d-07b53d348bc4": {
+            "name": "Network Monitoring",
+            "description": "Initiate verbose network traffic monitoring.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "network-monitor --verbose"
+                }
+            ],
+            "agent": "organization--b780692c-7ee1-4717-a064-aa04dd901e62",
+            "on_completion": "end--6feec915-91d4-4d4f-8535-612869da310a"
+        },
+        "end--6feec915-91d4-4d4f-8535-612869da310a": {
+            "type": "end",
+            "name": "End of Workflow"
+        }
+    },
+    "agent_definitions": {
+        "organization--7f424ed7-13d8-4749-8408-b5f3d7b7760d": {
+            "type": "organization",
+            "name": "SecurityTeamA"
+        },
+        "organization--166f4ec8-3ced-4ea8-9d6a-4ad51ce9e920": {
+            "type": "organization",
+            "name": "SecurityTeamB"
+        },
+        "organization--bc4de30a-71fb-4c52-b0d7-f5c8afb94290": {
+            "type": "organization",
+            "name": "SecurityTeamC"
+        },
+        "organization--3c859887-7150-4eae-aea7-fc01f4fad85d": {
+            "type": "organization",
+            "name": "SecurityTeamD"
+        },
+        "organization--b780692c-7ee1-4717-a064-aa04dd901e62": {
+            "type": "organization",
+            "name": "SecurityTeamE"
+        }
+    }
+}

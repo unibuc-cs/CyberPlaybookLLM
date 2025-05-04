@@ -1,0 +1,103 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--a8e371b3-8dfd-4725-a0e3-2a90cbb64bed",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where attackers exploited a vulnerability in a web application to execute arbitrary commands on the server, leading to potential system compromise.",
+    "created_by": "identity--dbb3c8e2-8463-4eae-913b-55084b56a2be",
+    "created": "2023-10-01T15:00:00.000Z",
+    "modified": "2023-10-01T15:00:00.000Z",
+    "revoked": false,
+    "workflow_start": "start--b1c23f47-9065-4f5b-8e93-78de86f11122",
+    "workflow": {
+        "start--b1c23f47-9065-4f5b-8e93-78de86f11122": {
+            "on_completion": "action--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029",
+            "type": "start"
+        },
+        "action--fdd5e6a3-77fa-4ad3-b92a-8d991ac95029": {
+            "name": "Kill malicious process",
+            "description": "Terminate the malicious process running on the server.",
+            "on_completion": "action--3ce170a6-b14a-45df-b4d7-4033e2f4b4cf",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malware.sh"
+                }
+            ],
+            "agent": "organization--3485cb89-19bc-4f3a-874f-03d0bdfd74a3"
+        },
+        "action--3ce170a6-b14a-45df-b4d7-4033e2f4b4cf": {
+            "name": "Remove dropped malicious file",
+            "description": "Delete the malicious script that was dropped on the server.",
+            "on_completion": "if-condition--d2595c4a-069e-4267-8a3a-2ba5b2d5bff6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm /tmp/malware.sh"
+                }
+            ],
+            "agent": "organization--3485cb89-19bc-4f3a-874f-03d0bdfd74a3"
+        },
+        "if-condition--d2595c4a-069e-4267-8a3a-2ba5b2d5bff6": {
+            "name": "Check if malicious file exists",
+            "type": "if-condition",
+            "condition": "[ -f /tmp/malware.sh ]",
+            "on_true": "action--b743eae9-9c87-41e5-a8fd-40c6dceff19b",
+            "on_false": "action--b743eae9-9c87-41e5-a8fd-40c6dceff19b"
+        },
+        "action--b743eae9-9c87-41e5-a8fd-40c6dceff19b": {
+            "name": "Restart affected service",
+            "description": "Ensure that the web service is operational after killing the malicious process.",
+            "on_completion": "loop--ab02e727-aa58-4c2f-9113-42220167cce5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "systemctl restart web-service"
+                }
+            ],
+            "agent": "organization--3485cb89-19bc-4f3a-874f-03d0bdfd74a3"
+        },
+        "action--d2595c4a-069e-4267-8a3a-2ba5b2d5bff6": {
+            "name": "Conduct file integrity check",
+            "description": "Perform an integrity check on the system to ensure no other malicious files exist.",
+            "on_completion": "end--f6533a5e-415b-4f95-8ea6-ec367e8d7ac3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "aide --check"
+                }
+            ],
+            "agent": "organization--3485cb89-19bc-4f3a-874f-03d0bdfd74a3",
+            "step_variables": {
+                "check_path": {
+                    "type": "string",
+                    "description": "The path of the checked file.",
+                    "value": "/tmp/malware.sh",
+                    "constant": false
+                }
+            }
+        },
+        "end--f6533a5e-415b-4f95-8ea6-ec367e8d7ac3": {
+            "type": "end"
+        },
+        "loop--ab02e727-aa58-4c2f-9113-42220167cce5": {
+            "name": "Wait until service is healthy",
+            "description": "Repeat until the web service is confirmed as healthy.",
+            "type": "while-condition",
+            "condition": "systemctl is-active --quiet web-service",
+            "next_steps": [
+                "action--d2595c4a-069e-4267-8a3a-2ba5b2d5bff6"
+            ]
+        }
+    },
+    "agent_definitions": {
+        "organization--3485cb89-19bc-4f3a-874f-03d0bdfd74a3": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

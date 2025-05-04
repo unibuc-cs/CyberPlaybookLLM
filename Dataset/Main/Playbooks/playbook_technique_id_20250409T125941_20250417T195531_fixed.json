@@ -1,0 +1,91 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--d7c2e914-e9fe-4ba9-afcb-d35f4ad2b56a",
+    "name": "Mitigation Playbook for Malicious Script Execution Incident",
+    "description": "This playbook outlines steps to mitigate an incident where an attacker used a scripting interpreter to execute malicious commands on the host system.",
+    "created_by": "identity--71491013-0cfc-4fd5-9a5e-9af9b5d772fa",
+    "created": "2023-10-18T14:30:00Z",
+    "modified": "2023-10-18T14:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--4bbf03be-c5da-4ce6-84f0-680b1ffc0dfd",
+    "workflow": {
+        "start--4bbf03be-c5da-4ce6-84f0-680b1ffc0dfd": {
+            "on_completion": "action--24ac0870-dea6-4af9-8e3e-02dd4d9e95bb",
+            "type": "start"
+        },
+        "action--24ac0870-dea6-4af9-8e3e-02dd4d9e95bb": {
+            "name": "Kill malicious script process",
+            "description": "Terminate the malicious script process that was executed.",
+            "on_completion": "action--8079b684-2d29-4060-abb6-fda3d3c8c37c",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--2e8c3d40-3c7d-4061-b54f-5d093eb0983a"
+        },
+        "action--8079b684-2d29-4060-abb6-fda3d3c8c37c": {
+            "name": "Isolate affected host from network",
+            "description": "Take the host offline to prevent further data exfiltration.",
+            "on_completion": "loop--7c0275b1-d1e1-403d-9911-3e0296ce6a05",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-42 down"
+                }
+            ],
+            "agent": "organization--2e8c3d40-3c7d-4061-b54f-5d093eb0983a"
+        },
+        "loop--7c0275b1-d1e1-403d-9911-3e0296ce6a05": {
+            "name": "Check system integrity loop",
+            "description": "Check the integrity of the system until it is clean.",
+            "on_true": "action--07ed7037-585e-4e90-80a6-924c7eb86793",
+            "on_false": "loop--7c0275b1-d1e1-403d-9911-3e0296ce6a05",
+            "type": "while-condition",
+            "condition": "scan_mode == rigorous",
+            "on_completion": "action--07ed7037-585e-4e90-80a6-924c7eb86793"
+        },
+        "action--07ed7037-585e-4e90-80a6-924c7eb86793": {
+            "name": "Run system scan",
+            "description": "Perform a comprehensive scan to check for any malicious files.",
+            "on_completion": "end--e84b628f-f453-4d3e-94b5-b2344f48e4a5",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan --recursive /"
+                }
+            ],
+            "agent": "organization--2e8c3d40-3c7d-4061-b54f-5d093eb0983a",
+            "step_variables": {
+                "memory_usage": {
+                    "type": "integer",
+                    "description": "Current memory usage of the system",
+                    "value": 0,
+                    "constant": false,
+                    "external": true
+                },
+                "scan_mode": {
+                    "type": "string",
+                    "description": "Current mode of the system scan",
+                    "value": "standard",
+                    "constant": false,
+                    "external": false
+                }
+            }
+        },
+        "end--e84b628f-f453-4d3e-94b5-b2344f48e4a5": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--2e8c3d40-3c7d-4061-b54f-5d093eb0983a": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

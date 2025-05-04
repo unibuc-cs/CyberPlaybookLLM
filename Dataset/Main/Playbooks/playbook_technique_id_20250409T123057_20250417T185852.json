@@ -1,0 +1,75 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--cae7f0ef-c7b0-4c02-a82b-0a7d8d67e96a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook addresses the incident where an attacker exploited a vulnerability in the web server to execute malicious scripts and establish a backdoor.",
+    "created_by": "identity--abc12345-def67-89ab-cdef-1234567890ab",
+    "created": "2023-10-05T12:00:00Z",
+    "modified": "2023-10-05T12:30:00Z",
+    "revoked": false,
+    "workflow_start": "start--7e4d26a6-fe35-4cce-bc58-97977cfff4de",
+    "workflow": {
+        "start--7e4d26a6-fe35-4cce-bc58-97977cfff4de": {
+            "on_completion": "action--bc7f1c4e-0d2f-4f8c-8394-2b9b5ae74b83",
+            "type": "start"
+        },
+        "action--bc7f1c4e-0d2f-4f8c-8394-2b9b5ae74b83": {
+            "name": "Kill malicious process",
+            "description": "Terminate any processes that are executing the malicious script.",
+            "on_completion": "action--73e7db0a-7a53-4c4c-8b76-bc2cc3feeeef",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f malicious_script.sh"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "action--73e7db0a-7a53-4c4c-8b76-bc2cc3feeeef": {
+            "name": "Isolate affected host",
+            "description": "Block the affected host from network communication to prevent further exploitation.",
+            "on_completion": "while-condition--f2f3d7d5-7034-44d4-9b98-c57c16c1db30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A INPUT -s host-22 -j DROP"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "while-condition--f2f3d7d5-7034-44d4-9b98-c57c16c1db30": {
+            "name": "Scan for additional backdoors",
+            "description": "Search for any remaining potential backdoor scripts within the system.",
+            "on_completion": "action--end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e",
+            "condition": "backdoors_found == true",
+            "type": "while-condition",
+            "on_true": "action--f2f3d7d5-7034-44d4-9b98-c57c16c1db30",
+            "on_false": "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e"
+        },
+        "action--f2f3d7d5-7034-44d4-9b98-c57c16c1db30": {
+            "name": "Find additional backdoors",
+            "description": "Execute a search for backdoor scripts using the specified criteria.",
+            "on_completion": "while-condition--f2f3d7d5-7034-44d4-9b98-c57c16c1db30",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "find / -name '*.sh' -exec grep -l 'suspicious_code' {} \\;"
+                }
+            ],
+            "agent": "organization--abc"
+        },
+        "end--a4c36f58-1f0b-4d89-8bec-a5b964d5c19e": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--abc": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

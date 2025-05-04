@@ -1,0 +1,99 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--c73c4dca-8b17-4b1b-bda4-372a8744f455",
+    "name": "Mitigation Playbook for Malware Download Incident",
+    "description": "This playbook addresses an incident where an attacker executed a malicious PowerShell script to download malware. It includes steps to block network traffic, kill processes, and scan for additional threats.",
+    "created_by": "identity--4526f71b-6f5c-4352-b57d-8923f45f4af8",
+    "created": "2023-10-20T16:00:00Z",
+    "modified": "2023-10-20T16:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--9ef5f2f7-6c1d-4cc1-8c16-2f7853083ef0",
+    "workflow": {
+        "start--9ef5f2f7-6c1d-4cc1-8c16-2f7853083ef0": {
+            "on_completion": "parallel--b1a61da4-1535-4f6a-9063-b93668288d73",
+            "type": "start"
+        },
+        "parallel--b1a61da4-1535-4f6a-9063-b93668288d73": {
+            "name": "Mitigation Actions for Malware Download",
+            "description": "Conduct parallel actions to block traffic and kill processes.",
+            "type": "parallel",
+            "next_steps": [
+                "action--d3c16062-7a57-489a-b158-afd95e617f22",
+                "action--56fa0f8a-fcde-4015-a7bb-9cf6b9351604"
+            ]
+        },
+        "action--d3c16062-7a57-489a-b158-afd95e617f22": {
+            "name": "Block outbound traffic to malicious IP",
+            "description": "Blocking outbound traffic to known malicious IP addresses.",
+            "on_completion": "decision--f0c3ee67-547f-4427-9d8e-6c648f010db0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d malicious.c2.server -j DROP"
+                }
+            ],
+            "agent": "organization--cd1cec36-f6b5-4d74-8ae9-84b0fe8065ce"
+        },
+        "action--56fa0f8a-fcde-4015-a7bb-9cf6b9351604": {
+            "name": "Kill malicious process if detected",
+            "description": "Check if the malicious process exists and kill it.",
+            "on_completion": "decision--f0c3ee67-547f-4427-9d8e-6c648f010db0",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_process"
+                }
+            ],
+            "agent": "organization--cd1cec36-f6b5-4d74-8ae9-84b0fe8065ce"
+        },
+        "decision--f0c3ee67-547f-4427-9d8e-6c648f010db0": {
+            "name": "Check if more threats need to be scanned",
+            "type": "if-condition",
+            "condition": "scan_results == 'threat_found'",
+            "on_true": "loop--960de86c-4e2c-4ef5-bd1f-c881b264c1a3",
+            "on_false": "end--aeffe14e-b9c0-4eea-9952-fcc1c5f8ed17"
+        },
+        "loop--960de86c-4e2c-4ef5-bd1f-c881b264c1a3": {
+            "name": "Scan system for additional malware",
+            "description": "Iterate until no threats are found.",
+            "on_completion": "decision--f0c3ee67-547f-4427-9d8e-6c648f010db0",
+            "type": "while-condition",
+            "condition": "scan_results == 'threat_found'",
+            "on_true": "action--125790fb-092c-4e41-a1bb-0034a2518a8f"
+        },
+        "action--125790fb-092c-4e41-a1bb-0034a2518a8f": {
+            "name": "Scan system for additional threats",
+            "description": "Perform a thorough scan of the system for any additional malware.",
+            "on_completion": "loop--960de86c-4e2c-4ef5-bd1f-c881b264c1a3",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/search"
+                }
+            ],
+            "agent": "organization--cd1cec36-f6b5-4d74-8ae9-84b0fe8065ce",
+            "step_variables": {
+                "scan_results": {
+                    "type": "string",
+                    "description": "Contains the results of the last scan",
+                    "value": "threat_found",
+                    "constant": false,
+                    "external": true
+                }
+            }
+        },
+        "end--aeffe14e-b9c0-4eea-9952-fcc1c5f8ed17": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--cd1cec36-f6b5-4d74-8ae9-84b0fe8065ce": {
+            "type": "organization",
+            "name": "XYZ Security Team"
+        }
+    }
+}

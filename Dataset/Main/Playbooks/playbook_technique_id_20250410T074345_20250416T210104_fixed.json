@@ -1,0 +1,129 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b0b1c988-89a3-4efd-a1d3-3e7b1db113f1",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Exploitation",
+    "description": "This playbook mitigates an incident where an attacker exploited a web service to execute arbitrary shell commands, download malware, and establish a reverse shell.",
+    "created_by": "identity--ad9ff17d-12ef-41cd-8ad4-81a3aa44b776",
+    "created": "2023-11-01T15:00:00Z",
+    "modified": "2023-11-01T15:00:00Z",
+    "revoked": false,
+    "workflow_start": "start--e45a6359-0464-4b76-bfd1-16502b67ee74",
+    "workflow": {
+        "start--e45a6359-0464-4b76-bfd1-16502b67ee74": {
+            "on_completion": "parallel--f646d431-213b-42a4-8a14-b77f313d9081",
+            "type": "start"
+        },
+        "end--5fb31428-9982-464f-bbd8-bf0c38e970d6": {
+            "type": "end"
+        },
+        "parallel--f646d431-213b-42a4-8a14-b77f313d9081": {
+            "name": "Parallel Mitigation Actions",
+            "description": "Execute mitigation actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4",
+                "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9",
+                "action--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f",
+                "audit-log--16267566-a8a6-4da5-9bf1-6ae36fb6d5c7",
+                "scan-loop--41f98003-843e-40eb-832d-4056f740468d"
+            ]
+        },
+        "action--4cb5e930-6e4c-4a90-9eab-7f0105a9f1e4": {
+            "name": "Kill malicious process",
+            "description": "Terminate the process running the malicious script.",
+            "on_completion": "end--5fb31428-9982-464f-bbd8-bf0c38e970d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "kill -9 $(ps aux | grep 'payload.sh' | awk '{print $2}')"
+                }
+            ],
+            "agent": "organization--be59c5ab-1e19-42ab-b06c-39874ff56233"
+        },
+        "action--8a1923af-50cc-4f86-9c5b-5d068e39f1c9": {
+            "name": "Delete malicious script file",
+            "description": "Remove the downloaded malicious script.",
+            "on_completion": "end--5fb31428-9982-464f-bbd8-bf0c38e970d6",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "rm -f /tmp/payload.sh"
+                }
+            ],
+            "agent": "organization--e9ff4954-dda3-4645-9c38-41b953b391e5"
+        },
+        "action--72b7e4b0-e20d-4a57-a221-5fa8f3b37b2f": {
+            "name": "Block outbound connections to attacker's IP",
+            "description": "Prevent further communication with the attacker's server by updating the firewall rules.",
+            "on_true": "end--5fb31428-9982-464f-bbd8-bf0c38e970d6",
+            "type": "if-condition",
+            "condition": "[ $(iptables -L OUTPUT | grep -c 'hacker-ip') -eq 0 ]",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d hacker-ip -j DROP"
+                }
+            ],
+            "agent": "organization--be59c5ab-1e19-42ab-b06c-39874ff56233"
+        },
+        "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820": {
+            "name": "Execute scan command",
+            "description": "Perform a comprehensive system scan to detect threats.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /",
+                    "output_variable": "scan_result"
+                }
+            ],
+            "agent": "organization--ce289ae5-1f66-4f0b-8eaa-a222f896ee8d"
+        },
+        "audit-log--16267566-a8a6-4da5-9bf1-6ae36fb6d5c7": {
+            "name": "Audit logs for unauthorized activities",
+            "description": "Investigate logs to find signs of unauthorized actions.",
+            "type": "action",
+            "on_completion": "end--5fb31428-9982-464f-bbd8-bf0c38e970d6",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "grep -i 'unauthorized' /var/log/syslog"
+                }
+            ],
+            "agent": "organization--ce289ae5-1f66-4f0b-8eaa-a222f896ee8d"
+        },
+        "scan-loop--41f98003-843e-40eb-832d-4056f740468d": {
+            "name": "Scan the host for additional threats",
+            "description": "Continuously scan the system until it is clean.",
+            "type": "while-condition",
+            "condition": "scan_result != 'clean'",
+            "on_true": "action--f2c6c0a2-8c19-4005-9bfa-76edfcea7820",
+            "on_completion": "end--5fb31428-9982-464f-bbd8-bf0c38e970d6",
+            "step_variables": {
+                "scan_result": {
+                    "type": "string",
+                    "description": "The result of the scan, initially set to not clean.",
+                    "value": "not clean",
+                    "constant": false
+                }
+            }
+        }
+    },
+    "agent_definitions": {
+        "organization--be59c5ab-1e19-42ab-b06c-39874ff56233": {
+            "type": "organization",
+            "name": "Security Team DEF"
+        },
+        "organization--e9ff4954-dda3-4645-9c38-41b953b391e5": {
+            "type": "organization",
+            "name": "Security Team GHJ"
+        },
+        "organization--ce289ae5-1f66-4f0b-8eaa-a222f896ee8d": {
+            "type": "organization",
+            "name": "Security Team XYZ"
+        }
+    }
+}

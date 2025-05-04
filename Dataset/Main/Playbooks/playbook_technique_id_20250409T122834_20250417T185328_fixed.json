@@ -1,0 +1,82 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--b18f2267-5c3e-4647-88d3-ef6952b3eaa2",
+    "name": "Mitigation Playbook for Application Layer Protocol Exfiltration",
+    "description": "This playbook addresses an incident where data was exfiltrated via application layer protocols. It emphasizes blocking traffic, monitoring anomalies, and isolating affected hosts.",
+    "created_by": "identity--f89de0f4-7136-4b7b-9efc-2d40cd920bf5",
+    "created": "2023-10-14T12:00:00Z",
+    "modified": "2023-10-14T12:15:00Z",
+    "revoked": false,
+    "workflow_start": "start--3c5be511-125b-443f-b35b-1ed0ae1a6e6c",
+    "workflow": {
+        "action--4b5c4eb6-f77d-4ecf-a0ca-4f899323b32a": {
+            "name": "Block outgoing traffic to suspicious IP addresses",
+            "description": "Blocks any outgoing traffic to the identified suspicious IP address.",
+            "on_completion": "parallel--5b6c7e8f-9a1b-4c4d-8a2c-c8b3e4f5e6f7",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "iptables -A OUTPUT -d <suspicious_ip> -j DROP"
+                }
+            ],
+            "agent": "organization--7e286b1c-a0bf-4f07-bc2c-28bfab302a74"
+        },
+        "action--c0e68a56-9fba-4de1-8f91-d7a3c55b5bb5": {
+            "name": "Monitor network traffic for anomalies",
+            "description": "Continuously monitor network traffic for any further anomalies.",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "run_monitoring_tool --check traffic anomalies"
+                }
+            ],
+            "agent": "organization--7e286b1c-a0bf-4f07-bc2c-28bfab302a74"
+        },
+        "action--e10913b5-8180-4420-9e51-c02c66abe173": {
+            "name": "Isolate affected host for investigation",
+            "description": "Disconnects the compromised host from the network for further investigation.",
+            "on_completion": "end--0027d3fb-9c15-4f46-ad03-870d3c4dc58d",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "if [$(check_if_host_compromised 'host-31')]; then disconnect 'host-31'; fi"
+                }
+            ],
+            "agent": "organization--7e286b1c-a0bf-4f07-bc2c-28bfab302a74"
+        },
+        "parallel--5b6c7e8f-9a1b-4c4d-8a2c-c8b3e4f5e6f7": {
+            "name": "Mitigation Steps",
+            "description": "Execute blocking and monitoring actions in parallel.",
+            "type": "parallel",
+            "next_steps": [
+                "action--c0e68a56-9fba-4de1-8f91-d7a3c55b5bb5",
+                "action--e10913b5-8180-4420-9e51-c02c66abe173"
+            ]
+        },
+        "start--3c5be511-125b-443f-b35b-1ed0ae1a6e6c": {
+            "on_completion": "action--4b5c4eb6-f77d-4ecf-a0ca-4f899323b32a",
+            "type": "start"
+        },
+        "while-condition--2714de7b-8772-4f10-abe2-cd6d1d33d497": {
+            "name": "Monitor Anomalies Loop",
+            "description": "Repeat monitoring actions until no anomalies are detected.",
+            "on_completion": "action--e10913b5-8180-4420-9e51-c02c66abe173",
+            "type": "while-condition",
+            "condition": "anomalies_present == true",
+            "on_true": "action--c0e68a56-9fba-4de1-8f91-d7a3c55b5bb5"
+        },
+        "end--0027d3fb-9c15-4f46-ad03-870d3c4dc58d": {
+            "type": "end"
+        }
+    },
+    "agent_definitions": {
+        "organization--7e286b1c-a0bf-4f07-bc2c-28bfab302a74": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}

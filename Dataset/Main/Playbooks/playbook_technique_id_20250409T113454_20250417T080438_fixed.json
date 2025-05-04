@@ -1,0 +1,101 @@
+{
+    "type": "playbook",
+    "spec_version": "cacao-2.0",
+    "id": "playbook--fabe39a4-b4b0-4e58-aeab-7929b30fc42a",
+    "name": "Mitigation Playbook for Command and Scripting Interpreter Incident",
+    "description": "This playbook addresses an incident where an attacker executed scripts to extract sensitive data from a victim's system.",
+    "created_by": "identity--1234abcd-ef56-4b78-8a90-abcdefabcdef",
+    "created": "2025-04-10T08:00:00Z",
+    "modified": "2025-04-10T08:05:00Z",
+    "revoked": false,
+    "workflow_start": "start--06d55651-da0e-41de-a712-d7af5650a78d",
+    "workflow": {
+        "action--85c1a8e0-ef47-4dbc-9e5b-6c4e9f9ee88d": {
+            "name": "Kill malicious process",
+            "description": "Terminate the suspicious PowerShell script to stop the execution.",
+            "on_completion": "action--eebc0073-d891-4c6e-97bc-3b58fe4c926b",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "pkill -f suspicious_script.ps1"
+                }
+            ],
+            "agent": "organization--08c3cc73-fd73-45be-8206-6b4438f4e604"
+        },
+        "action--eebc0073-d891-4c6e-97bc-3b58fe4c926b": {
+            "name": "Isolate affected host",
+            "description": "Disable the network interface for the affected host to prevent further data exfiltration.",
+            "on_completion": "while-condition--dca90af4-7d3c-4db9-b1c2-66eb602227f4",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "ifconfig host-22 down"
+                }
+            ],
+            "agent": "organization--08c3cc73-fd73-45be-8206-6b4438f4e604"
+        },
+        "while-condition--dca90af4-7d3c-4db9-b1c2-66eb602227f4": {
+            "name": "Run malware scan repeatedly until clean",
+            "description": "Perform a malware scan and repeat until no threats are detected.",
+            "on_completion": "action--30f13290-2b69-4309-bfa9-5b5998ae5982",
+            "condition": "scan_status != 'clean'",
+            "on_true": "action--dca90af4-7d3c-4db9-b1c2-66eb602227f4",
+            "on_false": "action--30f13290-2b69-4309-bfa9-5b5998ae5982",
+            "type": "if-condition"
+        },
+        "action--dca90af4-7d3c-4db9-b1c2-66eb602227f4": {
+            "name": "Run malware scan",
+            "description": "Perform a scan of the system for potential malware.",
+            "on_completion": "if-condition--30f13290-2b69-4309-bfa9-5b5998ae5982",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "clamscan -r /path/to/directory"
+                }
+            ],
+            "agent": "organization--08c3cc73-fd73-45be-8206-6b4438f4e604"
+        },
+        "action--30f13290-2b69-4309-bfa9-5b5998ae5982": {
+            "name": "Check for unusual outbound connections",
+            "description": "Review network connections to identify any suspicious activity.",
+            "on_completion": "action--33485724-512e-4483-8e83-2c7fb7ace551",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "netstat -tunlp | grep ESTABLISHED"
+                }
+            ],
+            "agent": "organization--08c3cc73-fd73-45be-8206-6b4438f4e604"
+        },
+        "action--33485724-512e-4483-8e83-2c7fb7ace551": {
+            "name": "Review access logs",
+            "description": "Check access logs for any unauthorized login attempts.",
+            "on_completion": "end--d275b2c5-8567-45b9-b322-cd756e5e382e",
+            "type": "action",
+            "commands": [
+                {
+                    "type": "bash",
+                    "command": "cat /var/log/auth.log | grep 'Accepted password'"
+                }
+            ],
+            "agent": "organization--08c3cc73-fd73-45be-8206-6b4438f4e604"
+        },
+        "end--d275b2c5-8567-45b9-b322-cd756e5e382e": {
+            "type": "end"
+        },
+        "start--06d55651-da0e-41de-a712-d7af5650a78d": {
+            "on_completion": "action--85c1a8e0-ef47-4dbc-9e5b-6c4e9f9ee88d",
+            "type": "start"
+        }
+    },
+    "agent_definitions": {
+        "organization--08c3cc73-fd73-45be-8206-6b4438f4e604": {
+            "type": "organization",
+            "name": "ClientOrganization"
+        }
+    }
+}
