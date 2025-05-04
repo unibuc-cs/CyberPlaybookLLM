@@ -34,6 +34,16 @@ def fix_uuid(value):
             if value not in uuid_mapping:
                 uuid_mapping[value] = generate_correct_uuid(prefix)
             return uuid_mapping[value]
+    elif isinstance(value, dict):
+        for key, val in value.items():
+            if isinstance(val, str):
+                if not uuid_regex.match(val):
+                    prefix = val.split('--')[0]
+                    if val not in uuid_mapping:
+                        uuid_mapping[val] = generate_correct_uuid(prefix)
+                    value[key] = uuid_mapping[val]
+            else:
+                return fix_uuid(val)
     return value
 
 # Recursive functionS to fix UUIDs and agents and many more
@@ -63,8 +73,15 @@ def fix_node_ids_and_commands(node):
                             node[key] = fix_uuid(node[key])
                         elif isinstance(node[key], list):
                             node[key] = [fix_uuid(value) for value in node[key] if isinstance(value, str)]
+                        elif isinstance(node[key], dict):
+                            # Will fix inside so the value remains as same
+                            fix_uuid(node[key])
                         else:
-                            raise ValueError(f"Invalid value for {key}: {node[key]}")
+                            if node[key] is None:
+                                # This is allowed for the next steps, on_true, on_false, on_failure, on_success, on_completion
+                                node[key] = "None"
+                            else:
+                                raise ValueError(f"Invalid value for {key}: {node[key]}")
 
         # Check if the node is a dictionary
         for key, node_value in node.items():
@@ -101,7 +118,11 @@ def fix_node_agents(node):
         if len(node.keys()) > 0:
             if "type" in node and node["type"] == "action":
                 assert isinstance(node, dict), "Action node should be a dictionary"
-                node_value = list(node.values())[0]
+                node_value = node #list(node.values())[0]
+
+                if not isinstance(node_value, dict):
+                    raise ValueError(f"Invalid value for action node: {node_value}")
+
                 # Check if there is an agent id in the node
                 if not ("agent" in node_value and isinstance(node_value["agent"], str)):
                     # If not, set the agent id to the default agent id
@@ -198,7 +219,9 @@ def fix_playbook_and_workflow_ids(main_node):
 
                 # Could be an if-else or a loop node
                 # Heuristic to fix loop nodes.
-                node_type = node_value["type"]
+                node_type = node_value.get("type", "")
+                if node_type is None:
+                    assert target_if_type_keyword not in node_value
                 if not (node_type == target_loop_type_keyword or node_type == target_if_type_keyword):
                     node_type = node_type.lower()
                     # It is a suspect!
