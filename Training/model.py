@@ -9,6 +9,7 @@ Printing how many parameters are trainable
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model
+from utils.logging import log_console
 
 def load_model_and_tokenizer(config, tokenizer=None):
     model_name = config.model.name_or_path
@@ -39,6 +40,12 @@ def load_model_and_tokenizer(config, tokenizer=None):
     model = model.to(dtype=torch.bfloat16 if config.train.mixed_precision == "bf16" else torch.float32)
 
     model.print_trainable_parameters()
+
+    if config.train.max_steps % eval_steps != 0:
+        log_console("⚠️ Warning: max_steps not divisible by eval_steps")
+
+    if config.train.max_steps % save_steps != 0:
+        log_console("⚠️ Warning: max_steps not divisible by save_steps")
 
     return model
 

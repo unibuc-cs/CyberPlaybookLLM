@@ -137,9 +137,14 @@ def load_datasets(config):
     train_raw = load_flat_json(config.dataset.train_path)
     val_raw = load_flat_json(config.dataset.val_path)
 
+    # Override the dataset with a subset for testing
     if config.dataset.subset_mode:
         train_raw = train_raw[:100]
         val_raw = val_raw[:20]
+        config.train.logging_steps = 20
+        config.train.eval_steps = 20
+        config.train.save_steps = 20
+        config.train.num_epochs = 3
 
     train_dataset = Dataset.from_list([format_for_completion(e) for e in train_raw])
     val_dataset = Dataset.from_list([format_for_completion(e) for e in val_raw])
@@ -220,5 +225,8 @@ def default_collate_fn(batch, keep_strings=False, device=None, dtype=None):
                 result[key] = values
         else:
             raise TypeError(f"Unsupported type for key '{key}': {type(values[0])}")
+
+    if isinstance(result, list):
+        result = result[0]
 
     return result

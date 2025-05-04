@@ -3,6 +3,7 @@
 import os
 import torch
 import shutil
+import re
 
 # Saves model/tokenizer/optimizer/scheduler/scaler + Keeps only the last 3 checkpoints to save disk space
 def save_full_checkpoint(config, save_path, state, save_total_limit=3):
@@ -35,20 +36,73 @@ def save_full_checkpoint(config, save_path, state, save_total_limit=3):
     if save_total_limit is not None:
         cleanup_old_checkpoints(config.logging.save_dir, keep_last_n=save_total_limit)
 
+def get_checkpoints_dir(config):
+    """
+    Get the directory where checkpoints are saved.
+    :param config: The config object.
+    :return: The path to the checkpoints directory.
+    """
+    output_base_name = f"{config.model.name_or_path.replace('/', '_')}-{config.train.phase}"
+    return os.path.join(config.logging.save_dir, "checkpoints", output_base_name)
+
+
+def get_path_to_save_checkpoint(config, is_interrupted=False, is_final=False, step=None):
+    """
+    Get the path to save the model.
+    :param config: The config object.
+    :param is_interrupted: Whether the training was interrupted.
+    :param is_final: Whether this is the final model.
+    :param step: The current step.
+    :return: The path to save the model.
+    """
+    checkpoint_dir = get_checkpoints_dir(config)
+
+    if is_interrupted:
+        return os.path.join(checkpoint_dir, "interrupted", f"step-{step}")
+    elif is_final:
+        return os.path.join(checkpoint_dir, "final", f"step-{step}")
+    else:
+        return os.path.join(checkpoint_dir,  f"step-{step}")
+
+
 # Find the latest checkpoint for resuming, looks for ...checkpoint-<step> directories
-def find_latest_checkpoint(checkpoints_dir):
+def find_latest_checkpoint(config):
     """
-    Find the latest checkpoint by step number inside a checkpoints directory.
+    Find the latest checkpoint by step number inside a checkpoints directory,
+    and for subdirectores interrupted/ and final_model/
     """
-    if not os.path.exists(checkpoints_dir):
-        return None
 
-    checkpoint_dirs = [d for d in os.listdir(checkpoints_dir) if d.startswith("checkpoint-")]
-    if not checkpoint_dirs:
-        return None
+    checkpoints_dir = get_checkpoints_dir(config)
+    candidates = []
+    pattern = re.compile(r"(step|epoch)-(\d+)$")
 
-    checkpoint_dirs = sorted(checkpoint_dirs, key=lambda x: int(x.split("-")[-1]))
-    return os.path.join(checkpoints_dir, checkpoint_dirs[-1])
+    for subfolder in ["interrupted", "final", None]:
+        subdir = checkpoints_dir if subfolder is None else os.path.join(checkpoints_dir, subfolder)
+        if not os.path.isdir(subdir):
+            continue
+
+        for d in os.listdir(subdir):
+            match = pattern.match(d)
+            if match is None:
+                continue
+
+            prefix, step = match.groups()
+            try:
+                step = int(step)
+                full_path = os.path.join(subdir, d)
+                candidates.append((step, full_path))
+            except ValueError:
+                # Ignore directories that don't match the expected format
+                continue
+
+    if not candidates:
+        print("❌ No checkpoints found.")
+        return None, 0
+
+    # Sort candidates by step number in descending order
+    best_step, latest_checkpoint_path = max(candidates, key=lambda x: x[0])
+    print(f"✅ Found latest checkpoint: {latest_checkpoint_path}")
+    return latest_checkpoint_path, best_step
 
 def cleanup_old_checkpoints(checkpoints_dir, keep_last_n=3):
     """
