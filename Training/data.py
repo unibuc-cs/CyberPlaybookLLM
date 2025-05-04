@@ -47,7 +47,7 @@ def format_for_completion(example):
                     for item in value
                 ) + "; "
             elif isinstance(value, dict):
-                part_text += f"{key}: {" + dict_to_str(value, level+1) + "}; "
+                part_text += f"{key}: {{ {dict_to_str(value, level+1)} }}; "
         return part_text
 
     def format_mitigation(mitigations_list: list):
