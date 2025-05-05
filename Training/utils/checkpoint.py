@@ -1,9 +1,15 @@
 # utils/checkpoint.py
 
 import os
+from argparse import Namespace
+from typing import Union, Literal, Any
+
 import torch
 import shutil
 import re
+
+from omegaconf import DictConfig
+
 
 # Saves model/tokenizer/optimizer/scheduler/scaler + Keeps only the last 3 checkpoints to save disk space
 def save_full_checkpoint(config, save_path, state, save_total_limit=3):
@@ -46,12 +52,13 @@ def get_checkpoints_dir(config):
     return os.path.join(config.logging.save_dir, "checkpoints", output_base_name)
 
 
-def get_path_to_save_checkpoint(config, is_interrupted=False, is_final=False, step=None):
+def get_path_to_save_checkpoint(config, is_interrupted=False, is_final=False, is_best_eval=False, step=None):
     """
     Get the path to save the model.
     :param config: The config object.
     :param is_interrupted: Whether the training was interrupted.
     :param is_final: Whether this is the final model.
+    :param is_best_eval: Whether this is the best evaluation model.
     :param step: The current step.
     :return: The path to save the model.
     """
@@ -61,22 +68,50 @@ def get_path_to_save_checkpoint(config, is_interrupted=False, is_final=False, st
         return os.path.join(checkpoint_dir, "interrupted", f"step-{step}")
     elif is_final:
         return os.path.join(checkpoint_dir, "final", f"step-{step}")
+    elif is_best_eval:
+        return os.path.join(checkpoint_dir, "best_eval", f"step-{step}")
     else:
         return os.path.join(checkpoint_dir,  f"step-{step}")
+
+
+def save_checkpoint_helper(config: Union[Namespace, DictConfig],
+                           state: Any, # The state object containing the model, optimizer, etc.
+                           check_type: Literal["checkpoint", "interrupted", "final", "best_eval"] = "checkpoint"):
+    is_interrupted = check_type == "interrupted"
+    is_final = check_type == "final"
+    is_best_eval = check_type == "best_eval"
+
+    if config.train.no_save_during_testing and config.dataset.subset_mode == True:
+        # Don't save during testing
+        return
+
+    if config.train.save_best_only and is_best_eval is False:
+        return
+
+    if config.train.do_not_save_interrupted and is_interrupted:
+        return
+
+    file_path = get_path_to_save_checkpoint(config, is_interrupted=is_interrupted, is_final=is_final,
+                                 step=state.global_step)
+    save_full_checkpoint(
+        config=config,
+        state=state,
+        save_path=file_path,
+        save_total_limit=config.train.save_total_limit  # optional
+    )
 
 
 # Find the latest checkpoint for resuming, looks for ...checkpoint-<step> directories
 def find_latest_checkpoint(config):
     """
-    Find the latest checkpoint by step number inside a checkpoints directory,
-    and for subdirectores interrupted/ and final_model/
+    Find the latest checkpoint by step number inside a checkpoints directory
     """
 
     checkpoints_dir = get_checkpoints_dir(config)
     candidates = []
     pattern = re.compile(r"(step|epoch)-(\d+)$")
 
-    for subfolder in ["interrupted", "final", None]:
+    for subfolder in ["interrupted", "final", "best_eval", None]:
         subdir = checkpoints_dir if subfolder is None else os.path.join(checkpoints_dir, subfolder)
         if not os.path.isdir(subdir):
             continue

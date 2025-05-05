@@ -14,13 +14,14 @@ from torch.utils.tensorboard import SummaryWriter
 import wandb
 from omegaconf import OmegaConf
 from TrainingState import TrainingState
-from utils.checkpoint import save_full_checkpoint, find_latest_checkpoint, get_path_to_save_checkpoint
-from utils.misc import move_batch_to_device, compute_grad_norm, set_deterministic_seed, get_gpu_memory_usage_snapshot, RunningAverage, get_device_local
+from utils.checkpoint import save_checkpoint_helper, find_latest_checkpoint
+from utils.misc import move_batch_to_device, compute_grad_norm, set_deterministic_seed, get_gpu_memory_usage_snapshot, RunningAverageEMA, get_device_local
 from utils.logging import log_tensorboard, export_tensorboard_scalars, log_console, maybe_initialize_wandb
 from utils.env_detect import is_running_with_accelerate
-from data import default_collate_fn
+from data import default_collate_fn, get_data_loaders
 from accelerate import Accelerator
 from accelerate.utils import set_seed
+from model import configure_optimizers
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from transformers import get_scheduler
 from utils.mixed_precision import get_amp_context, get_grad_scaler
@@ -39,76 +40,6 @@ def setup_accelerator(config):
 
     return None
 
-# Create dataloaders from datasets
-def create_dataloaders(train_data, val_data, config, use_dtype, accelerator=None):
-    train_loader = DataLoader(
-        train_data,
-        shuffle=True,
-        batch_size=config.train.batch_size,
-        collate_fn=lambda x: default_collate_fn(x,
-                                                keep_strings=False,
-                                                device="cuda" if accelerator else None,
-                                                dtype=use_dtype)
-    )
-
-    val_loader = DataLoader(
-        val_data,
-        shuffle=False,
-        batch_size=config.train.eval_batch_size,
-        collate_fn=lambda x: default_collate_fn(x, keep_strings=False,
-                                                device="cuda" if accelerator else None,
-                                                dtype=use_dtype)
-    )
-
-    return train_loader, val_loader
-
-
-
-# Setup optimizer and scheduler
-def setup_optimizer_scheduler(model, config, train_loader, accelerator=None):
-    total_steps = (len(train_loader) // config.train.gradient_accumulation_steps) * config.train.num_epochs
-
-    # Set no decay parameters for bias and LayerNorm since they don't need weight decay, this is the best practice
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimized_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": config.train.weight_decay,
-        },
-        {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-            "weight_decay": 0.0,
-        },
-    ]
-
-    if accelerator:
-        optimizer = ZeroRedundancyOptimizer(
-            optimized_grouped_parameters,
-            optimizer_class=torch.optim.AdamW,
-            lr=config.train.learning_rate
-        )
-        scheduler = get_scheduler(
-            name="linear",  # or "cosine", "cosine_with_restarts", etc.
-            optimizer=optimizer,
-            num_warmup_steps=config.train.warmup_steps,
-            num_training_steps=total_steps
-        )
-
-        # Wrap optimizer and scheduler in a list for accelerator.prepare
-        optimizer, scheduler = accelerator.prepare([optimizer, scheduler])
-    else:
-        optimizer = torch.optim.AdamW(optimized_grouped_parameters, lr=config.train.learning_rate)
-        scheduler = get_scheduler(
-            name="linear",  # or "cosine", "cosine_with_restarts", etc.
-            optimizer=optimizer,
-            num_warmup_steps=config.train.warmup_steps,
-            num_training_steps=total_steps
-        )
-
-    # Scales the loss to avoid underflow when using float16
-    scaler = get_grad_scaler(config.train.mixed_precision)
-
-    return optimizer, scheduler, scaler
 
 def train_model_low_level(config, model, tokenizer, train_data, val_data):
     log_console("🚀 Using manual low-level training loop...", accelerator=None)
@@ -133,11 +64,11 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
         model.to(device)
 
     # Dataloaders
-    train_loader, val_loader = create_dataloaders(train_data, val_data, config, use_dtype, accelerator)
+    train_loader, val_loader = get_data_loaders(train_data, val_data, config, use_dtype, accelerator)
     assert len(train_loader) > 0, "Train loader is empty!"
 
     # Setup optimizer and scheduler, scaler
-    optimizer, scheduler, scaler = setup_optimizer_scheduler(model, config, train_loader, accelerator)
+    optimizer, scheduler, scaler = configure_optimizers(model, config, train_loader, accelerator)
 
     # Make sure the save directory exists
     #  Outputs will be saved in the same directory as the model
@@ -184,23 +115,8 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
     if accelerator:
         accelerator.wait_for_everyone()
 
-    running_loss = RunningAverage()
-    running_grad_norm = RunningAverage()
     save_steps = config.train.save_steps
     eval_steps = config.train.eval_steps
-
-    def save_checkpoint_helper(config: Union[Namespace, DictConfig],
-                               check_type: Literal["checkpoint", "interrupted", "final"] = "checkpoint"):
-        is_interrupted = check_type == "interrupted"
-        is_final = check_type == "final"
-        file_path = get_path_to_save_checkpoint(config, is_interrupted=is_interrupted, is_final=is_final,
-                                     step=state.global_step)
-        save_full_checkpoint(
-            config=config,
-            state=state,
-            save_path=file_path,
-            save_total_limit=config.train.save_total_limit  # optional
-        )
 
     # Log initial learning rate
     log_tensorboard(writer=writer, tag="lr/initial", value=scheduler.get_last_lr()[0], step=global_step, accelerator=accelerator)
@@ -211,11 +127,23 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
     # The total datapoints trained so far
     is_training_ended = False
 
+    disable_tqdm = accelerator is not None and not accelerator.is_local_main_process
+    epochs_progress_bar = None
+    batch_progress_bar = None
     try:
-        for epoch in range(config.train.num_epochs):
+        epochs_progress_bar = tqdm(range(config.train.num_epochs), desc="Epochs", disable=disable_tqdm, dynamic_ncols=True, leave=False, position=0)
+        for epoch in epochs_progress_bar:
             log_console(f"Epoch {epoch + 1}/{config.train.num_epochs}", accelerator=accelerator)
 
-            for step, batch in enumerate(tqdm(train_loader)):
+            # Put model in training mode
+            model.train()
+
+            # Reset running metrics
+            state.running_loss.reset()
+            state.running_grad_norm.reset()
+
+            batch_progress_bar = tqdm(train_loader, desc=f"Training (Epoch {epoch + 1})", unit="batch", disable=disable_tqdm, dynamic_ncols=True, leave=False, position=1)
+            for step, batch in enumerate(batch_progress_bar):
                 if not state.accelerator:
                     batch = move_batch_to_device(batch, device=device)
 
@@ -224,6 +152,7 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
                         # No autocast in this case, accelerator handles precision
                         outputs = model(**batch)
                         loss = outputs.loss
+                        loss = loss / config.train.gradient_accumulation_steps
 
                         state.backward_and_step(loss, config)
 
@@ -231,25 +160,41 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
                     with get_amp_context(config.train.mixed_precision):
                         outputs = model(**batch)
                         loss = outputs.loss
+                        loss = loss / config.train.gradient_accumulation_steps
 
                         state.backward_and_step(loss, config)
+
+                current_lr = state.optimizer.param_groups[0]['lr']
+
+                # Update running metrics. For the accelerator, we need to use the unwrapped model so we don't keep a running grad norm
+                state.running_loss.update(loss.item())
+                if not state.accelerator:
+                    state.running_grad_norm.update(compute_grad_norm(state.model.parameters()))
+
+                # Update progress bar with details
+                batch_progress_bar.set_postfix(running_loss=f"{state.running_loss.get():.4f}",
+                                               running_gradnorm=f"{state.running_grad_norm.get():.4f}",
+                                               lr=f"{current_lr:.6f}",
+                                               best_eval_loss=f"{state.best_eval_loss}", refresh=True)
 
                 # Tensorboard logging
                 if state.global_step > 0 and state.global_step % config.train.logging_steps == 0:
                     params = state.accelerator.unwrap_model(state.model).parameters() if state.accelerator else state.model.parameters()
                     grad_norm = compute_grad_norm(params)
 
+
                     gpu_mem = get_gpu_memory_usage_snapshot()
                     log_tensorboard(writer, "train/loss", loss.item(), state.global_step)
+                    log_tensorboard(writer, "train/running_loss", state.running_loss.get(), state.global_step)
+
                     log_tensorboard(writer, "train/grad_norm", grad_norm, state.global_step)
                     log_tensorboard(writer, "train/gpu_memory", gpu_mem, state.global_step)
 
-                    current_lr = state.optimizer.param_groups[0]['lr']
                     log_tensorboard(writer, "train/lr", current_lr, state.global_step)
 
                 # Save checkpoint
                 if state.global_step > 0 and state.global_step % save_steps == 0:
-                    save_checkpoint_helper(config, check_type="checkpoint")
+                    save_checkpoint_helper(config, state=state, check_type="checkpoint")
 
                 # Evaluation
                 if state.global_step > 0 and state.global_step % eval_steps == 0:
@@ -257,7 +202,7 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
 
                 if config.train.max_steps and state.global_step >= config.train.max_steps:
                     log_console("✅ Reached max steps — stopping early. will save checkpoint.", accelerator=accelerator)
-                    save_checkpoint_helper(config, check_type="interrupted")
+                    save_checkpoint_helper(config, state=state, check_type="interrupted")
                     is_training_ended = True
                     break
 
@@ -265,26 +210,33 @@ def train_model_low_level(config, model, tokenizer, train_data, val_data):
                 break
 
         # Save final model
-        save_checkpoint_helper(config, check_type="final")
-        log_tensorboard(writer, "lr/final", scheduler.get_last_lr()[0], state.global_step)
+        save_checkpoint_helper(config, state=state, check_type="final")
+        log_tensorboard(writer, "final/lr", scheduler.get_last_lr()[0], state.global_step)
 
         # Final evaluation
-        if not is_training_ended:
-            log_console("🏁 Final evaluation...", accelerator=accelerator)
-            state.evaluate_helper(config, val_loader)
-            log_console(f"🏁 Training complete. Best eval loss: {state.best_eval_loss:.4f}", accelerator=accelerator)
-
+        log_console("🏁 Final evaluation...", accelerator=accelerator)
+        state.evaluate_helper(config, val_loader)
+        log_console(f"🏁 Training complete. Best eval loss: {state.best_eval_loss:.4f}", accelerator=accelerator)
+        log_tensorboard(writer, "final/best_eval_loss", state.best_eval_loss, state.global_step)
 
     except Exception as e:
         # Print callstack
         import traceback
         traceback.print_exc()
         log_console(f"❌ Training interrupted! Saving checkpoint... ({e})", accelerator=accelerator)
-        save_checkpoint_helper(config, check_type="interrupted")
+        save_checkpoint_helper(config, state=state, check_type="interrupted")
         raise
 
     finally:
         writer.close()
         if config.logging.use_wandb:
             wandb.finish()
+
+        if batch_progress_bar:
+            batch_progress_bar.close()
+        if epochs_progress_bar:
+            epochs_progress_bar.close()
+        epochs_progress_bar.close()
+        if accelerator:
+            accelerator.end_training()
 

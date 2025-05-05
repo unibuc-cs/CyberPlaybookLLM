@@ -5,20 +5,23 @@ import random
 import numpy as np
 import os
 
-# Running average class for tracking metrics
-class RunningAverage:
-    def __init__(self, momentum=0.9):
-        self.momentum = momentum
+# Running average class for tracking metrics using Exponential Moving Average
+class RunningAverageEMA:
+    def __init__(self, momentum=0.98):
         self.value = None
+        self.momentum = momentum
 
-    def update(self, new_value):
+    def update(self, new_val):
         if self.value is None:
-            self.value = new_value
+            self.value = new_val
         else:
-            self.value = self.momentum * self.value + (1 - self.momentum) * new_value
+            self.value = self.momentum * self.value + (1 - self.momentum) * new_val
 
     def get(self):
-        return self.value
+        return self.value if self.value is not None else 0.0
+
+    def reset(self):
+        self.value = None
 
 # Moves batches to device recursively
 def move_batch_to_device(batch, device):

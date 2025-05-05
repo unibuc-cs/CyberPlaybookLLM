@@ -8,6 +8,7 @@ Handling subset mode for quick testing
 
 import json
 from datasets import load_dataset, Dataset
+from torch.utils.data import DataLoader
 from openai.types import FileDeleted
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer
@@ -77,6 +78,19 @@ def format_for_completion(example):
 
     return {"text": full_text}
 
+
+IGNORE_INDEX = -100
+
+# Shift labels left by one position, but smartly handle the case with ignored labels
+def shift_labels_with_mask(labels):
+    shifted = [IGNORE_INDEX] * len(labels)
+    for i in range(len(labels) - 1):
+        if labels[i] != IGNORE_INDEX and labels[i + 1] != IGNORE_INDEX:
+            shifted[i] = labels[i + 1]
+        else:
+            shifted[i] = IGNORE_INDEX
+    return shifted
+
 def tokenize_with_labels(example, tokenizer, mode="full", max_length=2048):
     text = example["text"]
     tokens = tokenizer(text, truncation=True, padding="max_length", max_length=max_length)
@@ -92,14 +106,20 @@ def tokenize_with_labels(example, tokenizer, mode="full", max_length=2048):
         start = 0
         end = len(text)
 
+    # 1. Compute input and mask irrelevant regions for the task
     tokenized_prefix = tokenizer(text[:start], truncation=True, max_length=max_length)["input_ids"]
     tokenized_suffix = tokenizer(text[end:], truncation=True, max_length=max_length)["input_ids"]
 
     labels = input_ids.copy()
-    labels[:len(tokenized_prefix)] = [-100] * len(tokenized_prefix)
-    labels[-len(tokenized_suffix):] = [-100] * len(tokenized_suffix)
 
-    tokens["labels"] = labels
+    if len(tokenized_prefix) > 0:
+        labels[:len(tokenized_prefix)] = [IGNORE_INDEX] * len(tokenized_prefix)
+    if len(tokenized_suffix) > 0:
+        labels[-len(tokenized_suffix):] = [IGNORE_INDEX] * len(tokenized_suffix)
+
+    # 2. Shift labels left by one position
+    tokens["labels"] = shift_labels_with_mask(labels)
+
     return tokens
 
 def validate_dataset(dataset):
@@ -145,6 +165,7 @@ def load_datasets(config):
         config.train.eval_steps = 20
         config.train.save_steps = 20
         config.train.num_epochs = 3
+        config.train.warmup_steps = 0 # No warmup for quick testing
 
     train_dataset = Dataset.from_list([format_for_completion(e) for e in train_raw])
     val_dataset = Dataset.from_list([format_for_completion(e) for e in val_raw])
@@ -230,3 +251,27 @@ def default_collate_fn(batch, keep_strings=False, device=None, dtype=None):
         result = result[0]
 
     return result
+
+
+# Create dataloaders from datasets
+def get_data_loaders(train_data, val_data, config, use_dtype, accelerator=None):
+    train_loader = DataLoader(
+        train_data,
+        shuffle=True,
+        batch_size=config.train.batch_size,
+        collate_fn=lambda x: default_collate_fn(x,
+                                                keep_strings=False,
+                                                device="cuda" if accelerator else None,
+                                                dtype=use_dtype)
+    )
+
+    val_loader = DataLoader(
+        val_data,
+        shuffle=False,
+        batch_size=config.train.eval_batch_size,
+        collate_fn=lambda x: default_collate_fn(x, keep_strings=False,
+                                                device="cuda" if accelerator else None,
+                                                dtype=use_dtype)
+    )
+
+    return train_loader, val_loader
