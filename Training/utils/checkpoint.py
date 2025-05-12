@@ -7,9 +7,10 @@ from typing import Union, Literal, Any
 import torch
 import shutil
 import re
-
+from peft import get_peft_model_state_dict, set_peft_model_state_dict
 from omegaconf import DictConfig
 
+from Training.utils.logging import log_console
 
 # Saves model/tokenizer/optimizer/scheduler/scaler + Keeps only the last 3 checkpoints to save disk space
 def save_full_checkpoint(config, save_path, state, save_total_limit=3):
@@ -24,12 +25,17 @@ def save_full_checkpoint(config, save_path, state, save_total_limit=3):
 
     os.makedirs(save_path, exist_ok=True)
 
-    model_to_save.save_pretrained(save_path)
-    state.tokenizer.save_pretrained(save_path)
+    # Save model weights, only the PEFT part, independent of the training states (saved below)
+    torch.save(get_peft_model_state_dict(model_to_save),
+               os.path.join(save_path, "adapter_model.bin"))
+
+    # Save tokenizer config
+    if state.tokenizer:
+        state.tokenizer.save_pretrained(save_path)
 
     save_file_path = os.path.join(save_path, "training_states.pt")
     torch.save({
-        "model_state_dict": model_to_save.state_dict(),
+        #"model_state_dict": model_to_save.state_dict(),
         "optimizer_state_dict": state.optimizer.state_dict() if state.optimizer else None,
         "scheduler_state_dict": state.scheduler.state_dict() if state.scheduler else None,
         "scaler_state_dict": state.scaler.state_dict() if state.scaler is not None else None,
@@ -81,6 +87,10 @@ def save_checkpoint_helper(config: Union[Namespace, DictConfig],
     is_final = check_type == "final"
     is_best_eval = check_type == "best_eval"
 
+    if state.accelerator:
+        # Wait for all processes to reach this point
+        state.accelerator.wait_for_everyone()
+
     if config.train.no_save_during_testing and config.dataset.subset_mode == True:
         # Don't save during testing
         return
@@ -100,12 +110,19 @@ def save_checkpoint_helper(config: Union[Namespace, DictConfig],
         save_total_limit=config.train.save_total_limit  # optional
     )
 
+    if state.accelerator:
+        # Wait for all processes to reach this point
+        state.accelerator.wait_for_everyone()
+
 
 # Find the latest checkpoint for resuming, looks for ...checkpoint-<step> directories
-def find_latest_checkpoint(config):
+def find_latest_checkpoint(config, accelerator=None):
     """
     Find the latest checkpoint by step number inside a checkpoints directory
     """
+    if accelerator and not accelerator.is_local_main_process:
+        # Only the main process should look for checkpoints
+        return None, 0
 
     checkpoints_dir = get_checkpoints_dir(config)
     candidates = []
@@ -157,29 +174,57 @@ def cleanup_old_checkpoints(checkpoints_dir, keep_last_n=3):
 
 # Load training state from checkpoint
 # Encapsulates all logic for safe and synchronized state restoration in Accelerate environments:
-def load_training_state(checkpoint_path, model, optimizer, scheduler, scaler, accelerator=None):
-    if accelerator is not None and not accelerator.is_main_process:
-        return 0  # Avoid loading on other ranks
+def load_training_state(checkpoint_path, model, optimizer, scheduler, scaler, accelerator=None, config=None, device=None):
+    global_step = 0
 
-    # Always map to CPU first to avoid mismatches
-    state_dict = torch.load(os.path.join(checkpoint_path, "training_states.pt"), map_location="cpu")
+    if accelerator:
+        # Wait for all processes to reach this point
+        accelerator.wait_for_everyone()
 
-    # Load model state
-    model.load_state_dict(state_dict["model_state_dict"])
+    # Load state only on main process if using accelerator
+    is_main = accelerator is None or accelerator.is_main_process
+    if is_main:
+        # === Load LoRA adapter weights only ===
+        adapter_path = os.path.join(checkpoint_path, "adapter_model.bin")
+        if os.path.exists(adapter_path):
+            # Always map to CPU first to avoid mismatches
+            adapter_weights = torch.load(adapter_path, map_location="cpu")
+            set_peft_model_state_dict(model, adapter_weights)
 
-    # Move model to the GPU if available and not using accelerator
-    if accelerator is None and torch.cuda.is_available():
-        model.to("cuda")
+            # Move model to the GPU if available and not using accelerator
+            if accelerator is None and torch.cuda.is_available():
+                model.to(device)
+        else:
+            raise FileNotFoundError(f"Adapter weights not found at {adapter_path}")
 
-    # Load optimizer, scheduler, and scaler state
-    if optimizer and state_dict["optimizer_state_dict"]:
-        optimizer.load_state_dict(state_dict["optimizer_state_dict"])
-    if scheduler and state_dict["scheduler_state_dict"]:
-        scheduler.load_state_dict(state_dict["scheduler_state_dict"])
-    if scaler and state_dict["scaler_state_dict"]:
-        scaler.load_state_dict(state_dict["scaler_state_dict"])
+        # === Load training state ===
+        state_file = os.path.join(checkpoint_path, "training_states.pt")
+        if os.path.exists(state_file):
+            state_dict = torch.load(state_file, map_location="cpu")
 
-    return state_dict.get("global_step", 0)
+            # Load optimizer, scheduler, and scaler state
+            if optimizer and state_dict["optimizer_state_dict"]:
+                optimizer.load_state_dict(state_dict["optimizer_state_dict"])
+            if scheduler and state_dict["scheduler_state_dict"]:
+                scheduler.load_state_dict(state_dict["scheduler_state_dict"])
+            if scaler and state_dict["scaler_state_dict"]:
+                scaler.load_state_dict(state_dict["scaler_state_dict"])
+
+            global_step = state_dict.get("global_step", None)
+            assert global_step is not None, "Global step not found in checkpoint."
+        else:
+            raise FileNotFoundError(f"Training state not found at {state_file}")
+
+    if accelerator:
+        import torch.distributed as dist
+        # Broadcast the global step to all processes (need to be converted to tensor for this)
+        global_step_tensor = torch.tensor(global_step, device=accelerator.device)
+        dist.broadcast(global_step_tensor, src=0)
+        global_step = global_step_tensor.item() # Convert back to Python int
+
+        log_console(f"Global step {global_step} broadcasted to all processes.", accelerator)
+
+    return global_step
 
 # Extra: small callback class for Trainer
 from transformers import TrainerCallback

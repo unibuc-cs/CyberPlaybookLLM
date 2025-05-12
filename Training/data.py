@@ -145,10 +145,10 @@ def validate_dataset(dataset):
             if all(label == -100 for label in sample["labels"]):
                 raise ValueError(f"Sample {idx}: all labels are masked (-100)")
 
-    print("✅ Dataset looks valid!")
+    #print("✅ Dataset looks valid!")
 
-def load_datasets(config):
-    print("📚 Loading datasets...")
+def load_datasets(config, accelerator=None):
+    #print("📚 Loading datasets...")
 
     tokenizer = AutoTokenizer.from_pretrained(config.model.name_or_path, use_fast=True)
     if tokenizer.pad_token is None:
@@ -170,8 +170,7 @@ def load_datasets(config):
     train_dataset = Dataset.from_list([format_for_completion(e) for e in train_raw])
     val_dataset = Dataset.from_list([format_for_completion(e) for e in val_raw])
 
-    print("=== Sample BEFORE .map() ===")
-    print(train_dataset[0].keys())
+    #print(train_dataset[0].keys())
 
 
     def tokenize_mapper(examples):
@@ -188,8 +187,7 @@ def load_datasets(config):
         train_dataset = train_dataset.remove_columns(["text"])
         val_dataset = val_dataset.remove_columns(["text"])
 
-    print("=== Sample AFTER .map() ===")
-    print(train_dataset[0].keys())
+    #print(train_dataset[0].keys())
 
     # After train_dataset.map(...)
     print("✅ Validating mapped dataset...")
@@ -197,8 +195,8 @@ def load_datasets(config):
     validate_dataset(train_dataset)
     validate_dataset(val_dataset)
 
-    print(f"✅ Train size: {len(train_dataset)} samples")
-    print(f"✅ Val size: {len(val_dataset)} samples")
+    #print(f"✅ Train size: {len(train_dataset)} samples")
+    #print(f"✅ Val size: {len(val_dataset)} samples")
 
     return train_dataset, val_dataset, tokenizer
 
@@ -253,16 +251,33 @@ def default_collate_fn(batch, keep_strings=False, device=None, dtype=None):
     return result
 
 
+
 # Create dataloaders from datasets
-def get_data_loaders(train_data, val_data, config, use_dtype, accelerator=None):
+def get_data_loaders(train_data, val_data, config, use_dtype, rng_generator = None, accelerator=None):
+    import numpy as np
+    import random
+    def worker_init_fn(worker_id):
+        worker_seed = torch.initial_seed() % 2**32
+        np.random.seed(worker_seed)
+        random.seed(worker_seed)
+
+    # Create a generator for reproducibility
+    # Even if we set the seed, the generator will still be different so we need to set it on all ranks when using distributed training
+    rng_generator = torch.Generator()
+    rng_generator.manual_seed(config.train.seed + accelerator.process_index if accelerator else 0)
+
+
     train_loader = DataLoader(
         train_data,
         shuffle=True,
         batch_size=config.train.batch_size,
         collate_fn=lambda x: default_collate_fn(x,
                                                 keep_strings=False,
-                                                device="cuda" if accelerator else None,
-                                                dtype=use_dtype)
+                                                device=config.default_device if not accelerator else None,
+                                                dtype=use_dtype),
+        worker_init_fn = worker_init_fn,
+        generator = rng_generator,  # This parameter is used to specify the random number generator for shuffling the data, needed when shuffle=True
+        drop_last=True
     )
 
     val_loader = DataLoader(
@@ -270,8 +285,13 @@ def get_data_loaders(train_data, val_data, config, use_dtype, accelerator=None):
         shuffle=False,
         batch_size=config.train.eval_batch_size,
         collate_fn=lambda x: default_collate_fn(x, keep_strings=False,
-                                                device="cuda" if accelerator else None,
-                                                dtype=use_dtype)
+                                                device=config.default_device if not accelerator else None,
+                                                dtype=use_dtype),
+        worker_init_fn=worker_init_fn,
+        generator=rng_generator,
+        # This parameter is used to specify the random number generator for shuffling the data, needed when shuffle=True
+
+        drop_last=True
     )
 
     return train_loader, val_loader

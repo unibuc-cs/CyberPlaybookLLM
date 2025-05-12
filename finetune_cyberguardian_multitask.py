@@ -29,8 +29,8 @@ if __name__ == "__main__":
     # Load preprocessed training data and validation data
     train_data = Dataset.from_json("Dataset/Main/dataset_merged_train.json")
     val_data = Dataset.from_json("Dataset/Main/dataset_merged_val.json")
-    print(f"Train size: {len(train_data)}")
-    print(f"Validation size: {len(val_data)}")
+    #print(f"Train size: {len(train_data)}")
+    #print(f"Validation size: {len(val_data)}")
 
     # Load model and tokenizer
     model_name = "meta-llama/Llama-3.1-8B-Instruct"

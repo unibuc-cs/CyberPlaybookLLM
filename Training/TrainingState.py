@@ -14,6 +14,9 @@ from utils.mixed_precision import get_amp_context
 from utils.misc import move_batch_to_device
 from tqdm.auto import tqdm
 
+import torch.distributed as dist
+
+
 @dataclass
 class TrainingState:
     """
@@ -36,20 +39,22 @@ class TrainingState:
     def evaluate(self, config, val_loader):
         self.model.eval()
         losses = []
-        device = None if self.accelerator else self.model.device
 
         disable_tqdm = self.accelerator is not None and not self.accelerator.is_local_main_process
         eval_bar = tqdm(val_loader, desc="Evaluating", unit="batch",
                         disable=disable_tqdm, position=2, leave=False, dynamic_ncols=True)
 
-        with torch.no_grad(), get_amp_context(config.train.mixed_precision):
+        device = self.accelerator.device if self.accelerator else self.model.device
+
+        with torch.no_grad(), (self.accelerator.autocast() if self.accelerator else get_amp_context(config.train.mixed_precision, device)):
             for batch in eval_bar:
                 batch = move_batch_to_device(batch, device=device)
-
                 outputs = self.model(**batch)
                 loss = outputs.loss
                 losses.append(loss.detach().cpu())
 
+        # Keep only non -NaN/NaN losses
+        losses = [loss for loss in losses if not torch.isnan(loss).any()]
         if not losses:
             return float('inf')
 
@@ -57,17 +62,36 @@ class TrainingState:
         return losses.mean().item()
 
     def evaluate_helper(self, config, val_loader, tag="eval/loss"):
-        # Only evaluate on the main process
-        if self.accelerator and not self.accelerator.is_main_process:
-            return
+        eval_loss = 0.0  # Always define something
 
-        eval_loss = self.evaluate(config, val_loader)
-        log_tensorboard(self.writer, tag, eval_loss, self.global_step)
+        is_main = self.accelerator is None or self.accelerator.is_local_main_process
+        rank = self.accelerator.process_index if self.accelerator else 0
 
-        if eval_loss < self.best_eval_loss:
-            self.best_eval_loss = eval_loss
-            log_console(f"✔️  New best eval loss: {self.best_eval_loss}", accelerator=self.accelerator)
-            # save_checkpoint_helper(config, check_type="checkpoint")
+        if self.accelerator:
+            self.accelerator.wait_for_everyone()
+            log_console(f"🏁 Evaluate check on rank {rank} - main: {is_main}", accelerator=self.accelerator)
+
+        # Everyone runs evaluate (for safe gather), only main logs/tensors
+        if self.accelerator:
+            # All ranks call evaluate; only rank 0 logs
+            eval_loss = self.evaluate(config, val_loader)  # This should be safe to run on all ranks
+            if is_main:
+                log_tensorboard(self.writer, tag, eval_loss, self.global_step)
+                if eval_loss < self.best_eval_loss:
+                    self.best_eval_loss = eval_loss
+                    log_console(f"✔️  New best eval loss: {self.best_eval_loss}", accelerator=self.accelerator)
+        else:
+            eval_loss = self.evaluate(config, val_loader)
+
+        # Gather across ranks
+        if self.accelerator:
+            eval_tensor = torch.tensor([eval_loss], device=self.accelerator.device)
+            gathered = self.accelerator.gather_for_metrics(eval_tensor)
+
+            # Rank 0 uses its own loss
+            eval_loss = gathered[0].item()
+            self.accelerator.wait_for_everyone()
+            log_console(f"🏁 Evaluation result end on rank {rank}. Loss: {eval_loss}", accelerator=self.accelerator)
 
         return eval_loss
 

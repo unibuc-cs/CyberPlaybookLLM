@@ -11,17 +11,36 @@ def log_tensorboard(writer, tag, value, step, accelerator=None):
     """
     Log scalars to Tensorboard, optionally only on the main process if using accelerator.
     """
-    if accelerator is None or accelerator.is_local_main_process:
+    if (accelerator is None or accelerator.is_local_main_process) and writer is not None:
         writer.add_scalar(tag, value, step)
 
-def log_console(message, accelerator = None):
+def log_console(message, accelerator=None, flush=True, level="info"):
     """
-    Log messages to console, optionally only on the main process if using accelerator.
+    Log messages to console with optional color and severity level.
+    Only logs from the main process unless specified.
     """
-    if accelerator is None:
-        print(message)
+
+    COLORS = {
+        "info": "\033[94m",     # Blue
+        "success": "\033[92m",  # Green
+        "warning": "\033[93m",  # Yellow
+        "error": "\033[91m",    # Red
+        "reset": "\033[0m",     # Reset
+    }
+
+    color = COLORS.get(level, COLORS["info"])
+    reset = COLORS["reset"]
+
+    rank = accelerator.process_index if accelerator else 0
+    prefix = f"[rank{rank}]"
+
+    formatted = f"{color}{prefix}:{message}{reset}"
+
+    if accelerator:
+        accelerator.print(formatted, flush=flush)
     else:
-        accelerator.print(message)
+        print(formatted, flush=flush)
+
 
 def export_tensorboard_scalars(log_dir, export_dir="./exports", prefix="run"):
     """

@@ -41,6 +41,16 @@ project/
  - The fine-tuning scripts and configurations are located in the `Training` folder. The training process involves fine-tuning the LLaMA model on the playbook dataset using PyTorch and Hugging Face Transformers.
  - Using SFT module from HuggingFace on the mentioned dataset above 
 
+
+### Curriculum learning
+ - The training process is divided into three stages:
+   - **Mitigation training**: The model is first trained on a dataset of mitigations, which are specific actions or steps taken to address security incidents.
+   - **Playbook training**: The model is then trained on a dataset of playbooks, which are structured documents outlining the steps to be followed in response to specific incidents.
+   - **Incident training**: Finally, the model is trained on a dataset of incidents, which are real-world cybersecurity events and scenarios.
+ - The main script for training is `train_low_level.py`, which handles the training loop and model updates. The script uses the `TrainingState` class to manage the training state, including loading and saving checkpoints, logging metrics, and handling early stopping.
+ - The curriculum learning approach is implemented in the `TrainingState` class, which manages the training process and allows for easy switching between different training stages. The class also handles the loading and saving of model checkpoints, logging of training metrics, and early stopping based on validation performance.
+ - Use curriculum_trainer.py to train the model with curriculum learning. The script takes care of loading the dataset, initializing the model, and managing the training process.
+
 ### Evaluation
  - The evaluation scripts are located in the `Evaluation` folder. The evaluation process involves testing the fine-tuned model on a separate test set of playbooks and incidents to assess its performance and accuracy.
  - Technical paper describe the custom metrics we adoped to evaluate the model's performance.

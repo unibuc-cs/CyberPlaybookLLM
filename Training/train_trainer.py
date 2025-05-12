@@ -1,3 +1,4 @@
+# NOT USED ANYMORE, prefer using the train_low_level.py
 # train_trainer.py: Trainer-based training module.
 
 """

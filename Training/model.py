@@ -12,8 +12,9 @@ from torch.distributed.optim import ZeroRedundancyOptimizer
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_scheduler
 from peft import LoraConfig, get_peft_model
 from utils.logging import log_console
+from torch.optim import AdamW
 
-def load_model_and_tokenizer(config, tokenizer=None):
+def load_model_and_tokenizer(config, tokenizer=None, accelerator=None):
     model_name = config.model.name_or_path
 
     if tokenizer is None:
@@ -24,10 +25,11 @@ def load_model_and_tokenizer(config, tokenizer=None):
     # Set the initial dtype for memory-efficient loading
     dtype = torch.bfloat16 if config.train.mixed_precision == "bf16" else torch.float32
 
+    log_console("🏁 Loading up the model", accelerator)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=dtype,
-        device_map="auto" if config.get("device_map") else None
+        device_map={"": "cpu"}  # force CPU load, even if sharded
     )
 
     if config.model.apply_lora:
@@ -39,15 +41,17 @@ def load_model_and_tokenizer(config, tokenizer=None):
         model.gradient_checkpointing_enable()
 
     # Let Accelerator or caller decide where and how to place it.
-    model = model.to(dtype=torch.bfloat16 if config.train.mixed_precision == "bf16" else torch.float32)
+    if not accelerator:
+        log_console("🏁 Moving to device since not using accelerator", accelerator)
+        model = model.to(dtype=torch.bfloat16 if config.train.mixed_precision == "bf16" else torch.float32, device=config.default_device)
 
     model.print_trainable_parameters()
 
     if config.train.max_steps % config.train.eval_steps != 0:
-        log_console("⚠️ Warning: max_steps not divisible by eval_steps")
+        log_console("⚠️ Warning: max_steps not divisible by eval_steps", accelerator)
 
     if config.train.max_steps % config.train.save_steps != 0:
-        log_console("⚠️ Warning: max_steps not divisible by save_steps")
+        log_console("⚠️ Warning: max_steps not divisible by save_steps", accelerator)
 
     # # Check actual trainable parameters
     # log_console("Trainable parameters:")
@@ -71,7 +75,7 @@ def apply_lora(model, config):
     return model
 
 # Setup optimizer and scheduler
-def configure_optimizers(model, config, train_loader, accelerator=None):
+def configure_optimizers(model, config, train_loader, accelerator=None, device=None):
     total_steps = (len(train_loader) // config.train.gradient_accumulation_steps) * config.train.num_epochs
 
     # Set no decay parameters for bias and LayerNorm since they don't need weight decay, this is the best practice
@@ -89,11 +93,13 @@ def configure_optimizers(model, config, train_loader, accelerator=None):
     ]
 
     if accelerator:
-        optimizer = ZeroRedundancyOptimizer(
-            optimized_grouped_parameters,
-            optimizer_class=torch.optim.AdamW,
-            lr=config.train.learning_rate
-        )
+        # optimizer = ZeroRedundancyOptimizer(
+        #     optimized_grouped_parameters,
+        #     optimizer_class=torch.optim.AdamW,
+        #     lr=config.train.learning_rate)
+
+        optimizer = AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=config.train.learning_rate)
+
         scheduler = get_scheduler(
             name="cosine",  # or "cosine", "cosine_with_restarts", etc.
             optimizer=optimizer,
@@ -112,11 +118,11 @@ def configure_optimizers(model, config, train_loader, accelerator=None):
             num_training_steps=total_steps
         )
 
-    log_console(f"Using LR: {config.train.learning_rate}. In optimizer: {optimizer.defaults['lr']}")
+    log_console(f"Using LR: {config.train.learning_rate}. In optimizer: {optimizer.defaults['lr']}", accelerator)
 
     # Scales the loss to avoid underflow when using float16
     if config.train.mixed_precision != "bf16":
-        scaler = get_grad_scaler(config.train.mixed_precision)
+        scaler = get_grad_scaler(config.train.mixed_precision, device)
     else:
         scaler = None
 
