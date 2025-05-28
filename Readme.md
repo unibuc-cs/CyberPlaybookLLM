@@ -7,7 +7,7 @@
  - By combining the capabilities of LLMs with the structured approach of playbooks, it aims to enhance the efficiency and effectiveness of incident response and security operations.
  - It is designed to assist cybersecurity professionals (SoCs) in creating, managing, and executing playbooks for various security incidents and scenarios. 
  - Currently we use CACAO and MITRE ATT&CK as the main sources of playbooks and incidents
- - [CACAO](https://cacao.mitre.org/)
+ - [CACAO](https://github.com/oasis-tcs/cacao)
  - [MITRE ATT&CK](https://attack.mitre.org/)
 
 ## Features
